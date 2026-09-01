@@ -458,3 +458,13 @@ Contradiction Finder / Churn Analyzer / Segment Discovery / Evidence Map 等は�
 3. **Evidence の relevanceScore は LLM に自己申告させず、Evidence Retrieval が返した Observation ID の並び順から機械的に算出**（`1.0 - 0.05×順位`、下限0.5）。Confidence を LLM に自己申告させない方針（design-review.md P0-2）と一貫させるため。
 4. **Evidence Retrieval は毎回プロジェクト内の全 Observation を LLM に渡す**（FTS5/埋め込み検索は未実装）。デモ規模（数十件のObservation）では問題にならないが、大規模プロジェクトではトークン予算を圧迫する。Phase 6 でのスケール課題として明記。
 5. **フロントエンドは Vite/Preact ではなく素の HTML/CSS/JS のまま**（§17 に既出の変更を Phase 2/3 でも継続）。SSE・Insight詳細・Evidence原文ハイライト・評価画面・設定画面・CSVインポートUIまで含めて、ビルドステップなしで実装できている。
+
+## 21. 用途の追加: 自分用の収益機会発見モード **[追加]**
+
+Hidden Needs Finder のパイプライン（Observation→Grounding→Pattern→Hypothesis→Evidence→Confidence）はデータソースに依存しない。当初設計は「顧客企業への納品・営業デモ」を主用途としていたが、同じエンジンをユーザー自身の収益機会発見にも転用できるよう以下を追加した。
+
+- `domain.SourceType` に `job_posting`（案件・募集文）と `social_post`（SNS投稿）を追加。他のCoWorkスキル（`market-demand-research` 等）の出力をそのまま貼り付けて解析対象にできる。
+- Insight に **`MonetizationAngle`**（収益化の切り口）フィールドを追加。`ProductOpportunity` が「対象企業への改善提案」であるのに対し、`MonetizationAngle` は「このニーズをユーザー自身が新しい商品・サービスとして提供するなら何ができるか（誰が対価を払うか、note/テンプレート/SaaS/コンサル等どの形式が向いているか）」を出力する。空文字列を許容し、該当する切り口がない場合は表示しない。
+- DB: `insights.monetization_angle TEXT`（nullable）を追加。まだリリースされていない前提で `001_init.sql` を直接編集した（マイグレーション追加はしていない）。
+
+この変更により、Insight Lab は「他社に売り込むデモツール」と「自分でニーズを見つけて自分で商品化するための分析ツール」の両方として使える。どちらの用途で使うかはデータソース（顧客インタビュー vs 案件サイト/SNS）と読み手（クライアント向け vs 自分向け）が変わるだけで、エンジン自体は共通である。

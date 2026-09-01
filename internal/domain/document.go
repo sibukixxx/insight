@@ -5,16 +5,19 @@ import "time"
 type SourceType string
 
 const (
-	SourceInterview SourceType = "interview"
-	SourceReview    SourceType = "review"
-	SourceSupport   SourceType = "support"
-	SourceSales     SourceType = "sales"
-	SourceSurvey    SourceType = "survey"
+	SourceInterview  SourceType = "interview"
+	SourceReview     SourceType = "review"
+	SourceSupport    SourceType = "support"
+	SourceSales      SourceType = "sales"
+	SourceSurvey     SourceType = "survey"
+	SourceJobPosting SourceType = "job_posting" // 案件・募集文（発注者の悩み）
+	SourceSocialPost SourceType = "social_post" // SNS投稿・伸びている投稿の観察
 )
 
 func (s SourceType) Valid() bool {
 	switch s {
-	case SourceInterview, SourceReview, SourceSupport, SourceSales, SourceSurvey:
+	case SourceInterview, SourceReview, SourceSupport, SourceSales, SourceSurvey,
+		SourceJobPosting, SourceSocialPost:
 		return true
 	}
 	return false

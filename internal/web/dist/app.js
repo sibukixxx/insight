@@ -10,6 +10,8 @@
     support: "問い合わせ",
     sales: "商談ログ",
     survey: "アンケート",
+    job_posting: "案件・募集文",
+    social_post: "SNS投稿",
   };
 
   const STEP_LABELS = {
@@ -294,6 +296,8 @@
               <option value="support">問い合わせ</option>
               <option value="sales">商談ログ</option>
               <option value="survey">アンケート</option>
+              <option value="job_posting">案件・募集文</option>
+              <option value="social_post">SNS投稿</option>
             </select>
           </div>
           <div><label>タイトル</label><input type="text" name="title" placeholder="例: Interview #15"></div>
@@ -464,9 +468,14 @@
           <div>${escapeHtml(insight.alternativeInterpretation || "-")}</div>
         </div>
         <div class="field-block">
-          <div class="field-label">Product Opportunity</div>
+          <div class="field-label">Product Opportunity（改善提案）</div>
           <div>${escapeHtml(insight.productOpportunity || "-")}</div>
         </div>
+        ${insight.monetizationAngle ? `
+        <div class="field-block money-block">
+          <div class="field-label">Monetization Angle（自分で売るなら）</div>
+          <div>${escapeHtml(insight.monetizationAngle)}</div>
+        </div>` : ""}
       </div>
 
       <div class="card">

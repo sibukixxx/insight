@@ -150,6 +150,8 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .source-support { background: #fff2e0; color: #b8860b; }
 .source-sales { background: #f5eaff; color: #7b3fd1; }
 .source-survey { background: #ffeaf0; color: #d1457f; }
+.source-job_posting { background: #e8f7f5; color: #0e8a7d; }
+.source-social_post { background: #eef2ff; color: #4338ca; }
 
 form.paste-form { display: grid; gap: 10px; margin-top: 8px; }
 form.paste-form label { font-size: 13px; color: var(--text-muted); }
@@ -244,6 +246,7 @@ footer.privacy {
 .latent-block { background: #fff2e0; }
 .interpretation-block { background: #f5eaff; }
 .alt-block { background: #eafaf0; }
+.money-block { background: #fff8de; border: 1px solid #f0d97a; }
 
 /* Evidence */
 .evidence-row { border-bottom: 1px solid var(--border); padding: 10px 0; }

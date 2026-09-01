@@ -34,6 +34,7 @@ type Insight struct {
 	Interpretation            string
 	AlternativeInterpretation string
 	ProductOpportunity        string
+	MonetizationAngle         string
 	Confidence                float64
 	Evidence                  []Evidence
 	CreatedAt                 time.Time

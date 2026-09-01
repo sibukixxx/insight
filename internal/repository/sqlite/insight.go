@@ -18,11 +18,11 @@ func NewInsightRepository(db *DB) *InsightRepository {
 func (r *InsightRepository) Create(ctx context.Context, insight *domain.Insight) error {
 	_, err := r.db.ExecContext(ctx,
 		`INSERT INTO insights (id, project_id, analysis_id, title, observation, stated_need, latent_need, jtbd,
-		 interpretation, alternative_interpretation, product_opportunity, confidence, created_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		 interpretation, alternative_interpretation, product_opportunity, monetization_angle, confidence, created_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		insight.ID, insight.ProjectID, nullableString(insight.AnalysisID), insight.Title, insight.Observation,
 		insight.StatedNeed, insight.LatentNeed, insight.JTBD, insight.Interpretation,
-		insight.AlternativeInterpretation, insight.ProductOpportunity, insight.Confidence,
+		insight.AlternativeInterpretation, insight.ProductOpportunity, insight.MonetizationAngle, insight.Confidence,
 		formatTime(insight.CreatedAt))
 	return err
 }
@@ -30,7 +30,7 @@ func (r *InsightRepository) Create(ctx context.Context, insight *domain.Insight)
 func (r *InsightRepository) Get(ctx context.Context, id string) (*domain.Insight, error) {
 	row := r.db.QueryRowContext(ctx,
 		`SELECT id, project_id, analysis_id, title, observation, stated_need, latent_need, jtbd,
-		 interpretation, alternative_interpretation, product_opportunity, confidence, created_at
+		 interpretation, alternative_interpretation, product_opportunity, monetization_angle, confidence, created_at
 		 FROM insights WHERE id = ?`, id)
 	return scanInsight(row)
 }
@@ -38,7 +38,7 @@ func (r *InsightRepository) Get(ctx context.Context, id string) (*domain.Insight
 func (r *InsightRepository) ListByProject(ctx context.Context, projectID string) ([]*domain.Insight, error) {
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT id, project_id, analysis_id, title, observation, stated_need, latent_need, jtbd,
-		 interpretation, alternative_interpretation, product_opportunity, confidence, created_at
+		 interpretation, alternative_interpretation, product_opportunity, monetization_angle, confidence, created_at
 		 FROM insights WHERE project_id = ? ORDER BY confidence DESC`, projectID)
 	if err != nil {
 		return nil, err
@@ -67,8 +67,10 @@ func scanInsight(s scanner) (*domain.Insight, error) {
 	var i domain.Insight
 	var createdAt string
 	var analysisID sql.NullString
+	var monetizationAngle sql.NullString
 	if err := s.Scan(&i.ID, &i.ProjectID, &analysisID, &i.Title, &i.Observation, &i.StatedNeed, &i.LatentNeed,
-		&i.JTBD, &i.Interpretation, &i.AlternativeInterpretation, &i.ProductOpportunity, &i.Confidence, &createdAt); err != nil {
+		&i.JTBD, &i.Interpretation, &i.AlternativeInterpretation, &i.ProductOpportunity, &monetizationAngle,
+		&i.Confidence, &createdAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, repository.ErrNotFound
 		}
@@ -78,6 +80,7 @@ func scanInsight(s scanner) (*domain.Insight, error) {
 		v := analysisID.String
 		i.AnalysisID = &v
 	}
+	i.MonetizationAngle = monetizationAngle.String
 	t, err := parseTime(createdAt)
 	if err != nil {
 		return nil, err

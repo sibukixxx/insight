@@ -44,7 +44,8 @@ const insightWriteupPrompt = basePrompt + `
 - observationSummary には、支持する Observation から確認できる事実を簡潔にまとめてください。
 - interpretation には、その事実からどう解釈できるか（AIによる推論であることが分かる書き方）を書いてください。
 - alternativeInterpretation には、同じ事実から導ける別の解釈を必ず書いてください（例: 別の要因が原因である可能性）。
-- productOpportunity には、この洞察から示唆される製品改善の方向性を書いてください。`
+- productOpportunity には、この洞察から示唆される製品改善の方向性を書いてください（対象となる企業やチームが存在する場合）。
+- monetizationAngle には、この洞察が示す満たされていないニーズを、あなた自身が新しい商品・サービスとして提供するとしたら何ができそうかを書いてください。誰が対価を払いそうか、note/テンプレート/SaaS/コンサル/講座などどの形式が向いていそうか、を具体的に。製品改善の話ではなく、新規に売り物を作る視点であることに注意してください。該当する切り口が思いつかない場合は空文字列にしてください。`
 
 const dedupePrompt = basePrompt + `
 

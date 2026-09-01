@@ -175,7 +175,8 @@ func (p *Pipeline) persistInsights(ctx context.Context, projectID string, drafts
 			Observation: d.writeup.ObservationSummary, StatedNeed: d.hypothesis.StatedNeed,
 			LatentNeed: d.hypothesis.LatentNeed, JTBD: d.hypothesis.JTBD,
 			Interpretation: d.writeup.Interpretation, AlternativeInterpretation: d.writeup.AlternativeInterpretation,
-			ProductOpportunity: d.writeup.ProductOpportunity, CreatedAt: time.Now().UTC(),
+			ProductOpportunity: d.writeup.ProductOpportunity, MonetizationAngle: d.writeup.MonetizationAngle,
+			CreatedAt: time.Now().UTC(),
 		}
 
 		supportRows := buildEvidenceRows(insight.ID, d.supporting, domain.EvidenceSupport)

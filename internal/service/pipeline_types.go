@@ -204,6 +204,7 @@ type insightWriteup struct {
 	Interpretation            string `json:"interpretation"`
 	AlternativeInterpretation string `json:"alternativeInterpretation"`
 	ProductOpportunity        string `json:"productOpportunity"`
+	MonetizationAngle         string `json:"monetizationAngle"`
 }
 
 func insightWriteupSchema() llm.Schema {
@@ -217,6 +218,7 @@ func insightWriteupSchema() llm.Schema {
 				"interpretation":            map[string]any{"type": "string"},
 				"alternativeInterpretation": map[string]any{"type": "string"},
 				"productOpportunity":        map[string]any{"type": "string"},
+				"monetizationAngle":         map[string]any{"type": "string"},
 			},
 			"required": []string{"title", "interpretation", "alternativeInterpretation"},
 		},

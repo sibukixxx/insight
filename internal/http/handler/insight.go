@@ -22,6 +22,7 @@ type insightDTO struct {
 	Interpretation            string  `json:"interpretation"`
 	AlternativeInterpretation string  `json:"alternativeInterpretation"`
 	ProductOpportunity        string  `json:"productOpportunity"`
+	MonetizationAngle         string  `json:"monetizationAngle"`
 	Confidence                float64 `json:"confidence"`
 	CreatedAt                 string  `json:"createdAt"`
 }
@@ -31,7 +32,7 @@ func toInsightDTO(i *domain.Insight) insightDTO {
 		ID: i.ID, ProjectID: i.ProjectID, Title: i.Title, Observation: i.Observation,
 		StatedNeed: i.StatedNeed, LatentNeed: i.LatentNeed, JTBD: i.JTBD,
 		Interpretation: i.Interpretation, AlternativeInterpretation: i.AlternativeInterpretation,
-		ProductOpportunity: i.ProductOpportunity, Confidence: i.Confidence,
+		ProductOpportunity: i.ProductOpportunity, MonetizationAngle: i.MonetizationAngle, Confidence: i.Confidence,
 		CreatedAt: i.CreatedAt.UTC().Format(time.RFC3339),
 	}
 }

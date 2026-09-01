@@ -7,7 +7,7 @@ CREATE TABLE projects (
 CREATE TABLE documents (
     id TEXT PRIMARY KEY,
     project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-    source TEXT NOT NULL CHECK (source IN ('interview','review','support','sales','survey')),
+    source TEXT NOT NULL CHECK (source IN ('interview','review','support','sales','survey','job_posting','social_post')),
     title TEXT,
     content TEXT NOT NULL,
     metadata TEXT,
@@ -53,6 +53,7 @@ CREATE TABLE insights (
     interpretation TEXT,
     alternative_interpretation TEXT,
     product_opportunity TEXT,
+    monetization_angle TEXT,
     confidence REAL,
     created_at TEXT NOT NULL
 );

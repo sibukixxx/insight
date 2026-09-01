@@ -95,7 +95,8 @@ func (f *fakeLLM) Generate(ctx context.Context, req llm.GenerateRequest) (*llm.G
 			"observationSummary":"複数ユーザーが送信前に手動で確認している",
 			"interpretation":"時間短縮より、失敗を避けられる確信を求めている可能性がある",
 			"alternativeInterpretation":"単に社内の承認プロセスが原因である可能性もある",
-			"productOpportunity":"送信前の異常値検出と確認済み証跡の提供"
+			"productOpportunity":"送信前の異常値検出と確認済み証跡の提供",
+			"monetizationAngle":"請求書ミス防止チェックリストやテンプレートをnoteで販売できる可能性がある"
 		}`)
 
 	case "insight_dedupe":
@@ -190,6 +191,9 @@ func TestPipelineRunEndToEnd(t *testing.T) {
 	insight := list[0]
 	if insight.LatentNeed == "" || insight.AlternativeInterpretation == "" {
 		t.Errorf("insight missing required narrative fields: %+v", insight)
+	}
+	if insight.MonetizationAngle == "" {
+		t.Error("MonetizationAngle should round-trip through persistence")
 	}
 	if insight.Confidence <= 0 || insight.Confidence > 1 {
 		t.Errorf("Confidence = %f, want in (0,1]", insight.Confidence)
