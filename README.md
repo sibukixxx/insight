@@ -2,6 +2,8 @@
 
 顧客インタビュー・レビュー・問い合わせ履歴などのテキストから、明示されていない潜在ニーズ・JTBD・改善仮説を抽出するローカル実行型 AI 分析ツール。Go 単一バイナリ + 埋め込み Web UI + SQLite + OpenAI 互換 LLM API。
 
+**このプロジェクトを引き継ぐ人は、まず [HANDOFF.md](HANDOFF.md) を読んでください。** プロダクトの背景・コードの地図・現状の検証状況・気をつけるべき点が最短経路でまとまっています。
+
 Insight は単独で提示せず、必ず **Insight → Evidence（原文照合済み引用）→ 反証 → Confidence** のセットで表示する。「複数の声を突き合わせて『ここが違う』と気づく」というインサイト抽出特有のブラックボックスな推論過程も、Observation（引用）→ Pattern（繰り返しへの気づき）→ Rationale（なぜその仮説に至ったか）→ Insight という連鎖として、Insight詳細画面と `#/projects/:id/patterns` ページでたどれるようにしている。
 
 抽出エンジンはドメイン非依存。顧客インタビューだけでなく、案件サイトの募集文や伸びているSNS投稿を貼り付けても同じロジックで「隠れたニーズ」を見つけられる。各Insightには `Product Opportunity`（対象企業向けの改善提案）に加えて **`Monetization Angle`**（そのニーズを自分自身が商品・サービス化するなら何ができるか）も出力される。他社に売り込むデモにも、自分で機会を見つけて自分で作る用途にも使える。
@@ -55,10 +57,14 @@ make test   # go test（デモ/納品タグ両方）
 
 | ドキュメント | 内容 |
 |---|---|
+| [HANDOFF.md](HANDOFF.md) | **引き継ぎの入り口。まずここから。** 読む順番・現状・Gotchas |
+| [docs/blueprint.md](docs/blueprint.md) | プロダクトブループリント(なぜ作るか・誰のためか・現在地・未検証事項・ロードマップ) |
+| [docs/architecture.md](docs/architecture.md) | アーキテクチャガイド(全体図・パイプライン図・データモデル・チートシート・不変条件) |
+| [docs/operations.md](docs/operations.md) | 運用Runbook(ビルド・設定・デプロイ・トラブルシューティング) |
 | [docs/detailed-design.md](docs/detailed-design.md) | 確定版詳細設計 v1（アーキテクチャ / ドメインモデル / パイプライン / DDL / API / ビルド分離） |
 | [docs/design-review.md](docs/design-review.md) | ドラフト設計の検証レポート（P0/P1/P2 の指摘と修正方針） |
 | [docs/implementation-plan.md](docs/implementation-plan.md) | フェーズ別実装プラン（Phase 1〜6、完了条件、リスク） |
 
 ## ステータス
 
-Phase 1〜3 実装完了（単一バイナリ骨格、デモ/納品ビルド分離、LLM接続、Observation抽出、Grounding Check、Hidden Needs パイプライン、Evidence/Confidence、SSE進捗、評価画面、CSVインポート、GitHub Actions CI/Release）。詳細は [docs/implementation-plan.md](docs/implementation-plan.md) を参照。
+Phase 1〜3 実装完了（単一バイナリ骨格、デモ/納品ビルド分離、LLM接続、Observation抽出、Grounding Check、Hidden Needs パイプライン、Evidence/Confidence/Pattern可視化、SSE進捗、評価画面、CSVインポート）。GitHub Actions（CI/Release）はローカルには存在するが、リポジトリへの反映がGitHub App権限の都合で保留中（[HANDOFF.md](HANDOFF.md) のGotchas参照）。詳細は [docs/implementation-plan.md](docs/implementation-plan.md) を参照。
