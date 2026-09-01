@@ -1,0 +1,12 @@
+/bin/
+*.db
+*.db-wal
+*.db-shm
+
+# GitHub Actions workflows are written and kept on disk (see
+# docs/implementation-plan.md Phase 5) but this session's GitHub App
+# token lacks the `workflows` OAuth scope, so GitHub rejects any push
+# that touches .github/workflows/*. Ignored here so the repo state stays
+# clean instead of showing them as perpetually untracked; once the app
+# is granted `workflows` permission, remove this entry and commit them.
+.github/workflows/
