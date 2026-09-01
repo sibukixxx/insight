@@ -1,0 +1,122 @@
+package handler
+
+import (
+	"encoding/json"
+	"errors"
+	"net/http"
+	"time"
+
+	"github.com/go-chi/chi/v5"
+
+	"insight-lab/internal/domain"
+	"insight-lab/internal/repository"
+)
+
+type documentDTO struct {
+	ID        string            `json:"id"`
+	ProjectID string            `json:"projectId"`
+	Source    string            `json:"source"`
+	Title     string            `json:"title"`
+	Content   string            `json:"content"`
+	Metadata  map[string]string `json:"metadata,omitempty"`
+	CreatedAt string            `json:"createdAt"`
+}
+
+func toDocumentDTO(d *domain.Document) documentDTO {
+	return documentDTO{
+		ID:        d.ID,
+		ProjectID: d.ProjectID,
+		Source:    string(d.Source),
+		Title:     d.Title,
+		Content:   d.Content,
+		Metadata:  d.Metadata,
+		CreatedAt: d.CreatedAt.UTC().Format(time.RFC3339),
+	}
+}
+
+func (h *Handler) requireProject(w http.ResponseWriter, r *http.Request, projectID string) bool {
+	if _, err := h.Projects.Get(r.Context(), projectID); err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "project not found")
+			return false
+		}
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return false
+	}
+	return true
+}
+
+func (h *Handler) ListDocuments(w http.ResponseWriter, r *http.Request) {
+	projectID := chi.URLParam(r, "projectID")
+	if !h.requireProject(w, r, projectID) {
+		return
+	}
+	docs, err := h.Documents.ListByProject(r.Context(), projectID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	out := make([]documentDTO, 0, len(docs))
+	for _, d := range docs {
+		out = append(out, toDocumentDTO(d))
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+type createDocumentRequest struct {
+	Source   string            `json:"source"`
+	Title    string            `json:"title"`
+	Content  string            `json:"content"`
+	Metadata map[string]string `json:"metadata"`
+}
+
+func (h *Handler) CreateDocument(w http.ResponseWriter, r *http.Request) {
+	projectID := chi.URLParam(r, "projectID")
+	if !h.requireProject(w, r, projectID) {
+		return
+	}
+
+	var req createDocumentRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	source := domain.SourceType(req.Source)
+	if !source.Valid() {
+		writeError(w, http.StatusBadRequest, "invalid source type")
+		return
+	}
+	if req.Content == "" {
+		writeError(w, http.StatusBadRequest, "content is required")
+		return
+	}
+
+	d := &domain.Document{
+		ID:        newID("doc"),
+		ProjectID: projectID,
+		Source:    source,
+		Title:     req.Title,
+		Content:   req.Content,
+		Metadata:  req.Metadata,
+		CreatedAt: time.Now().UTC(),
+	}
+	if err := h.Documents.Create(r.Context(), d); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusCreated, toDocumentDTO(d))
+}
+
+func (h *Handler) GetDocument(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "documentID")
+	d, err := h.Documents.Get(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "document not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, toDocumentDTO(d))
+}

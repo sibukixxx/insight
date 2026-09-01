@@ -4,19 +4,25 @@
 
 ## フェーズ構成
 
-### Phase 1 — 骨格（単一バイナリで画面が出る）
+### Phase 1 — 骨格（単一バイナリで画面が出る）✅ 完了
 
 **ゴール**: `./insight-lab` 一発でブラウザが開き、埋め込み UI にサンプルデータが表示される。
 
-- [ ] リポジトリ初期化: `go.mod`, Makefile, ディレクトリ構成, CI（lint + test）
-- [ ] SQLite 接続層（modernc.org/sqlite, WAL/busy_timeout/FK PRAGMA）+ マイグレーション機構（schema_migrations + embed SQL）
-- [ ] スキーマ 001_init.sql（確定版 DDL 全テーブル）
-- [ ] ドメインモデル + repository（projects / documents）
-- [ ] HTTP サーバ + chi ルーティング + logging / recover ミドルウェア + Host/Origin 検証
-- [ ] Vite + Preact + Tailwind 雛形 → `internal/web/dist` へビルド → `//go:embed all:dist`
-- [ ] CLI フラグ（--port --host --db --demo --no-browser）+ ブラウザ自動起動（3 OS）
-- [ ] サンプルデータ（請求書 SaaS インタビュー約 20 件）の作成と `--demo` 冪等ロード
-- [ ] projects / documents API + 一覧・詳細 UI
+- [x] リポジトリ初期化: `go.mod`, Makefile, ディレクトリ構成
+- [x] SQLite 接続層（modernc.org/sqlite, WAL/busy_timeout/FK PRAGMA）+ マイグレーション機構（schema_migrations + embed SQL）
+- [x] スキーマ 001_init.sql（確定版 DDL 全テーブル）
+- [x] ドメインモデル + repository（projects / documents）
+- [x] HTTP サーバ + chi ルーティング + logging / recover ミドルウェア + Host/Origin 検証
+- [x] 埋め込み UI（Phase 1 は素の HTML/CSS/JS を `internal/web/dist` に直接コミットし `//go:embed all:dist`。Vite/Preact への移行は複雑化が必要になった時点で行う）
+- [x] CLI フラグ（--port --host --db --demo --no-browser --client）+ ブラウザ自動起動（3 OS 分岐）
+- [x] サンプルデータ（請求書 SaaS インタビュー20件、表面「操作が面倒」/ 深層「誤請求への恐怖」）の作成と `--demo` 冪等ロード
+- [x] projects / documents API + 一覧・詳細 UI（プロジェクト作成、テキスト貼り付け）
+- [x] **デモ/納品ビルド分離**（`internal/sampledata` を `//go:build demo` / `!demo` で分割。納品ビルドはサンプルテキストがバイナリに一切リンクされないことを確認済み。`make build-demo` / `make build-delivery` / `make cross-compile`）
+- [x] unit test（domain, repository/sqlite の CRUD・カスケード削除・マイグレーション冪等性、sampledata の build tag 分岐）+ `go vet`（両タグ）
+
+**完了条件の検証**: デモビルドを起動 → `/api/projects` に20件ドキュメントの入ったデモプロジェクトが自動生成される → ブラウザで一覧・本文が閲覧できる → 納品ビルドは `--demo` 指定時にエラー終了し、バイナリに `経理担当` 等のサンプル文言が一切含まれないことを `grep` で確認済み。
+
+**Phase 1 で未実装（Phase 2 以降）**: LLM 接続、Observation 抽出、Grounding Check、Insight 生成、SSE、CSV インポート、評価画面、GitHub Actions リリースワークフロー。CI（lint+test の自動実行）は未設定。
 
 **完了条件**: バイナリ起動 → Try Demo → 20 件のインタビューが閲覧できる。
 

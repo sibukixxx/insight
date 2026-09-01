@@ -15,6 +15,19 @@
 
 第一目的は SaaS 化ではなく、商談の場で `./insight-lab --demo` を起動して「顧客データからインサイトを抽出するシステムを設計・品質管理できる」ことを短時間で証明すること。
 
+### 1.1 ビルド分離（デモ用 / 納品用）**[追加]**
+
+同じソースから **2 種類のバイナリ**をビルドできることを要件とする。
+
+| ビルド種別 | 用途 | デモデータ |
+|---|---|---|
+| デモビルド（`make build-demo`） | 商談・営業デモ | 架空インタビュー約20件を埋め込み。`--demo` 起動可 |
+| 納品ビルド（`make build` / `build-delivery`） | 顧客への納品・実データでの利用 | **一切埋め込まない**（ランタイムのフラグ制御ではなく、コンパイル時に対象ファイルへの参照自体が存在しない） |
+
+これは Go の build tag（`//go:build demo`）で実現する。`internal/sampledata` パッケージを、デモデータを `//go:embed` する実装（`demo` タグ）と、何も埋め込まない空実装（`!demo` タグ = デフォルト）に分割し、納品ビルドの成果物にはサンプルインタビューのテキストがバイナリレベルで含まれない。顧客の秘密保持契約下で納品するビルドに、営業用のサンプルデータ（＝自社の別テキスト）が混入するリスクを構造的に排除する。
+
+納品ビルドで `--demo` を指定した場合、またはブラウザから「デモを試す」を押した場合は、起動時 / API 応答時に明示的なエラーを返す（サイレントに無視しない）。任意で `--client "<顧客名>"` を渡すと、UI に "Confidential — <顧客名> 様向け納品版" のバナーを表示できる。
+
 ## 2. 方針（変更なし）
 
 | 項目 | 方針 |
@@ -417,13 +430,14 @@ Prefer surprising but well-supported insights over generic observations.
 
 ## 17. CLI / 配布 / ビルド
 
-- フラグ: `--port --host --db --demo --no-browser --api-key --model --base-url`（ドラフト §31 のまま）
-- `--demo` は冪等（既存デモプロジェクトがあれば再利用）**[変更: P1-8]**
+- フラグ: `--port --host --db --demo --no-browser --api-key --model --base-url --client`（`--client` は §1.1 の納品ビルド用バナー表示。環境変数 `INSIGHT_LAB_CLIENT_NAME` でも指定可）
+- `--demo` は冪等（既存デモプロジェクトがあれば再利用）**[変更: P1-8]**。納品ビルドで指定した場合はエラーで起動を中止する（§1.1）
 - ブラウザ自動起動: `open`(macOS) / `xdg-open`(Linux) / `rundll32 url.dll,FileProtocolHandler`(Windows)
 - データ保存先: ドラフト §32 のまま（OS 標準のアプリデータディレクトリ）
 - CSV: `id,source,title,content` 固定。UTF-8 のみ、BOM 自動除去 **[変更: P1-7]**
-- ビルド: `make web`（Vite → internal/web/dist）→ `go build`。GitHub Actions でタグ push 時に 4 ターゲット（darwin-arm64/amd64, linux-amd64, windows-amd64）を Releases へ
+- ビルド: `make build-delivery`（納品用、デフォルト）/ `make build-demo`（デモ用、`-tags demo`）。`make cross-compile` で両方 × 4 ターゲット（darwin-arm64/amd64, linux-amd64, windows-amd64）を生成。GitHub Actions でタグ push 時に Releases へ **[変更: §1.1 のビルド分離を反映]**
 - 起動速度目標: Cold Start < 1s、ブラウザ表示 < 2s
+- フロントエンドは Phase 1 では素の HTML/CSS/JS（ビルドステップなし）を `internal/web/dist` に直接コミットして埋め込む。Vite/Preact への移行は UI の複雑化が必要になった時点で行う（バックエンドの API 契約に影響しない）**[変更: 実装簡略化]**
 
 ## 18. テスト構成
 
