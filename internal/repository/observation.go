@@ -11,4 +11,5 @@ type ObservationRepository interface {
 	Get(ctx context.Context, id string) (*domain.Observation, error)
 	ListByProject(ctx context.Context, projectID string) ([]*domain.Observation, error)
 	ListByDocument(ctx context.Context, documentID string) ([]*domain.Observation, error)
+	ListByIDs(ctx context.Context, ids []string) ([]*domain.Observation, error)
 }

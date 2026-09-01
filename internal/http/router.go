@@ -22,6 +22,7 @@ type Deps struct {
 	Projects     repository.ProjectRepository
 	Documents    repository.DocumentRepository
 	Observations repository.ObservationRepository
+	Patterns     repository.PatternRepository
 	Analyses     repository.AnalysisRepository
 	Insights     repository.InsightRepository
 	Evidence     repository.EvidenceRepository
@@ -41,7 +42,7 @@ func NewRouter(deps Deps) http.Handler {
 	r.Use(appmw.RestrictOrigin)
 
 	h := &handler.Handler{
-		Projects: deps.Projects, Documents: deps.Documents, Observations: deps.Observations,
+		Projects: deps.Projects, Documents: deps.Documents, Observations: deps.Observations, Patterns: deps.Patterns,
 		Analyses: deps.Analyses, Insights: deps.Insights, Evidence: deps.Evidence,
 		Demo: deps.Demo, Settings: deps.Settings, JobManager: deps.JobManager,
 		NewLLMClient: deps.NewLLMClient, Build: deps.Build,
@@ -68,6 +69,7 @@ func NewRouter(deps Deps) http.Handler {
 				r.Post("/analysis", h.CreateAnalysis)
 				r.Get("/analyses", h.ListAnalyses)
 				r.Get("/insights", h.ListInsights)
+				r.Get("/patterns", h.ListPatterns)
 				r.Get("/evaluation", h.GetEvaluation)
 			})
 		})

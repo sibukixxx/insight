@@ -468,3 +468,22 @@ Hidden Needs Finder のパイプライン（Observation→Grounding→Pattern→
 - DB: `insights.monetization_angle TEXT`（nullable）を追加。まだリリースされていない前提で `001_init.sql` を直接編集した（マイグレーション追加はしていない）。
 
 この変更により、Insight Lab は「他社に売り込むデモツール」と「自分でニーズを見つけて自分で商品化するための分析ツール」の両方として使える。どちらの用途で使うかはデータソース（顧客インタビュー vs 案件サイト/SNS）と読み手（クライアント向け vs 自分向け）が変わるだけで、エンジン自体は共通である。
+
+## 22. 推論過程の可視化（Pattern の永続化） **[追加]**
+
+「インサイトはマーケターが多数の声を突き合わせて『ここが違う』と気づく、本質的にブラックボックスな作業だ。それを可視化したい」という指摘を受けて対応した。
+
+### 問題
+
+実装当初、Pattern Detection（複数 Observation にまたがる繰り返し行動の検出）と Need Hypothesis Generation の `rationale`（なぜその仮説に至ったかという推論）は、パイプライン内部で計算されるだけで **DBに一切保存されず、最終的な Insight の文言にしか反映されていなかった**。つまり「観察をパターンにまとめ、そこから仮説を立てる」というマーケターの中間的な思考過程そのものが不可視化されていた。これは design 上の見落としであり、今回の指摘で顕在化した。
+
+### 対応
+
+- **`Pattern` をドメインモデル・DBテーブルとして新設**（`patterns`, `pattern_observations` テーブル）。どの Observation 群から見つかった繰り返しかを保持する。
+- **`Insight.Rationale`** フィールドを追加し、Hypothesis Generation が生成する `rationale`（今まで捨てられていた）を保存する。
+- **Hypothesis Generation の出力に `basedOnPatternIds` を追加**。LLM に「どの Pattern を根拠にこの仮説を立てたか」を明示的に引用させる（`insight_patterns` テーブルで多対多リンク）。存在しない Pattern ID の参照は保存時に無視する（grounding と同じ「存在しないものを参照させない」原則を Pattern レベルにも拡張）。
+- **Pattern も grounding の対象**: LLM が返す `observationIds` のうち実在しない ID は `buildPatterns`（`internal/service/pipeline.go`）で除外し、支持する Observation が1件もない「Pattern」は保存しない。
+- **API**: `GET /api/projects/{id}/patterns`（プロジェクト全体のPattern一覧）、`GET /api/insights/{id}` のレスポンスに `patterns` と `rationale` を追加。
+- **UI**: Insight詳細画面の先頭に「推論の過程」セクションを新設。Pattern（タイトル・説明・元になった Observation の引用、原文クリックで確認可能）→ Rationale（なぜこの仮説に至ったか）→ 従来の Insight 本体（Observation要約・StatedNeed・LatentNeed・JTBD・Interpretation等）→ Evidence/Counter Evidence、という順で、一次データから最終的な洞察までの連鎖を上から下にたどれる。プロジェクト単位で全 Pattern を見る `#/projects/:id/patterns` ページも追加（Insightに至らなかった Pattern も含めて確認できる）。
+
+この一連の変更により、「Observation（一次データの引用）→ Pattern（繰り返しへの気づき）→ Rationale（推論の飛躍）→ Hypothesis（LatentNeed/JTBD）→ Evidence（検証）→ Insight（結論）」という、マーケターが頭の中で行う一連の推論が、すべて DB に記録され、UI 上でたどれるようになった。

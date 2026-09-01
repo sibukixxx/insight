@@ -247,6 +247,17 @@ footer.privacy {
 .interpretation-block { background: #f5eaff; }
 .alt-block { background: #eafaf0; }
 .money-block { background: #fff8de; border: 1px solid #f0d97a; }
+.rationale-block { background: #fdeee0; border: 1px solid #f0b979; margin-top: 12px; }
+
+/* Reasoning trail (Pattern -> Rationale) */
+.reasoning-trail { border: 1px dashed var(--border); }
+.pattern-block {
+  border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin-bottom: 12px; background: #fafbfc;
+}
+.pattern-block:last-child { margin-bottom: 0; }
+.pattern-title { font-weight: 700; margin-bottom: 4px; }
+.pattern-desc { color: var(--text-muted); font-size: 13px; margin-bottom: 10px; }
+.pattern-observations .evidence-row:first-child { padding-top: 0; }
 
 /* Evidence */
 .evidence-row { border-bottom: 1px solid var(--border); padding: 10px 0; }

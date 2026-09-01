@@ -25,6 +25,7 @@ type Handler struct {
 	Projects     repository.ProjectRepository
 	Documents    repository.DocumentRepository
 	Observations repository.ObservationRepository
+	Patterns     repository.PatternRepository
 	Analyses     repository.AnalysisRepository
 	Insights     repository.InsightRepository
 	Evidence     repository.EvidenceRepository

@@ -19,6 +19,7 @@ type ProgressFunc func(step string, progress int, message string)
 type Pipeline struct {
 	Documents    repository.DocumentRepository
 	Observations repository.ObservationRepository
+	Patterns     repository.PatternRepository
 	Insights     repository.InsightRepository
 	Evidence     repository.EvidenceRepository
 	LLM          llm.Client
@@ -32,6 +33,7 @@ type Metrics struct {
 	TotalObservationCandidates int     `json:"totalObservationCandidates"`
 	GroundedObservations       int     `json:"groundedObservations"`
 	UnsupportedClaimRate       float64 `json:"unsupportedClaimRate"`
+	PatternCount               int     `json:"patternCount"`
 	TotalInsightDrafts         int     `json:"totalInsightDrafts"`
 	FinalInsightCount          int     `json:"finalInsightCount"`
 	InsightDuplicationRate     float64 `json:"insightDuplicationRate"`
@@ -48,7 +50,7 @@ type draftInsight struct {
 	counterSearched bool
 }
 
-func (p *Pipeline) Run(ctx context.Context, projectID string, progress ProgressFunc) (*Metrics, error) {
+func (p *Pipeline) Run(ctx context.Context, analysisID, projectID string, progress ProgressFunc) (*Metrics, error) {
 	if progress == nil {
 		progress = func(string, int, string) {}
 	}
@@ -78,10 +80,17 @@ func (p *Pipeline) Run(ctx context.Context, projectID string, progress ProgressF
 		len(allObs), metrics.TotalObservationCandidates-metrics.GroundedObservations))
 
 	progress("detecting_patterns", 30, "繰り返しのパターンを探しています...")
-	patterns, err := p.detectPatterns(ctx, allObs)
+	obsByID := indexObservations(allObs)
+	patternCandidates, err := p.detectPatterns(ctx, allObs)
 	if err != nil {
 		return nil, fmt.Errorf("pattern detection: %w", err)
 	}
+	patterns := buildPatterns(projectID, analysisID, patternCandidates, obsByID)
+	if err := p.Patterns.CreateBatch(ctx, patterns); err != nil {
+		return nil, fmt.Errorf("save patterns: %w", err)
+	}
+	metrics.PatternCount = len(patterns)
+	progress("detecting_patterns", 40, fmt.Sprintf("%d件の繰り返しパターンを見つけました", len(patterns)))
 
 	progress("generating_hypotheses", 45, "潜在ニーズの仮説を立てています...")
 	hypotheses, err := p.generateHypotheses(ctx, patterns, allObs)
@@ -89,7 +98,7 @@ func (p *Pipeline) Run(ctx context.Context, projectID string, progress ProgressF
 		return nil, fmt.Errorf("hypothesis generation: %w", err)
 	}
 
-	obsByID := indexObservations(allObs)
+	patternsByID := indexPatterns(patterns)
 	docByID := indexDocuments(docs)
 
 	progress("searching_evidence", 55, "根拠と反証を探しています...")
@@ -126,7 +135,7 @@ func (p *Pipeline) Run(ctx context.Context, projectID string, progress ProgressF
 	}
 
 	progress("scoring_confidence", 90, "確信度を計算し、洞察を保存しています...")
-	if err := p.persistInsights(ctx, projectID, drafts, keepIdx, docByID, len(docs), metrics); err != nil {
+	if err := p.persistInsights(ctx, analysisID, projectID, drafts, keepIdx, docByID, patternsByID, len(docs), metrics); err != nil {
 		return nil, err
 	}
 
@@ -163,17 +172,18 @@ func (p *Pipeline) extractAndGroundAll(ctx context.Context, docs []*domain.Docum
 	return allObs, nil
 }
 
-func (p *Pipeline) persistInsights(ctx context.Context, projectID string, drafts []draftInsight, keepIdx []int,
-	docByID map[string]*domain.Document, totalDocuments int, metrics *Metrics) error {
+func (p *Pipeline) persistInsights(ctx context.Context, analysisID, projectID string, drafts []draftInsight, keepIdx []int,
+	docByID map[string]*domain.Document, patternsByID map[string]*domain.Pattern, totalDocuments int, metrics *Metrics) error {
 
 	var insightsWithSupport, counterSearchedCount, totalEvidenceRows int
+	aID := analysisID
 
 	for _, idx := range keepIdx {
 		d := drafts[idx]
 		insight := &domain.Insight{
-			ID: newID("ins"), ProjectID: projectID, Title: d.writeup.Title,
+			ID: newID("ins"), ProjectID: projectID, AnalysisID: &aID, Title: d.writeup.Title,
 			Observation: d.writeup.ObservationSummary, StatedNeed: d.hypothesis.StatedNeed,
-			LatentNeed: d.hypothesis.LatentNeed, JTBD: d.hypothesis.JTBD,
+			LatentNeed: d.hypothesis.LatentNeed, JTBD: d.hypothesis.JTBD, Rationale: d.hypothesis.Rationale,
 			Interpretation: d.writeup.Interpretation, AlternativeInterpretation: d.writeup.AlternativeInterpretation,
 			ProductOpportunity: d.writeup.ProductOpportunity, MonetizationAngle: d.writeup.MonetizationAngle,
 			CreatedAt: time.Now().UTC(),
@@ -206,6 +216,16 @@ func (p *Pipeline) persistInsights(ctx context.Context, projectID string, drafts
 		}
 		if err := p.Evidence.CreateBatch(ctx, evidenceRows); err != nil {
 			return fmt.Errorf("save evidence: %w", err)
+		}
+
+		var validPatternIDs []string
+		for _, pid := range d.hypothesis.BasedOnPatternIDs {
+			if _, ok := patternsByID[pid]; ok {
+				validPatternIDs = append(validPatternIDs, pid)
+			}
+		}
+		if err := p.Patterns.LinkInsight(ctx, insight.ID, validPatternIDs); err != nil {
+			return fmt.Errorf("link insight patterns: %w", err)
 		}
 
 		if len(d.supporting) > 0 {
@@ -266,8 +286,8 @@ func (p *Pipeline) detectPatterns(ctx context.Context, obs []*domain.Observation
 	return out.Patterns, nil
 }
 
-func (p *Pipeline) generateHypotheses(ctx context.Context, patterns []patternCandidate, obs []*domain.Observation) ([]hypothesisCandidate, error) {
-	payload, err := json.Marshal(map[string]any{"patterns": patterns, "observations": toObservationRefs(obs)})
+func (p *Pipeline) generateHypotheses(ctx context.Context, patterns []*domain.Pattern, obs []*domain.Observation) ([]hypothesisCandidate, error) {
+	payload, err := json.Marshal(map[string]any{"patterns": toPatternRefs(patterns), "observations": toObservationRefs(obs)})
 	if err != nil {
 		return nil, err
 	}
@@ -413,6 +433,48 @@ func indexDocuments(docs []*domain.Document) map[string]*domain.Document {
 		m[d.ID] = d
 	}
 	return m
+}
+
+func indexPatterns(patterns []*domain.Pattern) map[string]*domain.Pattern {
+	m := make(map[string]*domain.Pattern, len(patterns))
+	for _, p := range patterns {
+		m[p.ID] = p
+	}
+	return m
+}
+
+// buildPatterns turns the LLM's raw pattern candidates into persistable
+// Patterns, dropping any that cite no observation that was actually
+// grounded. A "pattern" built entirely from fabricated observation IDs
+// isn't a pattern - it's exactly the kind of invisible, unverifiable claim
+// this pipeline exists to prevent.
+func buildPatterns(projectID, analysisID string, candidates []patternCandidate, obsByID map[string]*domain.Observation) []*domain.Pattern {
+	now := time.Now().UTC()
+	var out []*domain.Pattern
+	for _, c := range candidates {
+		var validIDs []string
+		for _, id := range c.ObservationIDs {
+			if _, ok := obsByID[id]; ok {
+				validIDs = append(validIDs, id)
+			}
+		}
+		if len(validIDs) == 0 {
+			continue
+		}
+		out = append(out, &domain.Pattern{
+			ID: newID("pat"), ProjectID: projectID, AnalysisID: analysisID,
+			Title: c.Title, Description: c.Description, ObservationIDs: validIDs, CreatedAt: now,
+		})
+	}
+	return out
+}
+
+func toPatternRefs(patterns []*domain.Pattern) []patternRef {
+	refs := make([]patternRef, len(patterns))
+	for i, p := range patterns {
+		refs[i] = patternRef{ID: p.ID, Title: p.Title, Description: p.Description, ObservationCount: len(p.ObservationIDs)}
+	}
+	return refs
 }
 
 func resolveObservations(ids []string, index map[string]*domain.Observation) []*domain.Observation {

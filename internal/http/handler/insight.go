@@ -19,6 +19,7 @@ type insightDTO struct {
 	StatedNeed                string  `json:"statedNeed"`
 	LatentNeed                string  `json:"latentNeed"`
 	JTBD                      string  `json:"jtbd"`
+	Rationale                 string  `json:"rationale"`
 	Interpretation            string  `json:"interpretation"`
 	AlternativeInterpretation string  `json:"alternativeInterpretation"`
 	ProductOpportunity        string  `json:"productOpportunity"`
@@ -30,7 +31,7 @@ type insightDTO struct {
 func toInsightDTO(i *domain.Insight) insightDTO {
 	return insightDTO{
 		ID: i.ID, ProjectID: i.ProjectID, Title: i.Title, Observation: i.Observation,
-		StatedNeed: i.StatedNeed, LatentNeed: i.LatentNeed, JTBD: i.JTBD,
+		StatedNeed: i.StatedNeed, LatentNeed: i.LatentNeed, JTBD: i.JTBD, Rationale: i.Rationale,
 		Interpretation: i.Interpretation, AlternativeInterpretation: i.AlternativeInterpretation,
 		ProductOpportunity: i.ProductOpportunity, MonetizationAngle: i.MonetizationAngle, Confidence: i.Confidence,
 		CreatedAt: i.CreatedAt.UTC().Format(time.RFC3339),
@@ -80,6 +81,7 @@ func (h *Handler) ListInsights(w http.ResponseWriter, r *http.Request) {
 type insightDetailDTO struct {
 	insightDTO
 	Evidence []evidenceDTO `json:"evidence"`
+	Patterns []patternDTO  `json:"patterns"`
 }
 
 func (h *Handler) GetInsight(w http.ResponseWriter, r *http.Request) {
@@ -98,7 +100,19 @@ func (h *Handler) GetInsight(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, insightDetailDTO{insightDTO: toInsightDTO(insight), Evidence: toEvidenceDTOs(evidence)})
+	patterns, err := h.Patterns.ListByInsight(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	patternDTOs, err := h.toPatternDTOs(r.Context(), patterns)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, insightDetailDTO{
+		insightDTO: toInsightDTO(insight), Evidence: toEvidenceDTOs(evidence), Patterns: patternDTOs,
+	})
 }
 
 func (h *Handler) GetInsightEvidence(w http.ResponseWriter, r *http.Request) {

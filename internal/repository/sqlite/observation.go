@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
+	"strings"
 
 	"insight-lab/internal/domain"
 	"insight-lab/internal/repository"
@@ -60,6 +62,27 @@ func (r *ObservationRepository) ListByProject(ctx context.Context, projectID str
 		 JOIN documents d ON d.id = o.document_id
 		 WHERE d.project_id = ?
 		 ORDER BY o.created_at ASC`, projectID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanObservations(rows)
+}
+
+func (r *ObservationRepository) ListByIDs(ctx context.Context, ids []string) ([]*domain.Observation, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	placeholders := make([]string, len(ids))
+	args := make([]any, len(ids))
+	for i, id := range ids {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+	query := fmt.Sprintf(
+		`SELECT id, document_id, quote, start_offset, end_offset, behavior, topic, created_at
+		 FROM observations WHERE id IN (%s)`, strings.Join(placeholders, ","))
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}

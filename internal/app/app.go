@@ -25,6 +25,7 @@ func Run(ctx context.Context, cfg *Config) error {
 	projects := sqlite.NewProjectRepository(db)
 	documents := sqlite.NewDocumentRepository(db)
 	observations := sqlite.NewObservationRepository(db)
+	patterns := sqlite.NewPatternRepository(db)
 	analyses := sqlite.NewAnalysisRepository(db)
 	insights := sqlite.NewInsightRepository(db)
 	evidence := sqlite.NewEvidenceRepository(db)
@@ -46,12 +47,15 @@ func Run(ctx context.Context, cfg *Config) error {
 	}
 
 	settings := service.NewSettingsStore(service.Settings{APIKey: cfg.APIKey, Model: cfg.Model, BaseURL: cfg.BaseURL})
-	pipeline := &service.Pipeline{Documents: documents, Observations: observations, Insights: insights, Evidence: evidence}
+	pipeline := &service.Pipeline{
+		Documents: documents, Observations: observations, Patterns: patterns,
+		Insights: insights, Evidence: evidence,
+	}
 	jobManager := service.NewJobManager(analyses, pipeline, settings, service.DefaultLLMClientFactory)
 	jobManager.Start(ctx, analysisWorkers)
 
 	router := httpapi.NewRouter(httpapi.Deps{
-		Projects: projects, Documents: documents, Observations: observations,
+		Projects: projects, Documents: documents, Observations: observations, Patterns: patterns,
 		Analyses: analyses, Insights: insights, Evidence: evidence,
 		Demo: demoLoader, Settings: settings, JobManager: jobManager,
 		NewLLMClient: service.DefaultLLMClientFactory,

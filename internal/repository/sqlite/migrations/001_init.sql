@@ -27,6 +27,22 @@ CREATE TABLE observations (
 );
 CREATE INDEX idx_observations_document ON observations(document_id);
 
+CREATE TABLE patterns (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    analysis_id TEXT REFERENCES analyses(id) ON DELETE SET NULL,
+    title TEXT NOT NULL,
+    description TEXT,
+    created_at TEXT NOT NULL
+);
+CREATE INDEX idx_patterns_project ON patterns(project_id);
+
+CREATE TABLE pattern_observations (
+    pattern_id TEXT NOT NULL REFERENCES patterns(id) ON DELETE CASCADE,
+    observation_id TEXT NOT NULL REFERENCES observations(id) ON DELETE CASCADE,
+    PRIMARY KEY (pattern_id, observation_id)
+);
+
 CREATE TABLE analyses (
     id TEXT PRIMARY KEY,
     project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
@@ -50,6 +66,7 @@ CREATE TABLE insights (
     stated_need TEXT,
     latent_need TEXT,
     jtbd TEXT,
+    rationale TEXT,
     interpretation TEXT,
     alternative_interpretation TEXT,
     product_opportunity TEXT,
@@ -58,6 +75,12 @@ CREATE TABLE insights (
     created_at TEXT NOT NULL
 );
 CREATE INDEX idx_insights_project ON insights(project_id);
+
+CREATE TABLE insight_patterns (
+    insight_id TEXT NOT NULL REFERENCES insights(id) ON DELETE CASCADE,
+    pattern_id TEXT NOT NULL REFERENCES patterns(id) ON DELETE CASCADE,
+    PRIMARY KEY (insight_id, pattern_id)
+);
 
 CREATE TABLE evidence (
     id TEXT PRIMARY KEY,

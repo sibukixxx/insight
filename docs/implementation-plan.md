@@ -44,8 +44,8 @@
 
 **ゴール**: Hidden Need が Evidence・反証・Confidence 付きで表示される。
 
-- [x] Pattern Detection ステップ
-- [x] Need Hypothesis Generation（"Hypothesis" 相当のフィールドとして明示）
+- [x] Pattern Detection ステップ（**\[変更\]** 当初は結果を保存せず内部でしか使っていなかったが、「インサイト抽出のブラックボックス化」の指摘を受けて `Pattern` をDBに永続化し、`GET /api/projects/{id}/patterns` と Insight詳細画面の「推論の過程」セクションで可視化するよう変更。§22参照）
+- [x] Need Hypothesis Generation（"Hypothesis" 相当のフィールドとして明示。`rationale`（なぜこの仮説に至ったか）と `basedOnPatternIds`（元になったPattern）を Insight まで保存・表示するようにした）
 - [x] Evidence Retrieval（支持 + 反証の両方。`counterSearched` 記録）— Evidence は Observation の ID 参照のみで構成されるため grounding 済み
 - [x] Insight Generation（**\[変更\]** ドラフト設計は「Evidence IDを参照する」方式だったが、実装では Evidence Retrieval 段階で既に grounding 済み Observation から Evidence 行を直接構築し、Insight Generation は仮説と Observation 要約を洞察の文章に仕上げるだけの「write-up」ステップにした。新しい引用や事実を作れないためハルシネーションの余地がさらに小さい）+ Insight Dedupe（LLM 1コールでグループ化 → アプリ側でマージ）
 - [x] Confidence Scoring（アプリ側計算。Evidence Strength 35% + Document Coverage 25% + Source Diversity 20% + Pattern Frequency 20%、反証件数に応じた減衰。単体テストで根拠強度・カバレッジ・多様性・反証減衰それぞれを検証）

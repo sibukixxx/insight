@@ -28,6 +28,8 @@ const hypothesisPrompt = basePrompt + `
 - latentNeed には、行動パターンから推測される、より深い潜在的ニーズを書いてください。
 - jtbd には Jobs to be Done の形式（「〜したい」ではなく「〜という状態になりたい」）で書いてください。
 - supportingObservationIds には、この仮説の根拠として使った Observation の id を含めてください。
+- rationale には、なぜこの Pattern（複数の Observation にまたがる繰り返し）から、この仮説（「ここが違う」という気づき）に至ったのか、その推論過程を書いてください。単なる要約ではなく、思考の飛躍がどこにあったかが分かるように書いてください。
+- basedOnPatternIds には、この仮説の元になった Pattern の id を含めてください。存在しない id を作ってはいけません。特定の Pattern に基づかない場合は空配列にしてください。
 - 単なる推測ではなく、必ず observation の裏付けがある仮説だけを出力してください。`
 
 const evidenceRetrievalPrompt = basePrompt + `

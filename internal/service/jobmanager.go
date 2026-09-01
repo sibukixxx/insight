@@ -108,7 +108,7 @@ func (m *JobManager) run(ctx context.Context, analysisID string) {
 
 	pipeline := &Pipeline{
 		Documents: m.pipeline.Documents, Observations: m.pipeline.Observations,
-		Insights: m.pipeline.Insights, Evidence: m.pipeline.Evidence,
+		Patterns: m.pipeline.Patterns, Insights: m.pipeline.Insights, Evidence: m.pipeline.Evidence,
 		LLM: m.newLLMClient(settings),
 	}
 
@@ -118,7 +118,7 @@ func (m *JobManager) run(ctx context.Context, analysisID string) {
 	_ = m.analyses.Update(ctx, a)
 	m.broadcast(a.ID, SSEEvent{Event: "progress", Data: progressJSON("starting", 0, "解析を開始しています...")})
 
-	metrics, err := pipeline.Run(ctx, a.ProjectID, func(step string, progress int, message string) {
+	metrics, err := pipeline.Run(ctx, a.ID, a.ProjectID, func(step string, progress int, message string) {
 		a.CurrentStep = step
 		a.Progress = progress
 		_ = m.analyses.Update(ctx, a)

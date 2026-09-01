@@ -276,6 +276,7 @@
         </div>
         <div class="analysis-actions">
           <button class="primary" id="run-analysis" ${isRunning || documents.length === 0 ? "disabled" : ""}>解析を実行</button>
+          <a class="btn" href="#/projects/${encodeURIComponent(projectID)}/patterns">検出されたパターン一覧</a>
           <a class="btn" href="#/projects/${encodeURIComponent(projectID)}/evaluation">評価指標を見る</a>
         </div>
       </div>
@@ -438,6 +439,17 @@
     layout(`
       <a class="back-link" href="#/projects/${encodeURIComponent(insight.projectId)}">&larr; プロジェクトに戻る</a>
 
+      <div class="card reasoning-trail">
+        <div class="section-title">推論の過程 &mdash; どうやってこの洞察に至ったか</div>
+        <p class="hint">AIが最終的な洞察だけを提示するのではなく、複数の発言から気づいたパターンと、そこからの推論の飛躍を、たどれるようにしています。</p>
+        ${patternsSectionHTML(insight.patterns)}
+        ${insight.rationale ? `
+        <div class="field-block rationale-block">
+          <div class="field-label">Rationale（なぜこの仮説に至ったか）</div>
+          <div>${escapeHtml(insight.rationale)}</div>
+        </div>` : ""}
+      </div>
+
       <div class="card">
         <div class="section-title">Insight</div>
         <h2 style="margin:0 0 12px;">${escapeHtml(insight.title)}</h2>
@@ -489,6 +501,14 @@
       </div>
     `);
 
+    bindEvidenceToggles();
+  }
+
+  // Click-to-reveal is shared by Evidence rows (insight detail) and
+  // Pattern observation rows (insight detail + the patterns page), since
+  // both render the same {documentId, quote, startOffset, endOffset}
+  // shape via evidenceRowHTML.
+  function bindEvidenceToggles() {
     document.querySelectorAll(".evidence-toggle").forEach((btn) => {
       btn.addEventListener("click", async () => {
         const panel = btn.nextElementSibling;
@@ -507,6 +527,20 @@
         }
       });
     });
+  }
+
+  function patternsSectionHTML(patterns) {
+    if (!patterns || patterns.length === 0) {
+      return `<div class="empty">この洞察の元になった繰り返しパターンは記録されていません。</div>`;
+    }
+    return patterns.map((p) => `
+      <div class="pattern-block">
+        <div class="pattern-title">${escapeHtml(p.title)}</div>
+        ${p.description ? `<div class="pattern-desc">${escapeHtml(p.description)}</div>` : ""}
+        <div class="pattern-observations">
+          ${(p.observations || []).map(evidenceRowHTML).join("") || `<div class="empty">観察が見つかりません</div>`}
+        </div>
+      </div>`).join("");
   }
 
   function evidenceRowHTML(e) {
@@ -569,10 +603,38 @@
         </div>
         <p class="hint">
           観察候補 ${metrics.totalObservationCandidates} 件中 ${metrics.groundedObservations} 件を原文照合できました。
-          洞察候補 ${metrics.totalInsightDrafts} 件のうち、最終的に ${metrics.finalInsightCount} 件が採用されました。
+          検出されたパターン ${metrics.patternCount} 件から、洞察候補 ${metrics.totalInsightDrafts} 件が生まれ、最終的に ${metrics.finalInsightCount} 件が採用されました。
         </p>
       </div>
     `);
+  }
+
+  // ---------- Patterns ----------
+
+  async function renderPatterns(projectID) {
+    let project, patterns;
+    try {
+      [project, patterns] = await Promise.all([
+        api(`/api/projects/${encodeURIComponent(projectID)}`),
+        api(`/api/projects/${encodeURIComponent(projectID)}/patterns`),
+      ]);
+    } catch (e) {
+      layout(`<a class="back-link" href="#/projects/${encodeURIComponent(projectID)}">&larr; プロジェクトに戻る</a>${errorBox(e.message)}`);
+      return;
+    }
+
+    layout(`
+      <a class="back-link" href="#/projects/${encodeURIComponent(projectID)}">&larr; プロジェクトに戻る</a>
+      <div class="card">
+        <div class="section-title">検出されたパターン — ${escapeHtml(project.name)}</div>
+        <p class="hint">複数のドキュメントにまたがって繰り返し現れた行動・発言です。最終的なInsightに至らなかったパターンもここに残ります。</p>
+      </div>
+      <div class="card">
+        ${patterns.length ? patternsSectionHTML(patterns) : `<div class="empty">まだパターンは検出されていません。解析を実行してください。</div>`}
+      </div>
+    `);
+
+    bindEvidenceToggles();
   }
 
   // ---------- Router ----------
@@ -580,6 +642,9 @@
   function route() {
     closeActiveStream();
     const hash = location.hash || "#/";
+
+    const patternsMatch = hash.match(/^#\/projects\/([^/]+)\/patterns$/);
+    if (patternsMatch) { renderPatterns(decodeURIComponent(patternsMatch[1])); return; }
 
     const evalMatch = hash.match(/^#\/projects\/([^/]+)\/evaluation$/);
     if (evalMatch) { renderEvaluation(decodeURIComponent(evalMatch[1])); return; }

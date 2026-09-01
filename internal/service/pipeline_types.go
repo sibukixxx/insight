@@ -68,6 +68,17 @@ type patternCandidate struct {
 	ObservationIDs []string `json:"observationIds"`
 }
 
+// patternRef is how an already-persisted Pattern (real ID, observations
+// already filtered down to ones that exist) is described back to the
+// Hypothesis Generation step, so a hypothesis can cite the specific
+// pattern(s) it was built from.
+type patternRef struct {
+	ID               string `json:"id"`
+	Title            string `json:"title"`
+	Description      string `json:"description,omitempty"`
+	ObservationCount int    `json:"observationCount"`
+}
+
 type patternDetectionOutput struct {
 	Patterns []patternCandidate `json:"patterns"`
 }
@@ -115,6 +126,7 @@ type hypothesisCandidate struct {
 	JTBD                     string   `json:"jtbd"`
 	Rationale                string   `json:"rationale"`
 	SupportingObservationIDs []string `json:"supportingObservationIds"`
+	BasedOnPatternIDs        []string `json:"basedOnPatternIds"`
 }
 
 type hypothesisOutput struct {
@@ -138,6 +150,7 @@ func hypothesisSchema() llm.Schema {
 							"jtbd":                     map[string]any{"type": "string"},
 							"rationale":                map[string]any{"type": "string"},
 							"supportingObservationIds": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+							"basedOnPatternIds":        map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
 						},
 						"required": []string{"title", "latentNeed", "supportingObservationIds"},
 					},

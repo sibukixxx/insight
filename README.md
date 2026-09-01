@@ -2,7 +2,7 @@
 
 顧客インタビュー・レビュー・問い合わせ履歴などのテキストから、明示されていない潜在ニーズ・JTBD・改善仮説を抽出するローカル実行型 AI 分析ツール。Go 単一バイナリ + 埋め込み Web UI + SQLite + OpenAI 互換 LLM API。
 
-Insight は単独で提示せず、必ず **Insight → Evidence（原文照合済み引用）→ 反証 → Confidence** のセットで表示する。
+Insight は単独で提示せず、必ず **Insight → Evidence（原文照合済み引用）→ 反証 → Confidence** のセットで表示する。「複数の声を突き合わせて『ここが違う』と気づく」というインサイト抽出特有のブラックボックスな推論過程も、Observation（引用）→ Pattern（繰り返しへの気づき）→ Rationale（なぜその仮説に至ったか）→ Insight という連鎖として、Insight詳細画面と `#/projects/:id/patterns` ページでたどれるようにしている。
 
 抽出エンジンはドメイン非依存。顧客インタビューだけでなく、案件サイトの募集文や伸びているSNS投稿を貼り付けても同じロジックで「隠れたニーズ」を見つけられる。各Insightには `Product Opportunity`（対象企業向けの改善提案）に加えて **`Monetization Angle`**（そのニーズを自分自身が商品・サービス化するなら何ができるか）も出力される。他社に売り込むデモにも、自分で機会を見つけて自分で作る用途にも使える。
 
@@ -29,8 +29,8 @@ make build-demo
 
 1. ブラウザで「デモを試す」→ 請求書SaaSインタビュー20件のプロジェクトが開く
 2. 「解析を実行」→ SSEで進捗が流れ、Hidden Need が Evidence・反証・Confidence 付きで表示される
-3. Insight詳細で Evidence をクリックすると、元ドキュメントの該当箇所がハイライトされる（grounding 検証済みの引用のみを表示）
-4. 「評価指標を見る」で Evidence Coverage / Unsupported Claim Rate などを確認できる
+3. Insight詳細の「推論の過程」で、元になった Pattern（繰り返しの気づき）とその Rationale（なぜこの仮説に至ったか）を確認できる。Evidence をクリックすると、元ドキュメントの該当箇所がハイライトされる（grounding 検証済みの引用のみを表示）
+4. 「検出されたパターン一覧」「評価指標を見る」で、最終的な Insight に至らなかった Pattern や、Evidence Coverage / Unsupported Claim Rate などを確認できる
 5. CSVインポート（`id,source,title,content` 固定列）や設定画面からの接続テストも利用可能
 
 ## デモビルドと納品ビルドの分離

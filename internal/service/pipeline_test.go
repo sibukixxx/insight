@@ -25,8 +25,14 @@ type fakeLLM struct {
 
 func newFakeLLM() *fakeLLM { return &fakeLLM{calls: map[string]int{}} }
 
+const testAnalysisID = "ana_test"
+
 type obsRefPayload struct {
 	Observations []observationRef `json:"observations"`
+}
+
+type patternRefPayload struct {
+	Patterns []patternRef `json:"patterns"`
 }
 
 func idsWhere(refs []observationRef, pred func(observationRef) bool) []string {
@@ -69,16 +75,26 @@ func (f *fakeLLM) Generate(ctx context.Context, req llm.GenerateRequest) (*llm.G
 	case "need_hypothesis":
 		var p obsRefPayload
 		_ = json.Unmarshal([]byte(last), &p)
-		ids := idsWhere(p.Observations, func(observationRef) bool { return true })
-		idsJSON, _ := json.Marshal(ids)
+		obsIDs := idsWhere(p.Observations, func(observationRef) bool { return true })
+		obsIDsJSON, _ := json.Marshal(obsIDs)
+
+		var pp patternRefPayload
+		_ = json.Unmarshal([]byte(last), &pp)
+		var patternIDs []string
+		for _, pr := range pp.Patterns {
+			patternIDs = append(patternIDs, pr.ID)
+		}
+		patternIDsJSON, _ := json.Marshal(patternIDs)
+
 		raw = json.RawMessage(fmt.Sprintf(`{"hypotheses":[{
 			"title":"確認への依存の裏にある恐怖",
 			"statedNeed":"作業を早く終わらせたい",
 			"latentNeed":"失敗して信頼を失うことを避けたい",
 			"jtbd":"安心して提出できる状態にしたい",
-			"rationale":"設定ミスへの不安が繰り返し語られている",
-			"supportingObservationIds":%s
-		}]}`, idsJSON))
+			"rationale":"複数の発言で、確認作業そのものより「間違えたときの結果」への言及が繰り返されていたため、時間短縮ではなく失敗回避が本質的な動機だと判断した",
+			"supportingObservationIds":%s,
+			"basedOnPatternIds":%s
+		}]}`, obsIDsJSON, patternIDsJSON))
 
 	case "evidence_retrieval":
 		var p obsRefPayload
@@ -123,6 +139,8 @@ func newTestPipeline(t *testing.T) (*Pipeline, *sqlite.DB, *domain.Project) {
 	projects := sqlite.NewProjectRepository(db)
 	documents := sqlite.NewDocumentRepository(db)
 	observations := sqlite.NewObservationRepository(db)
+	patterns := sqlite.NewPatternRepository(db)
+	analyses := sqlite.NewAnalysisRepository(db)
 	insights := sqlite.NewInsightRepository(db)
 	evidence := sqlite.NewEvidenceRepository(db)
 
@@ -140,9 +158,14 @@ func newTestPipeline(t *testing.T) (*Pipeline, *sqlite.DB, *domain.Project) {
 	if err := documents.CreateBatch(ctx, docs); err != nil {
 		t.Fatalf("create documents: %v", err)
 	}
+	analysis := &domain.Analysis{ID: testAnalysisID, ProjectID: p.ID, Status: domain.AnalysisRunning, CreatedAt: time.Now().UTC()}
+	if err := analyses.Create(ctx, analysis); err != nil {
+		t.Fatalf("create analysis: %v", err)
+	}
 
 	pipeline := &Pipeline{
-		Documents: documents, Observations: observations, Insights: insights, Evidence: evidence,
+		Documents: documents, Observations: observations, Patterns: patterns,
+		Insights: insights, Evidence: evidence,
 		LLM: newFakeLLM(),
 	}
 	return pipeline, db, p
@@ -153,7 +176,7 @@ func TestPipelineRunEndToEnd(t *testing.T) {
 	ctx := context.Background()
 
 	var progressLog []string
-	metrics, err := pipeline.Run(ctx, project.ID, func(step string, progress int, message string) {
+	metrics, err := pipeline.Run(ctx, testAnalysisID, project.ID, func(step string, progress int, message string) {
 		progressLog = append(progressLog, fmt.Sprintf("%s:%d", step, progress))
 	})
 	if err != nil {
@@ -182,6 +205,9 @@ func TestPipelineRunEndToEnd(t *testing.T) {
 	if metrics.CounterEvidenceCoverage != 1.0 {
 		t.Errorf("CounterEvidenceCoverage = %f, want 1.0", metrics.CounterEvidenceCoverage)
 	}
+	if metrics.PatternCount != 1 {
+		t.Errorf("PatternCount = %d, want 1", metrics.PatternCount)
+	}
 
 	insights := sqlite.NewInsightRepository(db)
 	list, err := insights.ListByProject(ctx, project.ID)
@@ -195,8 +221,38 @@ func TestPipelineRunEndToEnd(t *testing.T) {
 	if insight.MonetizationAngle == "" {
 		t.Error("MonetizationAngle should round-trip through persistence")
 	}
+	if insight.Rationale == "" {
+		t.Error("Rationale should round-trip through persistence (this is the previously-discarded 'why this hypothesis' reasoning)")
+	}
+	if insight.AnalysisID == nil || *insight.AnalysisID != testAnalysisID {
+		t.Errorf("AnalysisID = %v, want %q", insight.AnalysisID, testAnalysisID)
+	}
 	if insight.Confidence <= 0 || insight.Confidence > 1 {
 		t.Errorf("Confidence = %f, want in (0,1]", insight.Confidence)
+	}
+
+	// The reasoning trail: this insight's hypothesis must be traceable
+	// back to the pattern it cited, and that pattern back to the
+	// observation(s) it was built from - not just the final Evidence.
+	patterns := sqlite.NewPatternRepository(db)
+	insightPatterns, err := patterns.ListByInsight(ctx, insight.ID)
+	if err != nil {
+		t.Fatalf("ListByInsight patterns: %v", err)
+	}
+	if len(insightPatterns) != 1 {
+		t.Fatalf("insight linked to %d patterns, want 1", len(insightPatterns))
+	}
+	pattern := insightPatterns[0]
+	if pattern.Title == "" {
+		t.Error("pattern missing title")
+	}
+	if len(pattern.ObservationIDs) != 2 {
+		t.Errorf("pattern has %d linked observations, want 2 (both grounded observations, not the fabricated one)", len(pattern.ObservationIDs))
+	}
+
+	projectPatterns, err := patterns.ListByProject(ctx, project.ID)
+	if err != nil || len(projectPatterns) != 1 {
+		t.Fatalf("ListByProject patterns = %v, %v", projectPatterns, err)
 	}
 
 	evidenceRepo := sqlite.NewEvidenceRepository(db)
@@ -260,11 +316,12 @@ func TestPipelineRunNoDocumentsFails(t *testing.T) {
 	pipeline := &Pipeline{
 		Documents:    sqlite.NewDocumentRepository(db),
 		Observations: sqlite.NewObservationRepository(db),
+		Patterns:     sqlite.NewPatternRepository(db),
 		Insights:     sqlite.NewInsightRepository(db),
 		Evidence:     sqlite.NewEvidenceRepository(db),
 		LLM:          newFakeLLM(),
 	}
-	if _, err := pipeline.Run(ctx, p.ID, nil); err == nil {
+	if _, err := pipeline.Run(ctx, "ana_empty", p.ID, nil); err == nil {
 		t.Fatal("expected an error for a project with no documents")
 	}
 }

@@ -31,6 +31,7 @@ type Insight struct {
 	StatedNeed                string
 	LatentNeed                string
 	JTBD                      string
+	Rationale                 string
 	Interpretation            string
 	AlternativeInterpretation string
 	ProductOpportunity        string
