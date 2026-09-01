@@ -12,16 +12,26 @@ import (
 
 	"insight-lab/internal/http/handler"
 	appmw "insight-lab/internal/http/middleware"
+	"insight-lab/internal/llm"
 	"insight-lab/internal/repository"
 	"insight-lab/internal/service"
 	"insight-lab/internal/web"
 )
 
 type Deps struct {
-	Projects  repository.ProjectRepository
-	Documents repository.DocumentRepository
-	Demo      *service.DemoLoader
-	Build     handler.BuildInfo
+	Projects     repository.ProjectRepository
+	Documents    repository.DocumentRepository
+	Observations repository.ObservationRepository
+	Analyses     repository.AnalysisRepository
+	Insights     repository.InsightRepository
+	Evidence     repository.EvidenceRepository
+
+	Demo         *service.DemoLoader
+	Settings     *service.SettingsStore
+	JobManager   *service.JobManager
+	NewLLMClient func(service.Settings) llm.Client
+
+	Build handler.BuildInfo
 }
 
 func NewRouter(deps Deps) http.Handler {
@@ -30,11 +40,20 @@ func NewRouter(deps Deps) http.Handler {
 	r.Use(chimw.Recoverer)
 	r.Use(appmw.RestrictOrigin)
 
-	h := handler.New(deps.Projects, deps.Documents, deps.Demo, deps.Build)
+	h := &handler.Handler{
+		Projects: deps.Projects, Documents: deps.Documents, Observations: deps.Observations,
+		Analyses: deps.Analyses, Insights: deps.Insights, Evidence: deps.Evidence,
+		Demo: deps.Demo, Settings: deps.Settings, JobManager: deps.JobManager,
+		NewLLMClient: deps.NewLLMClient, Build: deps.Build,
+	}
 
 	r.Route("/api", func(r chi.Router) {
 		r.Get("/health", h.Health)
 		r.Post("/demo", h.CreateDemoProject)
+
+		r.Get("/settings", h.GetSettings)
+		r.Put("/settings", h.UpdateSettings)
+		r.Post("/settings/test", h.TestSettings)
 
 		r.Route("/projects", func(r chi.Router) {
 			r.Get("/", h.ListProjects)
@@ -45,10 +64,21 @@ func NewRouter(deps Deps) http.Handler {
 				r.Delete("/", h.DeleteProject)
 				r.Get("/documents", h.ListDocuments)
 				r.Post("/documents", h.CreateDocument)
+				r.Post("/documents/import", h.ImportDocumentsCSV)
+				r.Post("/analysis", h.CreateAnalysis)
+				r.Get("/analyses", h.ListAnalyses)
+				r.Get("/insights", h.ListInsights)
+				r.Get("/evaluation", h.GetEvaluation)
 			})
 		})
 
 		r.Get("/documents/{documentID}", h.GetDocument)
+
+		r.Get("/analysis/{analysisID}", h.GetAnalysis)
+		r.Get("/analysis/{analysisID}/events", h.AnalysisEvents)
+
+		r.Get("/insights/{insightID}", h.GetInsight)
+		r.Get("/insights/{insightID}/evidence", h.GetInsightEvidence)
 	})
 
 	r.Handle("/*", web.Handler())

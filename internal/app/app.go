@@ -13,6 +13,8 @@ import (
 	"insight-lab/internal/service"
 )
 
+const analysisWorkers = 2
+
 func Run(ctx context.Context, cfg *Config) error {
 	db, err := sqlite.Open(cfg.DBPath)
 	if err != nil {
@@ -22,8 +24,12 @@ func Run(ctx context.Context, cfg *Config) error {
 
 	projects := sqlite.NewProjectRepository(db)
 	documents := sqlite.NewDocumentRepository(db)
-	demoLoader := &service.DemoLoader{Projects: projects, Documents: documents}
+	observations := sqlite.NewObservationRepository(db)
+	analyses := sqlite.NewAnalysisRepository(db)
+	insights := sqlite.NewInsightRepository(db)
+	evidence := sqlite.NewEvidenceRepository(db)
 
+	demoLoader := &service.DemoLoader{Projects: projects, Documents: documents}
 	if cfg.Demo {
 		if !sampledata.Embedded {
 			return fmt.Errorf("this is a delivery build with no demo dataset embedded; build with `make build-demo` to get one")
@@ -33,10 +39,22 @@ func Run(ctx context.Context, cfg *Config) error {
 		}
 	}
 
+	if n, err := analyses.FailInterrupted(ctx); err != nil {
+		return fmt.Errorf("recover interrupted analyses: %w", err)
+	} else if n > 0 {
+		fmt.Printf("前回未完了だった解析を%d件、失敗として記録しました。\n", n)
+	}
+
+	settings := service.NewSettingsStore(service.Settings{APIKey: cfg.APIKey, Model: cfg.Model, BaseURL: cfg.BaseURL})
+	pipeline := &service.Pipeline{Documents: documents, Observations: observations, Insights: insights, Evidence: evidence}
+	jobManager := service.NewJobManager(analyses, pipeline, settings, service.DefaultLLMClientFactory)
+	jobManager.Start(ctx, analysisWorkers)
+
 	router := httpapi.NewRouter(httpapi.Deps{
-		Projects:  projects,
-		Documents: documents,
-		Demo:      demoLoader,
+		Projects: projects, Documents: documents, Observations: observations,
+		Analyses: analyses, Insights: insights, Evidence: evidence,
+		Demo: demoLoader, Settings: settings, JobManager: jobManager,
+		NewLLMClient: service.DefaultLLMClientFactory,
 		Build: handler.BuildInfo{
 			DemoBuild:  sampledata.Embedded,
 			ClientName: cfg.ClientName,
@@ -60,6 +78,9 @@ func Run(ctx context.Context, cfg *Config) error {
 	if cfg.ClientName != "" {
 		fmt.Printf("Confidential — prepared for %s\n", cfg.ClientName)
 	}
+	if !settings.Get().Configured() {
+		fmt.Println("LLMは未設定です。設定画面（または --api-key/--model/--base-url）で接続先を指定してください。")
+	}
 	fmt.Printf("%s\n", displayURL)
 
 	errCh := make(chan error, 1)
@@ -82,7 +103,11 @@ func Run(ctx context.Context, cfg *Config) error {
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	return srv.Shutdown(shutdownCtx)
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		return err
+	}
+	jobManager.Wait()
+	return nil
 }
 
 func localHost(bindHost string) string {

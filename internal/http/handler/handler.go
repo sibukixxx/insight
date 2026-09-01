@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"insight-lab/internal/llm"
 	"insight-lab/internal/repository"
 	"insight-lab/internal/service"
 )
@@ -21,14 +22,19 @@ type BuildInfo struct {
 }
 
 type Handler struct {
-	Projects  repository.ProjectRepository
-	Documents repository.DocumentRepository
-	Demo      *service.DemoLoader
-	Build     BuildInfo
-}
+	Projects     repository.ProjectRepository
+	Documents    repository.DocumentRepository
+	Observations repository.ObservationRepository
+	Analyses     repository.AnalysisRepository
+	Insights     repository.InsightRepository
+	Evidence     repository.EvidenceRepository
 
-func New(projects repository.ProjectRepository, documents repository.DocumentRepository, demo *service.DemoLoader, build BuildInfo) *Handler {
-	return &Handler{Projects: projects, Documents: documents, Demo: demo, Build: build}
+	Demo         *service.DemoLoader
+	Settings     *service.SettingsStore
+	JobManager   *service.JobManager
+	NewLLMClient func(service.Settings) llm.Client
+
+	Build BuildInfo
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

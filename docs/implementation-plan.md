@@ -22,55 +22,53 @@
 
 **完了条件の検証**: デモビルドを起動 → `/api/projects` に20件ドキュメントの入ったデモプロジェクトが自動生成される → ブラウザで一覧・本文が閲覧できる → 納品ビルドは `--demo` 指定時にエラー終了し、バイナリに `経理担当` 等のサンプル文言が一切含まれないことを `grep` で確認済み。
 
-**Phase 1 で未実装（Phase 2 以降）**: LLM 接続、Observation 抽出、Grounding Check、Insight 生成、SSE、CSV インポート、評価画面、GitHub Actions リリースワークフロー。CI（lint+test の自動実行）は未設定。
-
 **完了条件**: バイナリ起動 → Try Demo → 20 件のインタビューが閲覧できる。
 
-### Phase 2 — LLM 接続と Observation 抽出
+### Phase 2 — LLM 接続と Observation 抽出 ✅ 完了
 
 **ゴール**: LLM 設定 → 解析実行 → Observation が抽出・検証・保存される。
 
-- [ ] LLM Client 抽象 + OpenAI 互換実装（timeout / retry / backoff）
-- [ ] Structured Output 3 段フォールバック + レスポンスバリデーション
-- [ ] 設定 API・設定画面（Base URL / Model / API Key、セッションストア + HttpOnly Cookie）
-- [ ] `POST /api/settings/test` 接続テスト（フォールバック段数の表示）
-- [ ] Normalize + Chunk（8,000 字上限）
-- [ ] Observation Extraction プロンプト + スキーマ
-- [ ] **Grounding Check**（完全一致 → 正規化一致 → 破棄。単体テストを厚く）
-- [ ] JobManager（queue / worker×2 / context キャンセル / analyses テーブル書き込み / 起動時 interrupted 処理）
-- [ ] SSE エンドポイント（progress / error / completed）+ 解析中 UI
+- [x] LLM Client 抽象 + OpenAI 互換実装（`internal/llm`。timeout 120s / 429・5xx 指数バックオフ最大3回 / json_schema→json_object フォールバック / バリデーション失敗時フィードバック付き再試行最大2回）
+- [x] Structured Output 3 段フォールバック + レスポンスバリデーション（`httptest` でフォールバック遷移・リトライ・コードフェンス除去まで単体テスト済み）
+- [x] 設定ストア・設定画面（Base URL / Model / API Key）。**\[変更\]** HttpOnly Cookie セッションではなく、プロセス内シングルトンの `SettingsStore`（`internal/service/settings.go`）に簡略化。ローカル単一操作者向けツールという前提でセッション分離の複雑さを避けた。ディスク/DBには一切保存しない点は設計どおり
+- [x] `POST /api/settings/test` 接続テスト（フォールバック段数 `mode` を返す）
+- [x] Normalize + Chunk（8,000字上限、段落境界優先分割。`internal/service/textproc.go`）
+- [x] Observation Extraction プロンプト + JSON Schema（`internal/service/prompts.go` / `pipeline_types.go`）
+- [x] **Grounding Check**（完全一致→正規化一致（全角半角・句読点・空白を除去）→破棄。`internal/service/grounding.go`。ルーンオフセット。単体テストで捏造引用の拒否・部分一致拒否・オフセット復元を検証）
+- [x] JobManager（キュー + worker×2 + `analyses` テーブル書き込み + 起動時 `FailInterrupted`）
+- [x] SSE エンドポイント（progress / error / completed）+ 解析中 UI（進捗バー・ステップメッセージ）
 
-**完了条件**: デモデータに対して解析を実行し、検証済み quote 付き Observation が一覧表示される。
+**完了条件の検証**: フェイクLLMサーバー（OpenAI互換）を使い、実HTTP経由で解析を実行 → Observationが原文照合され保存されることを確認済み。ブラウザE2Eテスト（Playwright）でも解析実行→SSE進捗→完了までを確認。
 
-### Phase 3 — Insight 生成（プロダクトの核）
+### Phase 3 — Insight 生成（プロダクトの核） ✅ 完了
 
 **ゴール**: Hidden Need が Evidence・反証・Confidence 付きで表示される。
 
-- [ ] Pattern Detection ステップ
-- [ ] Need Hypothesis Generation（"Hypothesis" ラベル明示）
-- [ ] Evidence Retrieval（支持 + 反証の両方。counterSearched 記録）+ Grounding Check
-- [ ] Insight Generation（Evidence ID のみ参照可）+ Insight Dedupe
-- [ ] Confidence Scoring（アプリ側計算 + 反証減衰）
-- [ ] Insight 一覧 / 詳細 UI（Observation と Interpretation の色・ラベル分離）
-- [ ] Evidence クリック → 右パネルに原文 + オフセットハイライト + 「使用されている Insight」逆リンク
+- [x] Pattern Detection ステップ
+- [x] Need Hypothesis Generation（"Hypothesis" 相当のフィールドとして明示）
+- [x] Evidence Retrieval（支持 + 反証の両方。`counterSearched` 記録）— Evidence は Observation の ID 参照のみで構成されるため grounding 済み
+- [x] Insight Generation（**\[変更\]** ドラフト設計は「Evidence IDを参照する」方式だったが、実装では Evidence Retrieval 段階で既に grounding 済み Observation から Evidence 行を直接構築し、Insight Generation は仮説と Observation 要約を洞察の文章に仕上げるだけの「write-up」ステップにした。新しい引用や事実を作れないためハルシネーションの余地がさらに小さい）+ Insight Dedupe（LLM 1コールでグループ化 → アプリ側でマージ）
+- [x] Confidence Scoring（アプリ側計算。Evidence Strength 35% + Document Coverage 25% + Source Diversity 20% + Pattern Frequency 20%、反証件数に応じた減衰。単体テストで根拠強度・カバレッジ・多様性・反証減衰それぞれを検証）
+- [x] Insight 一覧 / 詳細 UI（Observation=事実 と Interpretation=解釈 を背景色で分離。Latent Need も別枠で強調）
+- [x] Evidence クリック → パネルに原文 + `<mark>` オフセットハイライト表示
 
-**完了条件**: MVP 完成条件（ドラフト §52 の 10 項目）をすべて満たす。ここが最初のリリース = デモ可能ライン。
+**完了条件の検証**: パイプライン全体を実SQLite DB + フェイクLLMで通し、捏造引用が `observations` テーブルに一切保存されないこと・Evidenceの支持/反証が正しくリンクされること・Confidenceが0〜1に収まることをテストで確認。ブラウザE2Eで Insight 詳細 → Evidence展開 → 原文中のハイライトまで実際に目視確認済み。ここが最初のリリース = デモ可能ライン。
 
-### Phase 4 — 入力の充実と運用性
+### Phase 4 — 入力の充実と運用性（一部完了）
 
-- [ ] テキスト貼り付け取り込み UI
-- [ ] CSV インポート（固定 4 列、BOM 除去、UTF-8 バリデーション、エラー表示）
-- [ ] TXT インポート
-- [ ] プロジェクト管理 UI（作成 / 削除 = ローカルデータ完全削除）
-- [ ] トークン使用量の集計・表示
+- [x] テキスト貼り付け取り込み UI（Phase 1 で実装済み）
+- [x] CSV インポート（固定4列 `id,source,title,content`、BOM自動除去、不正行はスキップしてエラー一覧を返す。`internal/service/csv_import.go`）
+- [x] プロジェクト管理 UI（作成は実装済み。削除APIは Phase 1 から存在するが削除ボタンのUIは未追加）
+- [ ] TXT インポート（CSVインポートと役割が重複するため優先度を下げた。必要になれば追加）
+- [ ] トークン使用量の集計・表示（`llm.Usage` は `GenerateResponse` に既に載っており、配線のみ残っている）
 
-### Phase 5 — 評価とリリース整備
+### Phase 5 — 評価とリリース整備（一部完了）
 
-- [ ] 評価指標 5 種の計算（解析完了時 → analyses.metrics）+ 評価画面
-- [ ] Golden Dataset 約 10 ケース定義 + `go test -tags=golden` 回帰評価
-- [ ] Markdown レポートエクスポート（商談後に置いていく用。PDF は後続）
-- [ ] GitHub Actions リリースワークフロー（タグ push → 4 ターゲット → Releases）
-- [ ] README / 配布手順 / プライバシー文言
+- [x] 評価指標 5 種の計算（解析完了時に `internal/service.Metrics` として計算し `analyses.metrics` に保存）+ 評価画面（`#/projects/:id/evaluation`）
+- [x] GitHub Actions（`.github/workflows/ci.yml`: gofmt/vet/test 両タグ + 納品ビルドへのデモデータ非混入を毎回検証。`.github/workflows/release.yml`: タグ push で `make cross-compile` → デモ/納品 × 4プラットフォームをアーカイブして Release へ添付）
+- [ ] Golden Dataset 約 10 ケース定義 + `go test -tags=golden` 回帰評価（実LLM前提のため未着手）
+- [ ] Markdown レポートエクスポート
+- [x] README / プライバシー文言（Phase 1 から記載済み）
 
 ### Phase 6 — 拡張モジュール
 

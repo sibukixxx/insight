@@ -448,3 +448,13 @@ Prefer surprising but well-supported insights over generic observations.
 ## 19. 将来モジュール（変更なし）
 
 Contradiction Finder / Churn Analyzer / Segment Discovery / Evidence Map 等は、共通の Document / Observation / Evidence / Insight モデル上に同一バイナリ内モジュールとして追加する。別アプリにはしない。加えて **Markdown/PDF レポートエクスポート**を Phase 5 候補に追加（商談後に解析結果を置いていける）。
+
+## 20. Phase 2/3 実装時の設計変更点 **[追加]**
+
+実装（`internal/service`, `internal/llm`, `internal/http`）を進める過程で、確定版設計から以下を変更した。理由とあわせて記録する。
+
+1. **設定ストアを HttpOnly Cookie セッションではなくプロセス内シングルトンに簡略化**（§11 関連）。本ツールはローカル1操作者が使うことを前提としており、ブラウザタブをまたいだ設定共有はむしろ自然な挙動である。ディスク/DBに一切保存しないという要件（confidentiality上の要件）は`internal/service/settings.go`の`SettingsStore`（メモリ内mutex保護のstruct）でそのまま満たしている。マルチユーザー同時アクセスが必要になった場合のみCookieセッション化を検討する。
+2. **Insight Generation を「Evidence ID を参照する」方式から「grounding 済み Observation から直接 Evidence 行を構築する」方式に変更**（§6.3, §13 関連）。Evidence Retrieval ステップが返すのは Observation ID のリストのみで、これは既に Grounding Check を通過した quote に紐づいている。Insight Generation（write-up）ステップは新しい引用や事実を一切生成せず、確定済みの仮説と Observation 要約を洞察文章にまとめるだけの役割に限定した。LLM が Evidence ID を捏造するリスクそのものを構造的に排除できるため、当初設計より安全性が高い。
+3. **Evidence の relevanceScore は LLM に自己申告させず、Evidence Retrieval が返した Observation ID の並び順から機械的に算出**（`1.0 - 0.05×順位`、下限0.5）。Confidence を LLM に自己申告させない方針（design-review.md P0-2）と一貫させるため。
+4. **Evidence Retrieval は毎回プロジェクト内の全 Observation を LLM に渡す**（FTS5/埋め込み検索は未実装）。デモ規模（数十件のObservation）では問題にならないが、大規模プロジェクトではトークン予算を圧迫する。Phase 6 でのスケール課題として明記。
+5. **フロントエンドは Vite/Preact ではなく素の HTML/CSS/JS のまま**（§17 に既出の変更を Phase 2/3 でも継続）。SSE・Insight詳細・Evidence原文ハイライト・評価画面・設定画面・CSVインポートUIまで含めて、ビルドステップなしで実装できている。

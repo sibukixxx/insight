@@ -16,7 +16,20 @@ make build-delivery
 ./bin/insight-lab --client "顧客企業名"
 ```
 
-起動すると `http://127.0.0.1:8787` でブラウザが自動で開く。
+起動すると `http://127.0.0.1:8787` でブラウザが自動で開く。ブラウザの「⚙ 設定」から OpenAI 互換の Base URL / Model / API Key を設定すると（`--api-key` `--model` `--base-url` フラグでも可）、プロジェクト画面の「解析を実行」で Hidden Needs 抽出が動く。
+
+## 使い方（ローカルで一通り試す）
+
+```bash
+make build-demo
+./bin/insight-lab-demo --demo --base-url https://api.openai.com/v1 --model gpt-5 --api-key sk-...
+```
+
+1. ブラウザで「デモを試す」→ 請求書SaaSインタビュー20件のプロジェクトが開く
+2. 「解析を実行」→ SSEで進捗が流れ、Hidden Need が Evidence・反証・Confidence 付きで表示される
+3. Insight詳細で Evidence をクリックすると、元ドキュメントの該当箇所がハイライトされる（grounding 検証済みの引用のみを表示）
+4. 「評価指標を見る」で Evidence Coverage / Unsupported Claim Rate などを確認できる
+5. CSVインポート（`id,source,title,content` 固定列）や設定画面からの接続テストも利用可能
 
 ## デモビルドと納品ビルドの分離
 
@@ -46,4 +59,4 @@ make test   # go test（デモ/納品タグ両方）
 
 ## ステータス
 
-Phase 1（単一バイナリ骨格・デモ/納品ビルド分離）実装完了。Phase 2（LLM接続・Observation抽出・Grounding Check）に着手予定。
+Phase 1〜3 実装完了（単一バイナリ骨格、デモ/納品ビルド分離、LLM接続、Observation抽出、Grounding Check、Hidden Needs パイプライン、Evidence/Confidence、SSE進捗、評価画面、CSVインポート、GitHub Actions CI/Release）。詳細は [docs/implementation-plan.md](docs/implementation-plan.md) を参照。

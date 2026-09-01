@@ -3,13 +3,16 @@ package handler
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 
 	"insight-lab/internal/domain"
 	"insight-lab/internal/repository"
+	"insight-lab/internal/service"
 )
 
 type documentDTO struct {
@@ -119,4 +122,32 @@ func (h *Handler) GetDocument(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, toDocumentDTO(d))
+}
+
+// ImportDocumentsCSV accepts either a multipart/form-data upload (field
+// name "file") or a raw text/csv body, in the fixed
+// id,source,title,content shape (see internal/service/csv_import.go).
+func (h *Handler) ImportDocumentsCSV(w http.ResponseWriter, r *http.Request) {
+	projectID := chi.URLParam(r, "projectID")
+	if !h.requireProject(w, r, projectID) {
+		return
+	}
+
+	var reader io.Reader = r.Body
+	if strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data") {
+		file, _, err := r.FormFile("file")
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "file フィールドが必要です")
+			return
+		}
+		defer file.Close()
+		reader = file
+	}
+
+	result, err := service.ImportCSV(r.Context(), h.Documents, projectID, reader)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
 }
