@@ -72,7 +72,7 @@
 
 ### Phase 6 — 拡張モジュール
 
-- [ ] Contradiction Detection をパイプラインに追加（Contradiction Finder）
+- [x] Contradiction Detection をパイプラインに追加 → **Trace Detection** として実装（設計 §23）。「常識的予想とのズレ（言行不一致・過剰な手間/支払い・不満なのに継続・起きるはずの行動の欠如）」を `Pattern(kind=deviation)` として検出・永続化し、Hypothesis Generation をアブダクション形式（予想 → 驚くべき事実 → 仮説 → 説明）に構造化。あわせて `internal/service/quality.go` で「顕在ニーズの言い換え / 抽象語 / 痕跡なし / 推論不完全」をアプリ側で判定し、警告として表示・評価指標化した
 - [ ] OS Keychain 対応
 - [ ] `--local-only`（外部通信ホワイトリスト制御、Ollama 等ローカル LLM 限定モード）
 - [ ] Churn Analyzer / Segment Discovery / Evidence Map（共通モデル上に追加）

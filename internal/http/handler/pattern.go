@@ -19,12 +19,20 @@ type patternObservationDTO struct {
 	EndOffset   int    `json:"endOffset"`
 }
 
+// patternDTO carries both kinds of "noticing": kind == "repetition" is a
+// behavior seen across several people; kind == "deviation" is a trace of
+// desire - a behavior that broke a common-sense expectation, with the
+// expectation and the actual behavior (description) shown side by side so
+// the reader can judge the gap themselves.
 type patternDTO struct {
-	ID           string                  `json:"id"`
-	Title        string                  `json:"title"`
-	Description  string                  `json:"description,omitempty"`
-	Observations []patternObservationDTO `json:"observations"`
-	CreatedAt    string                  `json:"createdAt"`
+	ID            string                  `json:"id"`
+	Kind          string                  `json:"kind"`
+	Title         string                  `json:"title"`
+	Description   string                  `json:"description,omitempty"`
+	Expectation   string                  `json:"expectation,omitempty"`
+	DeviationType string                  `json:"deviationType,omitempty"`
+	Observations  []patternObservationDTO `json:"observations"`
+	CreatedAt     string                  `json:"createdAt"`
 }
 
 // toPatternDTOs resolves each pattern's ObservationIDs into full
@@ -36,7 +44,8 @@ func toPatternDTOs(patterns []usecase.PatternDetail) []patternDTO {
 	for _, detail := range patterns {
 		p := detail.Pattern
 		dto := patternDTO{
-			ID: p.ID, Title: p.Title, Description: p.Description,
+			ID: p.ID, Kind: string(p.Kind), Title: p.Title, Description: p.Description,
+			Expectation: p.Expectation, DeviationType: string(p.DeviationType),
 			CreatedAt: p.CreatedAt.UTC().Format(time.RFC3339),
 		}
 		for _, o := range detail.Observations {

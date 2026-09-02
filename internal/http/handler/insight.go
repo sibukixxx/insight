@@ -19,22 +19,39 @@ type insightDTO struct {
 	StatedNeed                string  `json:"statedNeed"`
 	LatentNeed                string  `json:"latentNeed"`
 	JTBD                      string  `json:"jtbd"`
+	Expectation               string  `json:"expectation"`
+	SurprisingFact            string  `json:"surprisingFact"`
 	Rationale                 string  `json:"rationale"`
 	Interpretation            string  `json:"interpretation"`
 	AlternativeInterpretation string  `json:"alternativeInterpretation"`
 	ProductOpportunity        string  `json:"productOpportunity"`
 	MonetizationAngle         string  `json:"monetizationAngle"`
 	Confidence                float64 `json:"confidence"`
-	CreatedAt                 string  `json:"createdAt"`
+	// QualityFlags are app-side warnings (never model self-assessment)
+	// that this insight may not meet the definition of an insight; always
+	// an array so the client never has to null-check it.
+	QualityFlags []qualityFlagDTO `json:"qualityFlags"`
+	CreatedAt    string           `json:"createdAt"`
+}
+
+type qualityFlagDTO struct {
+	Code   string `json:"code"`
+	Detail string `json:"detail,omitempty"`
 }
 
 func toInsightDTO(i *domain.Insight) insightDTO {
+	flags := make([]qualityFlagDTO, 0, len(i.QualityFlags))
+	for _, f := range i.QualityFlags {
+		flags = append(flags, qualityFlagDTO{Code: string(f.Code), Detail: f.Detail})
+	}
 	return insightDTO{
 		ID: i.ID, ProjectID: i.ProjectID, Title: i.Title, Observation: i.Observation,
-		StatedNeed: i.StatedNeed, LatentNeed: i.LatentNeed, JTBD: i.JTBD, Rationale: i.Rationale,
+		StatedNeed: i.StatedNeed, LatentNeed: i.LatentNeed, JTBD: i.JTBD,
+		Expectation: i.Expectation, SurprisingFact: i.SurprisingFact, Rationale: i.Rationale,
 		Interpretation: i.Interpretation, AlternativeInterpretation: i.AlternativeInterpretation,
 		ProductOpportunity: i.ProductOpportunity, MonetizationAngle: i.MonetizationAngle, Confidence: i.Confidence,
-		CreatedAt: i.CreatedAt.UTC().Format(time.RFC3339),
+		QualityFlags: flags,
+		CreatedAt:    i.CreatedAt.UTC().Format(time.RFC3339),
 	}
 }
 

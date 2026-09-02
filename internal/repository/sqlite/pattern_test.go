@@ -101,3 +101,46 @@ func TestPatternRepositoryEmptyLinkIsNoop(t *testing.T) {
 		t.Fatalf("ListByInsight = %v, %v, want empty", linked, err)
 	}
 }
+
+func TestPatternRepositoryTraceRoundTrip(t *testing.T) {
+	db := openTestDB(t)
+	ctx := context.Background()
+	p, d := seedProjectAndDocument(t, db)
+	observations := NewObservationRepository(db)
+	patterns := NewPatternRepository(db)
+
+	if err := observations.CreateBatch(ctx, []*domain.Observation{
+		{ID: "obs_1", DocumentID: d.ID, Quote: "a", StartOffset: 0, EndOffset: 1, Behavior: "b1", CreatedAt: time.Now().UTC()},
+	}); err != nil {
+		t.Fatalf("seed observation: %v", err)
+	}
+	base := time.Now().UTC()
+	if err := patterns.CreateBatch(ctx, []*domain.Pattern{
+		// A repetition created first, with Kind left empty (legacy caller).
+		{ID: "pat_rep", ProjectID: p.ID, Title: "繰り返し", ObservationIDs: []string{"obs_1"}, CreatedAt: base},
+		{ID: "pat_dev", ProjectID: p.ID, Kind: domain.PatternDeviation, Title: "急いでいるのに時間をかける",
+			Description: "半日かけて検算している", Expectation: "忙しいなら自動計算を信じるはず",
+			DeviationType: domain.DeviationExcessEffort, ObservationIDs: []string{"obs_1"}, CreatedAt: base.Add(time.Second)},
+	}); err != nil {
+		t.Fatalf("CreateBatch: %v", err)
+	}
+
+	list, err := patterns.ListByProject(ctx, p.ID)
+	if err != nil || len(list) != 2 {
+		t.Fatalf("ListByProject = %v, %v", list, err)
+	}
+	// Deviation first regardless of creation order.
+	dev, rep := list[0], list[1]
+	if dev.ID != "pat_dev" || !dev.IsTrace() {
+		t.Fatalf("expected the deviation pattern first, got %+v", dev)
+	}
+	if dev.Expectation != "忙しいなら自動計算を信じるはず" || dev.DeviationType != domain.DeviationExcessEffort || dev.Description != "半日かけて検算している" {
+		t.Errorf("trace fields did not round-trip: %+v", dev)
+	}
+	if rep.Kind != domain.PatternRepetition {
+		t.Errorf("empty Kind should be stored as repetition, got %q", rep.Kind)
+	}
+	if rep.Expectation != "" || rep.DeviationType != "" {
+		t.Errorf("repetition should have no trace fields: %+v", rep)
+	}
+}

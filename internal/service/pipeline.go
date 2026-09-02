@@ -34,12 +34,24 @@ type Metrics struct {
 	GroundedObservations       int     `json:"groundedObservations"`
 	UnsupportedClaimRate       float64 `json:"unsupportedClaimRate"`
 	PatternCount               int     `json:"patternCount"`
-	TotalInsightDrafts         int     `json:"totalInsightDrafts"`
-	FinalInsightCount          int     `json:"finalInsightCount"`
-	InsightDuplicationRate     float64 `json:"insightDuplicationRate"`
-	EvidenceCoverage           float64 `json:"evidenceCoverage"`
-	CounterEvidenceCoverage    float64 `json:"counterEvidenceCoverage"`
-	AverageEvidencePerInsight  float64 `json:"averageEvidencePerInsight"`
+	// TraceCount is how many deviation-from-expectation patterns (traces
+	// of desire) were found. PatternCount includes them.
+	TraceCount                int     `json:"traceCount"`
+	TotalInsightDrafts        int     `json:"totalInsightDrafts"`
+	FinalInsightCount         int     `json:"finalInsightCount"`
+	InsightDuplicationRate    float64 `json:"insightDuplicationRate"`
+	EvidenceCoverage          float64 `json:"evidenceCoverage"`
+	CounterEvidenceCoverage   float64 `json:"counterEvidenceCoverage"`
+	AverageEvidencePerInsight float64 `json:"averageEvidencePerInsight"`
+	// TraceBackedInsightRate is the share of final insights whose
+	// hypothesis cites at least one deviation pattern - i.e. insights
+	// anchored to a surprising fact rather than to repetition alone.
+	TraceBackedInsightRate float64 `json:"traceBackedInsightRate"`
+	// QualityFlaggedInsightRate is the share of final insights carrying
+	// at least one app-side quality warning (see quality.go).
+	QualityFlaggedInsightRate float64 `json:"qualityFlaggedInsightRate"`
+	// QualityFlagCounts is how many insights carry each flag code.
+	QualityFlagCounts map[string]int `json:"qualityFlagCounts"`
 }
 
 type draftInsight struct {
@@ -79,18 +91,34 @@ func (p *Pipeline) Run(ctx context.Context, analysisID, projectID string, progre
 	progress("extracting_observations", 25, fmt.Sprintf("%d件の観察を確認しました（%d件は原文照合できず破棄）",
 		len(allObs), metrics.TotalObservationCandidates-metrics.GroundedObservations))
 
-	progress("detecting_patterns", 30, "繰り返しのパターンを探しています...")
 	obsByID := indexObservations(allObs)
+
+	// Step 1 of the method: predict how a person "should" behave, then
+	// treat behavior that breaks the prediction as the trace an unconscious
+	// desire left behind. This runs before repetition detection because an
+	// insight anchored to a surprising fact is much less likely to be a
+	// restatement of what customers already say.
+	progress("detecting_traces", 28, "常識的な予想とのズレ（欲望の痕跡）を探しています...")
+	traceCandidates, err := p.detectTraces(ctx, allObs)
+	if err != nil {
+		return nil, fmt.Errorf("trace detection: %w", err)
+	}
+	traces := buildTracePatterns(projectID, analysisID, traceCandidates, obsByID)
+	progress("detecting_traces", 33, fmt.Sprintf("%d件の「予想とのズレ」を見つけました", len(traces)))
+
+	progress("detecting_patterns", 35, "繰り返しのパターンを探しています...")
 	patternCandidates, err := p.detectPatterns(ctx, allObs)
 	if err != nil {
 		return nil, fmt.Errorf("pattern detection: %w", err)
 	}
-	patterns := buildPatterns(projectID, analysisID, patternCandidates, obsByID)
+	repetitions := buildPatterns(projectID, analysisID, patternCandidates, obsByID)
+	patterns := append(append([]*domain.Pattern{}, traces...), repetitions...)
 	if err := p.Patterns.CreateBatch(ctx, patterns); err != nil {
 		return nil, fmt.Errorf("save patterns: %w", err)
 	}
 	metrics.PatternCount = len(patterns)
-	progress("detecting_patterns", 40, fmt.Sprintf("%d件の繰り返しパターンを見つけました", len(patterns)))
+	metrics.TraceCount = len(traces)
+	progress("detecting_patterns", 40, fmt.Sprintf("%d件の繰り返しパターンを見つけました", len(repetitions)))
 
 	progress("generating_hypotheses", 45, "潜在ニーズの仮説を立てています...")
 	hypotheses, err := p.generateHypotheses(ctx, patterns, allObs)
@@ -175,7 +203,8 @@ func (p *Pipeline) extractAndGroundAll(ctx context.Context, docs []*domain.Docum
 func (p *Pipeline) persistInsights(ctx context.Context, analysisID, projectID string, drafts []draftInsight, keepIdx []int,
 	docByID map[string]*domain.Document, patternsByID map[string]*domain.Pattern, totalDocuments int, metrics *Metrics) error {
 
-	var insightsWithSupport, counterSearchedCount, totalEvidenceRows int
+	var insightsWithSupport, counterSearchedCount, totalEvidenceRows, traceBacked, flagged int
+	flagCounts := map[string]int{}
 	aID := analysisID
 
 	for _, idx := range keepIdx {
@@ -183,7 +212,8 @@ func (p *Pipeline) persistInsights(ctx context.Context, analysisID, projectID st
 		insight := &domain.Insight{
 			ID: newID("ins"), ProjectID: projectID, AnalysisID: &aID, Title: d.writeup.Title,
 			Observation: d.writeup.ObservationSummary, StatedNeed: d.hypothesis.StatedNeed,
-			LatentNeed: d.hypothesis.LatentNeed, JTBD: d.hypothesis.JTBD, Rationale: d.hypothesis.Rationale,
+			LatentNeed: d.hypothesis.LatentNeed, JTBD: d.hypothesis.JTBD,
+			Expectation: d.hypothesis.Expectation, SurprisingFact: d.hypothesis.SurprisingFact, Rationale: d.hypothesis.Rationale,
 			Interpretation: d.writeup.Interpretation, AlternativeInterpretation: d.writeup.AlternativeInterpretation,
 			ProductOpportunity: d.writeup.ProductOpportunity, MonetizationAngle: d.writeup.MonetizationAngle,
 			CreatedAt: time.Now().UTC(),
@@ -211,21 +241,43 @@ func (p *Pipeline) persistInsights(ctx context.Context, analysisID, projectID st
 			PatternDocumentCount:  len(documentsWithSupport),
 		})
 
+		// Pattern references are validated the same way quotes are
+		// grounded: a cited pattern that doesn't exist is dropped, never
+		// stored. The surviving patterns also feed the quality gate (an
+		// insight built from repetition alone, with no trace, is flagged).
+		var validPatternIDs []string
+		var citedPatterns []*domain.Pattern
+		for _, pid := range d.hypothesis.BasedOnPatternIDs {
+			if pat, ok := patternsByID[pid]; ok {
+				validPatternIDs = append(validPatternIDs, pid)
+				citedPatterns = append(citedPatterns, pat)
+			}
+		}
+
+		insight.QualityFlags = AssessQuality(QualityInput{
+			StatedNeed: insight.StatedNeed, LatentNeed: insight.LatentNeed,
+			Expectation: insight.Expectation, SurprisingFact: insight.SurprisingFact,
+			Patterns: citedPatterns,
+		})
+
 		if err := p.Insights.Create(ctx, insight); err != nil {
 			return fmt.Errorf("save insight: %w", err)
 		}
 		if err := p.Evidence.CreateBatch(ctx, evidenceRows); err != nil {
 			return fmt.Errorf("save evidence: %w", err)
 		}
-
-		var validPatternIDs []string
-		for _, pid := range d.hypothesis.BasedOnPatternIDs {
-			if _, ok := patternsByID[pid]; ok {
-				validPatternIDs = append(validPatternIDs, pid)
-			}
-		}
 		if err := p.Patterns.LinkInsight(ctx, insight.ID, validPatternIDs); err != nil {
 			return fmt.Errorf("link insight patterns: %w", err)
+		}
+
+		if !insight.HasQualityFlag(domain.QualityNoTrace) {
+			traceBacked++
+		}
+		if len(insight.QualityFlags) > 0 {
+			flagged++
+		}
+		for _, f := range insight.QualityFlags {
+			flagCounts[string(f.Code)]++
 		}
 
 		if len(d.supporting) > 0 {
@@ -238,10 +290,14 @@ func (p *Pipeline) persistInsights(ctx context.Context, analysisID, projectID st
 	}
 
 	metrics.FinalInsightCount = len(keepIdx)
+	metrics.QualityFlagCounts = flagCounts
 	if metrics.FinalInsightCount > 0 {
-		metrics.EvidenceCoverage = float64(insightsWithSupport) / float64(metrics.FinalInsightCount)
-		metrics.CounterEvidenceCoverage = float64(counterSearchedCount) / float64(metrics.FinalInsightCount)
-		metrics.AverageEvidencePerInsight = float64(totalEvidenceRows) / float64(metrics.FinalInsightCount)
+		n := float64(metrics.FinalInsightCount)
+		metrics.EvidenceCoverage = float64(insightsWithSupport) / n
+		metrics.CounterEvidenceCoverage = float64(counterSearchedCount) / n
+		metrics.AverageEvidencePerInsight = float64(totalEvidenceRows) / n
+		metrics.TraceBackedInsightRate = float64(traceBacked) / n
+		metrics.QualityFlaggedInsightRate = float64(flagged) / n
 	}
 	return nil
 }
@@ -263,6 +319,27 @@ func (p *Pipeline) extractObservations(ctx context.Context, chunk string) (*obse
 		return nil, err
 	}
 	return &out, nil
+}
+
+func (p *Pipeline) detectTraces(ctx context.Context, obs []*domain.Observation) ([]traceCandidate, error) {
+	payload, err := json.Marshal(map[string]any{"observations": toObservationRefs(obs)})
+	if err != nil {
+		return nil, err
+	}
+	resp, err := p.LLM.Generate(ctx, llm.GenerateRequest{
+		SystemPrompt: traceDetectionPrompt,
+		Messages:     []llm.Message{{Role: "user", Content: string(payload)}},
+		Schema:       traceDetectionSchema(),
+		Temperature:  0.3,
+	})
+	if err != nil {
+		return nil, err
+	}
+	var out traceDetectionOutput
+	if err := json.Unmarshal(resp.Content, &out); err != nil {
+		return nil, err
+	}
+	return out.Traces, nil
 }
 
 func (p *Pipeline) detectPatterns(ctx context.Context, obs []*domain.Observation) ([]patternCandidate, error) {
@@ -462,8 +539,40 @@ func buildPatterns(projectID, analysisID string, candidates []patternCandidate, 
 			continue
 		}
 		out = append(out, &domain.Pattern{
-			ID: newID("pat"), ProjectID: projectID, AnalysisID: analysisID,
+			ID: newID("pat"), ProjectID: projectID, AnalysisID: analysisID, Kind: domain.PatternRepetition,
 			Title: c.Title, Description: c.Description, ObservationIDs: validIDs, CreatedAt: now,
+		})
+	}
+	return out
+}
+
+// buildTracePatterns applies the same existence filter to traces: a
+// "surprising fact" that cites no grounded observation is discarded. The
+// trace's expectation and actual behavior are both kept so a reader can
+// judge for themselves whether the gap is real. An out-of-vocabulary
+// deviation type is coerced to "other" rather than rejected - the
+// classification is a label for the UI, not evidence.
+func buildTracePatterns(projectID, analysisID string, candidates []traceCandidate, obsByID map[string]*domain.Observation) []*domain.Pattern {
+	now := time.Now().UTC()
+	var out []*domain.Pattern
+	for _, c := range candidates {
+		var validIDs []string
+		for _, id := range c.ObservationIDs {
+			if _, ok := obsByID[id]; ok {
+				validIDs = append(validIDs, id)
+			}
+		}
+		if len(validIDs) == 0 {
+			continue
+		}
+		dt := domain.DeviationType(c.DeviationType)
+		if !dt.Valid() {
+			dt = domain.DeviationOther
+		}
+		out = append(out, &domain.Pattern{
+			ID: newID("pat"), ProjectID: projectID, AnalysisID: analysisID, Kind: domain.PatternDeviation,
+			Title: c.Title, Description: c.ActualBehavior, Expectation: c.Expectation, DeviationType: dt,
+			ObservationIDs: validIDs, CreatedAt: now,
 		})
 	}
 	return out
@@ -472,7 +581,10 @@ func buildPatterns(projectID, analysisID string, candidates []patternCandidate, 
 func toPatternRefs(patterns []*domain.Pattern) []patternRef {
 	refs := make([]patternRef, len(patterns))
 	for i, p := range patterns {
-		refs[i] = patternRef{ID: p.ID, Title: p.Title, Description: p.Description, ObservationCount: len(p.ObservationIDs)}
+		refs[i] = patternRef{
+			ID: p.ID, Kind: string(p.Kind), Title: p.Title, Description: p.Description,
+			Expectation: p.Expectation, DeviationType: string(p.DeviationType), ObservationCount: len(p.ObservationIDs),
+		}
 	}
 	return refs
 }

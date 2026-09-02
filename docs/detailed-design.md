@@ -169,13 +169,15 @@ Raw Documents
   ↓ Chunk（1チャンク最大8,000字。チャンク毎に以下を実行）
   ↓ Observation Extraction（LLM。推論禁止・引用必須）
   ↓ Grounding Check（アプリ。quoteを原文照合、失敗quoteは破棄）★
+  ↓ Trace Detection（LLM。常識的予想とのズレ＝欲望の痕跡の検出。§23）[変更: 追加]
   ↓ Pattern Detection（LLM。反復行動・反復回避・反復不安の検出）
-  ↓ Need Hypothesis Generation（LLM。以後 "Hypothesis" と明示）
+  ↓ Need Hypothesis Generation（LLM。アブダクション形式。以後 "Hypothesis" と明示）
   ↓ Evidence Retrieval（LLM。支持と反証の両方を必ず検索）★
   ↓ Grounding Check（再度。Evidence quoteの実在検証）★
   ↓ Insight Generation（LLM。Evidence IDのみ参照可）
   ↓ Insight Dedupe（LLM 1コールで類似Insight統合）[変更: 追加]
   ↓ Confidence Scoring（アプリ側計算。LLMに数値を出させない）★
+  ↓ Quality Gate（アプリ側判定。顕在ニーズの言い換え / 抽象語 / 痕跡なし を警告。§23）★ [変更: 追加]
 ```
 
 ★ = 本プロダクトの差別化ポイント。LLM の出力を信頼せず、アプリ側で検証・計算する箇所。
@@ -491,3 +493,46 @@ Hidden Needs Finder のパイプライン（Observation→Grounding→Pattern→
 - **UI**: Insight詳細画面の先頭に「推論の過程」セクションを新設。Pattern（タイトル・説明・元になった Observation の引用、原文クリックで確認可能）→ Rationale（なぜこの仮説に至ったか）→ 従来の Insight 本体（Observation要約・StatedNeed・LatentNeed・JTBD・Interpretation等）→ Evidence/Counter Evidence、という順で、一次データから最終的な洞察までの連鎖を上から下にたどれる。プロジェクト単位で全 Pattern を見る `#/projects/:id/patterns` ページも追加（Insightに至らなかった Pattern も含めて確認できる）。
 
 この一連の変更により、「Observation（一次データの引用）→ Pattern（繰り返しへの気づき）→ Rationale（推論の飛躍）→ Hypothesis（LatentNeed/JTBD）→ Evidence（検証）→ Insight（結論）」という、マーケターが頭の中で行う一連の推論が、すべて DB に記録され、UI 上でたどれるようになった。
+
+## 23. インサイト検出法の整理: 予想 → ズレ → アブダクション **[追加]**
+
+松本健太郎「インサイトの見つけ方」（日経COMEMO, 2026-09-02）を参考に、「LLM にインサイトを出させる」のではなく、熟練リサーチャーの作法そのものをパイプラインとアプリ側の検証に落とし込んだ。
+
+### 23.1 定義と、これまでの実装の問題
+
+> インサイトとは「人を動かす無自覚な欲求」。「コスパ」「安心」は無自覚ではなく（顕在ニーズ）、「自分らしさ」「承認欲求」は抽象的すぎて人を動かさない。どちらもインサイトではない。
+
+§6 のパイプラインは Observation → **繰り返し**（Pattern）→ Hypothesis という流れしか持っていなかった。繰り返しは「多くの人が言っている / やっていること」であり、そこから立てた仮説は本人が既に自覚しているニーズの言い換えになりやすい。記事の指摘する「粗悪品」は、まさにこの経路から生まれる。また、生成された LatentNeed がインサイトの定義を満たしているかを判定する仕組みがなく、モデルの出力をそのまま表示していた。
+
+### 23.2 方法論の3ステップと実装の対応
+
+| 記事の方法 | 実装 |
+|---|---|
+| ① 常識に照らして「人間はこう動くはずだ」と予想する | **Trace Detection** ステップ（`traceDetectionPrompt`）。各 Observation 群に対し、まず `expectation`（常識的予想）を立てさせる |
+| ② 予想と異なる行動を、見えない力が残した痕跡として捉える | 同ステップで `actualBehavior` と `deviationType`（言行不一致 / 急いでいるのに手間をかける / 予定より多く払う / 不満なのに使い続ける / 起きるはずの行動がない＝「吠えなかった犬」/ その他）を出力。`Pattern` として `kind = deviation` で永続化し、`expectation` と実際の行動を並べて UI に表示する |
+| ③ アブダクションで、痕跡を説明する無自覚な欲求を仮説立てる | **Hypothesis Generation** の出力を「驚くべき事実 C（`surprisingFact`）」「常識的予想（`expectation`）」「仮説 H（`latentNeed`）」「H が真なら C は当然になる説明（`rationale`）」の4項目に構造化。`Insight` に `Expectation` / `SurprisingFact` を追加し、詳細画面の「推論の過程」を ①予想 → ②ズレ → ③仮説 → ④説明 の順で表示する |
+| 「良いアブダクションは事実を加えず、別の意味を与える」 | `surprisingFact` に新しい事実を書くことを禁止し、Observation にある事実のみを使わせる。Pattern 参照は grounding と同じく「存在しない ID は保存時に捨てる」 |
+| インサイトを便益に結びつけないと「どれでも良い」になる | Writeup の `productOpportunity` に「なぜこの製品のこの便益でなければならないか」を要求 |
+
+Trace Detection は Pattern Detection より前に実行する。痕跡に根ざした仮説を優先させるためであり、Hypothesis Generation には両方の Pattern（`kind` 付き）を渡し、deviation を優先して根拠にするよう指示する。
+
+### 23.3 Quality Gate（アプリ側の粗悪品判定）
+
+「単なる AI 利用」に終わらせないため、インサイトの定義を満たしているかの判定は LLM の自己申告ではなく、`internal/service/quality.go` の決定的なチェックで行う。結果は `Insight.QualityFlags`（`insights.quality_flags` JSON）に保存し、一覧・詳細・評価画面に警告として表示する。**警告であって却下ではない**。最終判断はリサーチャーが行う。
+
+| フラグ | 判定 | 根拠 |
+|---|---|---|
+| `stated_need_echo` | LatentNeed と StatedNeed を grounding と同じ正規化（空白・句読点除去・全半角統一）にかけ、包含関係または文字 bigram の Jaccard 係数 ≥ 0.5 | 本人が口にしているニーズは無自覚ではない |
+| `generic_term` | LatentNeed に「コスパ / 安心 / 便利 / 効率 / 時短 / 手軽 / お得 / 承認欲求 / 自己実現 / 自分らしさ / 帰属意識 / 満足感」等の語を含む（該当語を detail に記録） | 顕在ニーズ語・抽象語はインサイトではない |
+| `no_trace` | 仮説が引用した Pattern に `deviation` が1つもない | 繰り返しだけから導かれた仮説は当たり前の観察に留まりやすい |
+| `abduction_incomplete` | `expectation` または `surprisingFact` が空 | 予想 → ズレ → 仮説 の連鎖を読者が検証できない |
+
+評価指標（§15）に **Trace Count**（痕跡の件数）、**Trace-backed Insight Rate**（痕跡を根拠に持つ Insight の割合）、**Quality Flagged Insight Rate**（警告付き Insight の割合、低いほど良い）と、フラグ別件数 `qualityFlagCounts` を追加した。モデルやプロンプトを変えた際に「粗悪品率」が上がっていないかを、このダッシュボードで監視できる。
+
+### 23.4 Confidence との関係
+
+Confidence（§7）は「その仮説がどれだけ Evidence に支持されているか」を表し、Quality Flags は「そもそもインサイトの定義を満たしているか」を表す。両者は独立した軸である。繰り返しに強く支持された顕在ニーズの言い換えは、Confidence が高く Quality Flag 付き、という形で現れる。Confidence の式は変更していない。
+
+### 23.5 DB
+
+`002_traces_and_quality.sql` で `patterns.kind / expectation / deviation_type` と `insights.expectation / surprising_fact / quality_flags` を追加。既存行の `kind` は DEFAULT `'repetition'` となる。

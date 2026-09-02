@@ -7,6 +7,15 @@
 
 Insight は単独で提示せず、必ず **Insight → Evidence（原文照合済み引用）→ 反証 → Confidence** のセットで表示する。「複数の声を突き合わせて『ここが違う』と気づく」というインサイト抽出特有のブラックボックスな推論過程も、Observation（引用）→ Pattern（繰り返しへの気づき）→ Rationale（なぜその仮説に至ったか）→ Insight という連鎖として、Insight詳細画面と `#/projects/:id/patterns` ページでたどれるようにしている。
 
+### インサイトの見つけ方をそのまま実装する
+
+インサイトとは「人を動かす無自覚な欲求」であり、「コスパ」「安心」のような顕在ニーズや、「承認欲求」「自分らしさ」のような抽象語はインサイトではない。欲求そのものは見えないが、欲求が残した痕跡（急いでいるのに時間をかける、予定より多く払う、不満なのに使い続ける、起きるはずの行動が起きない）は見える。Insight Lab はこの作法を LLM への指示ではなく、パイプラインの構造とアプリ側の検証として組み込んでいる（[docs/detailed-design.md §23](docs/detailed-design.md)）。
+
+1. **予想する** — 常識に照らして「この人はこう動くはずだ」という予想を立てる
+2. **ズレを痕跡として捉える** — 予想と実際の行動の食い違いを `Trace`（`kind = deviation` の Pattern）として検出・保存し、「予想 ≠ 実際」を並べて表示する
+3. **アブダクションで仮説を立てる** — 「驚くべき事実 C が観察された。仮説 H が真なら C は当然になる。よって H」という形式で潜在ニーズを生成し、①予想 → ②ズレ → ③仮説 → ④説明 の連鎖を Insight 詳細画面に表示する
+4. **アプリ側で粗悪品を判定する** — 生成された Latent Need が「顕在ニーズの言い換え」「抽象語」「痕跡なし（繰り返しのみ）」「推論が不完全」のいずれかに当たる場合、モデルの自己評価ではなく決定的なチェック（`internal/service/quality.go`）で警告を付ける。却下はせず、最終判断はリサーチャーに委ねる。評価画面では「痕跡を根拠に持つ Insight の割合」「警告付き Insight の割合」を確認できる
+
 抽出エンジンはドメイン非依存。顧客インタビューだけでなく、案件サイトの募集文や伸びているSNS投稿を貼り付けても同じロジックで「隠れたニーズ」を見つけられる。各Insightには `Product Opportunity`（対象企業向けの改善提案）に加えて **`Monetization Angle`**（そのニーズを自分自身が商品・サービス化するなら何ができるか）も出力される。他社に売り込むデモにも、自分で機会を見つけて自分で作る用途にも使える。
 
 ## 動作要件
@@ -38,8 +47,8 @@ make build-demo
 
 1. ブラウザで「デモを試す」→ 請求書SaaSインタビュー20件のプロジェクトが開く
 2. 「解析を実行」→ SSEで進捗が流れ、Hidden Need が Evidence・反証・Confidence 付きで表示される
-3. Insight詳細の「推論の過程」で、元になった Pattern（繰り返しの気づき）とその Rationale（なぜこの仮説に至ったか）を確認できる。Evidence をクリックすると、元ドキュメントの該当箇所がハイライトされる（grounding 検証済みの引用のみを表示）
-4. 「検出されたパターン一覧」「評価指標を見る」で、最終的な Insight に至らなかった Pattern や、Evidence Coverage / Unsupported Claim Rate などを確認できる
+3. Insight詳細の「推論の過程」で、①常識的予想 → ②予想とのズレ（欲望の痕跡）→ ③仮説 → ④説明 の連鎖と、元になった痕跡・繰り返しパターンを確認できる。品質チェックの警告（顕在ニーズの言い換え・抽象語・痕跡なし）が付いた Insight は一覧・詳細でマークされる。Evidence をクリックすると、元ドキュメントの該当箇所がハイライトされる（grounding 検証済みの引用のみを表示）
+4. 「痕跡・パターン一覧」「評価指標を見る」で、最終的な Insight に至らなかった痕跡・Pattern や、Evidence Coverage / Unsupported Claim Rate / Trace-backed Insight Rate / Quality Flagged Rate などを確認できる
 5. CSVインポート（`id,source,title,content` 固定列）や設定画面からの接続テストも利用可能
 
 ## デモビルドと納品ビルドの分離
@@ -70,7 +79,7 @@ make test   # go test（デモ/納品タグ両方）
 
 ## ステータス
 
-Phase 1〜3 実装完了（単一バイナリ骨格、デモ/納品ビルド分離、LLM接続、Observation抽出、Grounding Check、Hidden Needs パイプライン、Evidence/Confidence、SSE進捗、評価画面、CSVインポート、GitHub Actions CI/Release）。詳細は [docs/implementation-plan.md](docs/implementation-plan.md) を参照。
+Phase 1〜3 実装完了（単一バイナリ骨格、デモ/納品ビルド分離、LLM接続、Observation抽出、Grounding Check、Hidden Needs パイプライン、Evidence/Confidence、SSE進捗、評価画面、CSVインポート、GitHub Actions CI/Release）。Phase 6 のうち Trace Detection（予想とのズレの検出）・アブダクション形式の仮説・Quality Gate を実装済み。詳細は [docs/implementation-plan.md](docs/implementation-plan.md) を参照。
 
 ## コントリビュート
 

@@ -2,6 +2,7 @@ package sqlite
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"path/filepath"
 	"testing"
@@ -141,5 +142,79 @@ func TestDocumentRepositoryGetNotFound(t *testing.T) {
 
 	if _, err := documents.Get(context.Background(), "missing"); !errors.Is(err, repository.ErrNotFound) {
 		t.Errorf("Get = %v, want ErrNotFound", err)
+	}
+}
+
+// TestMigrateUpgradesExistingDatabase simulates a database created by a
+// binary that only knew migration 001, then opens it with the current
+// binary: 002 must apply on top (ALTER TABLE) and the new columns must be
+// usable, with legacy pattern rows reading back as repetitions.
+func TestMigrateUpgradesExistingDatabase(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "legacy.db")
+	raw, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatalf("open raw: %v", err)
+	}
+	initSQL, err := migrationsFS.ReadFile("migrations/001_init.sql")
+	if err != nil {
+		t.Fatalf("read 001: %v", err)
+	}
+	ctx := context.Background()
+	if _, err := raw.ExecContext(ctx, `CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)`); err != nil {
+		t.Fatalf("create schema_migrations: %v", err)
+	}
+	tx, err := raw.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatalf("begin: %v", err)
+	}
+	if err := execScript(ctx, tx, string(initSQL)); err != nil {
+		t.Fatalf("apply 001: %v", err)
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO schema_migrations (version, applied_at) VALUES (1, 'x')`); err != nil {
+		t.Fatalf("record 001: %v", err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("commit: %v", err)
+	}
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	for _, stmt := range []string{
+		`INSERT INTO projects (id, name, created_at) VALUES ('proj_1', 'legacy', '` + now + `')`,
+		`INSERT INTO patterns (id, project_id, title, created_at) VALUES ('pat_legacy', 'proj_1', 'old pattern', '` + now + `')`,
+		// The columns the 001-era repository always wrote (as "" when empty).
+		`INSERT INTO insights (id, project_id, title, observation, stated_need, latent_need, jtbd, rationale, interpretation,
+		   alternative_interpretation, product_opportunity, monetization_angle, confidence, created_at)
+		 VALUES ('ins_legacy', 'proj_1', 'old insight', '', '', '', '', '', '', '', '', '', 0.5, '` + now + `')`,
+	} {
+		if _, err := raw.ExecContext(ctx, stmt); err != nil {
+			t.Fatalf("seed legacy row: %v", err)
+		}
+	}
+	raw.Close()
+
+	db, err := Open(path)
+	if err != nil {
+		t.Fatalf("Open (upgrade): %v", err)
+	}
+	defer db.Close()
+
+	patterns, err := NewPatternRepository(db).ListByProject(ctx, "proj_1")
+	if err != nil || len(patterns) != 1 {
+		t.Fatalf("ListByProject = %v, %v", patterns, err)
+	}
+	if patterns[0].Kind != domain.PatternRepetition || patterns[0].IsTrace() {
+		t.Errorf("legacy pattern should read as repetition, got %q", patterns[0].Kind)
+	}
+	insight, err := NewInsightRepository(db).Get(ctx, "ins_legacy")
+	if err != nil {
+		t.Fatalf("Get legacy insight: %v", err)
+	}
+	if insight.QualityFlags != nil || insight.Expectation != "" {
+		t.Errorf("legacy insight should have empty new fields: %+v", insight)
+	}
+	if err := NewPatternRepository(db).CreateBatch(ctx, []*domain.Pattern{{
+		ID: "pat_new", ProjectID: "proj_1", Kind: domain.PatternDeviation, Title: "new", Expectation: "e",
+		DeviationType: domain.DeviationAbsence, CreatedAt: time.Now().UTC(),
+	}}); err != nil {
+		t.Fatalf("insert into upgraded schema: %v", err)
 	}
 }

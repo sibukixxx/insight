@@ -17,6 +17,8 @@ func NewPatternRepository(db *DB) *PatternRepository {
 	return &PatternRepository{db: db}
 }
 
+const patternColumns = `id, project_id, analysis_id, kind, title, description, expectation, deviation_type, created_at`
+
 func (r *PatternRepository) CreateBatch(ctx context.Context, patterns []*domain.Pattern) error {
 	if len(patterns) == 0 {
 		return nil
@@ -26,10 +28,15 @@ func (r *PatternRepository) CreateBatch(ctx context.Context, patterns []*domain.
 		return err
 	}
 	for _, p := range patterns {
+		kind := p.Kind
+		if kind == "" {
+			kind = domain.PatternRepetition
+		}
 		if _, err := tx.ExecContext(ctx,
-			`INSERT INTO patterns (id, project_id, analysis_id, title, description, created_at)
-			 VALUES (?, ?, ?, ?, ?, ?)`,
-			p.ID, p.ProjectID, nullableStringLiteral(p.AnalysisID), p.Title, p.Description, formatTime(p.CreatedAt)); err != nil {
+			`INSERT INTO patterns (id, project_id, analysis_id, kind, title, description, expectation, deviation_type, created_at)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			p.ID, p.ProjectID, nullableStringLiteral(p.AnalysisID), string(kind), p.Title, p.Description,
+			nullableStringLiteral(p.Expectation), nullableStringLiteral(string(p.DeviationType)), formatTime(p.CreatedAt)); err != nil {
 			tx.Rollback()
 			return err
 		}
@@ -45,10 +52,14 @@ func (r *PatternRepository) CreateBatch(ctx context.Context, patterns []*domain.
 	return tx.Commit()
 }
 
+// ListByProject returns every pattern in the project, deviation (trace)
+// patterns first so the "what surprised us" layer is read before the
+// "what repeated" layer, then oldest first within each kind.
 func (r *PatternRepository) ListByProject(ctx context.Context, projectID string) ([]*domain.Pattern, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, project_id, analysis_id, title, description, created_at
-		 FROM patterns WHERE project_id = ? ORDER BY created_at ASC`, projectID)
+		`SELECT `+patternColumns+`
+		 FROM patterns WHERE project_id = ?
+		 ORDER BY CASE kind WHEN 'deviation' THEN 0 ELSE 1 END, created_at ASC`, projectID)
 	if err != nil {
 		return nil, err
 	}
@@ -85,11 +96,11 @@ func (r *PatternRepository) LinkInsight(ctx context.Context, insightID string, p
 
 func (r *PatternRepository) ListByInsight(ctx context.Context, insightID string) ([]*domain.Pattern, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT p.id, p.project_id, p.analysis_id, p.title, p.description, p.created_at
+		`SELECT p.id, p.project_id, p.analysis_id, p.kind, p.title, p.description, p.expectation, p.deviation_type, p.created_at
 		 FROM patterns p
 		 JOIN insight_patterns ip ON ip.pattern_id = p.id
 		 WHERE ip.insight_id = ?
-		 ORDER BY p.created_at ASC`, insightID)
+		 ORDER BY CASE p.kind WHEN 'deviation' THEN 0 ELSE 1 END, p.created_at ASC`, insightID)
 	if err != nil {
 		return nil, err
 	}
@@ -159,10 +170,9 @@ func scanPatterns(rows *sql.Rows) ([]*domain.Pattern, error) {
 
 func scanPattern(s scanner) (*domain.Pattern, error) {
 	var p domain.Pattern
-	var analysisID sql.NullString
-	var description sql.NullString
+	var analysisID, description, kind, expectation, deviationType sql.NullString
 	var createdAt string
-	if err := s.Scan(&p.ID, &p.ProjectID, &analysisID, &p.Title, &description, &createdAt); err != nil {
+	if err := s.Scan(&p.ID, &p.ProjectID, &analysisID, &kind, &p.Title, &description, &expectation, &deviationType, &createdAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, repository.ErrNotFound
 		}
@@ -170,6 +180,12 @@ func scanPattern(s scanner) (*domain.Pattern, error) {
 	}
 	p.AnalysisID = analysisID.String
 	p.Description = description.String
+	p.Kind = domain.PatternKind(kind.String)
+	if p.Kind == "" {
+		p.Kind = domain.PatternRepetition
+	}
+	p.Expectation = expectation.String
+	p.DeviationType = domain.DeviationType(deviationType.String)
 	t, err := parseTime(createdAt)
 	if err != nil {
 		return nil, err
