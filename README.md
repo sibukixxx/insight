@@ -133,6 +133,7 @@ API キーはバイナリの引数にしか渡さず、出力ディレクトリ�
 | [docs/detailed-design.md](docs/detailed-design.md) | 確定版詳細設計 v1（アーキテクチャ / ドメインモデル / パイプライン / DDL / API / ビルド分離） |
 | [docs/design-review.md](docs/design-review.md) | ドラフト設計の検証レポート（P0/P1/P2 の指摘と修正方針） |
 | [docs/implementation-plan.md](docs/implementation-plan.md) | フェーズ別実装プラン（Phase 1〜6、完了条件、リスク） |
+| [docs/business-strategy.md](docs/business-strategy.md) | 事業上の位置づけ、初期顧客、提供モデル、開発優先順位 |
 
 ## ステータス
 

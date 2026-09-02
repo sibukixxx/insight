@@ -64,6 +64,7 @@ func NewRouter(deps Deps) http.Handler {
 				r.Get("/insights", h.ListInsights)
 				r.Get("/patterns", h.ListPatterns)
 				r.Get("/evaluation", h.GetEvaluation)
+				r.Get("/report.md", h.ExportProjectReport)
 			})
 		})
 

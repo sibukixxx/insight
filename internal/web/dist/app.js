@@ -335,6 +335,7 @@
           <button class="primary" id="run-analysis" ${isRunning || documents.length === 0 ? "disabled" : ""}>解析を実行</button>
           <a class="btn" href="#/projects/${encodeURIComponent(projectID)}/patterns">痕跡・パターン一覧</a>
           <a class="btn" href="#/projects/${encodeURIComponent(projectID)}/evaluation">評価指標を見る</a>
+          <a class="btn" href="/api/projects/${encodeURIComponent(projectID)}/report.md" download>レポートを保存</a>
         </div>
       </div>
 

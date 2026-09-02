@@ -67,7 +67,7 @@
 - [x] 評価指標 5 種の計算（解析完了時に `internal/service.Metrics` として計算し `analyses.metrics` に保存）+ 評価画面（`#/projects/:id/evaluation`）
 - [x] GitHub Actions（`.github/workflows/ci.yml`: gofmt/vet/test 両タグ + 納品ビルドへのデモデータ非混入を毎回検証。`.github/workflows/release.yml`: タグ push で `make cross-compile` → デモ/納品 × 4プラットフォームをアーカイブして Release へ添付）
 - [ ] Golden Dataset 約 10 ケース定義 + `go test -tags=golden` 回帰評価（実LLM前提のため未着手）
-- [ ] Markdown レポートエクスポート
+- [x] Markdown レポートエクスポート（根拠・反証・Confidence・品質警告・推論過程を1ファイルに集約）
 - [x] README / プライバシー文言（Phase 1 から記載済み）
 
 ### Phase 6 — 拡張モジュール
