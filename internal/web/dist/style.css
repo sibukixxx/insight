@@ -351,3 +351,10 @@ footer.privacy {
 .kind-spans { background: #eaf0ff; color: #2f6fed; }
 .kind-masked { background: #fdeceb; color: var(--danger); }
 .doc-situation { font-size: 11px; color: var(--text-muted); }
+
+/* Import mapping */
+.sample-cell { font-size: 12px; color: var(--text-muted); max-width: 360px; overflow-wrap: anywhere; }
+.mapping-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin: 10px 0; }
+.mapping-options label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
+.mapping-options select { width: 100%; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; font-family: inherit; }
+.job-select { max-width: 260px; }

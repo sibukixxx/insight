@@ -59,6 +59,7 @@ func NewRouter(deps Deps) http.Handler {
 				r.Get("/documents", h.ListDocuments)
 				r.Post("/documents", h.CreateDocument)
 				r.Post("/documents/import", h.ImportDocumentsCSV)
+				r.Post("/documents/import/preview", h.PreviewImport)
 				r.Post("/intake/preview", h.PreviewIntake)
 				r.Get("/intake-profile", h.GetIntakeProfile)
 				r.Put("/intake-profile", h.UpdateIntakeProfile)

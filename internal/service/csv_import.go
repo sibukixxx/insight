@@ -2,20 +2,19 @@ package service
 
 import (
 	"context"
-	"encoding/csv"
 	"fmt"
 	"io"
 	"strings"
-	"time"
 
 	"insight-lab/internal/domain"
 	"insight-lab/internal/repository"
 )
 
-// CSV documents use a fixed 4-column shape (id,source,title,content) per
-// docs/detailed-design.md §17. UTF-8 only; a BOM is stripped automatically
-// since Excel commonly adds one.
-var csvHeader = []string{"id", "source", "title", "content"}
+// legacyCSVHeader is the original fixed layout (docs/detailed-design.md
+// §17). ImportCSV keeps accepting exactly that shape; anything else goes
+// through the mapping-based ImportTable so a user is never told their
+// export "has the wrong header" when a mapping would do.
+var legacyCSVHeader = []string{"id", "source", "title", "content"}
 
 type ImportRowError struct {
 	Row    int    `json:"row"` // 1-based, header excluded
@@ -26,85 +25,38 @@ type ImportResult struct {
 	Imported int              `json:"imported"`
 	Skipped  int              `json:"skipped"`
 	Errors   []ImportRowError `json:"errors"`
+	// Masked is the number of PII matches replaced across all rows.
+	Masked int `json:"masked"`
+	// WithSpeakers is how many rows looked like a transcript and were
+	// stored with speaker spans.
+	WithSpeakers int `json:"withSpeakers"`
 }
 
-// ImportCSV parses r as the fixed id,source,title,content CSV and inserts
-// every valid row as a Document under projectID. The document's own ID is
-// generated fresh rather than trusting the CSV's id column, since that
-// column isn't guaranteed unique across separate imports/projects; the
-// original value is kept in metadata["csv_id"] for traceability.
+// LegacyMapping is the ColumnMapping equivalent of the fixed
+// id,source,title,content layout.
+func LegacyMapping() domain.ColumnMapping {
+	return domain.ColumnMapping{ContentColumn: "content", TitleColumn: "title", IDColumn: "id", SourceColumn: "source"}
+}
+
+// ImportCSV imports the fixed id,source,title,content layout. UTF-8 only;
+// a BOM is stripped. Callers with other layouts use PreviewTable +
+// ImportTable with an explicit mapping.
 func ImportCSV(ctx context.Context, documents repository.DocumentRepository, projectID string, r io.Reader) (*ImportResult, error) {
-	reader := csv.NewReader(stripBOM(r))
-	reader.FieldsPerRecord = -1
-
-	header, err := reader.Read()
+	t, err := ParseTable(r)
 	if err != nil {
-		if err == io.EOF {
-			return nil, fmt.Errorf("CSVが空です")
-		}
-		return nil, fmt.Errorf("CSVの読み込みに失敗しました: %w", err)
+		return nil, err
 	}
-	if !headerMatches(header) {
-		return nil, fmt.Errorf("CSVのヘッダーは %s である必要があります", strings.Join(csvHeader, ","))
+	if !headerMatches(t.Headers) {
+		return nil, fmt.Errorf("CSVのヘッダーは %s である必要があります（他の形式は列マッピング付きインポートを使ってください）", strings.Join(legacyCSVHeader, ","))
 	}
-
-	result := &ImportResult{}
-	var toInsert []*domain.Document
-	row := 0
-	for {
-		record, err := reader.Read()
-		if err == io.EOF {
-			break
-		}
-		row++
-		if err != nil {
-			result.Skipped++
-			result.Errors = append(result.Errors, ImportRowError{Row: row, Reason: err.Error()})
-			continue
-		}
-		if len(record) < 4 {
-			result.Skipped++
-			result.Errors = append(result.Errors, ImportRowError{Row: row, Reason: "列が不足しています"})
-			continue
-		}
-
-		csvID, source, title, content := record[0], record[1], record[2], record[3]
-		sourceType := domain.SourceType(strings.TrimSpace(source))
-		if !sourceType.Valid() {
-			result.Skipped++
-			result.Errors = append(result.Errors, ImportRowError{Row: row, Reason: fmt.Sprintf("不正なsource: %q", source)})
-			continue
-		}
-		if strings.TrimSpace(content) == "" {
-			result.Skipped++
-			result.Errors = append(result.Errors, ImportRowError{Row: row, Reason: "contentが空です"})
-			continue
-		}
-
-		meta := map[string]string{}
-		if csvID != "" {
-			meta["csv_id"] = csvID
-		}
-		toInsert = append(toInsert, &domain.Document{
-			ID: newID("doc"), ProjectID: projectID, Source: sourceType,
-			Title: title, Content: content, Metadata: meta, CreatedAt: time.Now().UTC(),
-		})
-	}
-
-	if len(toInsert) > 0 {
-		if err := documents.CreateBatch(ctx, toInsert); err != nil {
-			return nil, fmt.Errorf("保存に失敗しました: %w", err)
-		}
-	}
-	result.Imported = len(toInsert)
-	return result, nil
+	return ImportTable(ctx, documents, projectID, t, LegacyMapping(), ImportOptions{})
 }
 
 func headerMatches(header []string) bool {
-	if len(header) < len(csvHeader) {
+	if len(header) < len(legacyCSVHeader) {
 		return false
 	}
-	for i, want := range csvHeader {
+	for i, want := range legacyCSVHeader {
 		if strings.TrimSpace(strings.ToLower(header[i])) != want {
 			return false
 		}

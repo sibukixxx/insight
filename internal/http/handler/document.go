@@ -11,6 +11,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"insight-lab/internal/domain"
+	"insight-lab/internal/service"
 	"insight-lab/internal/usecase"
 )
 
@@ -156,30 +157,74 @@ func (h *Handler) GetDocument(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, toDocumentDTO(d))
 }
 
-// ImportDocumentsCSV accepts either a multipart/form-data upload (field
-// name "file") or a raw text/csv body, in the fixed
-// id,source,title,content shape (see internal/service/csv_import.go).
+// uploadReader returns the uploaded file for a multipart request (field
+// "file") or the raw body otherwise, plus the optional "mapping" form
+// field (a JSON ColumnMapping) when present.
+func uploadReader(w http.ResponseWriter, r *http.Request) (io.Reader, string, bool) {
+	if strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data") {
+		file, _, err := r.FormFile("file")
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "file フィールドが必要です")
+			return nil, "", false
+		}
+		return file, r.FormValue("mapping"), true
+	}
+	return r.Body, "", true
+}
+
+// ImportDocumentsCSV imports a CSV/TSV upload. Without a "mapping" field
+// the file must be the fixed id,source,title,content layout; with one
+// (JSON ColumnMapping, as returned by the preview) any layout imports.
 func (h *Handler) ImportDocumentsCSV(w http.ResponseWriter, r *http.Request) {
 	projectID := chi.URLParam(r, "projectID")
 	if !h.requireProject(w, r, projectID) {
 		return
 	}
-
-	var reader io.Reader = r.Body
-	if strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data") {
-		file, _, err := r.FormFile("file")
-		if err != nil {
-			writeError(w, http.StatusBadRequest, "file フィールドが必要です")
-			return
-		}
-		defer file.Close()
-		reader = file
+	reader, mappingJSON, ok := uploadReader(w, r)
+	if !ok {
+		return
 	}
 
-	result, err := h.App.ImportDocumentsCSV(r.Context(), projectID, reader)
+	var result *service.ImportResult
+	var err error
+	if mappingJSON == "" {
+		result, err = h.App.ImportDocumentsCSV(r.Context(), projectID, reader)
+	} else {
+		var mapping domain.ColumnMapping
+		if jerr := json.Unmarshal([]byte(mappingJSON), &mapping); jerr != nil {
+			writeError(w, http.StatusBadRequest, "mapping の JSON が不正です")
+			return
+		}
+		result, err = h.App.ImportDocumentsTable(r.Context(), projectID, reader, mapping)
+	}
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	writeJSON(w, http.StatusOK, result)
+}
+
+type importPreviewDTO struct {
+	*service.TablePreview
+	// SavedMapping is the mapping this project used last time, if any.
+	SavedMapping *domain.ColumnMapping `json:"savedMapping,omitempty"`
+}
+
+// PreviewImport parses an upload and proposes a column mapping without
+// storing anything.
+func (h *Handler) PreviewImport(w http.ResponseWriter, r *http.Request) {
+	projectID := chi.URLParam(r, "projectID")
+	if !h.requireProject(w, r, projectID) {
+		return
+	}
+	reader, _, ok := uploadReader(w, r)
+	if !ok {
+		return
+	}
+	preview, saved, err := h.App.PreviewImport(r.Context(), projectID, reader)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, importPreviewDTO{TablePreview: preview, SavedMapping: saved})
 }

@@ -286,7 +286,7 @@
     }
   }
 
-  async function renderProject(projectID, errorMessage) {
+  async function renderProject(projectID, errorMessage, notice) {
     closeActiveStream();
 
     let project, documents, insights, analyses;
@@ -340,6 +340,7 @@
       </div>
 
       ${errorBox(errorMessage)}
+      ${notice ? `<div class="notice-box">${notice}</div>` : ""}
 
       <div class="card">
         <div class="section-title">解析</div>
@@ -392,12 +393,13 @@
       </div>
 
       <div class="card">
-        <div class="section-title">CSVインポート</div>
-        <p class="hint">列: id,source,title,content（source は interview/review/support/sales/survey/job_posting/social_post のいずれか）</p>
+        <div class="section-title">CSV / TSV インポート</div>
+        <p class="hint">Zendesk のエクスポート、アンケートの自由記述、レビューの一覧など、どんな列構成でも取り込めます。ファイルを選ぶと列の対応（本文・タイトル・種別・発言者の属性）を提案し、確認してから取り込みます。対応はプロジェクトに記憶されます。</p>
         <form id="csv-form">
-          <input type="file" name="file" accept=".csv,text/csv" required>
-          <button type="submit" class="primary">インポート</button>
+          <input type="file" name="file" accept=".csv,.tsv,text/csv,text/tab-separated-values" required>
+          <button type="submit">列の対応を確認する</button>
         </form>
+        <div id="csv-preview"></div>
         <div id="csv-result"></div>
       </div>
 
@@ -416,7 +418,7 @@
           method: "POST",
           body: JSON.stringify({ source: f.source.value, provenance: f.provenance.value, title: f.title.value, content: f.content.value }),
         });
-        renderProject(projectID);
+        renderProject(projectID, null, "ドキュメントを追加しました。");
       } catch (e) {
         renderProject(projectID, e.message);
       }
@@ -432,15 +434,16 @@
       if (!file) return;
       const formData = new FormData();
       formData.append("file", file);
+      const box = document.getElementById("csv-preview");
+      document.getElementById("csv-result").innerHTML = "";
+      box.innerHTML = `<div class="hint">列を読み取っています...</div>`;
       try {
-        const result = await api(`/api/projects/${encodeURIComponent(projectID)}/documents/import`, {
+        const preview = await api(`/api/projects/${encodeURIComponent(projectID)}/documents/import/preview`, {
           method: "POST", body: formData,
         });
-        document.getElementById("csv-result").innerHTML =
-          `<div class="notice-box">${result.imported}件取り込み、${result.skipped}件スキップしました。</div>`;
-        renderProject(projectID);
+        renderImportMapping(projectID, file, preview);
       } catch (e) {
-        document.getElementById("csv-result").innerHTML = errorBox(e.message);
+        box.innerHTML = errorBox(e.message);
       }
     });
 
@@ -510,12 +513,135 @@
               spans: preview.spans, speakerRoles: preview.detected ? roles : {},
             }),
           });
-          renderProject(projectID);
+          renderProject(projectID, null, preview.detected
+            ? `ドキュメントを追加しました（話者 ${preview.speakers.length} 人、回答者の発言 ${preview.customerChars} 字を分析対象にしました）。`
+            : "ドキュメントを追加しました。");
         } catch (e) {
           box.innerHTML = errorBox(e.message) + intakePreviewHTML(preview);
         }
       });
     }
+  }
+
+  // ---------- Spreadsheet import mapping ----------
+  //
+  // Each column gets one job: the customer's text, a title, an id, the
+  // source type, a speaker attribute (reserved metadata key), free-form
+  // metadata, or nothing. The suggestion comes from header names; the
+  // project's last confirmed mapping wins over the suggestion.
+  const COLUMN_JOBS = [
+    ["", "取り込まない"],
+    ["content", "本文（分析対象のテキスト）"],
+    ["title", "タイトル"],
+    ["id", "ID（追跡用）"],
+    ["source", "種別（interview/review/...）"],
+    ["meta:role", "属性: 役職・立場"],
+    ["meta:company_size", "属性: 会社規模"],
+    ["meta:segment", "属性: セグメント・業種"],
+    ["meta:plan", "属性: 契約プラン"],
+    ["meta:volume", "属性: 利用量"],
+    ["meta:participant_id", "属性: 回答者ID"],
+    ["meta:date", "属性: 日付"],
+    ["meta:rating", "属性: 評価点"],
+    ["meta:*", "属性: その他（列名をキーにする）"],
+  ];
+
+  function jobForColumn(mapping, header) {
+    if (!mapping) return "";
+    if (mapping.contentColumn === header) return "content";
+    if (mapping.titleColumn === header) return "title";
+    if (mapping.idColumn === header) return "id";
+    if (mapping.sourceColumn === header) return "source";
+    const key = (mapping.metadataColumns || {})[header];
+    if (key) {
+      return COLUMN_JOBS.some(([v]) => v === `meta:${key}`) ? `meta:${key}` : "meta:*";
+    }
+    return "";
+  }
+
+  function renderImportMapping(projectID, file, preview) {
+    const box = document.getElementById("csv-preview");
+    const base = preview.savedMapping || preview.suggested;
+    const usingSaved = !!preview.savedMapping;
+
+    const columnRows = preview.headers.map((h, i) => {
+      const samples = preview.sample.map((row) => row[i] || "").filter(Boolean).slice(0, 2)
+        .map((v) => escapeHtml(v.length > 40 ? v.slice(0, 40) + "…" : v)).join(" ／ ");
+      const job = jobForColumn(base, h);
+      return `
+        <tr>
+          <td class="speaker-label">${escapeHtml(h)}</td>
+          <td>
+            <select class="job-select" data-header="${escapeHtml(h)}">
+              ${COLUMN_JOBS.map(([v, label]) => `<option value="${v}" ${v === job ? "selected" : ""}>${label}</option>`).join("")}
+            </select>
+          </td>
+          <td class="sample-cell">${samples || "<span class='hint'>（空）</span>"}</td>
+        </tr>`;
+    }).join("");
+
+    box.innerHTML = `
+      <div class="intake-box">
+        <div class="intake-head">
+          <span class="kind-badge kind-spans">${preview.rowCount} 行・${preview.headers.length} 列（${preview.delimiter === "\t" ? "TSV" : "CSV"}）</span>
+          <span>${usingSaved ? "このプロジェクトで前回使った列の対応を適用しています。" : preview.guessedContent ? "本文らしい列名が見つからなかったため、文字数の最も多い列を本文として提案しています。" : "列名から対応を提案しています。"}</span>
+        </div>
+        <table class="speaker-table">
+          <thead><tr><th>列</th><th>役割</th><th>サンプル</th></tr></thead>
+          <tbody>${columnRows}</tbody>
+        </table>
+        <div class="mapping-options">
+          <div>
+            <label>種別の列がない行の既定の種別</label>
+            <select id="map-default-source">
+              ${Object.keys(SOURCE_LABELS).map((k) => `<option value="${k}" ${(base.defaultSource || "interview") === k ? "selected" : ""}>${SOURCE_LABELS[k]}</option>`).join("")}
+            </select>
+          </div>
+          <div>
+            <label>出所</label>
+            <select id="map-provenance">
+              <option value="" ${!base.provenance ? "selected" : ""}>自動（商談ログは第三者のメモ、それ以外は本人の発言）</option>
+              <option value="firsthand" ${base.provenance === "firsthand" ? "selected" : ""}>本人の発言・記述そのもの</option>
+              <option value="secondhand" ${base.provenance === "secondhand" ? "selected" : ""}>第三者による要約・メモ</option>
+            </select>
+          </div>
+        </div>
+        <p class="hint">本文のセルが「顧客: ／ サポート: 」のような会話になっている場合は、貼り付けと同じ話者分離が自動で適用されます。</p>
+        <div class="analysis-actions"><button class="primary" id="csv-import-btn">この対応で ${preview.rowCount} 行を取り込む</button></div>
+      </div>`;
+
+    document.getElementById("csv-import-btn").addEventListener("click", async () => {
+      const mapping = { metadataColumns: {} };
+      box.querySelectorAll("select.job-select").forEach((sel) => {
+        const h = sel.dataset.header;
+        const v = sel.value;
+        if (v === "content") mapping.contentColumn = h;
+        else if (v === "title") mapping.titleColumn = h;
+        else if (v === "id") mapping.idColumn = h;
+        else if (v === "source") mapping.sourceColumn = h;
+        else if (v === "meta:*") mapping.metadataColumns[h] = h;
+        else if (v.startsWith("meta:")) mapping.metadataColumns[h] = v.slice(5);
+      });
+      mapping.defaultSource = document.getElementById("map-default-source").value;
+      mapping.provenance = document.getElementById("map-provenance").value || undefined;
+      if (!mapping.contentColumn) {
+        document.getElementById("csv-result").innerHTML = errorBox("本文の列を1つ選んでください");
+        return;
+      }
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("mapping", JSON.stringify(mapping));
+      try {
+        const result = await api(`/api/projects/${encodeURIComponent(projectID)}/documents/import`, { method: "POST", body: formData });
+        const errs = (result.errors || []).slice(0, 5).map((e) => `${e.row}行目: ${escapeHtml(e.reason)}`).join("<br>");
+        renderProject(projectID, null,
+          `${result.imported}件取り込み、${result.skipped}件スキップしました。` +
+          `${result.withSpeakers ? ` 話者分離 ${result.withSpeakers}件。` : ""}${result.masked ? ` 個人情報マスク ${result.masked}箇所。` : ""}` +
+          `${errs ? `<br>${errs}` : ""}`);
+      } catch (e) {
+        document.getElementById("csv-result").innerHTML = errorBox(e.message);
+      }
+    });
   }
 
   function intakePreviewHTML(p) {

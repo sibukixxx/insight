@@ -225,11 +225,54 @@ func (a *Application) GetDocument(ctx context.Context, id string) (*domain.Docum
 	return a.repos.Documents.Get(ctx, id)
 }
 
+// ImportDocumentsCSV imports the fixed id,source,title,content layout.
 func (a *Application) ImportDocumentsCSV(ctx context.Context, projectID string, r io.Reader) (*service.ImportResult, error) {
 	if err := a.RequireProject(ctx, projectID); err != nil {
 		return nil, err
 	}
 	return service.ImportCSV(ctx, a.repos.Documents, projectID, r)
+}
+
+// PreviewImport parses a spreadsheet export and proposes a column
+// mapping; the project's remembered mapping, if any, is returned
+// alongside so the UI can prefer it.
+func (a *Application) PreviewImport(ctx context.Context, projectID string, r io.Reader) (*service.TablePreview, *domain.ColumnMapping, error) {
+	project, err := a.repos.Projects.Get(ctx, projectID)
+	if err != nil {
+		return nil, nil, err
+	}
+	preview, err := service.PreviewTable(r)
+	if err != nil {
+		return nil, nil, err
+	}
+	return preview, project.IntakeProfile.ColumnMapping, nil
+}
+
+// ImportDocumentsTable imports any CSV/TSV under an explicit mapping and
+// remembers the mapping in the project's intake profile. Cells that look
+// like transcripts get speaker spans using the profile's speaker roles.
+func (a *Application) ImportDocumentsTable(ctx context.Context, projectID string, r io.Reader, mapping domain.ColumnMapping) (*service.ImportResult, error) {
+	project, err := a.repos.Projects.Get(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+	table, err := service.ParseTable(r)
+	if err != nil {
+		return nil, err
+	}
+	result, err := service.ImportTable(ctx, a.repos.Documents, projectID, table, mapping, service.ImportOptions{
+		SpeakerRoles: project.IntakeProfile.SpeakerRoles,
+	})
+	if err != nil {
+		return nil, err
+	}
+	profile := project.IntakeProfile
+	m := mapping
+	profile.ColumnMapping = &m
+	if err := a.repos.Projects.UpdateIntakeProfile(ctx, projectID, profile); err != nil {
+		return nil, fmt.Errorf("remember column mapping: %w", err)
+	}
+	return result, nil
 }
 
 func (a *Application) GetAnalysis(ctx context.Context, id string) (*domain.Analysis, error) {
