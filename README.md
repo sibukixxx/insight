@@ -115,6 +115,17 @@ make vet    # go vet（デモ/納品タグ両方）
 make test   # go test（デモ/納品タグ両方）
 ```
 
+### 実LLMでの評価
+
+単体テストとE2Eはフェイク LLM で決定的に回しているが、プロンプトやモデルを変えたときの出力品質は実 LLM でしか測れない。次のコマンドでデモデータ20件を実 LLM で解析し、評価指標・全 Insight（予想 → ズレ → 仮説 → 説明、品質フラグ、Evidence）・全痕跡/パターンを `docs/evaluation/<日付>-<モデル>/` に JSON と Markdown で保存する。
+
+```bash
+INSIGHT_LAB_API_KEY=sk-... INSIGHT_LAB_MODEL=gpt-5 make eval-demo
+# OpenAI 以外: INSIGHT_LAB_BASE_URL=https://openrouter.ai/api/v1 など
+```
+
+API キーはバイナリの引数にしか渡さず、出力ディレクトリには書かれない。結果は [docs/evaluation/](docs/evaluation/) に蓄積し、Trace-backed Insights / Quality Flagged の推移でモデル・プロンプト変更の劣化を検出する。
+
 ## ドキュメント
 
 | ドキュメント | 内容 |
