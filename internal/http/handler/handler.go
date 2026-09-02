@@ -1,15 +1,12 @@
 package handler
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"insight-lab/internal/llm"
-	"insight-lab/internal/repository"
 	"insight-lab/internal/service"
+	"insight-lab/internal/usecase"
 )
 
 // BuildInfo describes how this binary was built: whether the demo dataset
@@ -22,13 +19,7 @@ type BuildInfo struct {
 }
 
 type Handler struct {
-	Projects     repository.ProjectRepository
-	Documents    repository.DocumentRepository
-	Observations repository.ObservationRepository
-	Patterns     repository.PatternRepository
-	Analyses     repository.AnalysisRepository
-	Insights     repository.InsightRepository
-	Evidence     repository.EvidenceRepository
+	App *usecase.Application
 
 	Demo         *service.DemoLoader
 	Settings     *service.SettingsStore
@@ -46,10 +37,4 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 
 func writeError(w http.ResponseWriter, status int, message string) {
 	writeJSON(w, status, map[string]string{"error": message})
-}
-
-func newID(prefix string) string {
-	b := make([]byte, 8)
-	_, _ = rand.Read(b)
-	return fmt.Sprintf("%s_%s", prefix, hex.EncodeToString(b))
 }

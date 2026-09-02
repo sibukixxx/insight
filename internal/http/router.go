@@ -13,19 +13,13 @@ import (
 	"insight-lab/internal/http/handler"
 	appmw "insight-lab/internal/http/middleware"
 	"insight-lab/internal/llm"
-	"insight-lab/internal/repository"
 	"insight-lab/internal/service"
+	"insight-lab/internal/usecase"
 	"insight-lab/internal/web"
 )
 
 type Deps struct {
-	Projects     repository.ProjectRepository
-	Documents    repository.DocumentRepository
-	Observations repository.ObservationRepository
-	Patterns     repository.PatternRepository
-	Analyses     repository.AnalysisRepository
-	Insights     repository.InsightRepository
-	Evidence     repository.EvidenceRepository
+	App *usecase.Application
 
 	Demo         *service.DemoLoader
 	Settings     *service.SettingsStore
@@ -42,8 +36,7 @@ func NewRouter(deps Deps) http.Handler {
 	r.Use(appmw.RestrictOrigin)
 
 	h := &handler.Handler{
-		Projects: deps.Projects, Documents: deps.Documents, Observations: deps.Observations, Patterns: deps.Patterns,
-		Analyses: deps.Analyses, Insights: deps.Insights, Evidence: deps.Evidence,
+		App:  deps.App,
 		Demo: deps.Demo, Settings: deps.Settings, JobManager: deps.JobManager,
 		NewLLMClient: deps.NewLLMClient, Build: deps.Build,
 	}

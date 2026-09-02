@@ -7,7 +7,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"insight-lab/internal/domain"
-	"insight-lab/internal/repository"
+	"insight-lab/internal/usecase"
 )
 
 // GetEvaluation returns the evaluation metrics (see
@@ -20,9 +20,9 @@ func (h *Handler) GetEvaluation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	a, err := h.Analyses.LatestByProject(r.Context(), projectID)
+	a, err := h.App.LatestAnalysis(r.Context(), projectID)
 	if err != nil {
-		if errors.Is(err, repository.ErrNotFound) {
+		if errors.Is(err, usecase.ErrNotFound) {
 			writeError(w, http.StatusNotFound, "解析結果がまだありません")
 			return
 		}

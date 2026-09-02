@@ -9,7 +9,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"insight-lab/internal/domain"
-	"insight-lab/internal/repository"
+	"insight-lab/internal/usecase"
 )
 
 type analysisDTO struct {
@@ -56,9 +56,9 @@ func (h *Handler) CreateAnalysis(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) GetAnalysis(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "analysisID")
-	a, err := h.Analyses.Get(r.Context(), id)
+	a, err := h.App.GetAnalysis(r.Context(), id)
 	if err != nil {
-		if errors.Is(err, repository.ErrNotFound) {
+		if errors.Is(err, usecase.ErrNotFound) {
 			writeError(w, http.StatusNotFound, "analysis not found")
 			return
 		}
@@ -73,7 +73,7 @@ func (h *Handler) ListAnalyses(w http.ResponseWriter, r *http.Request) {
 	if !h.requireProject(w, r, projectID) {
 		return
 	}
-	list, err := h.Analyses.ListByProject(r.Context(), projectID)
+	list, err := h.App.ListAnalyses(r.Context(), projectID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -91,8 +91,8 @@ func (h *Handler) ListAnalyses(w http.ResponseWriter, r *http.Request) {
 // depend on catching every event.
 func (h *Handler) AnalysisEvents(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "analysisID")
-	if _, err := h.Analyses.Get(r.Context(), id); err != nil {
-		if errors.Is(err, repository.ErrNotFound) {
+	if _, err := h.App.GetAnalysis(r.Context(), id); err != nil {
+		if errors.Is(err, usecase.ErrNotFound) {
 			writeError(w, http.StatusNotFound, "analysis not found")
 			return
 		}

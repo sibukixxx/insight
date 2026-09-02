@@ -11,6 +11,7 @@ import (
 	"insight-lab/internal/repository/sqlite"
 	"insight-lab/internal/sampledata"
 	"insight-lab/internal/service"
+	"insight-lab/internal/usecase"
 )
 
 const analysisWorkers = 2
@@ -53,10 +54,13 @@ func Run(ctx context.Context, cfg *Config) error {
 	}
 	jobManager := service.NewJobManager(analyses, pipeline, settings, service.DefaultLLMClientFactory)
 	jobManager.Start(ctx, analysisWorkers)
-
-	router := httpapi.NewRouter(httpapi.Deps{
+	application := usecase.New(usecase.Repositories{
 		Projects: projects, Documents: documents, Observations: observations, Patterns: patterns,
 		Analyses: analyses, Insights: insights, Evidence: evidence,
+	})
+
+	router := httpapi.NewRouter(httpapi.Deps{
+		App:  application,
 		Demo: demoLoader, Settings: settings, JobManager: jobManager,
 		NewLLMClient: service.DefaultLLMClientFactory,
 		Build: handler.BuildInfo{

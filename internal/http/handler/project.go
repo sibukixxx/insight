@@ -9,7 +9,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"insight-lab/internal/domain"
-	"insight-lab/internal/repository"
+	"insight-lab/internal/usecase"
 )
 
 type projectDTO struct {
@@ -23,7 +23,7 @@ func toProjectDTO(p *domain.Project) projectDTO {
 }
 
 func (h *Handler) ListProjects(w http.ResponseWriter, r *http.Request) {
-	projects, err := h.Projects.List(r.Context())
+	projects, err := h.App.ListProjects(r.Context())
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -50,8 +50,8 @@ func (h *Handler) CreateProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	p := &domain.Project{ID: newID("proj"), Name: req.Name, CreatedAt: time.Now().UTC()}
-	if err := h.Projects.Create(r.Context(), p); err != nil {
+	p, err := h.App.CreateProject(r.Context(), req.Name)
+	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -60,9 +60,9 @@ func (h *Handler) CreateProject(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) GetProject(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "projectID")
-	p, err := h.Projects.Get(r.Context(), id)
+	p, err := h.App.GetProject(r.Context(), id)
 	if err != nil {
-		if errors.Is(err, repository.ErrNotFound) {
+		if errors.Is(err, usecase.ErrNotFound) {
 			writeError(w, http.StatusNotFound, "project not found")
 			return
 		}
@@ -74,8 +74,8 @@ func (h *Handler) GetProject(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) DeleteProject(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "projectID")
-	if err := h.Projects.Delete(r.Context(), id); err != nil {
-		if errors.Is(err, repository.ErrNotFound) {
+	if err := h.App.DeleteProject(r.Context(), id); err != nil {
+		if errors.Is(err, usecase.ErrNotFound) {
 			writeError(w, http.StatusNotFound, "project not found")
 			return
 		}

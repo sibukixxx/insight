@@ -11,8 +11,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"insight-lab/internal/domain"
-	"insight-lab/internal/repository"
-	"insight-lab/internal/service"
+	"insight-lab/internal/usecase"
 )
 
 type documentDTO struct {
@@ -38,8 +37,8 @@ func toDocumentDTO(d *domain.Document) documentDTO {
 }
 
 func (h *Handler) requireProject(w http.ResponseWriter, r *http.Request, projectID string) bool {
-	if _, err := h.Projects.Get(r.Context(), projectID); err != nil {
-		if errors.Is(err, repository.ErrNotFound) {
+	if err := h.App.RequireProject(r.Context(), projectID); err != nil {
+		if errors.Is(err, usecase.ErrNotFound) {
 			writeError(w, http.StatusNotFound, "project not found")
 			return false
 		}
@@ -54,7 +53,7 @@ func (h *Handler) ListDocuments(w http.ResponseWriter, r *http.Request) {
 	if !h.requireProject(w, r, projectID) {
 		return
 	}
-	docs, err := h.Documents.ListByProject(r.Context(), projectID)
+	docs, err := h.App.ListDocuments(r.Context(), projectID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -94,16 +93,10 @@ func (h *Handler) CreateDocument(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	d := &domain.Document{
-		ID:        newID("doc"),
-		ProjectID: projectID,
-		Source:    source,
-		Title:     req.Title,
-		Content:   req.Content,
-		Metadata:  req.Metadata,
-		CreatedAt: time.Now().UTC(),
-	}
-	if err := h.Documents.Create(r.Context(), d); err != nil {
+	d, err := h.App.CreateDocument(r.Context(), usecase.CreateDocumentInput{
+		ProjectID: projectID, Source: source, Title: req.Title, Content: req.Content, Metadata: req.Metadata,
+	})
+	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -112,9 +105,9 @@ func (h *Handler) CreateDocument(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) GetDocument(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "documentID")
-	d, err := h.Documents.Get(r.Context(), id)
+	d, err := h.App.GetDocument(r.Context(), id)
 	if err != nil {
-		if errors.Is(err, repository.ErrNotFound) {
+		if errors.Is(err, usecase.ErrNotFound) {
 			writeError(w, http.StatusNotFound, "document not found")
 			return
 		}
@@ -144,7 +137,7 @@ func (h *Handler) ImportDocumentsCSV(w http.ResponseWriter, r *http.Request) {
 		reader = file
 	}
 
-	result, err := service.ImportCSV(r.Context(), h.Documents, projectID, reader)
+	result, err := h.App.ImportDocumentsCSV(r.Context(), projectID, reader)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return

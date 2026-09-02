@@ -8,7 +8,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"insight-lab/internal/domain"
-	"insight-lab/internal/repository"
+	"insight-lab/internal/usecase"
 )
 
 type insightDTO struct {
@@ -66,7 +66,7 @@ func (h *Handler) ListInsights(w http.ResponseWriter, r *http.Request) {
 	if !h.requireProject(w, r, projectID) {
 		return
 	}
-	list, err := h.Insights.ListByProject(r.Context(), projectID)
+	list, err := h.App.ListInsights(r.Context(), projectID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -86,47 +86,28 @@ type insightDetailDTO struct {
 
 func (h *Handler) GetInsight(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "insightID")
-	insight, err := h.Insights.Get(r.Context(), id)
+	detail, err := h.App.GetInsight(r.Context(), id)
 	if err != nil {
-		if errors.Is(err, repository.ErrNotFound) {
+		if errors.Is(err, usecase.ErrNotFound) {
 			writeError(w, http.StatusNotFound, "insight not found")
 			return
 		}
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	evidence, err := h.Evidence.ListByInsight(r.Context(), id)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	patterns, err := h.Patterns.ListByInsight(r.Context(), id)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	patternDTOs, err := h.toPatternDTOs(r.Context(), patterns)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
 	writeJSON(w, http.StatusOK, insightDetailDTO{
-		insightDTO: toInsightDTO(insight), Evidence: toEvidenceDTOs(evidence), Patterns: patternDTOs,
+		insightDTO: toInsightDTO(detail.Insight), Evidence: toEvidenceDTOs(detail.Evidence), Patterns: toPatternDTOs(detail.Patterns),
 	})
 }
 
 func (h *Handler) GetInsightEvidence(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "insightID")
-	if _, err := h.Insights.Get(r.Context(), id); err != nil {
-		if errors.Is(err, repository.ErrNotFound) {
+	evidence, err := h.App.GetInsightEvidence(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, usecase.ErrNotFound) {
 			writeError(w, http.StatusNotFound, "insight not found")
 			return
 		}
-		writeError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	evidence, err := h.Evidence.ListByInsight(r.Context(), id)
-	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
