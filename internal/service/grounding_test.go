@@ -140,3 +140,42 @@ func TestChunkSplitsOversizedSingleParagraph(t *testing.T) {
 		}
 	}
 }
+
+func TestGroundWithinRestrictsToSpans(t *testing.T) {
+	content := "面接官: 設定は難しいですか？\n回答者: 設定は難しくないです。でも間違えたら怖いので確認します。"
+	runes := []rune(content)
+	sep := runeIndex(runes, []rune("回答者:"))
+	customer := []Span{{Start: sep, End: len(runes)}}
+
+	// A verbatim quote from the customer's turn grounds, with offsets into
+	// the full content.
+	g, ok := GroundWithin(content, "間違えたら怖いので確認します", customer)
+	if !ok {
+		t.Fatal("customer quote should ground within the customer span")
+	}
+	if string(runes[g.StartOffset:g.EndOffset]) != "間違えたら怖いので確認します" {
+		t.Errorf("offsets point at %q", string(runes[g.StartOffset:g.EndOffset]))
+	}
+
+	// The interviewer's words exist verbatim in the document but must be
+	// rejected when only the customer span is allowed.
+	if _, ok := GroundWithin(content, "設定は難しいですか", customer); ok {
+		t.Error("interviewer quote must not ground within the customer span")
+	}
+	if _, ok := Ground(content, "設定は難しいですか"); !ok {
+		t.Error("sanity: the interviewer quote does exist in the full content")
+	}
+
+	// A quote straddling the boundary is rejected too.
+	if _, ok := GroundWithin(content, "難しいですか？\n回答者: 設定は", customer); ok {
+		t.Error("quote spanning two speakers must not ground")
+	}
+
+	// Out-of-range spans are clamped rather than panicking.
+	if _, ok := GroundWithin(content, "確認します", []Span{{Start: -5, End: 10_000}}); !ok {
+		t.Error("clamped span should still ground")
+	}
+	if _, ok := GroundWithin(content, "確認します", nil); ok {
+		t.Error("no spans means nothing may be quoted")
+	}
+}

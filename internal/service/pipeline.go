@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"insight-lab/internal/domain"
@@ -33,7 +34,13 @@ type Metrics struct {
 	TotalObservationCandidates int     `json:"totalObservationCandidates"`
 	GroundedObservations       int     `json:"groundedObservations"`
 	UnsupportedClaimRate       float64 `json:"unsupportedClaimRate"`
-	PatternCount               int     `json:"patternCount"`
+	// QuotesOutsideCustomerSpeech counts candidate quotes that do exist in
+	// a document but inside an interviewer's or agent's span, i.e. text
+	// that is not the customer's voice. They are discarded and counted
+	// separately from fabricated quotes (UnsupportedClaimRate) because they
+	// point at an intake problem, not a model problem.
+	QuotesOutsideCustomerSpeech int `json:"quotesOutsideCustomerSpeech"`
+	PatternCount                int `json:"patternCount"`
 	// TraceCount is how many deviation-from-expectation patterns (traces
 	// of desire) were found. PatternCount includes them.
 	TraceCount                int     `json:"traceCount"`
@@ -174,15 +181,21 @@ func (p *Pipeline) Run(ctx context.Context, analysisID, projectID string, progre
 func (p *Pipeline) extractAndGroundAll(ctx context.Context, docs []*domain.Document, metrics *Metrics) ([]*domain.Observation, error) {
 	var allObs []*domain.Observation
 	for _, d := range docs {
-		for _, chunk := range Chunk(d.Content) {
+		customerSpans := groundingSpans(d.CustomerSpans())
+		for _, chunk := range Chunk(AnalysisText(d)) {
 			out, err := p.extractObservations(ctx, chunk)
 			if err != nil {
 				return nil, fmt.Errorf("document %s: %w", d.ID, err)
 			}
 			for _, cand := range out.Observations {
 				metrics.TotalObservationCandidates++
-				grounded, ok := Ground(d.Content, cand.Quote)
+				grounded, ok := GroundWithin(d.Content, cand.Quote, customerSpans)
 				if !ok {
+					// Distinguish "not in the document at all" from "in the
+					// document, but not the customer talking".
+					if _, elsewhere := Ground(d.Content, cand.Quote); elsewhere {
+						metrics.QuotesOutsideCustomerSpeech++
+					}
 					continue
 				}
 				metrics.GroundedObservations++
@@ -495,6 +508,63 @@ func (p *Pipeline) dedupeDrafts(ctx context.Context, drafts []draftInsight) (kee
 }
 
 // --- helpers ---
+
+func groundingSpans(spans []domain.Span) []Span {
+	out := make([]Span, len(spans))
+	for i, s := range spans {
+		out[i] = Span{Start: s.Start, End: s.End}
+	}
+	return out
+}
+
+// speakerLabels are the prefixes AnalysisText puts in front of each
+// speaker turn so the model can tell whose words it is reading. They are
+// markup for the model only; grounding runs against Document.Content,
+// which never contains them.
+var speakerLabels = map[domain.SpeakerRole]string{
+	domain.RoleCustomer:    "【回答者】",
+	domain.RoleInterviewer: "【質問者】",
+	domain.RoleAgent:       "【担当者】",
+	domain.RoleOther:       "【その他】",
+}
+
+// AnalysisText is what the observation extraction step reads for a
+// document. A document without speaker spans is sent as-is. A document
+// with spans is rendered turn by turn with a role label, so the
+// interviewer's question stays visible as context while the prompt (and,
+// decisively, GroundWithin) restricts quoting to the customer's turns.
+func AnalysisText(d *domain.Document) string {
+	if len(d.Spans) == 0 {
+		return d.Content
+	}
+	runes := []rune(d.Content)
+	spans := append([]domain.Span{}, d.Spans...)
+	sort.Slice(spans, func(i, j int) bool { return spans[i].Start < spans[j].Start })
+	var b strings.Builder
+	for _, s := range spans {
+		start, end := s.Start, s.End
+		if start < 0 {
+			start = 0
+		}
+		if end > len(runes) {
+			end = len(runes)
+		}
+		if end <= start {
+			continue
+		}
+		label := speakerLabels[s.Role]
+		if label == "" {
+			label = speakerLabels[domain.RoleOther]
+		}
+		if s.Speaker != "" {
+			label += s.Speaker + ": "
+		}
+		b.WriteString(label)
+		b.WriteString(strings.TrimSpace(string(runes[start:end])))
+		b.WriteString("\n\n")
+	}
+	return strings.TrimSpace(b.String())
+}
 
 func indexObservations(obs []*domain.Observation) map[string]*domain.Observation {
 	m := make(map[string]*domain.Observation, len(obs))

@@ -218,3 +218,54 @@ func TestMigrateUpgradesExistingDatabase(t *testing.T) {
 		t.Fatalf("insert into upgraded schema: %v", err)
 	}
 }
+
+func TestDocumentRepositoryIntakeFieldsRoundTrip(t *testing.T) {
+	db := openTestDB(t)
+	repo := NewDocumentRepository(db)
+	ctx := context.Background()
+	p := &domain.Project{ID: "proj_1", Name: "p", CreatedAt: time.Now().UTC()}
+	if err := NewProjectRepository(db).Create(ctx, p); err != nil {
+		t.Fatalf("create project: %v", err)
+	}
+
+	withSpans := &domain.Document{
+		ID: "doc_spans", ProjectID: p.ID, Source: domain.SourceInterview, Title: "t",
+		Content: "面接官: Q\n回答者: A", RawContent: "面接官: Q\n回答者: A(山田)",
+		Spans: []domain.Span{
+			{Start: 0, End: 6, Speaker: "面接官", Role: domain.RoleInterviewer},
+			{Start: 7, End: 13, Speaker: "回答者", Role: domain.RoleCustomer},
+		},
+		Metadata: map[string]string{domain.MetaRole: "経理"}, CreatedAt: time.Now().UTC(),
+	}
+	// Provenance left empty: the repository must fall back to the
+	// source's default (sales -> secondhand).
+	salesNote := &domain.Document{ID: "doc_sales", ProjectID: p.ID, Source: domain.SourceSales, Content: "営業メモ", CreatedAt: time.Now().UTC()}
+	if err := repo.CreateBatch(ctx, []*domain.Document{withSpans, salesNote}); err != nil {
+		t.Fatalf("CreateBatch: %v", err)
+	}
+
+	got, err := repo.Get(ctx, "doc_spans")
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got.Provenance != domain.ProvenanceFirsthand {
+		t.Errorf("Provenance = %q, want firsthand", got.Provenance)
+	}
+	if got.RawContent != withSpans.RawContent {
+		t.Errorf("RawContent did not round-trip: %q", got.RawContent)
+	}
+	if len(got.Spans) != 2 || got.Spans[1].Role != domain.RoleCustomer || got.Spans[1].Speaker != "回答者" || got.Spans[1].Start != 7 {
+		t.Errorf("Spans did not round-trip: %+v", got.Spans)
+	}
+
+	got, err = repo.Get(ctx, "doc_sales")
+	if err != nil {
+		t.Fatalf("Get sales: %v", err)
+	}
+	if got.Provenance != domain.ProvenanceSecondhand || !got.IsSecondhand() {
+		t.Errorf("sales note should default to secondhand, got %q", got.Provenance)
+	}
+	if got.RawContent != "" || got.Spans != nil {
+		t.Errorf("plain document should have empty intake fields: %+v", got)
+	}
+}

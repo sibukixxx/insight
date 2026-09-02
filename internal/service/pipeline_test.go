@@ -78,6 +78,17 @@ func (f *fakeLLM) Generate(ctx context.Context, req llm.GenerateRequest) (*llm.G
 			]}`)
 		case strings.Contains(last, "別に設定は難しくないです"):
 			raw = json.RawMessage(`{"observations":[{"quote":"別に設定は難しくないです","behavior":"操作に困っていない","topic":"ease"}]}`)
+		case strings.Contains(last, "【質問者】"):
+			// The transcript document: the model must only see role
+			// labels on the analysis text, and even if it quotes the
+			// interviewer verbatim, that quote must be rejected.
+			if !strings.Contains(last, "【回答者】") {
+				return nil, fmt.Errorf("fakeLLM: transcript analysis text lacks the customer label: %q", last)
+			}
+			raw = json.RawMessage(`{"observations":[
+				{"quote":"検算はどのくらい時間がかかりますか","behavior":"interviewer question - must be rejected","topic":"x"},
+				{"quote":"毎回三十分は検算に使っています","behavior":"検算に時間をかけている","topic":"anxiety"}
+			]}`)
 		default:
 			raw = json.RawMessage(`{"observations":[]}`)
 		}
@@ -191,6 +202,26 @@ func (f *fakeLLM) Generate(ctx context.Context, req llm.GenerateRequest) (*llm.G
 	return &llm.GenerateResponse{Content: raw, Mode: llm.ModeJSONSchema}, nil
 }
 
+// transcriptDoc is an interview with speaker attribution: the
+// interviewer's question is context only, the answer is the customer's
+// voice.
+func transcriptDoc(projectID string) *domain.Document {
+	q := "面接官: 検算はどのくらい時間がかかりますか？"
+	a := "回答者: 毎回三十分は検算に使っています。"
+	content := q + "\n" + a
+	qLen := len([]rune(q))
+	return &domain.Document{
+		ID: "doc_3", ProjectID: projectID, Source: domain.SourceInterview, Title: "Interview #2 (transcript)",
+		Content: content,
+		Spans: []domain.Span{
+			{Start: 0, End: qLen, Speaker: "面接官", Role: domain.RoleInterviewer},
+			{Start: qLen + 1, End: len([]rune(content)), Speaker: "回答者", Role: domain.RoleCustomer},
+		},
+		Metadata:  map[string]string{domain.MetaRole: "経理担当", domain.MetaCompanySize: "30名"},
+		CreatedAt: time.Now().UTC(),
+	}
+}
+
 func newTestPipeline(t *testing.T) (*Pipeline, *sqlite.DB, *domain.Project) {
 	t.Helper()
 	db, err := sqlite.Open(filepath.Join(t.TempDir(), "pipeline_test.db"))
@@ -217,6 +248,7 @@ func newTestPipeline(t *testing.T) (*Pipeline, *sqlite.DB, *domain.Project) {
 			Content: "設定を間違えたら怖いんですよね。最後は自分で確認します。", CreatedAt: time.Now().UTC()},
 		{ID: "doc_2", ProjectID: p.ID, Source: domain.SourceReview, Title: "Review #1",
 			Content: "別に設定は難しくないです。", CreatedAt: time.Now().UTC()},
+		transcriptDoc(p.ID),
 	}
 	if err := documents.CreateBatch(ctx, docs); err != nil {
 		t.Fatalf("create documents: %v", err)
@@ -246,15 +278,19 @@ func TestPipelineRunEndToEnd(t *testing.T) {
 		t.Fatalf("Run: %v", err)
 	}
 
-	// One fabricated quote out of three candidates must have been
-	// discarded by grounding, not silently kept.
-	if metrics.TotalObservationCandidates != 3 {
-		t.Errorf("TotalObservationCandidates = %d, want 3", metrics.TotalObservationCandidates)
+	// Five candidates: one fabricated (discarded by grounding), one a
+	// verbatim quote of the interviewer (discarded as outside customer
+	// speech), three genuine.
+	if metrics.TotalObservationCandidates != 5 {
+		t.Errorf("TotalObservationCandidates = %d, want 5", metrics.TotalObservationCandidates)
 	}
-	if metrics.GroundedObservations != 2 {
-		t.Errorf("GroundedObservations = %d, want 2", metrics.GroundedObservations)
+	if metrics.GroundedObservations != 3 {
+		t.Errorf("GroundedObservations = %d, want 3", metrics.GroundedObservations)
 	}
-	wantRate := 1.0 / 3.0
+	if metrics.QuotesOutsideCustomerSpeech != 1 {
+		t.Errorf("QuotesOutsideCustomerSpeech = %d, want 1 (the interviewer's question)", metrics.QuotesOutsideCustomerSpeech)
+	}
+	wantRate := 2.0 / 5.0
 	if diff := metrics.UnsupportedClaimRate - wantRate; diff > 1e-9 || diff < -1e-9 {
 		t.Errorf("UnsupportedClaimRate = %f, want %f", metrics.UnsupportedClaimRate, wantRate)
 	}
@@ -348,16 +384,16 @@ func TestPipelineRunEndToEnd(t *testing.T) {
 	if pattern.Expectation == "" || pattern.DeviationType != domain.DeviationExcessEffort {
 		t.Errorf("trace pattern lost its expectation/deviation type: %+v", pattern)
 	}
-	if len(pattern.ObservationIDs) != 1 {
-		t.Errorf("trace has %d linked observations, want 1 (the fabricated ID must be dropped)", len(pattern.ObservationIDs))
+	if len(pattern.ObservationIDs) != 2 {
+		t.Errorf("trace has %d linked observations, want 2 (the two anxiety quotes; the fabricated ID must be dropped)", len(pattern.ObservationIDs))
 	}
 
 	poorPatterns, err := patterns.ListByInsight(ctx, poor.ID)
 	if err != nil || len(poorPatterns) != 1 || poorPatterns[0].Kind != domain.PatternRepetition {
 		t.Errorf("poor insight should cite exactly the repetition pattern: %v, %v", poorPatterns, err)
 	}
-	if len(poorPatterns) == 1 && len(poorPatterns[0].ObservationIDs) != 2 {
-		t.Errorf("repetition pattern has %d linked observations, want 2 (both grounded observations, not the fabricated one)", len(poorPatterns[0].ObservationIDs))
+	if len(poorPatterns) == 1 && len(poorPatterns[0].ObservationIDs) != 3 {
+		t.Errorf("repetition pattern has %d linked observations, want 3 (all grounded observations, not the fabricated one)", len(poorPatterns[0].ObservationIDs))
 	}
 
 	// Traces are listed before repetitions so the "what surprised us"
@@ -380,7 +416,7 @@ func TestPipelineRunEndToEnd(t *testing.T) {
 		switch e.Type {
 		case domain.EvidenceSupport:
 			support++
-			if e.Quote != "設定を間違えたら怖いんですよね" {
+			if e.Quote != "設定を間違えたら怖いんですよね" && e.Quote != "毎回三十分は検算に使っています" {
 				t.Errorf("unexpected supporting quote: %q", e.Quote)
 			}
 		case domain.EvidenceCounter:
@@ -393,8 +429,8 @@ func TestPipelineRunEndToEnd(t *testing.T) {
 		// document - i.e. this test never trusts the fake LLM's quote,
 		// only what grounding.go actually verified.
 	}
-	if support != 1 || counter != 1 {
-		t.Errorf("support=%d counter=%d, want 1 and 1", support, counter)
+	if support != 2 || counter != 1 {
+		t.Errorf("support=%d counter=%d, want 2 and 1", support, counter)
 	}
 
 	// The fabricated quote must never have made it into the DB at all.
@@ -403,10 +439,23 @@ func TestPipelineRunEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListByProject observations: %v", err)
 	}
+	var transcriptObs int
 	for _, o := range allObs {
 		if strings.Contains(o.Quote, "絶対に安全") {
 			t.Errorf("fabricated quote leaked into persisted observations: %q", o.Quote)
 		}
+		if strings.Contains(o.Quote, "時間がかかりますか") {
+			t.Errorf("interviewer's question leaked into persisted observations: %q", o.Quote)
+		}
+		if o.DocumentID == "doc_3" {
+			transcriptObs++
+			if o.Quote != "毎回三十分は検算に使っています" {
+				t.Errorf("unexpected transcript quote %q", o.Quote)
+			}
+		}
+	}
+	if transcriptObs != 1 {
+		t.Errorf("transcript document yielded %d observations, want 1", transcriptObs)
 	}
 
 	if len(progressLog) == 0 || progressLog[len(progressLog)-1] != "completed:100" {

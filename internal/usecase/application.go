@@ -79,11 +79,14 @@ func (a *Application) ListDocuments(ctx context.Context, projectID string) ([]*d
 }
 
 type CreateDocumentInput struct {
-	ProjectID string
-	Source    domain.SourceType
-	Title     string
-	Content   string
-	Metadata  map[string]string
+	ProjectID  string
+	Source     domain.SourceType
+	Provenance domain.Provenance // empty = domain.DefaultProvenance(Source)
+	Title      string
+	Content    string
+	RawContent string
+	Spans      []domain.Span
+	Metadata   map[string]string
 }
 
 func (a *Application) CreateDocument(ctx context.Context, in CreateDocumentInput) (*domain.Document, error) {
@@ -96,8 +99,18 @@ func (a *Application) CreateDocument(ctx context.Context, in CreateDocumentInput
 	if strings.TrimSpace(in.Content) == "" {
 		return nil, fmt.Errorf("content is required")
 	}
-	d := &domain.Document{ID: newID("doc"), ProjectID: in.ProjectID, Source: in.Source,
-		Title: in.Title, Content: in.Content, Metadata: in.Metadata, CreatedAt: a.now()}
+	provenance := in.Provenance
+	if provenance == "" {
+		provenance = domain.DefaultProvenance(in.Source)
+	}
+	if !provenance.Valid() {
+		return nil, fmt.Errorf("invalid provenance")
+	}
+	if err := validateSpans(in.Spans, in.Content); err != nil {
+		return nil, err
+	}
+	d := &domain.Document{ID: newID("doc"), ProjectID: in.ProjectID, Source: in.Source, Provenance: provenance,
+		Title: in.Title, Content: in.Content, RawContent: in.RawContent, Spans: in.Spans, Metadata: in.Metadata, CreatedAt: a.now()}
 	if err := a.repos.Documents.Create(ctx, d); err != nil {
 		return nil, fmt.Errorf("create document: %w", err)
 	}
@@ -213,6 +226,23 @@ func (a *Application) resolvePatterns(ctx context.Context, patterns []*domain.Pa
 		result = append(result, detail)
 	}
 	return result, nil
+}
+
+// validateSpans rejects speaker spans that fall outside the content or
+// carry an unknown role. Overlaps are tolerated (a later intake step may
+// produce nested attributions); out-of-range offsets are not, because
+// grounding and highlighting both index Content by these numbers.
+func validateSpans(spans []domain.Span, content string) error {
+	n := len([]rune(content))
+	for i, s := range spans {
+		if !s.Role.Valid() {
+			return fmt.Errorf("spans[%d]: invalid role %q", i, s.Role)
+		}
+		if s.Start < 0 || s.End > n || s.End <= s.Start {
+			return fmt.Errorf("spans[%d]: offsets %d-%d out of range (content is %d runes)", i, s.Start, s.End, n)
+		}
+	}
+	return nil
 }
 
 func newID(prefix string) string {

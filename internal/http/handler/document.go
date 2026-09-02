@@ -14,25 +14,58 @@ import (
 	"insight-lab/internal/usecase"
 )
 
+type spanDTO struct {
+	Start   int    `json:"start"`
+	End     int    `json:"end"`
+	Speaker string `json:"speaker,omitempty"`
+	Role    string `json:"role"`
+}
+
 type documentDTO struct {
-	ID        string            `json:"id"`
-	ProjectID string            `json:"projectId"`
-	Source    string            `json:"source"`
-	Title     string            `json:"title"`
-	Content   string            `json:"content"`
+	ID         string `json:"id"`
+	ProjectID  string `json:"projectId"`
+	Source     string `json:"source"`
+	Provenance string `json:"provenance"`
+	Title      string `json:"title"`
+	Content    string `json:"content"`
+	// Masked reports whether PII masking changed the content at intake;
+	// the pre-masking original stays local and is not returned here.
+	Masked    bool              `json:"masked"`
+	Spans     []spanDTO         `json:"spans"`
+	Situation string            `json:"situation,omitempty"`
 	Metadata  map[string]string `json:"metadata,omitempty"`
 	CreatedAt string            `json:"createdAt"`
 }
 
+func toSpanDTOs(spans []domain.Span) []spanDTO {
+	out := make([]spanDTO, 0, len(spans))
+	for _, s := range spans {
+		out = append(out, spanDTO{Start: s.Start, End: s.End, Speaker: s.Speaker, Role: string(s.Role)})
+	}
+	return out
+}
+
+func fromSpanDTOs(spans []spanDTO) []domain.Span {
+	out := make([]domain.Span, 0, len(spans))
+	for _, s := range spans {
+		out = append(out, domain.Span{Start: s.Start, End: s.End, Speaker: s.Speaker, Role: domain.SpeakerRole(s.Role)})
+	}
+	return out
+}
+
 func toDocumentDTO(d *domain.Document) documentDTO {
 	return documentDTO{
-		ID:        d.ID,
-		ProjectID: d.ProjectID,
-		Source:    string(d.Source),
-		Title:     d.Title,
-		Content:   d.Content,
-		Metadata:  d.Metadata,
-		CreatedAt: d.CreatedAt.UTC().Format(time.RFC3339),
+		ID:         d.ID,
+		ProjectID:  d.ProjectID,
+		Source:     string(d.Source),
+		Provenance: string(d.Provenance),
+		Title:      d.Title,
+		Content:    d.Content,
+		Masked:     d.RawContent != "",
+		Spans:      toSpanDTOs(d.Spans),
+		Situation:  d.Situation(),
+		Metadata:   d.Metadata,
+		CreatedAt:  d.CreatedAt.UTC().Format(time.RFC3339),
 	}
 }
 
@@ -66,10 +99,12 @@ func (h *Handler) ListDocuments(w http.ResponseWriter, r *http.Request) {
 }
 
 type createDocumentRequest struct {
-	Source   string            `json:"source"`
-	Title    string            `json:"title"`
-	Content  string            `json:"content"`
-	Metadata map[string]string `json:"metadata"`
+	Source     string            `json:"source"`
+	Provenance string            `json:"provenance"`
+	Title      string            `json:"title"`
+	Content    string            `json:"content"`
+	Spans      []spanDTO         `json:"spans"`
+	Metadata   map[string]string `json:"metadata"`
 }
 
 func (h *Handler) CreateDocument(w http.ResponseWriter, r *http.Request) {
@@ -94,10 +129,11 @@ func (h *Handler) CreateDocument(w http.ResponseWriter, r *http.Request) {
 	}
 
 	d, err := h.App.CreateDocument(r.Context(), usecase.CreateDocumentInput{
-		ProjectID: projectID, Source: source, Title: req.Title, Content: req.Content, Metadata: req.Metadata,
+		ProjectID: projectID, Source: source, Provenance: domain.Provenance(req.Provenance),
+		Title: req.Title, Content: req.Content, Spans: fromSpanDTOs(req.Spans), Metadata: req.Metadata,
 	})
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	writeJSON(w, http.StatusCreated, toDocumentDTO(d))

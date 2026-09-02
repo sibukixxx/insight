@@ -113,3 +113,40 @@ func runeIndex(haystack, needle []rune) int {
 	}
 	return -1
 }
+
+// GroundWithin is Ground restricted to the given spans of content: the
+// quote must lie entirely inside one span. It is how speaker attribution
+// becomes enforceable - the pipeline passes a document's customer spans,
+// so a verbatim quote of the interviewer's question or the support
+// agent's reply is rejected exactly like a fabricated one. Returned
+// offsets are into the full content.
+func GroundWithin(content, quote string, spans []Span) (Grounded, bool) {
+	contentRunes := []rune(content)
+	for _, s := range spans {
+		start, end := s.Start, s.End
+		if start < 0 {
+			start = 0
+		}
+		if end > len(contentRunes) {
+			end = len(contentRunes)
+		}
+		if end <= start {
+			continue
+		}
+		g, ok := Ground(string(contentRunes[start:end]), quote)
+		if !ok {
+			continue
+		}
+		g.StartOffset += start
+		g.EndOffset += start
+		return g, true
+	}
+	return Grounded{}, false
+}
+
+// Span is the region type GroundWithin accepts; it is domain.Span's shape
+// (rune offsets, End exclusive) without the speaker fields, so the
+// grounding package stays free of domain concerns.
+type Span struct {
+	Start, End int
+}

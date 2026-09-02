@@ -36,6 +36,7 @@ const observationExtractionPrompt = basePrompt + `
 - behavior には、その引用が示す具体的な行動を短く記述してください。
 - topic には簡潔なトピックラベル（例: verification, price, automation）を付けてください。
 - 後工程で「言っていることとやっていること」を突き合わせるため、本人の希望・不満の発言と、実際にとっている行動（時間・お金・手間のかけ方、続けている/やめたこと、やっていないこと）の両方を漏らさず拾ってください。
+- テキストに【回答者】【質問者】【担当者】などの話者ラベルが付いている場合、引用してよいのは【回答者】の発言だけです。【質問者】の質問や【担当者】の返答は文脈として読むだけで、quote にしてはいけません。ラベル自体も quote に含めないでください。
 - 何も観察できなければ observations は空配列にしてください。`
 
 const traceDetectionPrompt = basePrompt + `

@@ -3,7 +3,9 @@ package sqlite
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
+	"fmt"
 
 	"insight-lab/internal/domain"
 	"insight-lab/internal/repository"
@@ -18,6 +20,8 @@ func NewDocumentRepository(db *DB) *DocumentRepository {
 type execer interface {
 	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
 }
+
+const documentColumns = `id, project_id, source, provenance, title, content, raw_content, spans, metadata, created_at`
 
 func (r *DocumentRepository) Create(ctx context.Context, d *domain.Document) error {
 	return insertDocument(ctx, r.db, d)
@@ -45,24 +49,30 @@ func insertDocument(ctx context.Context, ex execer, d *domain.Document) error {
 	if err != nil {
 		return err
 	}
+	spans, err := encodeSpans(d.Spans)
+	if err != nil {
+		return err
+	}
+	provenance := d.Provenance
+	if provenance == "" {
+		provenance = domain.DefaultProvenance(d.Source)
+	}
 	_, err = ex.ExecContext(ctx,
-		`INSERT INTO documents (id, project_id, source, title, content, metadata, created_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		d.ID, d.ProjectID, string(d.Source), d.Title, d.Content, meta, formatTime(d.CreatedAt))
+		`INSERT INTO documents (`+documentColumns+`)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		d.ID, d.ProjectID, string(d.Source), string(provenance), d.Title, d.Content,
+		nullableStringLiteral(d.RawContent), spans, meta, formatTime(d.CreatedAt))
 	return err
 }
 
 func (r *DocumentRepository) Get(ctx context.Context, id string) (*domain.Document, error) {
-	row := r.db.QueryRowContext(ctx,
-		`SELECT id, project_id, source, title, content, metadata, created_at
-		 FROM documents WHERE id = ?`, id)
+	row := r.db.QueryRowContext(ctx, `SELECT `+documentColumns+` FROM documents WHERE id = ?`, id)
 	return scanDocument(row)
 }
 
 func (r *DocumentRepository) ListByProject(ctx context.Context, projectID string) ([]*domain.Document, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, project_id, source, title, content, metadata, created_at
-		 FROM documents WHERE project_id = ? ORDER BY created_at ASC`, projectID)
+		`SELECT `+documentColumns+` FROM documents WHERE project_id = ? ORDER BY created_at ASC`, projectID)
 	if err != nil {
 		return nil, err
 	}
@@ -79,17 +89,38 @@ func (r *DocumentRepository) ListByProject(ctx context.Context, projectID string
 	return out, rows.Err()
 }
 
+func encodeSpans(spans []domain.Span) (any, error) {
+	if len(spans) == 0 {
+		return nil, nil
+	}
+	b, err := json.Marshal(spans)
+	if err != nil {
+		return nil, fmt.Errorf("encode spans: %w", err)
+	}
+	return string(b), nil
+}
+
 func scanDocument(s scanner) (*domain.Document, error) {
 	var d domain.Document
 	var source, createdAt string
-	var meta sql.NullString
-	if err := s.Scan(&d.ID, &d.ProjectID, &source, &d.Title, &d.Content, &meta, &createdAt); err != nil {
+	var provenance, rawContent, spans, meta sql.NullString
+	if err := s.Scan(&d.ID, &d.ProjectID, &source, &provenance, &d.Title, &d.Content, &rawContent, &spans, &meta, &createdAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, repository.ErrNotFound
 		}
 		return nil, err
 	}
 	d.Source = domain.SourceType(source)
+	d.Provenance = domain.Provenance(provenance.String)
+	if d.Provenance == "" {
+		d.Provenance = domain.DefaultProvenance(d.Source)
+	}
+	d.RawContent = rawContent.String
+	if spans.Valid && spans.String != "" {
+		if err := json.Unmarshal([]byte(spans.String), &d.Spans); err != nil {
+			return nil, fmt.Errorf("decode spans for %s: %w", d.ID, err)
+		}
+	}
 
 	t, err := parseTime(createdAt)
 	if err != nil {
