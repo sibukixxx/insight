@@ -76,25 +76,43 @@ migrations/
 
 ## 5. ドメインモデル
 
-### Project / Document（変更なし）
+### Project / Document **[変更: 入力契約の拡張（§24）]**
 
 ```go
 type Project struct {
-    ID        string
-    Name      string
-    CreatedAt time.Time
+    ID            string
+    Name          string
+    IntakeProfile IntakeProfile // 取り込みの記憶（話者→役割、マスク辞書、列マッピング）
+    CreatedAt     time.Time
 }
 
 type Document struct {
-    ID        string
-    ProjectID string
-    Source    SourceType // interview | review | support | sales | survey
-    Title     string
-    Content   string
-    Metadata  map[string]string // 予約キー: participant_id（将来のカバレッジ集計用）
-    CreatedAt time.Time
+    ID         string
+    ProjectID  string
+    Source     SourceType // interview | review | support | sales | survey | job_posting | social_post
+    Provenance Provenance // firsthand（本人の発言）| secondhand（第三者のメモ。sales の既定）
+    Title      string
+    Content    string     // 分析対象のテキスト。マスク後。原文照合・ハイライト・LLM送信はすべてこれに対して行う
+    RawContent string     // マスク前の原文。マスクで変化があった場合のみ保持。LLM には送らない
+    Spans      []Span     // 話者区間。空 = 全文が回答者の発言
+    Metadata   map[string]string // 予約キー: participant_id, role, company_size, segment, plan, volume, date, rating
+    CreatedAt  time.Time
+}
+
+type Span struct {
+    Start, End int         // ルーンオフセット（End は排他）
+    Speaker    string      // 元テキストのラベル（"面接官", "Q", "田中"）
+    Role       SpeakerRole // customer | interviewer | agent | other。引用できるのは customer のみ
+}
+
+type IntakeProfile struct {
+    SpeakerRoles  map[string]SpeakerRole // ラベル → 役割
+    MaskTerms     []string               // プロジェクト固有のマスク語（担当者名・社名）
+    ColumnMapping *ColumnMapping         // 前回使った列マッピング
 }
 ```
+
+`Document.CustomerSpans()` が引用可能領域を返し、`Document.Situation()` が予約メタデータを「経理担当 / 30名 / 月150件発行」のような1行に整形する（§24.5）。
 
 ### Observation **[変更: ドメイン型として明文化]**
 
@@ -127,17 +145,35 @@ type Evidence struct {
 }
 ```
 
-### Insight（変更なし。Observation=事実 / Interpretation=推論の分離が最重要）
+### Pattern **[追加: §22, §23]**
+
+```go
+type Pattern struct {
+    ID, ProjectID, AnalysisID string
+    Kind           PatternKind   // repetition（繰り返し）| deviation（予想とのズレ＝欲望の痕跡）
+    Title, Description string    // deviation では Description = 実際の行動
+    Expectation    string        // deviation のみ: 常識的な予想
+    DeviationType  DeviationType // contradiction | excess_effort | excess_payment | persistence | absence | other
+    ObservationIDs []string      // 実在する Observation のみ（保存時に検証）
+}
+```
+
+### Insight **[変更: アブダクション項目と品質フラグを追加（§23）]**
 
 ```go
 type Insight struct {
     ID, ProjectID, Title           string
     Observation                    string  // 一次データから直接確認できる事実の要約
     StatedNeed, LatentNeed, JTBD   string
+    Expectation                    string  // ① 常識的な予想
+    SurprisingFact                 string  // ② 予想を裏切った事実（痕跡）
+    Rationale                      string  // ④ LatentNeed が真なら SurprisingFact が当然になる説明
     ProductOpportunity             string
+    MonetizationAngle              string
     Interpretation                 string  // AIによる推論（UIで明確にラベル分け）
     AlternativeInterpretation      string  // 必須。別解釈
-    Confidence                     float64 // アプリ側計算（§10）
+    Confidence                     float64 // アプリ側計算（§7）
+    QualityFlags                   []QualityFlag // アプリ側判定（§23.3）: stated_need_echo | generic_term | no_trace | abduction_incomplete | secondhand_only
     Evidence                       []Evidence
     CreatedAt                      time.Time
 }
@@ -307,8 +343,15 @@ GET  /api/projects
 POST /api/projects
 GET  /api/projects/{projectID}
 DELETE /api/projects/{projectID}          # ローカルデータ完全削除（§17 セキュリティ）
-POST /api/projects/{projectID}/documents  # paste / CSV / TXT
+POST /api/projects/{projectID}/documents  # 貼り付け。provenance / spans / speakerRoles / detectSpeakers / skipMask を受け付ける
 GET  /api/projects/{projectID}/documents
+POST /api/projects/{projectID}/documents/import          # CSV/TSV。mapping フィールド（JSON ColumnMapping）で任意の列構成 [変更: §24]
+POST /api/projects/{projectID}/documents/import/preview  # 列・サンプル・提案マッピング・前回のマッピング [追加: §24]
+POST /api/projects/{projectID}/intake/preview            # 話者分離・マスク結果のプレビュー [追加: §24]
+GET  /api/projects/{projectID}/intake-profile            # 取り込みプロファイル [追加: §24]
+PUT  /api/projects/{projectID}/intake-profile
+GET  /api/projects/{projectID}/patterns                  # 痕跡・繰り返しパターン一覧 [追加: §22]
+GET  /api/projects/{projectID}/evaluation                # 評価指標 [追加: §15]
 GET  /api/documents/{documentID}          # Evidenceクリック時の原文表示用 [追加]
 POST /api/projects/{projectID}/analysis   # → {"analysisId","status":"queued"}
 GET  /api/analysis/{analysisID}           # 状態取得（SSE切断時のフォールバック）[追加]
@@ -429,6 +472,9 @@ Prefer surprising but well-supported insights over generic observations.
 | Counter Evidence Coverage | 反証検索を実施した Insight の割合 |
 | Insight Duplication | dedupe ステップで統合された Insight の割合 |
 | Avg Evidence / Insight | Insight あたり平均 Evidence 数 |
+| Quotes Outside Customer Speech | 原文には存在するが質問者・担当者の区間にあったため破棄した引用の件数（取り込み品質の指標）**[追加: §24]** |
+| Trace Count / Trace-backed Insight Rate | 痕跡の件数 / 痕跡を根拠に持つ Insight の割合 **[追加: §23]** |
+| Quality Flagged Insight Rate / Quality Flag Counts | 品質警告付き Insight の割合 / フラグ別件数 **[追加: §23]** |
 
 ## 16. Golden Dataset
 
@@ -536,3 +582,48 @@ Confidence（§7）は「その仮説がどれだけ Evidence に支持されて
 ### 23.5 DB
 
 `002_traces_and_quality.sql` で `patterns.kind / expectation / deviation_type` と `insights.expectation / surprising_fact / quality_flags` を追加。既存行の `kind` は DEFAULT `'repetition'` となる。
+
+## 24. 入力契約と取り込み（前処理） **[追加]**
+
+「評価はできるが、ユーザーの声を集約・正規化・構造化する前処理の方が大変」という指摘に対応した。汎用 ETL は作らず、**分析エンジンと同じ「機械が提案し、アプリが検証し、人が確定する」型を入口にも適用**する。
+
+### 24.1 問題
+
+- 書き起こしには質問者の発言が混ざる。従来は質問者の言葉も Observation として抽出でき、原文照合も通ってしまった（捏造引用は防げるが、質問者の引用は防げなかった）。
+- 商談メモは営業担当の解釈であり、本人の発言と同格の Evidence にすると Confidence が実態より上がる。
+- 痕跡検出（§23）は「その状況の人ならこう動くはず」から始まるが、役職・規模・利用量が渡っていないと予想が一般論になる。
+- 納品案件では氏名・連絡先をマスクしてから LLM に送る必要がある。
+- 取り込み形式が客ごとに違い、固定4列 CSV への手作業整形がボトルネックになる。
+
+### 24.2 入力契約
+
+Document に `Provenance`、`Spans`（話者区間）、`RawContent`（マスク前原文）と予約メタデータキーを追加した（§5）。以降のすべての取り込み方法（貼り付け、CSV/TSV、将来の LLM 構造化）は、この契約への変換として実装する。
+
+### 24.3 話者区間と原文照合
+
+- `GroundWithin(content, quote, customerSpans)`: 引用は回答者の区間の内側にある場合のみ採用。質問者・担当者の発言を逐語的に引用しても、捏造引用と同じ扱いで破棄する。件数は `quotesOutsideCustomerSpeech` として捏造（`unsupportedClaimRate`）とは別に集計する（前者は取り込みの問題、後者はモデルの問題）。
+- LLM には `【回答者】【質問者】【担当者】` のラベル付きで渡し、質問は文脈として読ませる。ラベルは `Document.Content` には存在しないので照合には影響しない。
+
+### 24.4 取り込み器（決定的・LLM 不使用）
+
+| 取り込み | 実装 | 記憶されるもの |
+|---|---|---|
+| 書き起こしの話者分離 | `service/transcript.go`。「面接官:」「Q.」「[00:12] 田中:」「【回答者】」を検出。既知ラベルは辞書、未知の名前は発話量ヒューリスティック（多く話す方が回答者）。推定は `guessed` として警告 | `IntakeProfile.SpeakerRoles` |
+| CSV/TSV 列マッピング | `service/table_import.go`。区切り自動判別、BOM 除去。列名から本文 / タイトル / ID / 種別 / 予約メタデータへの対応を提案（日英語彙）。本文セルが会話形式なら話者分離も適用 | `IntakeProfile.ColumnMapping` |
+| PII マスキング | `service/pii.go`。メール / URL / 電話 / 〒郵便番号 / カード番号 / 敬称付き氏名（「田中さん」→「[氏名]さん」、お客様・皆様などは除外）と辞書語。マスク後の本文に対して話者分離を行い、区間はマスク後テキストを指す | `IntakeProfile.MaskTerms` |
+
+**プレビューが本体**である。貼り付けもファイルも、保存前に「回答者として分析される文字数 / 除外した区間 / マスク箇所 / 推定した役割」を見せ、人が直してから確定する。確定した対応はプロジェクトに記憶され、次回から既定になる。案件ごとの取り込みプロファイルはローカル DB にだけ存在し、OSS 版には汎用の取り込み器と語彙だけが入る。
+
+UI からの保存は常に `detectSpeakers: true` で行い、区間はサーバー側でマスク後テキストから再計算する。クライアントが渡した区間はマスクで本文が変化した場合に拒否する（オフセットの不整合を構造的に防ぐ）。
+
+### 24.5 方法論への接続
+
+- Observation を LLM に渡す際に `documentId` / `situation` / `provenance` を付与する。痕跡検出は「月150件発行する営業事務なら自動化するはず」のように状況固有の予想を立て、同一人物の「言っていること」と「やっていること」を突き合わせる。
+- 二次情報由来の Evidence は relevance を 0.7 倍に減衰し、支持する引用がすべて二次情報なら品質フラグ `secondhand_only` を付ける。
+- 予約メタデータは将来の Segment Discovery（§19）の土台になる。
+
+### 24.6 未実装（次の候補）
+
+- LLM による構造化（崩れた貼り付けを話者・発言ごとに分割させ、各断片を `Ground` で原文照合してから採用）
+- XLSX の直接読み込み（現状は CSV/TSV に書き出してもらう）
+- マスク前原文の閲覧 UI（DB には `raw_content` として保持済み）

@@ -58,7 +58,14 @@
 
 - [x] テキスト貼り付け取り込み UI（Phase 1 で実装済み）
 - [x] CSV インポート（固定4列 `id,source,title,content`、BOM自動除去、不正行はスキップしてエラー一覧を返す。`internal/service/csv_import.go`）
+- [x] **入力契約の拡張**（設計 §24）: 出所（firsthand / secondhand）、話者区間、マスク前原文、予約メタデータ。引用は回答者の区間内のみ原文照合で採用
+- [x] **書き起こしの話者分離 + 取り込みプレビュー**（`service/transcript.go`、`POST /intake/preview`）。確定した役割は取り込みプロファイルに記憶
+- [x] **列マッピング付き CSV/TSV 取り込み**（`service/table_import.go`、`POST /documents/import/preview`）。列名から提案、マッピングを記憶
+- [x] **PII マスキング**（`service/pii.go`）。組み込みパターン + プロジェクト辞書。マスク後に話者分離、原文はローカルのみ
+- [x] **属性・出所を方法論に接続**: situation を痕跡検出の予想に渡す、二次情報の Evidence 減衰、`secondhand_only` フラグ
 - [x] プロジェクト管理 UI（作成は実装済み。削除APIは Phase 1 から存在するが削除ボタンのUIは未追加）
+- [ ] LLM による崩れた貼り付けの構造化（分割断片を原文照合してから採用。設計 §24.6）
+- [ ] XLSX の直接読み込み（現状は CSV/TSV 書き出しで対応）
 - [ ] TXT インポート（CSVインポートと役割が重複するため優先度を下げた。必要になれば追加）
 - [ ] トークン使用量の集計・表示（`llm.Usage` は `GenerateResponse` に既に載っており、配線のみ残っている）
 
