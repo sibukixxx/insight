@@ -51,15 +51,19 @@
 
 ## 4. ディレクトリ構成
 
-ドラフト §6 の構成を採用。差分のみ:
+ドラフト §6 の構成を採用。HTTP から永続化を直接呼ばず、ユースケース層を境界にする。
+依存方向は `http/handler → usecase → repository(interface) ← repository/sqlite` とし、
+具体実装の組み立ては `internal/app` だけが担当する。
 
 ```
 internal/
+├── domain/                 # 依存を持たないエンティティ・値
+├── usecase/                # 入力検証、ID採番、複数repositoryのオーケストレーション
 ├── service/
 │   ├── grounding.go        # [追加] quote照合・オフセット確定
 │   └── dedupe.go           # [追加] Insight重複統合
-├── repository/sqlite/
-│   └── analysis.go         # [追加] analysesテーブル
+├── repository/             # 永続化ポート（interface）
+│   └── sqlite/             # SQLiteによるポート実装
 ├── llm/
 │   └── fallback.go         # [追加] structured output 3段フォールバック
 └── http/handler/
