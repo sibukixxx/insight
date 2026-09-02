@@ -18,6 +18,52 @@ Insight は単独で提示せず、必ず **Insight → Evidence（原文照合�
 
 抽出エンジンはドメイン非依存。顧客インタビューだけでなく、案件サイトの募集文や伸びているSNS投稿を貼り付けても同じロジックで「隠れたニーズ」を見つけられる。各Insightには `Product Opportunity`（対象企業向けの改善提案）に加えて **`Monetization Angle`**（そのニーズを自分自身が商品・サービス化するなら何ができるか）も出力される。他社に売り込むデモにも、自分で機会を見つけて自分で作る用途にも使える。
 
+## スクリーンショット
+
+同梱デモデータ（架空の請求書SaaSインタビュー20件）を解析したときの表示例。
+
+| | |
+|---|---|
+| **Insight 詳細 — 推論の過程** ①常識的予想 → ②予想とのズレ（欲望の痕跡）→ ③仮説 → ④説明 の連鎖と、元になった痕跡・繰り返しパターン。引用をクリックすると原文の該当箇所がハイライトされる | **品質チェック付きの Insight** 「顕在ニーズの言い換え」「抽象語」「痕跡なし」「推論が不完全」の警告がアプリ側の判定で付く。却下はせず、リサーチャーが最終判断する |
+| ![Insight 詳細](docs/screenshots/insight-detail.png) | ![品質チェック付き Insight](docs/screenshots/insight-quality-flags.png) |
+| **痕跡とパターン一覧** 「予想 ≠ 実際」を並べて表示する欲望の痕跡と、複数人にまたがる繰り返し。Insight に至らなかった気づきもここに残る | **評価指標** Evidence Coverage / Unsupported Claim Rate / Trace-backed Insights / Quality Flagged など。モデルやプロンプトを変えたときの劣化を監視する |
+| ![痕跡とパターン一覧](docs/screenshots/traces-and-patterns.png) | ![評価指標](docs/screenshots/evaluation.png) |
+
+<details>
+<summary>プロジェクト画面（ドキュメント一覧・解析実行・Insight 一覧）</summary>
+
+![プロジェクト画面](docs/screenshots/project.png)
+
+</details>
+
+## Confidence と Quality Flags
+
+Insight には 2 つの独立した評価軸が付く。どちらも **LLM に自己申告させず、アプリ側で計算・判定する**。
+
+### Confidence（どれだけ支持されているか）
+
+```
+Confidence = EvidenceStrength × 0.35   // 支持 Evidence の relevance 平均（LLM が並べた順位から機械的に算出）
+           + EvidenceCoverage × 0.25   // 支持 Evidence を持つ Document 数 / プロジェクト内 Document 数
+           + SourceDiversity  × 0.20   // 支持 Evidence の SourceType 種類数 / 5（上限 1.0）
+           + PatternFrequency × 0.20   // パターンが現れた Document 数 / 5（上限 1.0）
+
+反証 Evidence があれば × (1 − 0.1 × min(反証件数, 3)) で減衰
+```
+
+Evidence はすべて Grounding Check を通過した引用（原文照合済み）から構築されるため、Confidence の入力に LLM が生成した文章や数値は含まれない。重みは初期値で、`internal/service/confidence.go` で変更できる。
+
+### Quality Flags（そもそもインサイトか）
+
+| フラグ | 判定 |
+|---|---|
+| 顕在ニーズの言い換え `stated_need_echo` | Latent Need と Stated Need を正規化（空白・句読点除去、全半角統一）し、包含関係または文字 bigram の Jaccard 係数 ≥ 0.5 |
+| 抽象語 `generic_term` | Latent Need に「コスパ / 安心 / 便利 / 効率 / 承認欲求 / 自分らしさ / 自己実現 …」等の語を含む |
+| 痕跡なし `no_trace` | 仮説が引用した Pattern に「予想とのズレ」が 1 つもない（繰り返しのみから導かれた） |
+| 推論が不完全 `abduction_incomplete` | 常識的予想または驚くべき事実が空で、予想 → ズレ → 仮説 の連鎖を検証できない |
+
+Confidence は「Evidence にどれだけ支持されているか」、Quality Flags は「インサイトの定義（人を動かす無自覚な欲求）を満たしているか」を表す。繰り返しに強く支持された顕在ニーズの言い換えは、**Confidence が高く、かつ警告付き**という形で現れる。評価画面の Trace-backed Insights / Quality Flagged で、プロジェクト全体の傾向を確認できる。詳細は [docs/detailed-design.md](docs/detailed-design.md) §7 / §23。
+
 ## 動作要件
 
 - Go 1.25 以上（ソースからビルドする場合。`go.mod` 参照）
