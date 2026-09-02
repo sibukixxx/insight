@@ -198,3 +198,49 @@ func TestInsightAndEvidenceRepository(t *testing.T) {
 		t.Errorf("Get missing insight = %v, want ErrNotFound", err)
 	}
 }
+
+func TestInsightRepositoryQualityFlagsRoundTrip(t *testing.T) {
+	db := openTestDB(t)
+	ctx := context.Background()
+	p, _ := seedProjectAndDocument(t, db)
+	insights := NewInsightRepository(db)
+
+	flagged := &domain.Insight{
+		ID: "ins_flagged", ProjectID: p.ID, Title: "安心したい", StatedNeed: "安心したい", LatentNeed: "安心したい",
+		Confidence: 0.4, CreatedAt: time.Now().UTC(),
+		QualityFlags: []domain.QualityFlag{
+			{Code: domain.QualityStatedNeedEcho},
+			{Code: domain.QualityGenericTerm, Detail: "安心"},
+		},
+	}
+	clean := &domain.Insight{
+		ID: "ins_clean", ProjectID: p.ID, Title: "誤請求への恐怖",
+		Expectation: "忙しいなら自動計算を信じるはず", SurprisingFact: "毎回電卓で検算する",
+		Confidence: 0.8, CreatedAt: time.Now().UTC(),
+	}
+	for _, i := range []*domain.Insight{flagged, clean} {
+		if err := insights.Create(ctx, i); err != nil {
+			t.Fatalf("Create %s: %v", i.ID, err)
+		}
+	}
+
+	got, err := insights.Get(ctx, flagged.ID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if len(got.QualityFlags) != 2 || got.QualityFlags[0].Code != domain.QualityStatedNeedEcho ||
+		got.QualityFlags[1].Code != domain.QualityGenericTerm || got.QualityFlags[1].Detail != "安心" {
+		t.Errorf("QualityFlags = %+v, want the two flags in order with detail", got.QualityFlags)
+	}
+
+	got, err = insights.Get(ctx, clean.ID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got.QualityFlags != nil {
+		t.Errorf("clean insight should load with nil flags, got %+v", got.QualityFlags)
+	}
+	if got.Expectation != clean.Expectation || got.SurprisingFact != clean.SurprisingFact {
+		t.Errorf("abduction fields did not round-trip: %+v", got)
+	}
+}

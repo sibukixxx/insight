@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"insight-lab/internal/domain"
 	"insight-lab/internal/llm"
 )
 
@@ -74,8 +75,11 @@ type patternCandidate struct {
 // pattern(s) it was built from.
 type patternRef struct {
 	ID               string `json:"id"`
+	Kind             string `json:"kind"` // "repetition" | "deviation"
 	Title            string `json:"title"`
 	Description      string `json:"description,omitempty"`
+	Expectation      string `json:"expectation,omitempty"`   // deviation only
+	DeviationType    string `json:"deviationType,omitempty"` // deviation only
 	ObservationCount int    `json:"observationCount"`
 }
 
@@ -117,13 +121,87 @@ func patternDetectionSchema() llm.Schema {
 	}
 }
 
+// --- Trace Detection (予想とのズレ = 欲望の痕跡) ---
+
+// traceCandidate is one "surprising fact": a behavior that contradicts
+// what common sense predicted. expectation is the prediction, actualBehavior
+// what actually happened; the gap between them is the trace an unconscious
+// desire left behind. Like patterns, a trace is only kept if it cites at
+// least one observation that was actually grounded.
+type traceCandidate struct {
+	Title          string   `json:"title"`
+	Expectation    string   `json:"expectation"`
+	ActualBehavior string   `json:"actualBehavior"`
+	DeviationType  string   `json:"deviationType"`
+	ObservationIDs []string `json:"observationIds"`
+}
+
+type traceDetectionOutput struct {
+	Traces []traceCandidate `json:"traces"`
+}
+
+var deviationTypeEnum = []string{
+	string(domain.DeviationContradiction), string(domain.DeviationExcessEffort), string(domain.DeviationExcessPayment),
+	string(domain.DeviationPersistence), string(domain.DeviationAbsence), string(domain.DeviationOther),
+}
+
+func traceDetectionSchema() llm.Schema {
+	return llm.Schema{
+		Name: "trace_detection",
+		Schema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"traces": map[string]any{
+					"type": "array",
+					"items": map[string]any{
+						"type": "object",
+						"properties": map[string]any{
+							"title":          map[string]any{"type": "string"},
+							"expectation":    map[string]any{"type": "string"},
+							"actualBehavior": map[string]any{"type": "string"},
+							"deviationType":  map[string]any{"type": "string", "enum": deviationTypeEnum},
+							"observationIds": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+						},
+						"required": []string{"title", "expectation", "actualBehavior", "deviationType", "observationIds"},
+					},
+				},
+			},
+			"required": []string{"traces"},
+		},
+		Validate: func(raw json.RawMessage) error {
+			var out traceDetectionOutput
+			if err := json.Unmarshal(raw, &out); err != nil {
+				return fmt.Errorf("invalid json: %w", err)
+			}
+			if out.Traces == nil {
+				return fmt.Errorf(`"traces" array is required (use [] if no deviation from expectation was found)`)
+			}
+			for i, tr := range out.Traces {
+				if tr.Expectation == "" || tr.ActualBehavior == "" {
+					return fmt.Errorf("traces[%d]: both expectation (what common sense predicted) and actualBehavior (what actually happened) are required", i)
+				}
+				if !domain.DeviationType(tr.DeviationType).Valid() {
+					return fmt.Errorf("traces[%d]: deviationType must be one of %v", i, deviationTypeEnum)
+				}
+			}
+			return nil
+		},
+	}
+}
+
 // --- Need Hypothesis Generation ---
 
+// hypothesisCandidate is one abduction: given a surprising fact C
+// (SurprisingFact, which broke Expectation), propose a hypothesis H
+// (LatentNeed) such that if H were true, C would be a matter of course
+// (Rationale explains that "if H then C is natural" step).
 type hypothesisCandidate struct {
 	Title                    string   `json:"title"`
 	StatedNeed               string   `json:"statedNeed"`
 	LatentNeed               string   `json:"latentNeed"`
 	JTBD                     string   `json:"jtbd"`
+	Expectation              string   `json:"expectation"`
+	SurprisingFact           string   `json:"surprisingFact"`
 	Rationale                string   `json:"rationale"`
 	SupportingObservationIDs []string `json:"supportingObservationIds"`
 	BasedOnPatternIDs        []string `json:"basedOnPatternIds"`
@@ -148,11 +226,13 @@ func hypothesisSchema() llm.Schema {
 							"statedNeed":               map[string]any{"type": "string"},
 							"latentNeed":               map[string]any{"type": "string"},
 							"jtbd":                     map[string]any{"type": "string"},
+							"expectation":              map[string]any{"type": "string"},
+							"surprisingFact":           map[string]any{"type": "string"},
 							"rationale":                map[string]any{"type": "string"},
 							"supportingObservationIds": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
 							"basedOnPatternIds":        map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
 						},
-						"required": []string{"title", "latentNeed", "supportingObservationIds"},
+						"required": []string{"title", "latentNeed", "expectation", "surprisingFact", "rationale", "supportingObservationIds", "basedOnPatternIds"},
 					},
 				},
 			},

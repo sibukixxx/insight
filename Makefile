@@ -2,7 +2,7 @@ BINARY  := insight-lab
 PKG     := ./cmd/insight-lab
 BINDIR  := bin
 
-.PHONY: build build-demo build-delivery test vet clean cross-compile cross-compile-demo cross-compile-delivery
+.PHONY: build build-demo build-delivery test vet clean cross-compile cross-compile-demo cross-compile-delivery eval-demo
 
 build: build-delivery
 
@@ -24,6 +24,11 @@ vet:
 
 clean:
 	rm -rf $(BINDIR)
+
+# 実LLMでデモデータを解析し、評価指標・Insight・痕跡を docs/evaluation/ に保存する。
+# INSIGHT_LAB_API_KEY と INSIGHT_LAB_MODEL（任意で INSIGHT_LAB_BASE_URL）が必要。
+eval-demo:
+	./scripts/eval-demo.sh
 
 cross-compile: cross-compile-demo cross-compile-delivery
 

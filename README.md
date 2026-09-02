@@ -7,7 +7,62 @@
 
 Insight は単独で提示せず、必ず **Insight → Evidence（原文照合済み引用）→ 反証 → Confidence** のセットで表示する。「複数の声を突き合わせて『ここが違う』と気づく」というインサイト抽出特有のブラックボックスな推論過程も、Observation（引用）→ Pattern（繰り返しへの気づき）→ Rationale（なぜその仮説に至ったか）→ Insight という連鎖として、Insight詳細画面と `#/projects/:id/patterns` ページでたどれるようにしている。
 
+### インサイトの見つけ方をそのまま実装する
+
+インサイトとは「人を動かす無自覚な欲求」であり、「コスパ」「安心」のような顕在ニーズや、「承認欲求」「自分らしさ」のような抽象語はインサイトではない。欲求そのものは見えないが、欲求が残した痕跡（急いでいるのに時間をかける、予定より多く払う、不満なのに使い続ける、起きるはずの行動が起きない）は見える。Insight Lab はこの作法を LLM への指示ではなく、パイプラインの構造とアプリ側の検証として組み込んでいる（[docs/detailed-design.md §23](docs/detailed-design.md)）。
+
+1. **予想する** — 常識に照らして「この人はこう動くはずだ」という予想を立てる
+2. **ズレを痕跡として捉える** — 予想と実際の行動の食い違いを `Trace`（`kind = deviation` の Pattern）として検出・保存し、「予想 ≠ 実際」を並べて表示する
+3. **アブダクションで仮説を立てる** — 「驚くべき事実 C が観察された。仮説 H が真なら C は当然になる。よって H」という形式で潜在ニーズを生成し、①予想 → ②ズレ → ③仮説 → ④説明 の連鎖を Insight 詳細画面に表示する
+4. **アプリ側で粗悪品を判定する** — 生成された Latent Need が「顕在ニーズの言い換え」「抽象語」「痕跡なし（繰り返しのみ）」「推論が不完全」のいずれかに当たる場合、モデルの自己評価ではなく決定的なチェック（`internal/service/quality.go`）で警告を付ける。却下はせず、最終判断はリサーチャーに委ねる。評価画面では「痕跡を根拠に持つ Insight の割合」「警告付き Insight の割合」を確認できる
+
 抽出エンジンはドメイン非依存。顧客インタビューだけでなく、案件サイトの募集文や伸びているSNS投稿を貼り付けても同じロジックで「隠れたニーズ」を見つけられる。各Insightには `Product Opportunity`（対象企業向けの改善提案）に加えて **`Monetization Angle`**（そのニーズを自分自身が商品・サービス化するなら何ができるか）も出力される。他社に売り込むデモにも、自分で機会を見つけて自分で作る用途にも使える。
+
+## スクリーンショット
+
+同梱デモデータ（架空の請求書SaaSインタビュー20件）を解析したときの表示例。
+
+| | |
+|---|---|
+| **Insight 詳細 — 推論の過程** ①常識的予想 → ②予想とのズレ（欲望の痕跡）→ ③仮説 → ④説明 の連鎖と、元になった痕跡・繰り返しパターン。引用をクリックすると原文の該当箇所がハイライトされる | **品質チェック付きの Insight** 「顕在ニーズの言い換え」「抽象語」「痕跡なし」「推論が不完全」の警告がアプリ側の判定で付く。却下はせず、リサーチャーが最終判断する |
+| ![Insight 詳細](docs/screenshots/insight-detail.png) | ![品質チェック付き Insight](docs/screenshots/insight-quality-flags.png) |
+| **痕跡とパターン一覧** 「予想 ≠ 実際」を並べて表示する欲望の痕跡と、複数人にまたがる繰り返し。Insight に至らなかった気づきもここに残る | **評価指標** Evidence Coverage / Unsupported Claim Rate / Trace-backed Insights / Quality Flagged など。モデルやプロンプトを変えたときの劣化を監視する |
+| ![痕跡とパターン一覧](docs/screenshots/traces-and-patterns.png) | ![評価指標](docs/screenshots/evaluation.png) |
+
+<details>
+<summary>プロジェクト画面（ドキュメント一覧・解析実行・Insight 一覧）</summary>
+
+![プロジェクト画面](docs/screenshots/project.png)
+
+</details>
+
+## Confidence と Quality Flags
+
+Insight には 2 つの独立した評価軸が付く。どちらも **LLM に自己申告させず、アプリ側で計算・判定する**。
+
+### Confidence（どれだけ支持されているか）
+
+```
+Confidence = EvidenceStrength × 0.35   // 支持 Evidence の relevance 平均（LLM が並べた順位から機械的に算出）
+           + EvidenceCoverage × 0.25   // 支持 Evidence を持つ Document 数 / プロジェクト内 Document 数
+           + SourceDiversity  × 0.20   // 支持 Evidence の SourceType 種類数 / 5（上限 1.0）
+           + PatternFrequency × 0.20   // パターンが現れた Document 数 / 5（上限 1.0）
+
+反証 Evidence があれば × (1 − 0.1 × min(反証件数, 3)) で減衰
+```
+
+Evidence はすべて Grounding Check を通過した引用（原文照合済み）から構築されるため、Confidence の入力に LLM が生成した文章や数値は含まれない。重みは初期値で、`internal/service/confidence.go` で変更できる。
+
+### Quality Flags（そもそもインサイトか）
+
+| フラグ | 判定 |
+|---|---|
+| 顕在ニーズの言い換え `stated_need_echo` | Latent Need と Stated Need を正規化（空白・句読点除去、全半角統一）し、包含関係または文字 bigram の Jaccard 係数 ≥ 0.5 |
+| 抽象語 `generic_term` | Latent Need に「コスパ / 安心 / 便利 / 効率 / 承認欲求 / 自分らしさ / 自己実現 …」等の語を含む |
+| 痕跡なし `no_trace` | 仮説が引用した Pattern に「予想とのズレ」が 1 つもない（繰り返しのみから導かれた） |
+| 推論が不完全 `abduction_incomplete` | 常識的予想または驚くべき事実が空で、予想 → ズレ → 仮説 の連鎖を検証できない |
+
+Confidence は「Evidence にどれだけ支持されているか」、Quality Flags は「インサイトの定義（人を動かす無自覚な欲求）を満たしているか」を表す。繰り返しに強く支持された顕在ニーズの言い換えは、**Confidence が高く、かつ警告付き**という形で現れる。評価画面の Trace-backed Insights / Quality Flagged で、プロジェクト全体の傾向を確認できる。詳細は [docs/detailed-design.md](docs/detailed-design.md) §7 / §23。
 
 ## 動作要件
 
@@ -38,8 +93,8 @@ make build-demo
 
 1. ブラウザで「デモを試す」→ 請求書SaaSインタビュー20件のプロジェクトが開く
 2. 「解析を実行」→ SSEで進捗が流れ、Hidden Need が Evidence・反証・Confidence 付きで表示される
-3. Insight詳細の「推論の過程」で、元になった Pattern（繰り返しの気づき）とその Rationale（なぜこの仮説に至ったか）を確認できる。Evidence をクリックすると、元ドキュメントの該当箇所がハイライトされる（grounding 検証済みの引用のみを表示）
-4. 「検出されたパターン一覧」「評価指標を見る」で、最終的な Insight に至らなかった Pattern や、Evidence Coverage / Unsupported Claim Rate などを確認できる
+3. Insight詳細の「推論の過程」で、①常識的予想 → ②予想とのズレ（欲望の痕跡）→ ③仮説 → ④説明 の連鎖と、元になった痕跡・繰り返しパターンを確認できる。品質チェックの警告（顕在ニーズの言い換え・抽象語・痕跡なし）が付いた Insight は一覧・詳細でマークされる。Evidence をクリックすると、元ドキュメントの該当箇所がハイライトされる（grounding 検証済みの引用のみを表示）
+4. 「痕跡・パターン一覧」「評価指標を見る」で、最終的な Insight に至らなかった痕跡・Pattern や、Evidence Coverage / Unsupported Claim Rate / Trace-backed Insight Rate / Quality Flagged Rate などを確認できる
 5. CSVインポート（`id,source,title,content` 固定列）や設定画面からの接続テストも利用可能
 
 ## デモビルドと納品ビルドの分離
@@ -60,6 +115,17 @@ make vet    # go vet（デモ/納品タグ両方）
 make test   # go test（デモ/納品タグ両方）
 ```
 
+### 実LLMでの評価
+
+単体テストとE2Eはフェイク LLM で決定的に回しているが、プロンプトやモデルを変えたときの出力品質は実 LLM でしか測れない。次のコマンドでデモデータ20件を実 LLM で解析し、評価指標・全 Insight（予想 → ズレ → 仮説 → 説明、品質フラグ、Evidence）・全痕跡/パターンを `docs/evaluation/<日付>-<モデル>/` に JSON と Markdown で保存する。
+
+```bash
+INSIGHT_LAB_API_KEY=sk-... INSIGHT_LAB_MODEL=gpt-5 make eval-demo
+# OpenAI 以外: INSIGHT_LAB_BASE_URL=https://openrouter.ai/api/v1 など
+```
+
+API キーはバイナリの引数にしか渡さず、出力ディレクトリには書かれない。結果は [docs/evaluation/](docs/evaluation/) に蓄積し、Trace-backed Insights / Quality Flagged の推移でモデル・プロンプト変更の劣化を検出する。
+
 ## ドキュメント
 
 | ドキュメント | 内容 |
@@ -70,7 +136,7 @@ make test   # go test（デモ/納品タグ両方）
 
 ## ステータス
 
-Phase 1〜3 実装完了（単一バイナリ骨格、デモ/納品ビルド分離、LLM接続、Observation抽出、Grounding Check、Hidden Needs パイプライン、Evidence/Confidence、SSE進捗、評価画面、CSVインポート、GitHub Actions CI/Release）。詳細は [docs/implementation-plan.md](docs/implementation-plan.md) を参照。
+Phase 1〜3 実装完了（単一バイナリ骨格、デモ/納品ビルド分離、LLM接続、Observation抽出、Grounding Check、Hidden Needs パイプライン、Evidence/Confidence、SSE進捗、評価画面、CSVインポート、GitHub Actions CI/Release）。Phase 6 のうち Trace Detection（予想とのズレの検出）・アブダクション形式の仮説・Quality Gate を実装済み。詳細は [docs/implementation-plan.md](docs/implementation-plan.md) を参照。
 
 ## コントリビュート
 

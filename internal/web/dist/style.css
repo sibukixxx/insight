@@ -283,3 +283,45 @@ footer.privacy {
 .metric-value { font-size: 26px; font-weight: 800; color: var(--accent); }
 .metric-label { font-size: 12px; font-weight: 700; margin-top: 4px; }
 .metric-desc { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+/* Abduction trail (予想 → ズレ → 仮説 → 説明) */
+.abduction { display: grid; gap: 8px; margin-bottom: 16px; }
+.abduction-step { display: flex; gap: 12px; padding: 12px 14px; border-radius: 8px; background: #fafbfc; border: 1px solid var(--border); }
+.abduction-num { font-weight: 800; color: var(--text-muted); flex: none; width: 24px; }
+.abduction-body { flex: 1; }
+.abduction-expect { background: #f4f6fb; }
+.abduction-fact { background: #fff2e0; border-color: #f0d4a0; }
+.abduction-hyp { background: #fdeee0; border-color: #f0b979; }
+.abduction-why { background: #f5eaff; }
+.abduction .missing { color: var(--danger); font-size: 13px; }
+.trail-subtitle { font-size: 12px; font-weight: 700; color: var(--text-muted); margin: 4px 0 8px; }
+
+/* Pattern kinds */
+.pattern-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
+.pattern-head .pattern-title { margin-bottom: 0; }
+.pattern-trace { border-color: #f0d4a0; background: #fffaf2; }
+.kind-badge { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; flex: none; }
+.kind-deviation { background: #fff2e0; color: #b8860b; }
+.kind-repetition { background: var(--accent-weak); color: var(--accent); }
+.deviation-type { font-size: 11px; color: #7a5200; border: 1px solid #f0d4a0; border-radius: 999px; padding: 1px 8px; }
+.trace-gap { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: stretch; margin-bottom: 10px; }
+.trace-cell { padding: 10px 12px; border-radius: 8px; font-size: 13px; }
+.trace-expect { background: #f4f6fb; }
+.trace-actual { background: #fff2e0; }
+.trace-arrow { align-self: center; font-weight: 800; color: #b8860b; font-size: 18px; }
+@media (max-width: 600px) {
+  .trace-gap { grid-template-columns: 1fr; }
+  .trace-arrow { text-align: center; }
+}
+
+/* Quality flags */
+.quality-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.quality-badge { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: #fdeceb; color: var(--danger); border: 1px solid #f3c1bd; }
+.quality-box { background: #fff7f6; border: 1px solid #f3c1bd; border-radius: 8px; padding: 12px 14px; margin: 12px 0 16px; }
+.quality-box-title { font-size: 11px; font-weight: 700; color: var(--danger); text-transform: uppercase; letter-spacing: 0.03em; }
+.quality-box .quality-badges { margin-top: 6px; }
+.quality-desc { margin: 8px 0 0; padding-left: 18px; font-size: 12px; color: var(--text); }
+.quality-desc li { margin-bottom: 4px; }
+.quality-notice { margin-bottom: 12px; }
+.insight-card-flagged { border-left: 3px solid #f3c1bd; }
+.insight-card-trace { font-size: 12px; color: #7a5200; margin-bottom: 6px; }

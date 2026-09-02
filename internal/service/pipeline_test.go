@@ -45,6 +45,23 @@ func idsWhere(refs []observationRef, pred func(observationRef) bool) []string {
 	return ids
 }
 
+// repetitionOnly returns the JSON array of pattern IDs that are not
+// traces, so the low-quality hypothesis cites repetition alone.
+func repetitionOnly(all, traces []string) string {
+	isTrace := map[string]bool{}
+	for _, id := range traces {
+		isTrace[id] = true
+	}
+	var out []string
+	for _, id := range all {
+		if !isTrace[id] {
+			out = append(out, id)
+		}
+	}
+	b, _ := json.Marshal(out)
+	return string(b)
+}
+
 func (f *fakeLLM) Generate(ctx context.Context, req llm.GenerateRequest) (*llm.GenerateResponse, error) {
 	name := req.Schema.Name
 	f.calls[name]++
@@ -65,6 +82,19 @@ func (f *fakeLLM) Generate(ctx context.Context, req llm.GenerateRequest) (*llm.G
 			raw = json.RawMessage(`{"observations":[]}`)
 		}
 
+	case "trace_detection":
+		var p obsRefPayload
+		_ = json.Unmarshal([]byte(last), &p)
+		// The trace cites the anxiety observation plus one fabricated ID,
+		// which buildTracePatterns must drop without dropping the trace.
+		ids := idsWhere(p.Observations, func(o observationRef) bool { return o.Topic == "anxiety" })
+		ids = append(ids, "obs_does_not_exist")
+		idsJSON, _ := json.Marshal(ids)
+		raw = json.RawMessage(fmt.Sprintf(`{"traces":[
+			{"title":"急いでいるのに手動で確認する","expectation":"忙しいなら自動計算を信じて送るはず","actualBehavior":"最後は自分で確認している","deviationType":"excess_effort","observationIds":%s},
+			{"title":"根拠のない痕跡","expectation":"x","actualBehavior":"y","deviationType":"other","observationIds":["obs_does_not_exist"]}
+		]}`, idsJSON))
+
 	case "pattern_detection":
 		var p obsRefPayload
 		_ = json.Unmarshal([]byte(last), &p)
@@ -80,21 +110,43 @@ func (f *fakeLLM) Generate(ctx context.Context, req llm.GenerateRequest) (*llm.G
 
 		var pp patternRefPayload
 		_ = json.Unmarshal([]byte(last), &pp)
-		var patternIDs []string
+		var patternIDs, traceIDs []string
 		for _, pr := range pp.Patterns {
 			patternIDs = append(patternIDs, pr.ID)
+			if pr.Kind == "deviation" {
+				traceIDs = append(traceIDs, pr.ID)
+			}
 		}
-		patternIDsJSON, _ := json.Marshal(patternIDs)
+		if len(traceIDs) == 0 {
+			return nil, fmt.Errorf("fakeLLM: hypothesis step received no deviation pattern (traces must be passed to hypothesis generation)")
+		}
+		traceIDsJSON, _ := json.Marshal(traceIDs)
 
+		// Two hypotheses: one proper abduction anchored to the trace, and
+		// one "poor-quality insight" that restates the stated need with a
+		// generic term and cites only the repetition pattern - the quality
+		// gate, not the model, is expected to flag it.
 		raw = json.RawMessage(fmt.Sprintf(`{"hypotheses":[{
 			"title":"確認への依存の裏にある恐怖",
 			"statedNeed":"作業を早く終わらせたい",
 			"latentNeed":"失敗して信頼を失うことを避けたい",
-			"jtbd":"安心して提出できる状態にしたい",
-			"rationale":"複数の発言で、確認作業そのものより「間違えたときの結果」への言及が繰り返されていたため、時間短縮ではなく失敗回避が本質的な動機だと判断した",
+			"jtbd":"間違いのない請求書を送れている状態でいたい",
+			"expectation":"忙しいなら自動計算を信じて送るはず",
+			"surprisingFact":"時間がかかると言いながら最後は自分で確認している",
+			"rationale":"失敗による信頼喪失を避けたい欲求があるなら、時間をかけてでも確認する行動は当然になる",
 			"supportingObservationIds":%s,
 			"basedOnPatternIds":%s
-		}]}`, obsIDsJSON, patternIDsJSON))
+		},{
+			"title":"安心して使いたい",
+			"statedNeed":"安心して使いたい",
+			"latentNeed":"安心して使いたい",
+			"jtbd":"安心",
+			"expectation":"",
+			"surprisingFact":"",
+			"rationale":"",
+			"supportingObservationIds":%s,
+			"basedOnPatternIds":%s
+		}]}`, obsIDsJSON, traceIDsJSON, obsIDsJSON, repetitionOnly(patternIDs, traceIDs)))
 
 	case "evidence_retrieval":
 		var p obsRefPayload
@@ -106,6 +158,17 @@ func (f *fakeLLM) Generate(ctx context.Context, req llm.GenerateRequest) (*llm.G
 		raw = json.RawMessage(fmt.Sprintf(`{"supportingObservationIds":%s,"counterObservationIds":%s,"counterSearched":true}`, supportJSON, counterJSON))
 
 	case "insight_writeup":
+		if strings.Contains(last, "安心して使いたい") {
+			raw = json.RawMessage(`{
+				"title":"安心して使いたい",
+				"observationSummary":"確認している",
+				"interpretation":"安心を求めている",
+				"alternativeInterpretation":"習慣かもしれない",
+				"productOpportunity":"",
+				"monetizationAngle":""
+			}`)
+			break
+		}
 		raw = json.RawMessage(`{
 			"title":"確認作業の裏にある「誤請求への恐怖」",
 			"observationSummary":"複数ユーザーが送信前に手動で確認している",
@@ -196,8 +259,8 @@ func TestPipelineRunEndToEnd(t *testing.T) {
 		t.Errorf("UnsupportedClaimRate = %f, want %f", metrics.UnsupportedClaimRate, wantRate)
 	}
 
-	if metrics.FinalInsightCount != 1 {
-		t.Fatalf("FinalInsightCount = %d, want 1", metrics.FinalInsightCount)
+	if metrics.FinalInsightCount != 2 {
+		t.Fatalf("FinalInsightCount = %d, want 2", metrics.FinalInsightCount)
 	}
 	if metrics.EvidenceCoverage != 1.0 {
 		t.Errorf("EvidenceCoverage = %f, want 1.0", metrics.EvidenceCoverage)
@@ -205,16 +268,52 @@ func TestPipelineRunEndToEnd(t *testing.T) {
 	if metrics.CounterEvidenceCoverage != 1.0 {
 		t.Errorf("CounterEvidenceCoverage = %f, want 1.0", metrics.CounterEvidenceCoverage)
 	}
-	if metrics.PatternCount != 1 {
-		t.Errorf("PatternCount = %d, want 1", metrics.PatternCount)
+	// 1 trace (the one citing only a fabricated ID is dropped) + 1 repetition.
+	if metrics.PatternCount != 2 || metrics.TraceCount != 1 {
+		t.Errorf("PatternCount = %d, TraceCount = %d, want 2 and 1", metrics.PatternCount, metrics.TraceCount)
+	}
+	if metrics.TraceBackedInsightRate != 0.5 {
+		t.Errorf("TraceBackedInsightRate = %f, want 0.5 (one of two insights cites a trace)", metrics.TraceBackedInsightRate)
+	}
+	if metrics.QualityFlaggedInsightRate != 0.5 {
+		t.Errorf("QualityFlaggedInsightRate = %f, want 0.5", metrics.QualityFlaggedInsightRate)
+	}
+	for _, code := range []domain.QualityFlagCode{domain.QualityStatedNeedEcho, domain.QualityGenericTerm, domain.QualityNoTrace, domain.QualityAbductionIncomplete} {
+		if metrics.QualityFlagCounts[string(code)] != 1 {
+			t.Errorf("QualityFlagCounts[%s] = %d, want 1", code, metrics.QualityFlagCounts[string(code)])
+		}
 	}
 
 	insights := sqlite.NewInsightRepository(db)
 	list, err := insights.ListByProject(ctx, project.ID)
-	if err != nil || len(list) != 1 {
+	if err != nil || len(list) != 2 {
 		t.Fatalf("ListByProject = %v, %v", list, err)
 	}
-	insight := list[0]
+	var insight, poor *domain.Insight
+	for _, i := range list {
+		if i.Title == "安心して使いたい" {
+			poor = i
+		} else {
+			insight = i
+		}
+	}
+	if insight == nil || poor == nil {
+		t.Fatalf("expected both the proper and the poor-quality insight, got %+v", list)
+	}
+
+	// The poor-quality insight is kept (the researcher decides), but every
+	// app-side check must have fired on it.
+	for _, code := range []domain.QualityFlagCode{domain.QualityStatedNeedEcho, domain.QualityGenericTerm, domain.QualityNoTrace, domain.QualityAbductionIncomplete} {
+		if !poor.HasQualityFlag(code) {
+			t.Errorf("poor insight missing quality flag %s: %+v", code, poor.QualityFlags)
+		}
+	}
+	if len(insight.QualityFlags) != 0 {
+		t.Errorf("proper insight should carry no quality flags, got %+v", insight.QualityFlags)
+	}
+	if insight.Expectation == "" || insight.SurprisingFact == "" {
+		t.Errorf("abduction fields should round-trip: expectation=%q surprisingFact=%q", insight.Expectation, insight.SurprisingFact)
+	}
 	if insight.LatentNeed == "" || insight.AlternativeInterpretation == "" {
 		t.Errorf("insight missing required narrative fields: %+v", insight)
 	}
@@ -243,16 +342,32 @@ func TestPipelineRunEndToEnd(t *testing.T) {
 		t.Fatalf("insight linked to %d patterns, want 1", len(insightPatterns))
 	}
 	pattern := insightPatterns[0]
-	if pattern.Title == "" {
-		t.Error("pattern missing title")
+	if !pattern.IsTrace() {
+		t.Errorf("the proper insight should cite the deviation pattern, got kind %q", pattern.Kind)
 	}
-	if len(pattern.ObservationIDs) != 2 {
-		t.Errorf("pattern has %d linked observations, want 2 (both grounded observations, not the fabricated one)", len(pattern.ObservationIDs))
+	if pattern.Expectation == "" || pattern.DeviationType != domain.DeviationExcessEffort {
+		t.Errorf("trace pattern lost its expectation/deviation type: %+v", pattern)
+	}
+	if len(pattern.ObservationIDs) != 1 {
+		t.Errorf("trace has %d linked observations, want 1 (the fabricated ID must be dropped)", len(pattern.ObservationIDs))
 	}
 
+	poorPatterns, err := patterns.ListByInsight(ctx, poor.ID)
+	if err != nil || len(poorPatterns) != 1 || poorPatterns[0].Kind != domain.PatternRepetition {
+		t.Errorf("poor insight should cite exactly the repetition pattern: %v, %v", poorPatterns, err)
+	}
+	if len(poorPatterns) == 1 && len(poorPatterns[0].ObservationIDs) != 2 {
+		t.Errorf("repetition pattern has %d linked observations, want 2 (both grounded observations, not the fabricated one)", len(poorPatterns[0].ObservationIDs))
+	}
+
+	// Traces are listed before repetitions so the "what surprised us"
+	// layer reads first.
 	projectPatterns, err := patterns.ListByProject(ctx, project.ID)
-	if err != nil || len(projectPatterns) != 1 {
+	if err != nil || len(projectPatterns) != 2 {
 		t.Fatalf("ListByProject patterns = %v, %v", projectPatterns, err)
+	}
+	if !projectPatterns[0].IsTrace() || projectPatterns[1].IsTrace() {
+		t.Errorf("patterns should be ordered deviation first: %q, %q", projectPatterns[0].Kind, projectPatterns[1].Kind)
 	}
 
 	evidenceRepo := sqlite.NewEvidenceRepository(db)
