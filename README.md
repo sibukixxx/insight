@@ -1,10 +1,19 @@
 # Insight Lab – Hidden Needs Finder
 
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![Go Version](https://img.shields.io/badge/go-1.25%2B-00ADD8.svg)](go.mod)
+
 顧客インタビュー・レビュー・問い合わせ履歴などのテキストから、明示されていない潜在ニーズ・JTBD・改善仮説を抽出するローカル実行型 AI 分析ツール。Go 単一バイナリ + 埋め込み Web UI + SQLite + OpenAI 互換 LLM API。
 
 Insight は単独で提示せず、必ず **Insight → Evidence（原文照合済み引用）→ 反証 → Confidence** のセットで表示する。「複数の声を突き合わせて『ここが違う』と気づく」というインサイト抽出特有のブラックボックスな推論過程も、Observation（引用）→ Pattern（繰り返しへの気づき）→ Rationale（なぜその仮説に至ったか）→ Insight という連鎖として、Insight詳細画面と `#/projects/:id/patterns` ページでたどれるようにしている。
 
 抽出エンジンはドメイン非依存。顧客インタビューだけでなく、案件サイトの募集文や伸びているSNS投稿を貼り付けても同じロジックで「隠れたニーズ」を見つけられる。各Insightには `Product Opportunity`（対象企業向けの改善提案）に加えて **`Monetization Angle`**（そのニーズを自分自身が商品・サービス化するなら何ができるか）も出力される。他社に売り込むデモにも、自分で機会を見つけて自分で作る用途にも使える。
+
+## 動作要件
+
+- Go 1.25 以上（ソースからビルドする場合。`go.mod` 参照）
+- CGO 不要（`modernc.org/sqlite` を使用したピュア Go 実装のため、クロスコンパイルも `CGO_ENABLED=0` で完結）
+- OpenAI 互換の LLM API（Base URL / Model / API Key）— 解析実行時に必要。DB や CSV の閲覧・インポートだけならキー未設定でも起動可能
 
 ## クイックスタート
 
@@ -62,3 +71,13 @@ make test   # go test（デモ/納品タグ両方）
 ## ステータス
 
 Phase 1〜3 実装完了（単一バイナリ骨格、デモ/納品ビルド分離、LLM接続、Observation抽出、Grounding Check、Hidden Needs パイプライン、Evidence/Confidence、SSE進捗、評価画面、CSVインポート、GitHub Actions CI/Release）。詳細は [docs/implementation-plan.md](docs/implementation-plan.md) を参照。
+
+## コントリビュート
+
+Issue / Pull Request を歓迎します。開発環境のセットアップやコミット規約は [CONTRIBUTING.md](CONTRIBUTING.md) を、参加にあたっての行動規範は [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) を参照してください。
+
+脆弱性を発見した場合は、公開 Issue ではなく [SECURITY.md](SECURITY.md) の手順に従って報告してください。
+
+## ライセンス
+
+[Apache License 2.0](LICENSE) の下で公開しています。商用利用・改変・再配布・非公開フォークいずれも自由に行えます（詳細はライセンス本文を参照）。
