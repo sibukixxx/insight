@@ -15,6 +15,7 @@ type intakePreviewRequest struct {
 	Provenance   string            `json:"provenance"`
 	Content      string            `json:"content"`
 	SpeakerRoles map[string]string `json:"speakerRoles"`
+	SkipMask     bool              `json:"skipMask"`
 }
 
 type turnDTO struct {
@@ -44,6 +45,12 @@ type intakePreviewDTO struct {
 	TotalChars    int                 `json:"totalChars"`
 	CustomerChars int                 `json:"customerChars"`
 	ExcludedChars int                 `json:"excludedChars"`
+	// Masked is the content as it would be stored (after PII masking);
+	// turn offsets index this text.
+	Masked      string         `json:"masked"`
+	MaskCount   int            `json:"maskCount"`
+	MaskByKind  map[string]int `json:"maskByKind"`
+	MaskSkipped bool           `json:"maskSkipped"`
 }
 
 func toSpeakerRoles(m map[string]string) map[string]domain.SpeakerRole {
@@ -69,7 +76,7 @@ func (h *Handler) PreviewIntake(w http.ResponseWriter, r *http.Request) {
 	}
 	preview, err := h.App.PreviewIntake(r.Context(), usecase.PreviewIntakeInput{
 		ProjectID: projectID, Source: domain.SourceType(req.Source), Provenance: domain.Provenance(req.Provenance),
-		Content: req.Content, SpeakerRoles: toSpeakerRoles(req.SpeakerRoles),
+		Content: req.Content, SpeakerRoles: toSpeakerRoles(req.SpeakerRoles), SkipMask: req.SkipMask,
 	})
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
@@ -81,6 +88,10 @@ func (h *Handler) PreviewIntake(w http.ResponseWriter, r *http.Request) {
 		Turns: []turnDTO{}, Speakers: []speakerSummaryDTO{}, Spans: toSpanDTOs(preview.Spans),
 		Warnings:   preview.Transcript.Warnings,
 		TotalChars: preview.TotalChars, CustomerChars: preview.CustomerChars, ExcludedChars: preview.ExcludedChars,
+		Masked: preview.Masked, MaskCount: preview.MaskCount, MaskByKind: map[string]int{}, MaskSkipped: preview.MaskSkipped,
+	}
+	for kind, n := range preview.MaskByKind {
+		dto.MaskByKind[string(kind)] = n
 	}
 	if dto.Warnings == nil {
 		dto.Warnings = []string{}

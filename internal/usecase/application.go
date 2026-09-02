@@ -91,6 +91,14 @@ type CreateDocumentInput struct {
 	// intake preview; they are remembered in the project's intake profile
 	// so the next transcript gets them as defaults.
 	SpeakerRoles map[string]domain.SpeakerRole
+	// DetectSpeakers asks the server to derive Spans by parsing Content
+	// as a transcript (after masking), instead of trusting client Spans.
+	// The UI always uses this so spans can never disagree with the
+	// masked content that is stored.
+	DetectSpeakers bool
+	// SkipMask disables PII masking for this document (masking is on by
+	// default; the API caller must opt out explicitly).
+	SkipMask bool
 }
 
 func (a *Application) CreateDocument(ctx context.Context, in CreateDocumentInput) (*domain.Document, error) {
@@ -111,11 +119,32 @@ func (a *Application) CreateDocument(ctx context.Context, in CreateDocumentInput
 	if !provenance.Valid() {
 		return nil, fmt.Errorf("invalid provenance")
 	}
-	if err := validateSpans(in.Spans, in.Content); err != nil {
+	content := strings.ReplaceAll(in.Content, "\r\n", "\n")
+	raw := in.RawContent
+	spans := in.Spans
+	if !in.SkipMask {
+		if r := service.NewMasker(project.IntakeProfile.MaskTerms).Mask(content); r.Count > 0 {
+			content, raw = r.Masked, r.Raw
+			if !in.DetectSpeakers && len(spans) > 0 {
+				// Client spans index the unmasked text; they cannot be
+				// trusted once masking changed the content.
+				return nil, fmt.Errorf("content was masked; send detectSpeakers instead of spans, or skipMask")
+			}
+		}
+	}
+	if in.DetectSpeakers {
+		roles := a.mergedSpeakerRoles(project, in.SpeakerRoles)
+		if parsed := service.ParseTranscript(content, roles); parsed.Detected {
+			spans = parsed.Spans()
+		} else {
+			spans = nil
+		}
+	}
+	if err := validateSpans(spans, content); err != nil {
 		return nil, err
 	}
 	d := &domain.Document{ID: newID("doc"), ProjectID: in.ProjectID, Source: in.Source, Provenance: provenance,
-		Title: in.Title, Content: in.Content, RawContent: in.RawContent, Spans: in.Spans, Metadata: in.Metadata, CreatedAt: a.now()}
+		Title: in.Title, Content: content, RawContent: raw, Spans: spans, Metadata: in.Metadata, CreatedAt: a.now()}
 	if err := a.repos.Documents.Create(ctx, d); err != nil {
 		return nil, fmt.Errorf("create document: %w", err)
 	}
@@ -129,9 +158,24 @@ func (a *Application) CreateDocument(ctx context.Context, in CreateDocumentInput
 	return d, nil
 }
 
+// mergedSpeakerRoles overlays per-request role choices on the project's
+// remembered mapping.
+func (a *Application) mergedSpeakerRoles(project *domain.Project, overrides map[string]domain.SpeakerRole) map[string]domain.SpeakerRole {
+	roles := map[string]domain.SpeakerRole{}
+	for label, role := range project.IntakeProfile.SpeakerRoles {
+		roles[label] = role
+	}
+	for label, role := range overrides {
+		if role.Valid() {
+			roles[label] = role
+		}
+	}
+	return roles
+}
+
 // IntakePreview is what the user sees before a paste becomes a document:
 // how the text was split into speakers, what will count as the customer's
-// voice, and what was left out.
+// voice, what was left out, and what PII was masked.
 type IntakePreview struct {
 	Transcript    service.TranscriptParse
 	Spans         []domain.Span
@@ -139,6 +183,12 @@ type IntakePreview struct {
 	CustomerChars int
 	ExcludedChars int
 	TotalChars    int
+	// Masked is the content after PII masking - what would be stored and
+	// what the turns index.
+	Masked      string
+	MaskCount   int
+	MaskByKind  map[service.MaskKind]int
+	MaskSkipped bool
 }
 
 type PreviewIntakeInput struct {
@@ -147,6 +197,7 @@ type PreviewIntakeInput struct {
 	Provenance   domain.Provenance
 	Content      string
 	SpeakerRoles map[string]domain.SpeakerRole // overrides on top of the project profile
+	SkipMask     bool
 }
 
 func (a *Application) PreviewIntake(ctx context.Context, in PreviewIntakeInput) (*IntakePreview, error) {
@@ -160,15 +211,7 @@ func (a *Application) PreviewIntake(ctx context.Context, in PreviewIntakeInput) 
 	if strings.TrimSpace(in.Content) == "" {
 		return nil, fmt.Errorf("content is required")
 	}
-	roles := map[string]domain.SpeakerRole{}
-	for label, role := range project.IntakeProfile.SpeakerRoles {
-		roles[label] = role
-	}
-	for label, role := range in.SpeakerRoles {
-		if role.Valid() {
-			roles[label] = role
-		}
-	}
+	roles := a.mergedSpeakerRoles(project, in.SpeakerRoles)
 
 	provenance := in.Provenance
 	if provenance == "" {
@@ -179,11 +222,16 @@ func (a *Application) PreviewIntake(ctx context.Context, in PreviewIntakeInput) 
 	}
 
 	content := strings.ReplaceAll(in.Content, "\r\n", "\n")
-	preview := &IntakePreview{
-		Transcript: service.ParseTranscript(content, roles),
-		Provenance: provenance,
-		TotalChars: len([]rune(content)),
+	preview := &IntakePreview{Provenance: provenance, MaskByKind: map[service.MaskKind]int{}, MaskSkipped: in.SkipMask}
+	if !in.SkipMask {
+		r := service.NewMasker(project.IntakeProfile.MaskTerms).Mask(content)
+		content = r.Masked
+		preview.MaskCount = r.Count
+		preview.MaskByKind = r.ByKind
 	}
+	preview.Masked = content
+	preview.Transcript = service.ParseTranscript(content, roles)
+	preview.TotalChars = len([]rune(content))
 	if preview.Transcript.Detected {
 		preview.Spans = preview.Transcript.Spans()
 		for _, t := range preview.Transcript.Turns {
@@ -262,6 +310,7 @@ func (a *Application) ImportDocumentsTable(ctx context.Context, projectID string
 	}
 	result, err := service.ImportTable(ctx, a.repos.Documents, projectID, table, mapping, service.ImportOptions{
 		SpeakerRoles: project.IntakeProfile.SpeakerRoles,
+		Masker:       service.NewMasker(project.IntakeProfile.MaskTerms).MaskFunc(),
 	})
 	if err != nil {
 		return nil, err

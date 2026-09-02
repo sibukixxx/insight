@@ -108,6 +108,10 @@ type createDocumentRequest struct {
 	Metadata   map[string]string `json:"metadata"`
 	// SpeakerRoles are remembered in the project's intake profile.
 	SpeakerRoles map[string]string `json:"speakerRoles"`
+	// DetectSpeakers derives spans server-side from the (masked) content.
+	DetectSpeakers bool `json:"detectSpeakers"`
+	// SkipMask stores the content without PII masking.
+	SkipMask bool `json:"skipMask"`
 }
 
 func (h *Handler) CreateDocument(w http.ResponseWriter, r *http.Request) {
@@ -134,7 +138,7 @@ func (h *Handler) CreateDocument(w http.ResponseWriter, r *http.Request) {
 	d, err := h.App.CreateDocument(r.Context(), usecase.CreateDocumentInput{
 		ProjectID: projectID, Source: source, Provenance: domain.Provenance(req.Provenance),
 		Title: req.Title, Content: req.Content, Spans: fromSpanDTOs(req.Spans), Metadata: req.Metadata,
-		SpeakerRoles: toSpeakerRoles(req.SpeakerRoles),
+		SpeakerRoles: toSpeakerRoles(req.SpeakerRoles), DetectSpeakers: req.DetectSpeakers, SkipMask: req.SkipMask,
 	})
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())

@@ -58,9 +58,13 @@ func (t TranscriptParse) Spans() []domain.Span {
 // ("00:12:34", "[12:34]", "(1:02:03)"), then a short label followed by a
 // colon (half- or full-width), or a label in 【】/[] brackets, or "Q./A."
 // style. The label group is the speaker.
+//
+// A bracketed label followed by a colon ("[固有名詞]: ...", which is what a
+// masked speaker name looks like) is matched first, brackets included, so
+// the colon is consumed as part of the label and not left in the text.
 var speakerLine = regexp.MustCompile(
 	`^\s*(?:[\[(]?\d{1,2}:\d{2}(?::\d{2})?[\])]?\s*)?` +
-		`(?:【([^】]{1,20})】|\[([^\]]{1,20})\]|([QA])\d{0,2}[.．]|([^\s:：\[\]【】/#|]{1,20})\s*[:：])\s*`)
+		`(?:(\[[^\]]{1,20}\])\s*[:：]|【([^】]{1,20})】|\[([^\]]{1,20})\]|([QA])\d{0,2}[.．]|([^\s:：\[\]【】/#|]{1,20})\s*[:：])\s*`)
 
 var (
 	interviewerLabels = set("q", "question", "interviewer", "moderator", "i", "m", "mod",

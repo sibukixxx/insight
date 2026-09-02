@@ -70,6 +70,16 @@
     firsthand: "本人の発言",
     secondhand: "第三者のメモ",
   };
+  const MASK_KIND_LABELS = {
+    email: "メール", url: "URL", phone: "電話番号", postal: "郵便番号", card: "カード番号", name: "敬称付きの氏名", term: "辞書の語",
+  };
+
+  function maskSummaryHTML(p) {
+    if (p.maskSkipped) return `<div class="notice-box intake-warning">個人情報のマスクを行いません。</div>`;
+    if (!p.maskCount) return `<div class="hint">個人情報（メール・電話番号・URL・敬称付きの氏名・辞書の語）は検出されませんでした。</div>`;
+    const parts = Object.entries(p.maskByKind || {}).map(([k, n]) => `${MASK_KIND_LABELS[k] || k} ${n}`).join("、");
+    return `<div class="notice-box mask-notice">個人情報 ${p.maskCount} 箇所をマスクして保存します（${escapeHtml(parts)}）。マスク前の原文はこのPCにだけ残り、AIには送られません。</div>`;
+  }
 
   function qualityBadgesHTML(flags, { withDesc = false } = {}) {
     if (!flags || flags.length === 0) return "";
@@ -404,10 +414,25 @@
       </div>
 
       <div class="card">
+        <div class="section-title">取り込み設定（このプロジェクトの記憶）</div>
+        <p class="hint">案件ごとに一度だけ整えれば、以降の貼り付け・インポートに自動で適用されます。設定はローカルDBにだけ保存されます。</p>
+        <form class="paste-form" id="intake-profile-form">
+          <div>
+            <label>マスクする語（1行に1つ。担当者名・社名・製品名など。メール／電話／URL／敬称付きの氏名は常にマスクされます）</label>
+            <textarea name="maskTerms" placeholder="株式会社サンプル&#10;山田" style="min-height:70px"></textarea>
+          </div>
+          <div id="profile-speaker-roles" class="hint"></div>
+          <div><button type="submit">設定を保存</button></div>
+        </form>
+      </div>
+
+      <div class="card">
         <div class="section-title">ドキュメント</div>
         ${docsHtml}
       </div>
     `);
+
+    loadIntakeProfile(projectID);
 
     const pasteForm = document.getElementById("paste-form");
     pasteForm.addEventListener("submit", async (ev) => {
@@ -416,7 +441,7 @@
       try {
         await api(`/api/projects/${encodeURIComponent(projectID)}/documents`, {
           method: "POST",
-          body: JSON.stringify({ source: f.source.value, provenance: f.provenance.value, title: f.title.value, content: f.content.value }),
+          body: JSON.stringify({ source: f.source.value, provenance: f.provenance.value, title: f.title.value, content: f.content.value, detectSpeakers: true }),
         });
         renderProject(projectID, null, "ドキュメントを追加しました。");
       } catch (e) {
@@ -461,6 +486,33 @@
     if (isRunning) {
       watchAnalysis(projectID, latestAnalysis.id);
     }
+  }
+
+  async function loadIntakeProfile(projectID) {
+    const form = document.getElementById("intake-profile-form");
+    if (!form) return;
+    let profile = { speakerRoles: {}, maskTerms: [] };
+    try {
+      profile = await api(`/api/projects/${encodeURIComponent(projectID)}/intake-profile`);
+    } catch (_) { /* leave defaults */ }
+    form.maskTerms.value = (profile.maskTerms || []).join("\n");
+    const roles = Object.entries(profile.speakerRoles || {});
+    document.getElementById("profile-speaker-roles").innerHTML = roles.length
+      ? `記憶している話者の役割: ${roles.map(([label, role]) => `<span class="kind-badge kind-spans">${escapeHtml(label)} → ${escapeHtml(ROLE_LABELS[role] || role)}</span>`).join(" ")}`
+      : "記憶している話者の役割はまだありません（取り込みプレビューで確定すると記憶されます）。";
+    form.addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      const maskTerms = form.maskTerms.value.split("\n").map((t) => t.trim()).filter(Boolean);
+      try {
+        await api(`/api/projects/${encodeURIComponent(projectID)}/intake-profile`, {
+          method: "PUT",
+          body: JSON.stringify({ speakerRoles: profile.speakerRoles || {}, maskTerms, columnMapping: profile.columnMapping || null }),
+        });
+        renderProject(projectID, null, "取り込み設定を保存しました。");
+      } catch (e) {
+        renderProject(projectID, e.message);
+      }
+    });
   }
 
   // ---------- Intake preview ----------
@@ -510,7 +562,7 @@
             method: "POST",
             body: JSON.stringify({
               source: form.source.value, provenance: preview.provenance, title: form.title.value, content,
-              spans: preview.spans, speakerRoles: preview.detected ? roles : {},
+              detectSpeakers: true, speakerRoles: preview.detected ? roles : {},
             }),
           });
           renderProject(projectID, null, preview.detected
@@ -653,6 +705,7 @@
       return `
         <div class="intake-box">
           <div class="intake-head">${provenance}<span>話者ラベルは検出されませんでした。全文（${p.totalChars} 字）を回答者の発言として扱います。</span></div>
+          ${maskSummaryHTML(p)}
           ${warnings}
           <div class="analysis-actions"><button class="primary" id="intake-commit">この内容で追加する</button></div>
         </div>`;
@@ -682,6 +735,7 @@
           ${provenance}
           <span>話者 ${p.speakers.length} 人・${p.turns.length} ターンを検出。分析対象（回答者）は ${p.customerChars} 字（全体の ${pct}%）、除外 ${p.excludedChars} 字。</span>
         </div>
+        ${maskSummaryHTML(p)}
         ${warnings}
         <table class="speaker-table">
           <thead><tr><th>話者ラベル</th><th>役割</th><th class="num">ターン</th><th class="num">文字数</th></tr></thead>

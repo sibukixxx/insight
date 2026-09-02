@@ -358,3 +358,5 @@ footer.privacy {
 .mapping-options label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
 .mapping-options select { width: 100%; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; font-family: inherit; }
 .job-select { max-width: 260px; }
+
+.mask-notice { background: #fdeceb; border-color: #f3c1bd; color: #8a2a22; }

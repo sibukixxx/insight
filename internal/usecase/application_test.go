@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -177,5 +178,71 @@ func TestPreviewIntakeAndRememberedSpeakerRoles(t *testing.T) {
 	}
 	if preview.Transcript.Detected || preview.Spans != nil || preview.CustomerChars != preview.TotalChars {
 		t.Errorf("prose preview = %+v", preview)
+	}
+}
+
+func TestCreateDocumentMasksAndDerivesSpansServerSide(t *testing.T) {
+	projects := &projectRepositoryStub{projects: map[string]*domain.Project{}}
+	documents := &documentRepositoryStub{}
+	app := New(Repositories{Projects: projects, Documents: documents})
+	ctx := context.Background()
+	p, err := app.CreateProject(ctx, "mask")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := app.UpdateIntakeProfile(ctx, p.ID, domain.IntakeProfile{MaskTerms: []string{"株式会社サンプル"}}); err != nil {
+		t.Fatal(err)
+	}
+
+	content := "面接官: 株式会社サンプルの田中さんですね。連絡先は？\n回答者: 090-1234-5678 です。検算は毎回やります。"
+	preview, err := app.PreviewIntake(ctx, PreviewIntakeInput{ProjectID: p.ID, Source: domain.SourceInterview, Content: content})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if preview.MaskCount != 3 || preview.MaskByKind["term"] != 1 || preview.MaskByKind["name"] != 1 || preview.MaskByKind["phone"] != 1 {
+		t.Errorf("mask accounting = %d %v", preview.MaskCount, preview.MaskByKind)
+	}
+	if strings.Contains(preview.Masked, "田中") || strings.Contains(preview.Masked, "090") {
+		t.Errorf("preview should show masked text: %q", preview.Masked)
+	}
+	// Turns index the masked text.
+	runes := []rune(preview.Masked)
+	last := preview.Transcript.Turns[len(preview.Transcript.Turns)-1]
+	if got := string(runes[last.Start:last.End]); got != "[電話番号] です。検算は毎回やります。" {
+		t.Errorf("customer turn on masked text = %q", got)
+	}
+
+	doc, err := app.CreateDocument(ctx, CreateDocumentInput{
+		ProjectID: p.ID, Source: domain.SourceInterview, Content: content, DetectSpeakers: true,
+	})
+	if err != nil {
+		t.Fatalf("CreateDocument: %v", err)
+	}
+	if strings.Contains(doc.Content, "田中") || !strings.Contains(doc.RawContent, "田中") {
+		t.Errorf("stored content must be masked and raw kept: content=%q raw=%q", doc.Content, doc.RawContent)
+	}
+	if len(doc.Spans) != 2 || doc.Spans[1].Role != domain.RoleCustomer {
+		t.Errorf("spans not derived server-side: %+v", doc.Spans)
+	}
+	if got := string([]rune(doc.Content)[doc.Spans[1].Start:doc.Spans[1].End]); !strings.HasPrefix(got, "[電話番号]") {
+		t.Errorf("span indexes masked content: %q", got)
+	}
+
+	// Client spans computed on unmasked text are refused once masking
+	// changed the content.
+	if _, err := app.CreateDocument(ctx, CreateDocumentInput{
+		ProjectID: p.ID, Source: domain.SourceInterview, Content: content,
+		Spans: []domain.Span{{Start: 0, End: 5, Role: domain.RoleCustomer}},
+	}); err == nil {
+		t.Error("client spans on masked content should be rejected")
+	}
+
+	// Opting out keeps the original.
+	doc, err = app.CreateDocument(ctx, CreateDocumentInput{ProjectID: p.ID, Source: domain.SourceInterview, Content: content, SkipMask: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(doc.Content, "田中") || doc.RawContent != "" {
+		t.Errorf("skipMask should store the original: %+v", doc)
 	}
 }
