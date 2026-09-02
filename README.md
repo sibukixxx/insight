@@ -18,6 +18,18 @@ Insight は単独で提示せず、必ず **Insight → Evidence（原文照合�
 
 抽出エンジンはドメイン非依存。顧客インタビューだけでなく、案件サイトの募集文や伸びているSNS投稿を貼り付けても同じロジックで「隠れたニーズ」を見つけられる。各Insightには `Product Opportunity`（対象企業向けの改善提案）に加えて **`Monetization Angle`**（そのニーズを自分自身が商品・サービス化するなら何ができるか）も出力される。他社に売り込むデモにも、自分で機会を見つけて自分で作る用途にも使える。
 
+## 想定する使い道
+
+Insight Lab は、単なるAI要約ツールではなく、顧客理解を改善施策や次の商談へつなげるための**根拠付き診断ツール**として設計している。
+
+| 対象 | 入力 | 得られる成果 |
+|---|---|---|
+| SaaS のPM・CS責任者 | 問い合わせ、解約理由、商談ログ | 解約・定着を左右する潜在ニーズと改善仮説 |
+| 制作・コンサル会社 | 顧客インタビュー、アンケート | 原文根拠と反証を伴う提案材料 |
+| 新規事業担当 | レビュー、案件募集文、SNS投稿 | 支払い意思の兆候と商品化の切り口 |
+
+典型的な提供フローは「少量データでデモ → 20〜100件のスポット診断 → Markdownレポートと読み解き会 → 月次の継続診断」。詳細は[事業活用方針](docs/business-strategy.md)を参照。
+
 ## スクリーンショット
 
 同梱デモデータ（架空の請求書SaaSインタビュー20件）を解析したときの表示例。
@@ -95,7 +107,18 @@ make build-demo
 2. 「解析を実行」→ SSEで進捗が流れ、Hidden Need が Evidence・反証・Confidence 付きで表示される
 3. Insight詳細の「推論の過程」で、①常識的予想 → ②予想とのズレ（欲望の痕跡）→ ③仮説 → ④説明 の連鎖と、元になった痕跡・繰り返しパターンを確認できる。品質チェックの警告（顕在ニーズの言い換え・抽象語・痕跡なし）が付いた Insight は一覧・詳細でマークされる。Evidence をクリックすると、元ドキュメントの該当箇所がハイライトされる（grounding 検証済みの引用のみを表示）
 4. 「痕跡・パターン一覧」「評価指標を見る」で、最終的な Insight に至らなかった痕跡・Pattern や、Evidence Coverage / Unsupported Claim Rate / Trace-backed Insight Rate / Quality Flagged Rate などを確認できる
-5. CSVインポート（`id,source,title,content` 固定列）や設定画面からの接続テストも利用可能
+5. 「レポートを保存」から、推論過程、改善案、品質警告、支持・反証EvidenceをまとめたMarkdownをダウンロードする
+6. CSVインポート（`id,source,title,content` 固定列）や設定画面からの接続テストも利用可能
+
+### レポートのエクスポート
+
+プロジェクト画面の「レポートを保存」を押すか、次のAPIから最新結果を取得できる。
+
+```bash
+curl -o insight-report.md http://127.0.0.1:8787/api/projects/<projectID>/report.md
+```
+
+レポートには品質指標、各Insightの潜在ニーズ・Confidence・推論過程・Product Opportunity・Monetization Angle・品質警告・原文照合済みEvidenceが含まれる。AIによる仮説をそのまま最終判断に使わず、レポート内の引用を確認してから意思決定すること。
 
 ## デモビルドと納品ビルドの分離
 
@@ -137,7 +160,7 @@ API キーはバイナリの引数にしか渡さず、出力ディレクトリ�
 
 ## ステータス
 
-Phase 1〜3 実装完了（単一バイナリ骨格、デモ/納品ビルド分離、LLM接続、Observation抽出、Grounding Check、Hidden Needs パイプライン、Evidence/Confidence、SSE進捗、評価画面、CSVインポート、GitHub Actions CI/Release）。Phase 6 のうち Trace Detection（予想とのズレの検出）・アブダクション形式の仮説・Quality Gate を実装済み。詳細は [docs/implementation-plan.md](docs/implementation-plan.md) を参照。
+Phase 1〜3 実装完了（単一バイナリ骨格、デモ/納品ビルド分離、LLM接続、Observation抽出、Grounding Check、Hidden Needs パイプライン、Evidence/Confidence、SSE進捗、評価画面、CSVインポート、Markdownレポート、GitHub Actions CI/Release）。Phase 6 のうち Trace Detection（予想とのズレの検出）・アブダクション形式の仮説・Quality Gate を実装済み。詳細は [docs/implementation-plan.md](docs/implementation-plan.md) を参照。
 
 ## コントリビュート
 
