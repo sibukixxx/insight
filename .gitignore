@@ -10,3 +10,6 @@
 # clean instead of showing them as perpetually untracked; once the app
 # is granted `workflows` permission, remove this entry and commit them.
 .github/workflows/
+
+# Python bytecode from scripts/
+__pycache__/
