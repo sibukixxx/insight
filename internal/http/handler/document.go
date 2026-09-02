@@ -105,6 +105,8 @@ type createDocumentRequest struct {
 	Content    string            `json:"content"`
 	Spans      []spanDTO         `json:"spans"`
 	Metadata   map[string]string `json:"metadata"`
+	// SpeakerRoles are remembered in the project's intake profile.
+	SpeakerRoles map[string]string `json:"speakerRoles"`
 }
 
 func (h *Handler) CreateDocument(w http.ResponseWriter, r *http.Request) {
@@ -131,6 +133,7 @@ func (h *Handler) CreateDocument(w http.ResponseWriter, r *http.Request) {
 	d, err := h.App.CreateDocument(r.Context(), usecase.CreateDocumentInput{
 		ProjectID: projectID, Source: source, Provenance: domain.Provenance(req.Provenance),
 		Title: req.Title, Content: req.Content, Spans: fromSpanDTOs(req.Spans), Metadata: req.Metadata,
+		SpeakerRoles: toSpeakerRoles(req.SpeakerRoles),
 	})
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())

@@ -60,6 +60,17 @@
     },
   };
 
+  const ROLE_LABELS = {
+    customer: "回答者（分析対象）",
+    interviewer: "質問者",
+    agent: "担当者",
+    other: "その他",
+  };
+  const PROVENANCE_LABELS = {
+    firsthand: "本人の発言",
+    secondhand: "第三者のメモ",
+  };
+
   function qualityBadgesHTML(flags, { withDesc = false } = {}) {
     if (!flags || flags.length === 0) return "";
     const badges = flags.map((f) => {
@@ -300,6 +311,10 @@
             <div class="doc-head">
               <span class="source-tag source-${escapeHtml(d.source)}">${escapeHtml(SOURCE_LABELS[d.source] || d.source)}</span>
               <span class="doc-title">${escapeHtml(d.title || "(無題)")}</span>
+              ${d.provenance === "secondhand" ? `<span class="kind-badge kind-secondhand" title="第三者による要約・メモ。Evidence としての重みは下がります">第三者のメモ</span>` : ""}
+              ${(d.spans || []).length ? `<span class="kind-badge kind-spans" title="話者分離済み。回答者の発言だけが引用対象です">話者分離 ${d.spans.filter((s) => s.role === "customer").length}/${d.spans.length}</span>` : ""}
+              ${d.masked ? `<span class="kind-badge kind-masked" title="個人情報をマスク済み">マスク済み</span>` : ""}
+              ${d.situation ? `<span class="doc-situation">${escapeHtml(d.situation)}</span>` : ""}
             </div>
             <div class="doc-content">${escapeHtml(d.content)}</div>
           </div>`).join("")
@@ -358,10 +373,22 @@
               <option value="social_post">SNS投稿</option>
             </select>
           </div>
+          <div>
+            <label>出所</label>
+            <select name="provenance">
+              <option value="">自動（商談ログは第三者のメモ、それ以外は本人の発言）</option>
+              <option value="firsthand">本人の発言・記述そのもの</option>
+              <option value="secondhand">第三者による要約・メモ（営業メモなど）</option>
+            </select>
+          </div>
           <div><label>タイトル</label><input type="text" name="title" placeholder="例: Interview #15"></div>
-          <div><label>本文</label><textarea name="content" placeholder="発言をそのまま貼り付けてください" required></textarea></div>
-          <div><button type="submit" class="primary">追加する</button></div>
+          <div><label>本文</label><textarea name="content" placeholder="発言をそのまま貼り付けてください。「面接官: 」「Q. 」「田中: 」のような話者ラベル付きの書き起こしは、話者ごとに分けて回答者の発言だけを分析対象にします" required></textarea></div>
+          <div class="analysis-actions">
+            <button type="button" id="intake-preview-btn">取り込みプレビュー</button>
+            <button type="submit" class="primary">そのまま追加する</button>
+          </div>
         </form>
+        <div id="intake-preview"></div>
       </div>
 
       <div class="card">
@@ -380,18 +407,23 @@
       </div>
     `);
 
-    document.getElementById("paste-form").addEventListener("submit", async (ev) => {
+    const pasteForm = document.getElementById("paste-form");
+    pasteForm.addEventListener("submit", async (ev) => {
       ev.preventDefault();
       const f = ev.target;
       try {
         await api(`/api/projects/${encodeURIComponent(projectID)}/documents`, {
           method: "POST",
-          body: JSON.stringify({ source: f.source.value, title: f.title.value, content: f.content.value }),
+          body: JSON.stringify({ source: f.source.value, provenance: f.provenance.value, title: f.title.value, content: f.content.value }),
         });
         renderProject(projectID);
       } catch (e) {
         renderProject(projectID, e.message);
       }
+    });
+
+    document.getElementById("intake-preview-btn").addEventListener("click", () => {
+      runIntakePreview(projectID, pasteForm, {});
     });
 
     document.getElementById("csv-form").addEventListener("submit", async (ev) => {
@@ -426,6 +458,113 @@
     if (isRunning) {
       watchAnalysis(projectID, latestAnalysis.id);
     }
+  }
+
+  // ---------- Intake preview ----------
+  //
+  // The preview is the intake counterpart of the reasoning trail: before
+  // any text becomes a document, the user sees which parts will be
+  // treated as the customer's voice, which are excluded (interviewer,
+  // agent), and what was guessed rather than known. Role changes re-run
+  // the deterministic parser on the server; the confirmed roles are then
+  // remembered by the project.
+  async function runIntakePreview(projectID, form, speakerRoles) {
+    const box = document.getElementById("intake-preview");
+    const content = form.content.value;
+    if (!content.trim()) {
+      box.innerHTML = errorBox("本文を貼り付けてください");
+      return;
+    }
+    box.innerHTML = `<div class="hint">話者を検出しています...</div>`;
+    let preview;
+    try {
+      preview = await api(`/api/projects/${encodeURIComponent(projectID)}/intake/preview`, {
+        method: "POST",
+        body: JSON.stringify({ source: form.source.value, provenance: form.provenance.value, content, speakerRoles }),
+      });
+    } catch (e) {
+      box.innerHTML = errorBox(e.message);
+      return;
+    }
+    box.innerHTML = intakePreviewHTML(preview);
+
+    box.querySelectorAll("select.role-select").forEach((sel) => {
+      sel.addEventListener("change", () => {
+        const roles = { ...speakerRoles };
+        box.querySelectorAll("select.role-select").forEach((s) => { roles[s.dataset.label] = s.value; });
+        runIntakePreview(projectID, form, roles);
+      });
+    });
+
+    const commit = document.getElementById("intake-commit");
+    if (commit) {
+      commit.addEventListener("click", async () => {
+        commit.disabled = true;
+        const roles = {};
+        box.querySelectorAll("select.role-select").forEach((s) => { roles[s.dataset.label] = s.value; });
+        try {
+          await api(`/api/projects/${encodeURIComponent(projectID)}/documents`, {
+            method: "POST",
+            body: JSON.stringify({
+              source: form.source.value, provenance: preview.provenance, title: form.title.value, content,
+              spans: preview.spans, speakerRoles: preview.detected ? roles : {},
+            }),
+          });
+          renderProject(projectID);
+        } catch (e) {
+          box.innerHTML = errorBox(e.message) + intakePreviewHTML(preview);
+        }
+      });
+    }
+  }
+
+  function intakePreviewHTML(p) {
+    const pct = p.totalChars ? Math.round((p.customerChars / p.totalChars) * 100) : 0;
+    const warnings = (p.warnings || []).map((w) => `<div class="notice-box intake-warning">⚠ ${escapeHtml(w)}</div>`).join("");
+    const provenance = `<span class="kind-badge ${p.provenance === "secondhand" ? "kind-secondhand" : "kind-firsthand"}">${escapeHtml(PROVENANCE_LABELS[p.provenance] || p.provenance)}</span>`;
+
+    if (!p.detected) {
+      return `
+        <div class="intake-box">
+          <div class="intake-head">${provenance}<span>話者ラベルは検出されませんでした。全文（${p.totalChars} 字）を回答者の発言として扱います。</span></div>
+          ${warnings}
+          <div class="analysis-actions"><button class="primary" id="intake-commit">この内容で追加する</button></div>
+        </div>`;
+    }
+
+    const speakers = p.speakers.map((s) => `
+      <tr>
+        <td class="speaker-label">${escapeHtml(s.label)}${s.guessed ? ` <span class="guess-tag" title="役割は推定です">推定</span>` : ""}</td>
+        <td>
+          <select class="role-select" data-label="${escapeHtml(s.label)}">
+            ${Object.keys(ROLE_LABELS).map((r) => `<option value="${r}" ${r === s.role ? "selected" : ""}>${ROLE_LABELS[r]}</option>`).join("")}
+          </select>
+        </td>
+        <td class="num">${s.turns}</td>
+        <td class="num">${s.chars}</td>
+      </tr>`).join("");
+
+    const turns = p.turns.map((t) => `
+      <div class="turn turn-${escapeHtml(t.role)}">
+        <div class="turn-speaker">${escapeHtml(t.speaker)} <span class="turn-role">${escapeHtml(ROLE_LABELS[t.role] || t.role)}</span></div>
+        <div class="turn-text">${escapeHtml(t.text)}</div>
+      </div>`).join("");
+
+    return `
+      <div class="intake-box">
+        <div class="intake-head">
+          ${provenance}
+          <span>話者 ${p.speakers.length} 人・${p.turns.length} ターンを検出。分析対象（回答者）は ${p.customerChars} 字（全体の ${pct}%）、除外 ${p.excludedChars} 字。</span>
+        </div>
+        ${warnings}
+        <table class="speaker-table">
+          <thead><tr><th>話者ラベル</th><th>役割</th><th class="num">ターン</th><th class="num">文字数</th></tr></thead>
+          <tbody>${speakers}</tbody>
+        </table>
+        <p class="hint">役割を変えると再判定します。確定した対応はこのプロジェクトに記憶され、次の貼り付けから自動で適用されます。回答者以外の発言は文脈として読まれますが、引用（Evidence）にはなりません。</p>
+        <div class="turn-list">${turns}</div>
+        <div class="analysis-actions"><button class="primary" id="intake-commit">この内容で追加する</button></div>
+      </div>`;
   }
 
   function analysisPanelHTML(analysis) {

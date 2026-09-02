@@ -11,4 +11,6 @@ type ProjectRepository interface {
 	Get(ctx context.Context, id string) (*domain.Project, error)
 	List(ctx context.Context) ([]*domain.Project, error)
 	Delete(ctx context.Context, id string) error
+	// UpdateIntakeProfile replaces the project's intake profile.
+	UpdateIntakeProfile(ctx context.Context, id string, profile domain.IntakeProfile) error
 }

@@ -269,3 +269,40 @@ func TestDocumentRepositoryIntakeFieldsRoundTrip(t *testing.T) {
 		t.Errorf("plain document should have empty intake fields: %+v", got)
 	}
 }
+
+func TestProjectRepositoryIntakeProfile(t *testing.T) {
+	db := openTestDB(t)
+	repo := NewProjectRepository(db)
+	ctx := context.Background()
+	p := &domain.Project{ID: "proj_1", Name: "p", CreatedAt: time.Now().UTC()}
+	if err := repo.Create(ctx, p); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	got, err := repo.Get(ctx, p.ID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got.IntakeProfile.SpeakerRoles != nil || got.IntakeProfile.MaskTerms != nil {
+		t.Errorf("fresh project should have an empty profile: %+v", got.IntakeProfile)
+	}
+
+	profile := domain.IntakeProfile{
+		SpeakerRoles:  map[string]domain.SpeakerRole{"田中": domain.RoleInterviewer, "佐藤": domain.RoleCustomer},
+		MaskTerms:     []string{"株式会社サンプル"},
+		ColumnMapping: &domain.ColumnMapping{ContentColumn: "自由記述", DefaultSource: domain.SourceSurvey, MetadataColumns: map[string]string{"役職": domain.MetaRole}},
+	}
+	if err := repo.UpdateIntakeProfile(ctx, p.ID, profile); err != nil {
+		t.Fatalf("UpdateIntakeProfile: %v", err)
+	}
+	got, err = repo.Get(ctx, p.ID)
+	if err != nil {
+		t.Fatalf("Get after update: %v", err)
+	}
+	if got.IntakeProfile.SpeakerRoles["佐藤"] != domain.RoleCustomer || len(got.IntakeProfile.MaskTerms) != 1 ||
+		got.IntakeProfile.ColumnMapping == nil || got.IntakeProfile.ColumnMapping.MetadataColumns["役職"] != domain.MetaRole {
+		t.Errorf("profile did not round-trip: %+v", got.IntakeProfile)
+	}
+	if err := repo.UpdateIntakeProfile(ctx, "missing", profile); !errors.Is(err, repository.ErrNotFound) {
+		t.Errorf("update of missing project = %v, want ErrNotFound", err)
+	}
+}

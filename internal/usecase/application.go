@@ -87,10 +87,15 @@ type CreateDocumentInput struct {
 	RawContent string
 	Spans      []domain.Span
 	Metadata   map[string]string
+	// SpeakerRoles are the label->role choices the user confirmed in the
+	// intake preview; they are remembered in the project's intake profile
+	// so the next transcript gets them as defaults.
+	SpeakerRoles map[string]domain.SpeakerRole
 }
 
 func (a *Application) CreateDocument(ctx context.Context, in CreateDocumentInput) (*domain.Document, error) {
-	if err := a.RequireProject(ctx, in.ProjectID); err != nil {
+	project, err := a.repos.Projects.Get(ctx, in.ProjectID)
+	if err != nil {
 		return nil, err
 	}
 	if !in.Source.Valid() {
@@ -114,7 +119,106 @@ func (a *Application) CreateDocument(ctx context.Context, in CreateDocumentInput
 	if err := a.repos.Documents.Create(ctx, d); err != nil {
 		return nil, fmt.Errorf("create document: %w", err)
 	}
+	if len(in.SpeakerRoles) > 0 {
+		profile := project.IntakeProfile
+		profile.MergeSpeakerRoles(in.SpeakerRoles)
+		if err := a.repos.Projects.UpdateIntakeProfile(ctx, in.ProjectID, profile); err != nil {
+			return nil, fmt.Errorf("remember speaker roles: %w", err)
+		}
+	}
 	return d, nil
+}
+
+// IntakePreview is what the user sees before a paste becomes a document:
+// how the text was split into speakers, what will count as the customer's
+// voice, and what was left out.
+type IntakePreview struct {
+	Transcript    service.TranscriptParse
+	Spans         []domain.Span
+	Provenance    domain.Provenance
+	CustomerChars int
+	ExcludedChars int
+	TotalChars    int
+}
+
+type PreviewIntakeInput struct {
+	ProjectID    string
+	Source       domain.SourceType
+	Provenance   domain.Provenance
+	Content      string
+	SpeakerRoles map[string]domain.SpeakerRole // overrides on top of the project profile
+}
+
+func (a *Application) PreviewIntake(ctx context.Context, in PreviewIntakeInput) (*IntakePreview, error) {
+	project, err := a.repos.Projects.Get(ctx, in.ProjectID)
+	if err != nil {
+		return nil, err
+	}
+	if !in.Source.Valid() {
+		return nil, fmt.Errorf("invalid source type")
+	}
+	if strings.TrimSpace(in.Content) == "" {
+		return nil, fmt.Errorf("content is required")
+	}
+	roles := map[string]domain.SpeakerRole{}
+	for label, role := range project.IntakeProfile.SpeakerRoles {
+		roles[label] = role
+	}
+	for label, role := range in.SpeakerRoles {
+		if role.Valid() {
+			roles[label] = role
+		}
+	}
+
+	provenance := in.Provenance
+	if provenance == "" {
+		provenance = domain.DefaultProvenance(in.Source)
+	}
+	if !provenance.Valid() {
+		return nil, fmt.Errorf("invalid provenance")
+	}
+
+	content := strings.ReplaceAll(in.Content, "\r\n", "\n")
+	preview := &IntakePreview{
+		Transcript: service.ParseTranscript(content, roles),
+		Provenance: provenance,
+		TotalChars: len([]rune(content)),
+	}
+	if preview.Transcript.Detected {
+		preview.Spans = preview.Transcript.Spans()
+		for _, t := range preview.Transcript.Turns {
+			n := len([]rune(t.Text))
+			if t.Role == domain.RoleCustomer {
+				preview.CustomerChars += n
+			} else {
+				preview.ExcludedChars += n
+			}
+		}
+	} else {
+		preview.CustomerChars = preview.TotalChars
+	}
+	return preview, nil
+}
+
+func (a *Application) GetIntakeProfile(ctx context.Context, projectID string) (*domain.IntakeProfile, error) {
+	project, err := a.repos.Projects.Get(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+	profile := project.IntakeProfile
+	return &profile, nil
+}
+
+func (a *Application) UpdateIntakeProfile(ctx context.Context, projectID string, profile domain.IntakeProfile) error {
+	for label, role := range profile.SpeakerRoles {
+		if !role.Valid() {
+			return fmt.Errorf("invalid role %q for speaker %q", role, label)
+		}
+	}
+	if profile.ColumnMapping != nil && profile.ColumnMapping.DefaultSource != "" && !profile.ColumnMapping.DefaultSource.Valid() {
+		return fmt.Errorf("invalid default source")
+	}
+	return a.repos.Projects.UpdateIntakeProfile(ctx, projectID, profile)
 }
 
 func (a *Application) GetDocument(ctx context.Context, id string) (*domain.Document, error) {
