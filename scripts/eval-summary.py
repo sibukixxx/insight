@@ -9,7 +9,7 @@ insights = json.load(open(f"{out}/insights.json", encoding="utf-8"))
 patterns = json.load(open(f"{out}/patterns.json", encoding="utf-8"))
 
 FLAG = {"stated_need_echo": "顕在ニーズの言い換え", "generic_term": "抽象語",
-        "no_trace": "痕跡なし", "abduction_incomplete": "推論が不完全"}
+        "no_trace": "痕跡なし", "abduction_incomplete": "推論が不完全", "secondhand_only": "二次情報のみ"}
 DEV = {"contradiction": "言行不一致", "excess_effort": "急いでいるのに手間をかける",
        "excess_payment": "予定より多く払う", "persistence": "不満なのに使い続ける",
        "absence": "起きるはずの行動がない", "other": "その他"}

@@ -125,12 +125,32 @@ func TestAssessQualityNoTraceAndIncompleteAbduction(t *testing.T) {
 	}
 }
 
+func TestAssessQualitySecondhandOnly(t *testing.T) {
+	base := QualityInput{
+		StatedNeed: "早く終わらせたい", LatentNeed: "失敗して信頼を失うことを避けたい",
+		Expectation: "x", SurprisingFact: "y", Patterns: []*domain.Pattern{trace()},
+	}
+	in := base
+	in.SupportingTotal, in.SupportingFirsthand = 3, 0
+	if flags := AssessQuality(in); len(flags) != 1 || flags[0].Code != domain.QualitySecondhandOnly {
+		t.Errorf("all-secondhand support should be flagged: %v", codes(flags))
+	}
+	in.SupportingFirsthand = 1
+	if flags := AssessQuality(in); len(flags) != 0 {
+		t.Errorf("one firsthand quote clears the flag: %v", codes(flags))
+	}
+	in.SupportingTotal, in.SupportingFirsthand = 0, 0
+	if flags := AssessQuality(in); len(flags) != 0 {
+		t.Errorf("no support at all is Evidence Coverage's job, not this flag: %v", codes(flags))
+	}
+}
+
 func TestAssessQualityFlagOrderIsStable(t *testing.T) {
 	flags := AssessQuality(QualityInput{
-		StatedNeed: "安心したい", LatentNeed: "安心したい",
+		StatedNeed: "安心したい", LatentNeed: "安心したい", SupportingTotal: 1,
 	})
 	want := []domain.QualityFlagCode{
-		domain.QualityStatedNeedEcho, domain.QualityGenericTerm, domain.QualityNoTrace, domain.QualityAbductionIncomplete,
+		domain.QualityStatedNeedEcho, domain.QualityGenericTerm, domain.QualityNoTrace, domain.QualityAbductionIncomplete, domain.QualitySecondhandOnly,
 	}
 	got := codes(flags)
 	if len(got) != len(want) {

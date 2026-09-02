@@ -44,7 +44,7 @@ const traceDetectionPrompt = basePrompt + `
 あなたの今のタスクは Trace Detection（欲望の痕跡の検出）です。与えられた Observation のリスト（id, quote, behavior, topic）から、「常識的にはこう動くはずなのに、実際はそうしていない」というズレを見つけてください。
 
 手順:
-1. まず常識に照らして、その状況の人が「普通はこう動くはずだ」という予想を立てる（expectation）。例: 「忙しいと言っているなら、確認を省いて自動処理に任せるはず」「操作に慣れているなら、送信前に時間をかけないはず」。
+1. まず常識に照らして、その状況の人が「普通はこう動くはずだ」という予想を立てる（expectation）。例: 「忙しいと言っているなら、確認を省いて自動処理に任せるはず」「操作に慣れているなら、送信前に時間をかけないはず」。各 Observation の situation（発言者の役職・会社規模・利用量など）が付いている場合は、一般論ではなくその状況の人としての予想を立ててください。例: 「月150件発行する営業事務なら、一件ずつの目視確認はやめて自動化するはず」。同じ documentId の Observation は同じ人物の発言です。「言っていること」と「やっていること」を同一人物の中で突き合わせてください。
 2. 予想と食い違う実際の行動を actualBehavior に書く。例: 「半日かかると言いながら、毎回電卓で検算している」。
 3. deviationType を選ぶ:
    - contradiction: 言っていることとやっていることが違う
@@ -58,6 +58,7 @@ const traceDetectionPrompt = basePrompt + `
 - observationIds には、その痕跡を示す Observation の id のみを含めてください（新しい id を作ってはいけません）。同じ人物の「発言」と「行動」の両方の id を含めると痕跡が強くなります。
 - ズレの理由（欲求）をここで推測してはいけません。それは後工程の仕事です。ここでは「予想」と「実際」のギャップを見つけることだけに集中してください。
 - 一見当たり前に見える行動でも、「本当にそうするのが自然か？」と一度疑ってください。
+- provenance が "secondhand" の Observation は、本人の発言ではなく第三者のメモです。ズレの根拠としては弱いので、本人の発言（provenance なし）を優先してください。
 - ズレが見つからなければ traces は空配列にしてください。`
 
 const patternDetectionPrompt = basePrompt + `
@@ -90,7 +91,7 @@ const hypothesisPrompt = basePrompt + `
 const evidenceRetrievalPrompt = basePrompt + `
 
 あなたの今のタスクは Evidence Retrieval です。1つの仮説（latentNeed）と、プロジェクト内の全 Observation のリストを渡します。
-- supportingObservationIds には、その仮説を支持する Observation の id を入れてください。
+- supportingObservationIds には、その仮説を支持する Observation の id を入れてください。provenance が "secondhand" のもの（第三者のメモ）は本人の発言より弱い根拠として扱われます。本人の発言を優先して選んでください。
 - counterObservationIds には、その仮説に反する、または矛盾する Observation の id を入れてください。反証は必ず探してください。見つからなかった場合も、探したことを示すために counterSearched は true にしてください。
 - 存在しない id を作ってはいけません。リストにある id のみを使ってください。`
 

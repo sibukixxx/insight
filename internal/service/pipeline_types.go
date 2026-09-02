@@ -56,11 +56,21 @@ func observationExtractionSchema() llm.Schema {
 
 // --- Pattern Detection ---
 
+// observationRef is how an observation is shown to the model in the
+// steps after extraction. documentId lets the model see which quotes
+// come from the same person; situation is the speaker's context from the
+// document's reserved metadata ("経理担当 / 30名 / 月150件発行"), which is
+// what a situation-specific expectation is formed from; provenance tells
+// the model whether it is reading the person's own words or someone's
+// notes about them.
 type observationRef struct {
-	ID       string `json:"id"`
-	Quote    string `json:"quote"`
-	Behavior string `json:"behavior"`
-	Topic    string `json:"topic,omitempty"`
+	ID         string `json:"id"`
+	DocumentID string `json:"documentId"`
+	Quote      string `json:"quote"`
+	Behavior   string `json:"behavior"`
+	Topic      string `json:"topic,omitempty"`
+	Situation  string `json:"situation,omitempty"`
+	Provenance string `json:"provenance,omitempty"` // "secondhand" only; omitted for firsthand
 }
 
 type patternCandidate struct {

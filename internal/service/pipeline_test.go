@@ -78,6 +78,8 @@ func (f *fakeLLM) Generate(ctx context.Context, req llm.GenerateRequest) (*llm.G
 			]}`)
 		case strings.Contains(last, "別に設定は難しくないです"):
 			raw = json.RawMessage(`{"observations":[{"quote":"別に設定は難しくないです","behavior":"操作に困っていない","topic":"ease"}]}`)
+		case strings.Contains(last, "営業メモ"):
+			raw = json.RawMessage(`{"observations":[{"quote":"先方は検算をやめたくないと言っていた","behavior":"検算への固執（営業の記録）","topic":"anxiety"}]}`)
 		case strings.Contains(last, "【質問者】"):
 			// The transcript document: the model must only see role
 			// labels on the analysis text, and even if it quotes the
@@ -96,6 +98,24 @@ func (f *fakeLLM) Generate(ctx context.Context, req llm.GenerateRequest) (*llm.G
 	case "trace_detection":
 		var p obsRefPayload
 		_ = json.Unmarshal([]byte(last), &p)
+		// The speaker's situation (from reserved metadata) must reach the
+		// step that forms expectations, and the secondhand sales note must
+		// be marked as such.
+		var sawSituation, sawSecondhand bool
+		for _, o := range p.Observations {
+			if o.Situation == "経理担当 / 30名" {
+				sawSituation = true
+			}
+			if o.Provenance == "secondhand" {
+				sawSecondhand = true
+			}
+			if o.DocumentID == "" {
+				return nil, fmt.Errorf("fakeLLM: observation %s has no documentId", o.ID)
+			}
+		}
+		if !sawSituation || !sawSecondhand {
+			return nil, fmt.Errorf("fakeLLM: trace detection payload lacks situation (%v) or secondhand provenance (%v)", sawSituation, sawSecondhand)
+		}
 		// The trace cites the anxiety observation plus one fabricated ID,
 		// which buildTracePatterns must drop without dropping the trace.
 		ids := idsWhere(p.Observations, func(o observationRef) bool { return o.Topic == "anxiety" })
@@ -249,6 +269,8 @@ func newTestPipeline(t *testing.T) (*Pipeline, *sqlite.DB, *domain.Project) {
 		{ID: "doc_2", ProjectID: p.ID, Source: domain.SourceReview, Title: "Review #1",
 			Content: "別に設定は難しくないです。", CreatedAt: time.Now().UTC()},
 		transcriptDoc(p.ID),
+		{ID: "doc_4", ProjectID: p.ID, Source: domain.SourceSales, Title: "営業メモ",
+			Content: "営業メモ: 先方は検算をやめたくないと言っていた。", CreatedAt: time.Now().UTC()},
 	}
 	if err := documents.CreateBatch(ctx, docs); err != nil {
 		t.Fatalf("create documents: %v", err)
@@ -281,16 +303,16 @@ func TestPipelineRunEndToEnd(t *testing.T) {
 	// Five candidates: one fabricated (discarded by grounding), one a
 	// verbatim quote of the interviewer (discarded as outside customer
 	// speech), three genuine.
-	if metrics.TotalObservationCandidates != 5 {
-		t.Errorf("TotalObservationCandidates = %d, want 5", metrics.TotalObservationCandidates)
+	if metrics.TotalObservationCandidates != 6 {
+		t.Errorf("TotalObservationCandidates = %d, want 6", metrics.TotalObservationCandidates)
 	}
-	if metrics.GroundedObservations != 3 {
-		t.Errorf("GroundedObservations = %d, want 3", metrics.GroundedObservations)
+	if metrics.GroundedObservations != 4 {
+		t.Errorf("GroundedObservations = %d, want 4", metrics.GroundedObservations)
 	}
 	if metrics.QuotesOutsideCustomerSpeech != 1 {
 		t.Errorf("QuotesOutsideCustomerSpeech = %d, want 1 (the interviewer's question)", metrics.QuotesOutsideCustomerSpeech)
 	}
-	wantRate := 2.0 / 5.0
+	wantRate := 2.0 / 6.0
 	if diff := metrics.UnsupportedClaimRate - wantRate; diff > 1e-9 || diff < -1e-9 {
 		t.Errorf("UnsupportedClaimRate = %f, want %f", metrics.UnsupportedClaimRate, wantRate)
 	}
@@ -384,16 +406,16 @@ func TestPipelineRunEndToEnd(t *testing.T) {
 	if pattern.Expectation == "" || pattern.DeviationType != domain.DeviationExcessEffort {
 		t.Errorf("trace pattern lost its expectation/deviation type: %+v", pattern)
 	}
-	if len(pattern.ObservationIDs) != 2 {
-		t.Errorf("trace has %d linked observations, want 2 (the two anxiety quotes; the fabricated ID must be dropped)", len(pattern.ObservationIDs))
+	if len(pattern.ObservationIDs) != 3 {
+		t.Errorf("trace has %d linked observations, want 3 (the anxiety quotes; the fabricated ID must be dropped)", len(pattern.ObservationIDs))
 	}
 
 	poorPatterns, err := patterns.ListByInsight(ctx, poor.ID)
 	if err != nil || len(poorPatterns) != 1 || poorPatterns[0].Kind != domain.PatternRepetition {
 		t.Errorf("poor insight should cite exactly the repetition pattern: %v, %v", poorPatterns, err)
 	}
-	if len(poorPatterns) == 1 && len(poorPatterns[0].ObservationIDs) != 3 {
-		t.Errorf("repetition pattern has %d linked observations, want 3 (all grounded observations, not the fabricated one)", len(poorPatterns[0].ObservationIDs))
+	if len(poorPatterns) == 1 && len(poorPatterns[0].ObservationIDs) != 4 {
+		t.Errorf("repetition pattern has %d linked observations, want 4 (all grounded observations, not the fabricated one)", len(poorPatterns[0].ObservationIDs))
 	}
 
 	// Traces are listed before repetitions so the "what surprised us"
@@ -416,7 +438,17 @@ func TestPipelineRunEndToEnd(t *testing.T) {
 		switch e.Type {
 		case domain.EvidenceSupport:
 			support++
-			if e.Quote != "設定を間違えたら怖いんですよね" && e.Quote != "毎回三十分は検算に使っています" {
+			switch e.Quote {
+			case "設定を間違えたら怖いんですよね", "毎回三十分は検算に使っています":
+				if e.RelevanceScore < 0.5 {
+					t.Errorf("firsthand evidence relevance = %f", e.RelevanceScore)
+				}
+			case "先方は検算をやめたくないと言っていた":
+				// Secondhand: discounted relative to the same rank firsthand.
+				if e.RelevanceScore > 0.7 {
+					t.Errorf("secondhand evidence should be discounted, got %f", e.RelevanceScore)
+				}
+			default:
 				t.Errorf("unexpected supporting quote: %q", e.Quote)
 			}
 		case domain.EvidenceCounter:
@@ -429,8 +461,11 @@ func TestPipelineRunEndToEnd(t *testing.T) {
 		// document - i.e. this test never trusts the fake LLM's quote,
 		// only what grounding.go actually verified.
 	}
-	if support != 2 || counter != 1 {
-		t.Errorf("support=%d counter=%d, want 2 and 1", support, counter)
+	if support != 3 || counter != 1 {
+		t.Errorf("support=%d counter=%d, want 3 and 1", support, counter)
+	}
+	if insight.HasQualityFlag(domain.QualitySecondhandOnly) {
+		t.Error("insight with firsthand support must not be flagged secondhand_only")
 	}
 
 	// The fabricated quote must never have made it into the DB at all.

@@ -44,11 +44,15 @@ type QualityInput struct {
 	// Patterns are the patterns the hypothesis cited (already filtered to
 	// ones that exist).
 	Patterns []*domain.Pattern
+	// SupportingFirsthand / SupportingTotal count supporting evidence rows
+	// by provenance of their source document.
+	SupportingFirsthand int
+	SupportingTotal     int
 }
 
 // AssessQuality returns the quality warnings for one insight. The order
-// is stable (echo, generic, no trace, incomplete abduction) so the UI and
-// tests can rely on it.
+// is stable (echo, generic, no trace, incomplete abduction, secondhand
+// only) so the UI and tests can rely on it.
 func AssessQuality(in QualityInput) []domain.QualityFlag {
 	var flags []domain.QualityFlag
 
@@ -63,6 +67,9 @@ func AssessQuality(in QualityInput) []domain.QualityFlag {
 	}
 	if strings.TrimSpace(in.Expectation) == "" || strings.TrimSpace(in.SurprisingFact) == "" {
 		flags = append(flags, domain.QualityFlag{Code: domain.QualityAbductionIncomplete})
+	}
+	if in.SupportingTotal > 0 && in.SupportingFirsthand == 0 {
+		flags = append(flags, domain.QualityFlag{Code: domain.QualitySecondhandOnly})
 	}
 	return flags
 }

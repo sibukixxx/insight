@@ -49,6 +49,12 @@ const (
 	// expectation or the surprising fact, so the abductive chain
 	// (予想 → ズレ → 仮説) cannot be checked by a reader.
 	QualityAbductionIncomplete QualityFlagCode = "abduction_incomplete"
+	// QualitySecondhandOnly: every supporting quote comes from a
+	// secondhand document (a salesperson's notes, a summary someone
+	// wrote). The "observable fact" layer is then someone's
+	// interpretation already, so the insight rests on no primary
+	// evidence.
+	QualitySecondhandOnly QualityFlagCode = "secondhand_only"
 )
 
 type QualityFlag struct {

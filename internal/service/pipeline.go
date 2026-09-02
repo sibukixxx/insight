@@ -99,6 +99,7 @@ func (p *Pipeline) Run(ctx context.Context, analysisID, projectID string, progre
 		len(allObs), metrics.TotalObservationCandidates-metrics.GroundedObservations))
 
 	obsByID := indexObservations(allObs)
+	docByID := indexDocuments(docs)
 
 	// Step 1 of the method: predict how a person "should" behave, then
 	// treat behavior that breaks the prediction as the trace an unconscious
@@ -106,7 +107,7 @@ func (p *Pipeline) Run(ctx context.Context, analysisID, projectID string, progre
 	// insight anchored to a surprising fact is much less likely to be a
 	// restatement of what customers already say.
 	progress("detecting_traces", 28, "常識的な予想とのズレ（欲望の痕跡）を探しています...")
-	traceCandidates, err := p.detectTraces(ctx, allObs)
+	traceCandidates, err := p.detectTraces(ctx, allObs, docByID)
 	if err != nil {
 		return nil, fmt.Errorf("trace detection: %w", err)
 	}
@@ -114,7 +115,7 @@ func (p *Pipeline) Run(ctx context.Context, analysisID, projectID string, progre
 	progress("detecting_traces", 33, fmt.Sprintf("%d件の「予想とのズレ」を見つけました", len(traces)))
 
 	progress("detecting_patterns", 35, "繰り返しのパターンを探しています...")
-	patternCandidates, err := p.detectPatterns(ctx, allObs)
+	patternCandidates, err := p.detectPatterns(ctx, allObs, docByID)
 	if err != nil {
 		return nil, fmt.Errorf("pattern detection: %w", err)
 	}
@@ -128,25 +129,24 @@ func (p *Pipeline) Run(ctx context.Context, analysisID, projectID string, progre
 	progress("detecting_patterns", 40, fmt.Sprintf("%d件の繰り返しパターンを見つけました", len(repetitions)))
 
 	progress("generating_hypotheses", 45, "潜在ニーズの仮説を立てています...")
-	hypotheses, err := p.generateHypotheses(ctx, patterns, allObs)
+	hypotheses, err := p.generateHypotheses(ctx, patterns, allObs, docByID)
 	if err != nil {
 		return nil, fmt.Errorf("hypothesis generation: %w", err)
 	}
 
 	patternsByID := indexPatterns(patterns)
-	docByID := indexDocuments(docs)
 
 	progress("searching_evidence", 55, "根拠と反証を探しています...")
 	drafts := make([]draftInsight, 0, len(hypotheses))
 	for i, h := range hypotheses {
-		evOut, err := p.retrieveEvidence(ctx, h, allObs)
+		evOut, err := p.retrieveEvidence(ctx, h, allObs, docByID)
 		if err != nil {
 			return nil, fmt.Errorf("evidence retrieval (%s): %w", h.Title, err)
 		}
 		supporting := resolveObservations(evOut.SupportingObservationIDs, obsByID)
 		counter := resolveObservations(evOut.CounterObservationIDs, obsByID)
 
-		writeup, err := p.writeupInsight(ctx, h, supporting, counter)
+		writeup, err := p.writeupInsight(ctx, h, supporting, counter, docByID)
 		if err != nil {
 			return nil, fmt.Errorf("insight writeup (%s): %w", h.Title, err)
 		}
@@ -232,16 +232,20 @@ func (p *Pipeline) persistInsights(ctx context.Context, analysisID, projectID st
 			CreatedAt: time.Now().UTC(),
 		}
 
-		supportRows := buildEvidenceRows(insight.ID, d.supporting, domain.EvidenceSupport)
-		counterRows := buildEvidenceRows(insight.ID, d.counter, domain.EvidenceCounter)
+		supportRows := buildEvidenceRows(insight.ID, d.supporting, domain.EvidenceSupport, docByID)
+		counterRows := buildEvidenceRows(insight.ID, d.counter, domain.EvidenceCounter, docByID)
 		evidenceRows := append(supportRows, counterRows...)
 
 		documentsWithSupport := map[string]struct{}{}
 		var sourceTypes []domain.SourceType
+		firsthandSupport := 0
 		for _, o := range d.supporting {
 			documentsWithSupport[o.DocumentID] = struct{}{}
 			if doc := docByID[o.DocumentID]; doc != nil {
 				sourceTypes = append(sourceTypes, doc.Source)
+				if !doc.IsSecondhand() {
+					firsthandSupport++
+				}
 			}
 		}
 
@@ -270,7 +274,8 @@ func (p *Pipeline) persistInsights(ctx context.Context, analysisID, projectID st
 		insight.QualityFlags = AssessQuality(QualityInput{
 			StatedNeed: insight.StatedNeed, LatentNeed: insight.LatentNeed,
 			Expectation: insight.Expectation, SurprisingFact: insight.SurprisingFact,
-			Patterns: citedPatterns,
+			Patterns:            citedPatterns,
+			SupportingFirsthand: firsthandSupport, SupportingTotal: len(d.supporting),
 		})
 
 		if err := p.Insights.Create(ctx, insight); err != nil {
@@ -334,8 +339,8 @@ func (p *Pipeline) extractObservations(ctx context.Context, chunk string) (*obse
 	return &out, nil
 }
 
-func (p *Pipeline) detectTraces(ctx context.Context, obs []*domain.Observation) ([]traceCandidate, error) {
-	payload, err := json.Marshal(map[string]any{"observations": toObservationRefs(obs)})
+func (p *Pipeline) detectTraces(ctx context.Context, obs []*domain.Observation, docByID map[string]*domain.Document) ([]traceCandidate, error) {
+	payload, err := json.Marshal(map[string]any{"observations": toObservationRefs(obs, docByID)})
 	if err != nil {
 		return nil, err
 	}
@@ -355,8 +360,8 @@ func (p *Pipeline) detectTraces(ctx context.Context, obs []*domain.Observation) 
 	return out.Traces, nil
 }
 
-func (p *Pipeline) detectPatterns(ctx context.Context, obs []*domain.Observation) ([]patternCandidate, error) {
-	payload, err := json.Marshal(map[string]any{"observations": toObservationRefs(obs)})
+func (p *Pipeline) detectPatterns(ctx context.Context, obs []*domain.Observation, docByID map[string]*domain.Document) ([]patternCandidate, error) {
+	payload, err := json.Marshal(map[string]any{"observations": toObservationRefs(obs, docByID)})
 	if err != nil {
 		return nil, err
 	}
@@ -376,8 +381,8 @@ func (p *Pipeline) detectPatterns(ctx context.Context, obs []*domain.Observation
 	return out.Patterns, nil
 }
 
-func (p *Pipeline) generateHypotheses(ctx context.Context, patterns []*domain.Pattern, obs []*domain.Observation) ([]hypothesisCandidate, error) {
-	payload, err := json.Marshal(map[string]any{"patterns": toPatternRefs(patterns), "observations": toObservationRefs(obs)})
+func (p *Pipeline) generateHypotheses(ctx context.Context, patterns []*domain.Pattern, obs []*domain.Observation, docByID map[string]*domain.Document) ([]hypothesisCandidate, error) {
+	payload, err := json.Marshal(map[string]any{"patterns": toPatternRefs(patterns), "observations": toObservationRefs(obs, docByID)})
 	if err != nil {
 		return nil, err
 	}
@@ -397,13 +402,13 @@ func (p *Pipeline) generateHypotheses(ctx context.Context, patterns []*domain.Pa
 	return out.Hypotheses, nil
 }
 
-func (p *Pipeline) retrieveEvidence(ctx context.Context, h hypothesisCandidate, obs []*domain.Observation) (*evidenceRetrievalOutput, error) {
+func (p *Pipeline) retrieveEvidence(ctx context.Context, h hypothesisCandidate, obs []*domain.Observation, docByID map[string]*domain.Document) (*evidenceRetrievalOutput, error) {
 	payload, err := json.Marshal(map[string]any{
 		"hypothesis": map[string]any{
 			"title": h.Title, "statedNeed": h.StatedNeed, "latentNeed": h.LatentNeed,
 			"jtbd": h.JTBD, "rationale": h.Rationale,
 		},
-		"observations": toObservationRefs(obs),
+		"observations": toObservationRefs(obs, docByID),
 	})
 	if err != nil {
 		return nil, err
@@ -424,11 +429,11 @@ func (p *Pipeline) retrieveEvidence(ctx context.Context, h hypothesisCandidate, 
 	return &out, nil
 }
 
-func (p *Pipeline) writeupInsight(ctx context.Context, h hypothesisCandidate, supporting, counter []*domain.Observation) (*insightWriteup, error) {
+func (p *Pipeline) writeupInsight(ctx context.Context, h hypothesisCandidate, supporting, counter []*domain.Observation, docByID map[string]*domain.Document) (*insightWriteup, error) {
 	payload, err := json.Marshal(map[string]any{
 		"hypothesis":             h,
-		"supportingObservations": toObservationRefs(supporting),
-		"counterObservations":    toObservationRefs(counter),
+		"supportingObservations": toObservationRefs(supporting, docByID),
+		"counterObservations":    toObservationRefs(counter, docByID),
 	})
 	if err != nil {
 		return nil, err
@@ -674,10 +679,16 @@ func resolveObservations(ids []string, index map[string]*domain.Observation) []*
 	return out
 }
 
-func toObservationRefs(obs []*domain.Observation) []observationRef {
+func toObservationRefs(obs []*domain.Observation, docByID map[string]*domain.Document) []observationRef {
 	refs := make([]observationRef, len(obs))
 	for i, o := range obs {
-		refs[i] = observationRef{ID: o.ID, Quote: o.Quote, Behavior: o.Behavior, Topic: o.Topic}
+		refs[i] = observationRef{ID: o.ID, DocumentID: o.DocumentID, Quote: o.Quote, Behavior: o.Behavior, Topic: o.Topic}
+		if doc := docByID[o.DocumentID]; doc != nil {
+			refs[i].Situation = doc.Situation()
+			if doc.IsSecondhand() {
+				refs[i].Provenance = string(domain.ProvenanceSecondhand)
+			}
+		}
 	}
 	return refs
 }
@@ -696,13 +707,23 @@ func relevanceForIndex(i int) float64 {
 	return v
 }
 
-func buildEvidenceRows(insightID string, obs []*domain.Observation, evidenceType domain.EvidenceType) []*domain.Evidence {
+// secondhandRelevanceFactor discounts evidence drawn from a secondhand
+// document (someone's notes about the customer rather than the customer's
+// own words): a quote there is already an interpretation, so it supports
+// a hypothesis less strongly than a primary quote at the same rank.
+const secondhandRelevanceFactor = 0.7
+
+func buildEvidenceRows(insightID string, obs []*domain.Observation, evidenceType domain.EvidenceType, docByID map[string]*domain.Document) []*domain.Evidence {
 	rows := make([]*domain.Evidence, 0, len(obs))
 	for i, o := range obs {
 		oid := o.ID
+		relevance := relevanceForIndex(i)
+		if doc := docByID[o.DocumentID]; doc != nil && doc.IsSecondhand() {
+			relevance *= secondhandRelevanceFactor
+		}
 		rows = append(rows, &domain.Evidence{
 			ID: newID("ev"), InsightID: insightID, DocumentID: o.DocumentID, ObservationID: &oid,
-			Quote: o.Quote, Type: evidenceType, RelevanceScore: relevanceForIndex(i),
+			Quote: o.Quote, Type: evidenceType, RelevanceScore: relevance,
 			StartOffset: o.StartOffset, EndOffset: o.EndOffset,
 		})
 	}
