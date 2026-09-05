@@ -36,7 +36,7 @@ func TestRenderProjectMarkdownIncludesDecisionContextAndGroundedEvidence(t *test
 		"Trace-backed Insights: 75%",
 		"**Product Opportunity:** 解約前のデータ保管プラン",
 		"`no_trace`: 要確認",
-		"**支持 / Interview 01**",
+		"**support / Interview 01**",
 		"> 不満だけど、履歴が消えるのは困る",
 	} {
 		if !strings.Contains(got, want) {
@@ -49,7 +49,7 @@ func TestRenderProjectMarkdownHandlesNoInsights(t *testing.T) {
 	got := string(renderProjectMarkdown(ProjectReport{
 		Project: &domain.Project{Name: "Empty"}, GeneratedAt: time.Unix(0, 0),
 	}))
-	if !strings.Contains(got, "解析済みの洞察はありません") {
+	if !strings.Contains(got, "No analyzed insights are available") {
 		t.Fatalf("unexpected empty report: %s", got)
 	}
 }

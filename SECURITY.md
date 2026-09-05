@@ -1,30 +1,17 @@
 # Security Policy
 
-## サポート対象バージョン
+Security fixes are provided for the latest release and the current `main` branch.
 
-現在、最新の `main` ブランチおよび最新リリースに対してのみセキュリティ修正を提供します。
+## Reporting a vulnerability
 
-## 脆弱性の報告方法
+Do not report vulnerabilities in a public issue.
 
-**脆弱性を公開の Issue で報告しないでください。**
+Use [GitHub Security Advisories](https://github.com/sibukixxx/insight/security/advisories/new) (preferred), or email takada@techvit.me. Include the affected version or commit, reproduction steps or a proof of concept, and the expected impact when possible.
 
-以下のいずれかの方法で、非公開で報告してください。
+We aim to acknowledge reports within 48 hours and will share progress while investigating. Please do not disclose details before a fix is released.
 
-1. GitHub の [Security Advisories](https://github.com/sibukixxx/insight/security/advisories/new)（推奨）
-2. takada@techvit.me へメール
+## Project-specific considerations
 
-報告には可能な範囲で以下を含めてください。
-
-- 影響を受けるバージョン / コミットハッシュ
-- 再現手順（PoC があれば添付）
-- 想定される影響範囲
-
-48 時間以内に受領確認を行い、調査状況を継続的に共有します。修正版がリリースされるまで、詳細の公開は控えていただくようお願いします。
-
-## このプロジェクト特有の注意点
-
-Insight Lab はローカル実行を前提としたツールですが、以下の点は利用者・貢献者ともに把握しておいてください。
-
-- **API キーの扱い**: 設定画面や `--api-key` フラグで入力した OpenAI 互換 LLM API のキーはローカルの SQLite (`*.db`) に保存されます。バイナリや DB ファイルを共有・コミットしないでください（`.gitignore` で `*.db` は除外済みです）。
-- **外部送信**: 「解析を実行」で送信される文書内容は、設定した Base URL 先の LLM API に送信されます。機密情報を含むデータを解析する場合は、送信先の LLM プロバイダの取り扱いポリシーを確認してください。
-- **納品ビルド (`build-delivery`)**: デモデータはコンパイル時にバイナリへリンクされない設計になっていますが、顧客に納品する前に、対象顧客のデータ（プロジェクト・インタビュー内容）が同梱されていないか、必ず配布物を確認してください。
+- API keys entered in the UI or with `--api-key` are held in process memory only. They are never written to SQLite or disk.
+- Analysis sends the required document text to the configured LLM API. Review the provider's data policy before processing confidential or personal data.
+- The default production build excludes demo data. Before distributing any binary, database, or archive, verify that it contains no customer projects or interview content.

@@ -37,7 +37,7 @@ func (l *DemoLoader) Ensure(ctx context.Context) (*domain.Project, error) {
 	now := time.Now().UTC()
 	project := &domain.Project{
 		ID:        DemoProjectID,
-		Name:      "デモ: 請求書作成SaaS インタビュー",
+		Name:      "Demo: Invoicing SaaS interviews",
 		CreatedAt: now,
 	}
 	if err := l.Projects.Create(ctx, project); err != nil {

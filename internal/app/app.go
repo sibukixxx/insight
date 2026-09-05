@@ -44,7 +44,7 @@ func Run(ctx context.Context, cfg *Config) error {
 	if n, err := analyses.FailInterrupted(ctx); err != nil {
 		return fmt.Errorf("recover interrupted analyses: %w", err)
 	} else if n > 0 {
-		fmt.Printf("前回未完了だった解析を%d件、失敗として記録しました。\n", n)
+		fmt.Printf("Marked %d unfinished analyses from the previous run as failed.\n", n)
 	}
 
 	settings := service.NewSettingsStore(service.Settings{APIKey: cfg.APIKey, Model: cfg.Model, BaseURL: cfg.BaseURL})
@@ -87,7 +87,7 @@ func Run(ctx context.Context, cfg *Config) error {
 		fmt.Printf("Confidential — prepared for %s\n", cfg.ClientName)
 	}
 	if !settings.Get().Configured() {
-		fmt.Println("LLMは未設定です。設定画面（または --api-key/--model/--base-url）で接続先を指定してください。")
+		fmt.Println("The LLM is not configured. Set the connection on the Settings page or use --api-key, --model, and --base-url.")
 	}
 	fmt.Printf("%s\n", displayURL)
 

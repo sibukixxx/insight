@@ -7,12 +7,12 @@ import (
 )
 
 // CreateDemoProject loads the fixed demo project on demand (the UI's
-// "デモを試す" button), independent of whether the process was started
+// "Try the demo" button), independent of whether the process was started
 // with --demo. On a delivery build this always fails: no sample data was
 // compiled in, so there is nothing to load.
 func (h *Handler) CreateDemoProject(w http.ResponseWriter, r *http.Request) {
 	if !sampledata.Embedded {
-		writeError(w, http.StatusConflict, "この納品ビルドにはデモデータが含まれていません（デモビルドで起動してください）")
+		writeError(w, http.StatusConflict, "this build does not include demo data; start a demo build instead")
 		return
 	}
 	p, err := h.Demo.Ensure(r.Context())

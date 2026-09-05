@@ -102,7 +102,7 @@ func (m *JobManager) run(ctx context.Context, analysisID string) {
 
 	settings := m.settings.Get()
 	if !settings.Configured() {
-		m.fail(ctx, a, fmt.Errorf("LLMが設定されていません。設定画面でBase URLとModelを入力してください"))
+		m.fail(ctx, a, fmt.Errorf("the LLM is not configured; enter a base URL and model on the Settings page"))
 		return
 	}
 
@@ -116,7 +116,7 @@ func (m *JobManager) run(ctx context.Context, analysisID string) {
 	a.Status = domain.AnalysisRunning
 	a.StartedAt = &now
 	_ = m.analyses.Update(ctx, a)
-	m.broadcast(a.ID, SSEEvent{Event: "progress", Data: progressJSON("starting", 0, "解析を開始しています...")})
+	m.broadcast(a.ID, SSEEvent{Event: "progress", Data: progressJSON("starting", 0, "Starting analysis...")})
 
 	metrics, err := pipeline.Run(ctx, a.ID, a.ProjectID, func(step string, progress int, message string) {
 		a.CurrentStep = step

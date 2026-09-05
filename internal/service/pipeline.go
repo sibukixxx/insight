@@ -72,23 +72,23 @@ func (p *Pipeline) Run(ctx context.Context, analysisID, projectID string, progre
 		return nil, fmt.Errorf("list documents: %w", err)
 	}
 	if len(docs) == 0 {
-		return nil, fmt.Errorf("プロジェクトにドキュメントがありません")
+		return nil, fmt.Errorf("the project has no documents")
 	}
 
 	metrics := &Metrics{}
 
-	progress("extracting_observations", 5, "インタビューを読んでいます...")
+	progress("extracting_observations", 5, "Reading documents...")
 	allObs, err := p.extractAndGroundAll(ctx, docs, metrics)
 	if err != nil {
 		return nil, fmt.Errorf("observation extraction: %w", err)
 	}
 	if len(allObs) == 0 {
-		return nil, fmt.Errorf("引用として原文照合できる観察が見つかりませんでした")
+		return nil, fmt.Errorf("no observations could be verified against the source text")
 	}
 	if err := p.Observations.CreateBatch(ctx, allObs); err != nil {
 		return nil, fmt.Errorf("save observations: %w", err)
 	}
-	progress("extracting_observations", 25, fmt.Sprintf("%d件の観察を確認しました（%d件は原文照合できず破棄）",
+	progress("extracting_observations", 25, fmt.Sprintf("Verified %d observations (%d unverified observations discarded)",
 		len(allObs), metrics.TotalObservationCandidates-metrics.GroundedObservations))
 
 	obsByID := indexObservations(allObs)
@@ -98,15 +98,15 @@ func (p *Pipeline) Run(ctx context.Context, analysisID, projectID string, progre
 	// desire left behind. This runs before repetition detection because an
 	// insight anchored to a surprising fact is much less likely to be a
 	// restatement of what customers already say.
-	progress("detecting_traces", 28, "常識的な予想とのズレ（欲望の痕跡）を探しています...")
+	progress("detecting_traces", 28, "Looking for deviations from expected behavior...")
 	traceCandidates, err := p.detectTraces(ctx, allObs)
 	if err != nil {
 		return nil, fmt.Errorf("trace detection: %w", err)
 	}
 	traces := buildTracePatterns(projectID, analysisID, traceCandidates, obsByID)
-	progress("detecting_traces", 33, fmt.Sprintf("%d件の「予想とのズレ」を見つけました", len(traces)))
+	progress("detecting_traces", 33, fmt.Sprintf("Found %d behavioral deviations", len(traces)))
 
-	progress("detecting_patterns", 35, "繰り返しのパターンを探しています...")
+	progress("detecting_patterns", 35, "Looking for recurring patterns...")
 	patternCandidates, err := p.detectPatterns(ctx, allObs)
 	if err != nil {
 		return nil, fmt.Errorf("pattern detection: %w", err)
@@ -118,9 +118,9 @@ func (p *Pipeline) Run(ctx context.Context, analysisID, projectID string, progre
 	}
 	metrics.PatternCount = len(patterns)
 	metrics.TraceCount = len(traces)
-	progress("detecting_patterns", 40, fmt.Sprintf("%d件の繰り返しパターンを見つけました", len(repetitions)))
+	progress("detecting_patterns", 40, fmt.Sprintf("Found %d recurring patterns", len(repetitions)))
 
-	progress("generating_hypotheses", 45, "潜在ニーズの仮説を立てています...")
+	progress("generating_hypotheses", 45, "Generating hidden-need hypotheses...")
 	hypotheses, err := p.generateHypotheses(ctx, patterns, allObs)
 	if err != nil {
 		return nil, fmt.Errorf("hypothesis generation: %w", err)
@@ -129,7 +129,7 @@ func (p *Pipeline) Run(ctx context.Context, analysisID, projectID string, progre
 	patternsByID := indexPatterns(patterns)
 	docByID := indexDocuments(docs)
 
-	progress("searching_evidence", 55, "根拠と反証を探しています...")
+	progress("searching_evidence", 55, "Searching for evidence and counter-evidence...")
 	drafts := make([]draftInsight, 0, len(hypotheses))
 	for i, h := range hypotheses {
 		evOut, err := p.retrieveEvidence(ctx, h, allObs)
@@ -149,11 +149,11 @@ func (p *Pipeline) Run(ctx context.Context, analysisID, projectID string, progre
 			supporting: supporting, counter: counter, counterSearched: evOut.CounterSearched,
 		})
 		progress("searching_evidence", 55+int(20*float64(i+1)/float64(len(hypotheses))),
-			fmt.Sprintf("「%s」の根拠を確認しました", h.Title))
+			fmt.Sprintf("Verified evidence for %q", h.Title))
 	}
 	metrics.TotalInsightDrafts = len(drafts)
 
-	progress("deduplicating_insights", 80, "重複する洞察を統合しています...")
+	progress("deduplicating_insights", 80, "Merging duplicate insights...")
 	keepIdx, mergedAway, err := p.dedupeDrafts(ctx, drafts)
 	if err != nil {
 		return nil, fmt.Errorf("dedupe: %w", err)
@@ -162,12 +162,12 @@ func (p *Pipeline) Run(ctx context.Context, analysisID, projectID string, progre
 		metrics.InsightDuplicationRate = float64(mergedAway) / float64(len(drafts))
 	}
 
-	progress("scoring_confidence", 90, "確信度を計算し、洞察を保存しています...")
+	progress("scoring_confidence", 90, "Calculating confidence and saving insights...")
 	if err := p.persistInsights(ctx, analysisID, projectID, drafts, keepIdx, docByID, patternsByID, len(docs), metrics); err != nil {
 		return nil, err
 	}
 
-	progress("completed", 100, fmt.Sprintf("%d件の洞察が見つかりました", metrics.FinalInsightCount))
+	progress("completed", 100, fmt.Sprintf("Found %d insights", metrics.FinalInsightCount))
 	return metrics, nil
 }
 

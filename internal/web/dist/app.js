@@ -5,25 +5,25 @@
   let buildInfo = { demoBuild: false, clientName: "" };
 
   const SOURCE_LABELS = {
-    interview: "インタビュー",
-    review: "レビュー",
-    support: "問い合わせ",
-    sales: "商談ログ",
-    survey: "アンケート",
-    job_posting: "案件・募集文",
-    social_post: "SNS投稿",
+    interview: "Interview",
+    review: "Review",
+    support: "Support conversation",
+    sales: "Sales call",
+    survey: "Survey",
+    job_posting: "Job posting",
+    social_post: "Social post",
   };
 
   const STEP_LABELS = {
-    starting: "解析を開始しています",
-    extracting_observations: "インタビューを読んでいます",
-    detecting_traces: "常識的な予想とのズレ（欲望の痕跡）を探しています",
-    detecting_patterns: "繰り返しのパターンを探しています",
-    generating_hypotheses: "潜在ニーズの仮説を立てています",
-    searching_evidence: "根拠と反証を探しています",
-    deduplicating_insights: "重複する洞察を統合しています",
-    scoring_confidence: "確信度を計算しています",
-    completed: "完了しました",
+    starting: "Starting analysis",
+    extracting_observations: "Reading documents",
+    detecting_traces: "Finding deviations from expected behavior",
+    detecting_patterns: "Finding recurring patterns",
+    generating_hypotheses: "Generating hidden-need hypotheses",
+    searching_evidence: "Searching for evidence and counter-evidence",
+    deduplicating_insights: "Merging duplicate insights",
+    scoring_confidence: "Calculating confidence",
+    completed: "Complete",
   };
 
   // Two kinds of "noticing" the pipeline records (see docs/detailed-design.md §23):
@@ -31,32 +31,32 @@
   // trace an unconscious desire leaves behind); a repetition is a behavior
   // seen across several people.
   const DEVIATION_LABELS = {
-    contradiction: "言行不一致",
-    excess_effort: "急いでいるのに手間をかける",
-    excess_payment: "予定より多く払う",
-    persistence: "不満なのに使い続ける",
-    absence: "起きるはずの行動がない",
-    other: "その他の不合理な行動",
+    contradiction: "Words contradict actions",
+    excess_effort: "Extra effort despite urgency",
+    excess_payment: "Pays more than planned",
+    persistence: "Continues despite dissatisfaction",
+    absence: "Expected action is absent",
+    other: "Other unexpected behavior",
   };
 
   // App-side quality warnings. These are computed deterministically after
   // the model has spoken; they are hints for the researcher, not verdicts.
   const QUALITY_FLAG_LABELS = {
     stated_need_echo: {
-      label: "顕在ニーズの言い換え",
-      desc: "Latent Need が Stated Need とほぼ同じ文言です。本人が自覚して口にしているニーズはインサイトではありません。",
+      label: "Restates the stated need",
+      desc: "The latent need closely matches the stated need. A need the participant already recognizes and expresses is not a hidden insight.",
     },
     generic_term: {
-      label: "抽象語",
-      desc: "Latent Need が抽象的な言葉（コスパ・安心・承認欲求・自分らしさ など）に頼っています。人を動かした具体的な欲求に言い換えられないか確認してください。",
+      label: "Generic language",
+      desc: "The latent need relies on a broad abstraction. Check whether it can name the specific desire that drove the behavior.",
     },
     no_trace: {
-      label: "痕跡なし",
-      desc: "この仮説は「予想とのズレ」を根拠にしておらず、繰り返しだけから導かれています。よく支持されていても、当たり前の観察に留まっている可能性があります。",
+      label: "No behavioral trace",
+      desc: "This hypothesis comes only from repetition, not a deviation from expected behavior. It may be well supported but unsurprising.",
     },
     abduction_incomplete: {
-      label: "推論が不完全",
-      desc: "常識的予想または驚くべき事実が記録されていないため、予想 → ズレ → 仮説 の連鎖を読者が検証できません。",
+      label: "Incomplete reasoning",
+      desc: "The expected behavior or surprising fact is missing, so the reader cannot audit the expectation-to-deviation-to-hypothesis chain.",
     },
   };
 
@@ -74,7 +74,7 @@
     }).join("");
     return `
       <div class="quality-box">
-        <div class="quality-box-title">品質チェック（アプリ側の自動判定）</div>
+        <div class="quality-box-title">Automated quality checks</div>
         <div class="quality-badges">${badges}</div>
         <ul class="quality-desc">${descs}</ul>
       </div>`;
@@ -101,13 +101,13 @@
   }
 
   function buildBadge() {
-    if (buildInfo.demoBuild) return `<span class="badge demo">デモビルド</span>`;
-    return `<span class="badge delivery">納品ビルド（デモデータなし）</span>`;
+    if (buildInfo.demoBuild) return `<span class="badge demo">Demo build</span>`;
+    return `<span class="badge delivery">Production build (no demo data)</span>`;
   }
 
   function confidentialBanner() {
     if (!buildInfo.clientName) return "";
-    return `<div class="confidential-banner">Confidential — ${escapeHtml(buildInfo.clientName)} 様向け納品版</div>`;
+    return `<div class="confidential-banner">Confidential — prepared for ${escapeHtml(buildInfo.clientName)}</div>`;
   }
 
   function layout(inner) {
@@ -116,7 +116,7 @@
         <div class="brand"><a href="#/">Insight Lab</a> <small>Hidden Needs Finder</small></div>
         <div class="header-actions">
           ${buildBadge()}
-          <a class="settings-link" href="#/settings" title="設定">⚙ 設定</a>
+          <a class="settings-link" href="#/settings" title="Settings">⚙ Settings</a>
         </div>
       </header>
       <main>
@@ -124,7 +124,7 @@
         ${inner}
       </main>
       <footer class="privacy">
-        アップロードされたデータはローカルに保存されます。解析に必要なテキストのみ、設定されたAIプロバイダへ送信されます。
+        Uploaded data is stored locally. Only text required for analysis is sent to the configured AI provider.
       </footer>
     `;
   }
@@ -159,24 +159,24 @@
           <a class="card project-item" href="#/projects/${encodeURIComponent(p.id)}">
             <div>
               <div class="name">${escapeHtml(p.name)}</div>
-              <div class="meta">${new Date(p.createdAt).toLocaleString("ja-JP")}</div>
+              <div class="meta">${new Date(p.createdAt).toLocaleString()}</div>
             </div>
-            <span>開く &rarr;</span>
+            <span>Open &rarr;</span>
           </a>`).join("")}</div>`
-      : `<div class="empty">まだプロジェクトがありません。デモを試すか、新規プロジェクトを作成してください。</div>`;
+      : `<div class="empty">No projects yet. Try the demo or create a project.</div>`;
 
     layout(`
       <div class="hero">
         <h1>Insight Lab</h1>
-        <p>顧客が言葉にしていないニーズを見つける。</p>
+        <p>Find the needs your customers do not put into words.</p>
         <div class="actions">
-          <button class="primary" id="try-demo" ${buildInfo.demoBuild ? "" : "disabled"}>デモを試す</button>
-          <button id="new-project">新規プロジェクト</button>
+          <button class="primary" id="try-demo" ${buildInfo.demoBuild ? "" : "disabled"}>Try the demo</button>
+          <button id="new-project">New project</button>
         </div>
-        ${!buildInfo.demoBuild ? `<p class="hint">この納品ビルドにはデモデータが含まれていません。デモビルド（<code>make build-demo</code>）で起動すると試せます。</p>` : ""}
+        ${!buildInfo.demoBuild ? `<p class="hint">This production build contains no demo data. Run <code>make build-demo</code> to try the demo.</p>` : ""}
       </div>
       ${errorBox(errorMessage || loadError)}
-      <div class="section-title">プロジェクト</div>
+      <div class="section-title">Projects</div>
       ${list}
     `);
 
@@ -190,7 +190,7 @@
     });
 
     document.getElementById("new-project").addEventListener("click", async () => {
-      const name = prompt("プロジェクト名を入力してください");
+      const name = prompt("Project name");
       if (!name) return;
       try {
         const project = await api("/api/projects", { method: "POST", body: JSON.stringify({ name }) });
@@ -208,19 +208,19 @@
     try {
       settings = await api("/api/settings");
     } catch (e) {
-      layout(`<a class="back-link" href="#/">&larr; 戻る</a>${errorBox(e.message)}`);
+      layout(`<a class="back-link" href="#/">&larr; Back</a>${errorBox(e.message)}`);
       return;
     }
 
     layout(`
-      <a class="back-link" href="#/">&larr; 戻る</a>
+      <a class="back-link" href="#/">&larr; Back</a>
       <div class="card">
-        <div class="section-title">LLM 設定</div>
+        <div class="section-title">LLM settings</div>
         ${errorBox(errorMessage)}
         ${notice ? `<div class="notice-box">${escapeHtml(notice)}</div>` : ""}
         <form class="paste-form" id="settings-form">
           <div>
-            <label>Base URL（OpenAI互換エンドポイント）</label>
+            <label>Base URL (OpenAI-compatible endpoint)</label>
             <input type="text" name="baseUrl" value="${escapeHtml(settings.baseUrl)}" placeholder="https://api.openai.com/v1">
           </div>
           <div>
@@ -228,15 +228,15 @@
             <input type="text" name="model" value="${escapeHtml(settings.model)}" placeholder="gpt-5">
           </div>
           <div>
-            <label>API Key ${settings.hasApiKey ? `（設定済み: ${escapeHtml(settings.maskedApiKey)}）` : ""}</label>
-            <input type="password" name="apiKey" placeholder="${settings.hasApiKey ? "変更する場合のみ入力" : "sk-..."}">
+            <label>API key ${settings.hasApiKey ? `(configured: ${escapeHtml(settings.maskedApiKey)})` : ""}</label>
+            <input type="password" name="apiKey" placeholder="${settings.hasApiKey ? "Enter only to replace it" : "sk-..."}">
           </div>
           <div class="settings-actions">
-            <button type="submit" class="primary">保存する</button>
-            <button type="button" id="test-connection">接続テスト</button>
+            <button type="submit" class="primary">Save</button>
+            <button type="button" id="test-connection">Test connection</button>
           </div>
         </form>
-        <p class="hint">APIキーはローカルディスクやデータベースには保存されません。プロセスのメモリ上にのみ保持されます。</p>
+        <p class="hint">The API key is held in process memory only. It is not saved to disk or the database.</p>
       </div>
     `);
 
@@ -248,7 +248,7 @@
           method: "PUT",
           body: JSON.stringify({ baseUrl: f.baseUrl.value, model: f.model.value, apiKey: f.apiKey.value }),
         });
-        renderSettings(null, "設定を保存しました");
+        renderSettings(null, "Settings saved.");
       } catch (e) {
         renderSettings(e.message);
       }
@@ -257,9 +257,9 @@
     document.getElementById("test-connection").addEventListener("click", async () => {
       try {
         const result = await api("/api/settings/test", { method: "POST" });
-        renderSettings(null, `接続に成功しました（モード: ${result.mode}）`);
+        renderSettings(null, `Connection successful (mode: ${result.mode}).`);
       } catch (e) {
-        renderSettings(`接続テストに失敗しました: ${e.message}`);
+        renderSettings(`Connection test failed: ${e.message}`);
       }
     });
   }
@@ -287,7 +287,7 @@
         api(`/api/projects/${encodeURIComponent(projectID)}/analyses`),
       ]);
     } catch (e) {
-      layout(`<a class="back-link" href="#/">&larr; プロジェクト一覧に戻る</a>${errorBox(e.message)}`);
+      layout(`<a class="back-link" href="#/">&larr; Back to projects</a>${errorBox(e.message)}`);
       return;
     }
 
@@ -299,84 +299,84 @@
           <div class="doc-item">
             <div class="doc-head">
               <span class="source-tag source-${escapeHtml(d.source)}">${escapeHtml(SOURCE_LABELS[d.source] || d.source)}</span>
-              <span class="doc-title">${escapeHtml(d.title || "(無題)")}</span>
+              <span class="doc-title">${escapeHtml(d.title || "(Untitled)")}</span>
             </div>
             <div class="doc-content">${escapeHtml(d.content)}</div>
           </div>`).join("")
-      : `<div class="empty">まだドキュメントがありません。下のフォームからテキストを貼り付けてください。</div>`;
+      : `<div class="empty">No documents yet. Paste text below or import a CSV.</div>`;
 
     const insightsHtml = insights.length
       ? `<div class="insight-list">${insights.map((i) => `
           <a class="card insight-card${(i.qualityFlags || []).length ? " insight-card-flagged" : ""}" href="#/insights/${encodeURIComponent(i.id)}">
             <div class="insight-card-title">${escapeHtml(i.title)}</div>
             <div class="insight-card-latent">${escapeHtml(i.latentNeed)}</div>
-            ${i.surprisingFact ? `<div class="insight-card-trace">ズレ: ${escapeHtml(i.surprisingFact)}</div>` : ""}
+            ${i.surprisingFact ? `<div class="insight-card-trace">Deviation: ${escapeHtml(i.surprisingFact)}</div>` : ""}
             ${confidenceBar(i.confidence)}
             ${qualityBadgesHTML(i.qualityFlags)}
           </a>`).join("")}</div>`
-      : `<div class="empty">まだ洞察はありません。解析を実行してください。</div>`;
+      : `<div class="empty">No insights yet. Run an analysis.</div>`;
 
     layout(`
-      <a class="back-link" href="#/">&larr; プロジェクト一覧に戻る</a>
+      <a class="back-link" href="#/">&larr; Back to projects</a>
       <div class="card">
-        <div class="section-title">プロジェクト</div>
+        <div class="section-title">Project</div>
         <h2 style="margin:0 0 4px;">${escapeHtml(project.name)}</h2>
-        <div class="meta">ドキュメント ${documents.length} 件 / 洞察 ${insights.length} 件</div>
+        <div class="meta">${documents.length} documents / ${insights.length} insights</div>
       </div>
 
       ${errorBox(errorMessage)}
 
       <div class="card">
-        <div class="section-title">解析</div>
+        <div class="section-title">Analysis</div>
         <div id="analysis-panel">
           ${analysisPanelHTML(latestAnalysis)}
         </div>
         <div class="analysis-actions">
-          <button class="primary" id="run-analysis" ${isRunning || documents.length === 0 ? "disabled" : ""}>解析を実行</button>
-          <a class="btn" href="#/projects/${encodeURIComponent(projectID)}/patterns">痕跡・パターン一覧</a>
-          <a class="btn" href="#/projects/${encodeURIComponent(projectID)}/evaluation">評価指標を見る</a>
-          <a class="btn" href="/api/projects/${encodeURIComponent(projectID)}/report.md" download>レポートを保存</a>
+          <button class="primary" id="run-analysis" ${isRunning || documents.length === 0 ? "disabled" : ""}>Run analysis</button>
+          <a class="btn" href="#/projects/${encodeURIComponent(projectID)}/patterns">View traces and patterns</a>
+          <a class="btn" href="#/projects/${encodeURIComponent(projectID)}/evaluation">View evaluation</a>
+          <a class="btn" href="/api/projects/${encodeURIComponent(projectID)}/report.md" download>Download report</a>
         </div>
       </div>
 
       <div class="card">
-        <div class="section-title">洞察（Insights）</div>
+        <div class="section-title">Insights</div>
         ${insightsHtml}
       </div>
 
       <div class="card">
-        <div class="section-title">テキストを貼り付け</div>
+        <div class="section-title">Paste text</div>
         <form class="paste-form" id="paste-form">
           <div>
-            <label>種類</label>
+            <label>Source type</label>
             <select name="source">
-              <option value="interview">インタビュー</option>
-              <option value="review">レビュー</option>
-              <option value="support">問い合わせ</option>
-              <option value="sales">商談ログ</option>
-              <option value="survey">アンケート</option>
-              <option value="job_posting">案件・募集文</option>
-              <option value="social_post">SNS投稿</option>
+              <option value="interview">Interview</option>
+              <option value="review">Review</option>
+              <option value="support">Support conversation</option>
+              <option value="sales">Sales call</option>
+              <option value="survey">Survey</option>
+              <option value="job_posting">Job posting</option>
+              <option value="social_post">Social post</option>
             </select>
           </div>
-          <div><label>タイトル</label><input type="text" name="title" placeholder="例: Interview #15"></div>
-          <div><label>本文</label><textarea name="content" placeholder="発言をそのまま貼り付けてください" required></textarea></div>
-          <div><button type="submit" class="primary">追加する</button></div>
+          <div><label>Title</label><input type="text" name="title" placeholder="Example: Interview #15"></div>
+          <div><label>Content</label><textarea name="content" placeholder="Paste the original text here" required></textarea></div>
+          <div><button type="submit" class="primary">Add document</button></div>
         </form>
       </div>
 
       <div class="card">
-        <div class="section-title">CSVインポート</div>
-        <p class="hint">列: id,source,title,content（source は interview/review/support/sales/survey/job_posting/social_post のいずれか）</p>
+        <div class="section-title">Import CSV</div>
+        <p class="hint">Columns: id,source,title,content. Source must be interview, review, support, sales, survey, job_posting, or social_post.</p>
         <form id="csv-form">
           <input type="file" name="file" accept=".csv,text/csv" required>
-          <button type="submit" class="primary">インポート</button>
+          <button type="submit" class="primary">Import</button>
         </form>
         <div id="csv-result"></div>
       </div>
 
       <div class="card">
-        <div class="section-title">ドキュメント</div>
+        <div class="section-title">Documents</div>
         ${docsHtml}
       </div>
     `);
@@ -406,7 +406,7 @@
           method: "POST", body: formData,
         });
         document.getElementById("csv-result").innerHTML =
-          `<div class="notice-box">${result.imported}件取り込み、${result.skipped}件スキップしました。</div>`;
+          `<div class="notice-box">Imported ${result.imported}; skipped ${result.skipped}.</div>`;
         renderProject(projectID);
       } catch (e) {
         document.getElementById("csv-result").innerHTML = errorBox(e.message);
@@ -430,13 +430,13 @@
   }
 
   function analysisPanelHTML(analysis) {
-    if (!analysis) return `<div class="empty">まだ解析を実行していません。</div>`;
+    if (!analysis) return `<div class="empty">No analysis has been run.</div>`;
     const label = STEP_LABELS[analysis.currentStep] || analysis.currentStep || analysis.status;
     if (analysis.status === "completed") {
-      return `<div class="analysis-status status-completed">完了（${new Date(analysis.finishedAt).toLocaleString("ja-JP")}）</div>`;
+      return `<div class="analysis-status status-completed">Completed (${new Date(analysis.finishedAt).toLocaleString()})</div>`;
     }
     if (analysis.status === "failed") {
-      return `<div class="analysis-status status-failed">失敗: ${escapeHtml(analysis.error || "")}</div>`;
+      return `<div class="analysis-status status-failed">Failed: ${escapeHtml(analysis.error || "")}</div>`;
     }
     return `
       <div class="analysis-status status-running">
@@ -476,7 +476,7 @@
       closeActiveStream();
       let data = {};
       try { data = JSON.parse(ev.data); } catch (_) { /* ignore */ }
-      renderProject(projectID, `解析に失敗しました: ${data.message || "unknown error"}`);
+      renderProject(projectID, `Analysis failed: ${data.message || "unknown error"}`);
     });
   }
 
@@ -487,7 +487,7 @@
     try {
       insight = await api(`/api/insights/${encodeURIComponent(insightID)}`);
     } catch (e) {
-      layout(`<a class="back-link" href="#/">&larr; 戻る</a>${errorBox(e.message)}`);
+      layout(`<a class="back-link" href="#/">&larr; Back</a>${errorBox(e.message)}`);
       return;
     }
 
@@ -495,13 +495,13 @@
     const counter = insight.evidence.filter((e) => e.type === "counter");
 
     layout(`
-      <a class="back-link" href="#/projects/${encodeURIComponent(insight.projectId)}">&larr; プロジェクトに戻る</a>
+      <a class="back-link" href="#/projects/${encodeURIComponent(insight.projectId)}">&larr; Back to project</a>
 
       <div class="card reasoning-trail">
-        <div class="section-title">推論の過程 &mdash; 予想 → ズレ → 仮説</div>
-        <p class="hint">インサイトは人の心を読んで見つけるものではなく、「人はこう動くはずだ」という予想と実際の行動のズレ（欲望の痕跡）を、アブダクションで説明する仮説として立てるものです。AIが最終的な洞察だけを提示するのではなく、その連鎖をたどれるようにしています。</p>
+        <div class="section-title">Reasoning trail &mdash; expectation → deviation → hypothesis</div>
+        <p class="hint">An insight is a hypothesis that explains the gap between expected and observed behavior. The complete reasoning chain remains visible for review.</p>
         ${abductionHTML(insight)}
-        <div class="trail-subtitle">元になった気づき</div>
+        <div class="trail-subtitle">Source observations</div>
         ${patternsSectionHTML(insight.patterns)}
       </div>
 
@@ -512,15 +512,15 @@
         ${qualityBadgesHTML(insight.qualityFlags, { withDesc: true })}
 
         <div class="field-block fact-block">
-          <div class="field-label">Observation（観察された事実）</div>
+          <div class="field-label">Observation</div>
           <div>${escapeHtml(insight.observation || "-")}</div>
         </div>
         <div class="field-block">
-          <div class="field-label">Stated Need（表面的なニーズ）</div>
+          <div class="field-label">Stated need</div>
           <div>${escapeHtml(insight.statedNeed || "-")}</div>
         </div>
         <div class="field-block latent-block">
-          <div class="field-label">Latent Need（潜在ニーズ）</div>
+          <div class="field-label">Latent need</div>
           <div>${escapeHtml(insight.latentNeed || "-")}</div>
         </div>
         <div class="field-block">
@@ -528,32 +528,32 @@
           <div>${escapeHtml(insight.jtbd || "-")}</div>
         </div>
         <div class="field-block interpretation-block">
-          <div class="field-label">Interpretation（AIによる解釈）</div>
+          <div class="field-label">Interpretation (AI-generated)</div>
           <div>${escapeHtml(insight.interpretation || "-")}</div>
         </div>
         <div class="field-block alt-block">
-          <div class="field-label">Alternative Interpretation（別の解釈）</div>
+          <div class="field-label">Alternative interpretation</div>
           <div>${escapeHtml(insight.alternativeInterpretation || "-")}</div>
         </div>
         <div class="field-block">
-          <div class="field-label">Product Opportunity（改善提案）</div>
+          <div class="field-label">Product opportunity</div>
           <div>${escapeHtml(insight.productOpportunity || "-")}</div>
         </div>
         ${insight.monetizationAngle ? `
         <div class="field-block money-block">
-          <div class="field-label">Monetization Angle（自分で売るなら）</div>
+          <div class="field-label">Monetization angle</div>
           <div>${escapeHtml(insight.monetizationAngle)}</div>
         </div>` : ""}
       </div>
 
       <div class="card">
-        <div class="section-title">Evidence（根拠）</div>
-        ${support.length ? support.map(evidenceRowHTML).join("") : `<div class="empty">なし</div>`}
+        <div class="section-title">Evidence</div>
+        ${support.length ? support.map(evidenceRowHTML).join("") : `<div class="empty">None</div>`}
       </div>
 
       <div class="card">
-        <div class="section-title">Counter Evidence（反証）</div>
-        ${counter.length ? counter.map(evidenceRowHTML).join("") : `<div class="empty">反証は見つかりませんでした</div>`}
+        <div class="section-title">Counter-evidence</div>
+        ${counter.length ? counter.map(evidenceRowHTML).join("") : `<div class="empty">No counter-evidence found</div>`}
       </div>
     `);
 
@@ -594,29 +594,29 @@
         <div class="abduction-num">${n}</div>
         <div class="abduction-body">
           <div class="field-label">${label}</div>
-          <div>${value ? escapeHtml(value) : `<span class="missing">記録なし</span>`}</div>
+          <div>${value ? escapeHtml(value) : `<span class="missing">Not recorded</span>`}</div>
         </div>
       </div>`;
     return `
       <div class="abduction">
-        ${step("①", "常識的な予想（人はこう動くはず）", insight.expectation, "abduction-expect")}
-        ${step("②", "驚くべき事実（予想とのズレ ＝ 欲望の痕跡）", insight.surprisingFact, "abduction-fact")}
-        ${step("③", "仮説（この無自覚な欲求があれば、②は当然の行動になる）", insight.latentNeed, "abduction-hyp")}
-        ${step("④", "説明（なぜ③なら②が当たり前になるのか）", insight.rationale, "abduction-why")}
+        ${step("1", "Expected behavior", insight.expectation, "abduction-expect")}
+        ${step("2", "Surprising fact (the deviation)", insight.surprisingFact, "abduction-fact")}
+        ${step("3", "Hypothesis (the hidden need that makes step 2 reasonable)", insight.latentNeed, "abduction-hyp")}
+        ${step("4", "Explanation", insight.rationale, "abduction-why")}
       </div>`;
   }
 
   function patternBlockHTML(p) {
     const isTrace = p.kind === "deviation";
     const kindBadge = isTrace
-      ? `<span class="kind-badge kind-deviation">痕跡</span>${p.deviationType ? `<span class="deviation-type">${escapeHtml(DEVIATION_LABELS[p.deviationType] || p.deviationType)}</span>` : ""}`
-      : `<span class="kind-badge kind-repetition">繰り返し</span>`;
+      ? `<span class="kind-badge kind-deviation">Trace</span>${p.deviationType ? `<span class="deviation-type">${escapeHtml(DEVIATION_LABELS[p.deviationType] || p.deviationType)}</span>` : ""}`
+      : `<span class="kind-badge kind-repetition">Repetition</span>`;
     const body = isTrace
       ? `
         <div class="trace-gap">
-          <div class="trace-cell trace-expect"><div class="field-label">予想</div><div>${escapeHtml(p.expectation || "-")}</div></div>
+          <div class="trace-cell trace-expect"><div class="field-label">Expected</div><div>${escapeHtml(p.expectation || "-")}</div></div>
           <div class="trace-arrow">≠</div>
-          <div class="trace-cell trace-actual"><div class="field-label">実際</div><div>${escapeHtml(p.description || "-")}</div></div>
+          <div class="trace-cell trace-actual"><div class="field-label">Observed</div><div>${escapeHtml(p.description || "-")}</div></div>
         </div>`
       : (p.description ? `<div class="pattern-desc">${escapeHtml(p.description)}</div>` : "");
     return `
@@ -624,20 +624,20 @@
         <div class="pattern-head">${kindBadge}<span class="pattern-title">${escapeHtml(p.title)}</span></div>
         ${body}
         <div class="pattern-observations">
-          ${(p.observations || []).map(evidenceRowHTML).join("") || `<div class="empty">観察が見つかりません</div>`}
+          ${(p.observations || []).map(evidenceRowHTML).join("") || `<div class="empty">No observations found</div>`}
         </div>
       </div>`;
   }
 
   function patternsSectionHTML(patterns) {
     if (!patterns || patterns.length === 0) {
-      return `<div class="empty">この洞察の元になった痕跡・パターンは記録されていません。</div>`;
+      return `<div class="empty">No source traces or patterns were recorded for this insight.</div>`;
     }
     const traces = patterns.filter((p) => p.kind === "deviation");
     const repetitions = patterns.filter((p) => p.kind !== "deviation");
     let html = "";
     if (traces.length) html += traces.map(patternBlockHTML).join("");
-    else html += `<div class="notice-box quality-notice">この洞察は「予想とのズレ」を根拠にしていません（繰り返しのみ）。</div>`;
+    else html += `<div class="notice-box quality-notice">This insight is based on repetition only, not a deviation from expected behavior.</div>`;
     if (repetitions.length) html += repetitions.map(patternBlockHTML).join("");
     return html;
   }
@@ -646,7 +646,7 @@
     return `
       <div class="evidence-row">
         <button class="evidence-toggle" data-doc-id="${escapeHtml(e.documentId)}" data-start="${e.startOffset}" data-end="${e.endOffset}">
-          "${escapeHtml(e.quote)}" <span class="evidence-reveal">原文を見る &darr;</span>
+          "${escapeHtml(e.quote)}" <span class="evidence-reveal">View in source &darr;</span>
         </button>
         <div class="evidence-context" hidden></div>
       </div>`;
@@ -672,28 +672,28 @@
         api(`/api/projects/${encodeURIComponent(projectID)}/evaluation`),
       ]);
     } catch (e) {
-      layout(`<a class="back-link" href="#/projects/${encodeURIComponent(projectID)}">&larr; プロジェクトに戻る</a>${errorBox(e.message)}`);
+      layout(`<a class="back-link" href="#/projects/${encodeURIComponent(projectID)}">&larr; Back to project</a>${errorBox(e.message)}`);
       return;
     }
 
     const rows = [
-      ["Evidence Coverage", metrics.evidenceCoverage, "根拠Evidenceを持つInsightの割合"],
-      ["Unsupported Claim Rate", metrics.unsupportedClaimRate, "原文照合できず破棄された引用の割合"],
-      ["Counter Evidence Coverage", metrics.counterEvidenceCoverage, "反証を検索したInsightの割合"],
-      ["Insight Duplication", metrics.insightDuplicationRate, "重複として統合されたInsightの割合"],
-      ["Trace-backed Insights", metrics.traceBackedInsightRate, "「予想とのズレ」を根拠に持つInsightの割合"],
-      ["Quality Flagged", metrics.qualityFlaggedInsightRate, "品質チェックで警告が付いたInsightの割合（低いほど良い）"],
+      ["Evidence Coverage", metrics.evidenceCoverage, "Insights with supporting evidence"],
+      ["Unsupported Claim Rate", metrics.unsupportedClaimRate, "Quotes discarded because they could not be verified"],
+      ["Counter-evidence Coverage", metrics.counterEvidenceCoverage, "Insights checked for counter-evidence"],
+      ["Insight Duplication", metrics.insightDuplicationRate, "Draft insights merged as duplicates"],
+      ["Trace-backed Insights", metrics.traceBackedInsightRate, "Insights backed by a behavioral deviation"],
+      ["Quality Flagged", metrics.qualityFlaggedInsightRate, "Insights with a quality warning (lower is better)"],
     ];
     const flagCounts = metrics.qualityFlagCounts || {};
     const flagSummary = Object.keys(QUALITY_FLAG_LABELS)
       .filter((code) => flagCounts[code])
-      .map((code) => `${QUALITY_FLAG_LABELS[code].label} ${flagCounts[code]}件`)
+      .map((code) => `${QUALITY_FLAG_LABELS[code].label}: ${flagCounts[code]}`)
       .join(" / ");
 
     layout(`
-      <a class="back-link" href="#/projects/${encodeURIComponent(projectID)}">&larr; プロジェクトに戻る</a>
+      <a class="back-link" href="#/projects/${encodeURIComponent(projectID)}">&larr; Back to project</a>
       <div class="card">
-        <div class="section-title">評価指標 — ${escapeHtml(project.name)}</div>
+        <div class="section-title">Evaluation — ${escapeHtml(project.name)}</div>
         <div class="metric-grid">
           ${rows.map(([label, value, desc]) => `
             <div class="metric-tile">
@@ -704,13 +704,13 @@
           <div class="metric-tile">
             <div class="metric-value">${(metrics.averageEvidencePerInsight || 0).toFixed(1)}</div>
             <div class="metric-label">Avg Evidence / Insight</div>
-            <div class="metric-desc">Insightあたりの平均Evidence数</div>
+            <div class="metric-desc">Average evidence items per insight</div>
           </div>
         </div>
         <p class="hint">
-          観察候補 ${metrics.totalObservationCandidates} 件中 ${metrics.groundedObservations} 件を原文照合できました。
-          「予想とのズレ」${metrics.traceCount || 0} 件を含む気づき ${metrics.patternCount} 件から、洞察候補 ${metrics.totalInsightDrafts} 件が生まれ、最終的に ${metrics.finalInsightCount} 件が採用されました。
-          ${flagSummary ? `品質チェックの内訳: ${escapeHtml(flagSummary)}。` : "品質チェックの警告はありません。"}
+          ${metrics.groundedObservations} of ${metrics.totalObservationCandidates} observation candidates were verified against source text.
+          ${metrics.patternCount} findings, including ${metrics.traceCount || 0} deviations, produced ${metrics.totalInsightDrafts} drafts and ${metrics.finalInsightCount} final insights.
+          ${flagSummary ? `Quality warnings: ${escapeHtml(flagSummary)}.` : "No quality warnings."}
         </p>
       </div>
     `);
@@ -726,7 +726,7 @@
         api(`/api/projects/${encodeURIComponent(projectID)}/patterns`),
       ]);
     } catch (e) {
-      layout(`<a class="back-link" href="#/projects/${encodeURIComponent(projectID)}">&larr; プロジェクトに戻る</a>${errorBox(e.message)}`);
+      layout(`<a class="back-link" href="#/projects/${encodeURIComponent(projectID)}">&larr; Back to project</a>${errorBox(e.message)}`);
       return;
     }
 
@@ -734,20 +734,20 @@
     const repetitions = patterns.filter((p) => p.kind !== "deviation");
 
     layout(`
-      <a class="back-link" href="#/projects/${encodeURIComponent(projectID)}">&larr; プロジェクトに戻る</a>
+      <a class="back-link" href="#/projects/${encodeURIComponent(projectID)}">&larr; Back to project</a>
       <div class="card">
-        <div class="section-title">痕跡とパターン — ${escapeHtml(project.name)}</div>
-        <p class="hint">解析が「気づいた」ことの一覧です。最終的なInsightに至らなかったものもここに残ります。</p>
+        <div class="section-title">Traces and patterns — ${escapeHtml(project.name)}</div>
+        <p class="hint">Everything detected during analysis, including findings that did not become final insights.</p>
       </div>
       <div class="card">
-        <div class="section-title">欲望の痕跡（予想とのズレ） ${traces.length} 件</div>
-        <p class="hint">「常識的にはこう動くはず」という予想と、実際の行動が食い違った箇所です。インサイト（人を動かす無自覚な欲求）は、この痕跡を説明する仮説として立てます。</p>
-        ${traces.length ? traces.map(patternBlockHTML).join("") : `<div class="empty">予想とのズレはまだ検出されていません。</div>`}
+        <div class="section-title">Behavioral traces (deviations) ${traces.length}</div>
+        <p class="hint">Places where observed behavior differs from a reasonable expectation. Hidden needs are proposed as hypotheses that explain these deviations.</p>
+        ${traces.length ? traces.map(patternBlockHTML).join("") : `<div class="empty">No deviations detected.</div>`}
       </div>
       <div class="card">
-        <div class="section-title">繰り返しのパターン ${repetitions.length} 件</div>
-        <p class="hint">複数のドキュメントにまたがって繰り返し現れた行動・発言です。繰り返しだけを根拠にした仮説は、顕在ニーズの言い換えになりやすい点に注意してください。</p>
-        ${repetitions.length ? repetitions.map(patternBlockHTML).join("") : `<div class="empty">まだパターンは検出されていません。解析を実行してください。</div>`}
+        <div class="section-title">Recurring patterns ${repetitions.length}</div>
+        <p class="hint">Behavior or language repeated across documents. Hypotheses based only on repetition can easily restate an explicit need.</p>
+        ${repetitions.length ? repetitions.map(patternBlockHTML).join("") : `<div class="empty">No recurring patterns detected. Run an analysis first.</div>`}
       </div>
     `);
 

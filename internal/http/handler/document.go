@@ -130,7 +130,7 @@ func (h *Handler) ImportDocumentsCSV(w http.ResponseWriter, r *http.Request) {
 	if strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data") {
 		file, _, err := r.FormFile("file")
 		if err != nil {
-			writeError(w, http.StatusBadRequest, "file フィールドが必要です")
+			writeError(w, http.StatusBadRequest, "the file field is required")
 			return
 		}
 		defer file.Close()

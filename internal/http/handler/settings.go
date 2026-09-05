@@ -46,7 +46,7 @@ func (h *Handler) UpdateSettings(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) TestSettings(w http.ResponseWriter, r *http.Request) {
 	settings := h.Settings.Get()
 	if !settings.Configured() {
-		writeError(w, http.StatusBadRequest, "Base URLとModelを設定してください")
+		writeError(w, http.StatusBadRequest, "base URL and model are required")
 		return
 	}
 	client := h.NewLLMClient(settings)

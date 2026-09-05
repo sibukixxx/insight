@@ -40,12 +40,12 @@ func ImportCSV(ctx context.Context, documents repository.DocumentRepository, pro
 	header, err := reader.Read()
 	if err != nil {
 		if err == io.EOF {
-			return nil, fmt.Errorf("CSVが空です")
+			return nil, fmt.Errorf("CSV is empty")
 		}
-		return nil, fmt.Errorf("CSVの読み込みに失敗しました: %w", err)
+		return nil, fmt.Errorf("read CSV: %w", err)
 	}
 	if !headerMatches(header) {
-		return nil, fmt.Errorf("CSVのヘッダーは %s である必要があります", strings.Join(csvHeader, ","))
+		return nil, fmt.Errorf("CSV header must be %s", strings.Join(csvHeader, ","))
 	}
 
 	result := &ImportResult{}
@@ -64,7 +64,7 @@ func ImportCSV(ctx context.Context, documents repository.DocumentRepository, pro
 		}
 		if len(record) < 4 {
 			result.Skipped++
-			result.Errors = append(result.Errors, ImportRowError{Row: row, Reason: "列が不足しています"})
+			result.Errors = append(result.Errors, ImportRowError{Row: row, Reason: "not enough columns"})
 			continue
 		}
 
@@ -72,12 +72,12 @@ func ImportCSV(ctx context.Context, documents repository.DocumentRepository, pro
 		sourceType := domain.SourceType(strings.TrimSpace(source))
 		if !sourceType.Valid() {
 			result.Skipped++
-			result.Errors = append(result.Errors, ImportRowError{Row: row, Reason: fmt.Sprintf("不正なsource: %q", source)})
+			result.Errors = append(result.Errors, ImportRowError{Row: row, Reason: fmt.Sprintf("invalid source: %q", source)})
 			continue
 		}
 		if strings.TrimSpace(content) == "" {
 			result.Skipped++
-			result.Errors = append(result.Errors, ImportRowError{Row: row, Reason: "contentが空です"})
+			result.Errors = append(result.Errors, ImportRowError{Row: row, Reason: "content is empty"})
 			continue
 		}
 
@@ -93,7 +93,7 @@ func ImportCSV(ctx context.Context, documents repository.DocumentRepository, pro
 
 	if len(toInsert) > 0 {
 		if err := documents.CreateBatch(ctx, toInsert); err != nil {
-			return nil, fmt.Errorf("保存に失敗しました: %w", err)
+			return nil, fmt.Errorf("save document: %w", err)
 		}
 	}
 	result.Imported = len(toInsert)

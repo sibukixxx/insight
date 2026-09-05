@@ -23,14 +23,14 @@ func (h *Handler) GetEvaluation(w http.ResponseWriter, r *http.Request) {
 	a, err := h.App.LatestAnalysis(r.Context(), projectID)
 	if err != nil {
 		if errors.Is(err, usecase.ErrNotFound) {
-			writeError(w, http.StatusNotFound, "解析結果がまだありません")
+			writeError(w, http.StatusNotFound, "no analysis results are available yet")
 			return
 		}
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	if a.Status != domain.AnalysisCompleted || a.Metrics == "" {
-		writeError(w, http.StatusConflict, "最新の解析はまだ完了していません")
+		writeError(w, http.StatusConflict, "the latest analysis has not completed")
 		return
 	}
 

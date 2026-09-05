@@ -41,8 +41,8 @@ type ProbeResult struct {
 
 func ProbeConnection(ctx context.Context, client llm.Client) (*ProbeResult, error) {
 	resp, err := client.Generate(ctx, llm.GenerateRequest{
-		SystemPrompt: "接続確認です。指定されたJSON形式のみを出力してください。",
-		Messages:     []llm.Message{{Role: "user", Content: `{"ok":true} という形式で応答してください。`}},
+		SystemPrompt: "This is a connection test. Return only the requested JSON.",
+		Messages:     []llm.Message{{Role: "user", Content: `Reply in the form {"ok":true}.`}},
 		Schema:       probeSchema(),
 		Temperature:  0,
 	})
