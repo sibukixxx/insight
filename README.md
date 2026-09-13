@@ -7,6 +7,8 @@ Insight Lab is a local-first research tool that finds hidden customer needs in i
 
 Every insight is linked to verified source quotes, counter-evidence, and an application-calculated confidence score. The reasoning trail—from an expected behavior, through a surprising deviation, to a hypothesis—remains visible and auditable.
 
+For causal questions, Insight Lab compares candidate explanations and records what is missing. It does not let model prose or a high confidence score prove causality: the current pipeline reports causal hypotheses as `NOT_IDENTIFIED` until an appropriate external research design supplies stronger evidence. See [causal reasoning semantics](docs/causal-reasoning.md).
+
 ## Quick start
 
 Requirements: Go 1.25 or later and an OpenAI-compatible API.
@@ -25,6 +27,8 @@ Insight Lab opens at `http://127.0.0.1:8787`. Add your API base URL, model, and 
 3. Run the analysis.
 4. Review each insight's evidence, counter-evidence, reasoning trail, confidence, and quality warnings.
 5. Download the result as a Markdown report.
+
+The report's evidence-quality score measures grounding, coverage, and source diversity. It is not the probability that a causal claim is true.
 
 Reports are also available through the API:
 

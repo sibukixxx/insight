@@ -1,0 +1,21 @@
+{
+  "question": "Did municipal startup support increase company formation?",
+  "observation": "Corporate-number designations increased after policy introduction in the target region.",
+  "naiveInterpretation": "The policy increased startups.",
+  "competingHypotheses": [
+    "policy effect",
+    "population increase",
+    "redevelopment",
+    "macroeconomic trend",
+    "registration or data artifact"
+  ],
+  "missingEvidence": [
+    "control regions",
+    "pre-policy period",
+    "population controls",
+    "economic controls",
+    "exact policy timing"
+  ],
+  "expectedIdentification": "NOT_IDENTIFIED",
+  "expectedValidation": "PLAUSIBLE"
+}

@@ -20,6 +20,7 @@ const observationExtractionPrompt = basePrompt + `
 
 Task: Observation Extraction. Extract only observable actions and statements from the supplied text.
 - Do not infer motives or needs.
+- A causal explanation (for example, "a policy caused company formation") is never an observation. Extract only what the supplied data directly shows.
 - quote must be an exact, character-for-character excerpt from the source. Never summarize or paraphrase it.
 - behavior briefly describes the concrete behavior shown by the quote.
 - topic is a concise label such as verification, price, or automation.
@@ -44,6 +45,7 @@ Process:
 Rules:
 - observationIds may contain only supplied observation IDs. Include both a person's statement and action when available.
 - Do not infer the desire yet. Focus only on the gap between expectation and observation.
+- An expectation proposed from general model knowledge is a hypothesis, not evidence. Do not imply it was source-backed.
 - Challenge behavior that initially appears ordinary: was it really the natural action?
 - If no deviation exists, return an empty traces array.`
 
@@ -71,6 +73,14 @@ Fields:
 - rationale: explain why surprisingFact becomes reasonable if latentNeed is true, without inventing facts. Make the inferential leap visible.
 - supportingObservationIds: existing observation IDs used as support.
 - basedOnPatternIds: existing pattern IDs underlying the hypothesis. Prefer deviations; repetition alone often restates an explicit need.
+- expectationBasis: SOURCE_BACKED only when the supplied observations explicitly establish the expectation; otherwise MODEL_PROPOSED or UNKNOWN.
+- alternativeExplanations: propose genuinely competing explanations for the same surprising fact. Do not present any as true.
+- candidateCausalStructure: a small proposed graph (variables and directed relations). Every model-proposed role/relation must be PROPOSED, not SUPPORTED.
+- missingEvidence: evidence absent from the input, especially plausible confounders.
+- falsificationCriteria: future observations that would weaken this hypothesis. These are criteria, never actual counter-evidence.
+- requiredData, requiredComparisons, candidateDesigns: what would strengthen validation. Designs (control group, pre/post, natural experiment, difference-in-differences candidate, regression discontinuity candidate, instrumental variable candidate) are suggestions only; do not claim they were applied.
+
+Generate multiple competing hypotheses for a surprising fact when the evidence permits. Correlation alone must never be described as causal support.
 
 Return only hypotheses supported by observations.`
 

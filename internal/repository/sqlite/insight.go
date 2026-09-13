@@ -19,21 +19,35 @@ func NewInsightRepository(db *DB) *InsightRepository {
 
 const insightColumns = `id, project_id, analysis_id, title, observation, stated_need, latent_need, jtbd,
 	 expectation, surprising_fact, rationale, interpretation, alternative_interpretation,
-	 product_opportunity, monetization_angle, confidence, quality_flags, created_at`
+	 product_opportunity, monetization_angle, confidence, quality_flags, expectation_basis,
+	 causal_status, validation_status, identification_status, causal_context, created_at`
+
+type causalContext struct {
+	CompetingHypotheses   []domain.CompetingHypothesis    `json:"competingHypotheses"`
+	CausalStructure       domain.CandidateCausalStructure `json:"causalStructure"`
+	MissingEvidence       []string                        `json:"missingEvidence"`
+	FalsificationCriteria []string                        `json:"falsificationCriteria"`
+	NextValidation        domain.ValidationNeed           `json:"nextValidation"`
+}
 
 func (r *InsightRepository) Create(ctx context.Context, insight *domain.Insight) error {
 	flags, err := encodeQualityFlags(insight.QualityFlags)
 	if err != nil {
 		return err
 	}
+	contextJSON, err := json.Marshal(causalContext{insight.CompetingHypotheses, insight.CausalStructure, insight.MissingEvidence, insight.FalsificationCriteria, insight.NextValidation})
+	if err != nil {
+		return fmt.Errorf("encode causal context: %w", err)
+	}
 	_, err = r.db.ExecContext(ctx,
 		`INSERT INTO insights (`+insightColumns+`)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		insight.ID, insight.ProjectID, nullableString(insight.AnalysisID), insight.Title, insight.Observation,
 		insight.StatedNeed, insight.LatentNeed, insight.JTBD,
 		nullableStringLiteral(insight.Expectation), nullableStringLiteral(insight.SurprisingFact), insight.Rationale,
 		insight.Interpretation, insight.AlternativeInterpretation, insight.ProductOpportunity, insight.MonetizationAngle,
-		insight.Confidence, flags, formatTime(insight.CreatedAt))
+		insight.Confidence, flags, insight.ExpectationBasis, insight.CausalStatus, insight.ValidationStatus,
+		insight.IdentificationStatus, string(contextJSON), formatTime(insight.CreatedAt))
 	return err
 }
 
@@ -85,10 +99,11 @@ func encodeQualityFlags(flags []domain.QualityFlag) (any, error) {
 func scanInsight(s scanner) (*domain.Insight, error) {
 	var i domain.Insight
 	var createdAt string
-	var analysisID, expectation, surprisingFact, rationale, monetizationAngle, qualityFlags sql.NullString
+	var analysisID, expectation, surprisingFact, rationale, monetizationAngle, qualityFlags, causalContextJSON sql.NullString
 	if err := s.Scan(&i.ID, &i.ProjectID, &analysisID, &i.Title, &i.Observation, &i.StatedNeed, &i.LatentNeed,
 		&i.JTBD, &expectation, &surprisingFact, &rationale, &i.Interpretation, &i.AlternativeInterpretation,
-		&i.ProductOpportunity, &monetizationAngle, &i.Confidence, &qualityFlags, &createdAt); err != nil {
+		&i.ProductOpportunity, &monetizationAngle, &i.Confidence, &qualityFlags, &i.ExpectationBasis,
+		&i.CausalStatus, &i.ValidationStatus, &i.IdentificationStatus, &causalContextJSON, &createdAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, repository.ErrNotFound
 		}
@@ -106,6 +121,14 @@ func scanInsight(s scanner) (*domain.Insight, error) {
 		if err := json.Unmarshal([]byte(qualityFlags.String), &i.QualityFlags); err != nil {
 			return nil, fmt.Errorf("decode quality flags for %s: %w", i.ID, err)
 		}
+	}
+	if causalContextJSON.Valid && causalContextJSON.String != "" {
+		var value causalContext
+		if err := json.Unmarshal([]byte(causalContextJSON.String), &value); err != nil {
+			return nil, fmt.Errorf("decode causal context for %s: %w", i.ID, err)
+		}
+		i.CompetingHypotheses, i.CausalStructure, i.MissingEvidence = value.CompetingHypotheses, value.CausalStructure, value.MissingEvidence
+		i.FalsificationCriteria, i.NextValidation = value.FalsificationCriteria, value.NextValidation
 	}
 	t, err := parseTime(createdAt)
 	if err != nil {

@@ -214,9 +214,15 @@ func (p *Pipeline) persistInsights(ctx context.Context, analysisID, projectID st
 			Observation: d.writeup.ObservationSummary, StatedNeed: d.hypothesis.StatedNeed,
 			LatentNeed: d.hypothesis.LatentNeed, JTBD: d.hypothesis.JTBD,
 			Expectation: d.hypothesis.Expectation, SurprisingFact: d.hypothesis.SurprisingFact, Rationale: d.hypothesis.Rationale,
-			Interpretation: d.writeup.Interpretation, AlternativeInterpretation: d.writeup.AlternativeInterpretation,
+			ExpectationBasis: expectationBasis(d.hypothesis.ExpectationBasis),
+			Interpretation:   d.writeup.Interpretation, AlternativeInterpretation: d.writeup.AlternativeInterpretation,
 			ProductOpportunity: d.writeup.ProductOpportunity, MonetizationAngle: d.writeup.MonetizationAngle,
-			CreatedAt: time.Now().UTC(),
+			CompetingHypotheses:   d.hypothesis.AlternativeExplanations,
+			CausalStructure:       d.hypothesis.CandidateCausalStructure,
+			MissingEvidence:       d.hypothesis.MissingEvidence,
+			FalsificationCriteria: d.hypothesis.FalsificationCriteria,
+			NextValidation:        domain.ValidationNeed{Data: d.hypothesis.RequiredData, Comparison: d.hypothesis.RequiredComparisons, Design: d.hypothesis.CandidateDesigns},
+			CreatedAt:             time.Now().UTC(),
 		}
 
 		supportRows := buildEvidenceRows(insight.ID, d.supporting, domain.EvidenceSupport)
@@ -239,6 +245,17 @@ func (p *Pipeline) persistInsights(ctx context.Context, analysisID, projectID st
 			DocumentsWithSupport:  len(documentsWithSupport),
 			TotalDocuments:        totalDocuments,
 			PatternDocumentCount:  len(documentsWithSupport),
+		})
+		insight.CausalStatus, insight.ValidationStatus, insight.IdentificationStatus = AssessCausalReadiness(CausalAssessmentInput{
+			ExpectationBasis:      d.hypothesis.ExpectationBasis,
+			Alternatives:          d.hypothesis.AlternativeExplanations,
+			Structure:             d.hypothesis.CandidateCausalStructure,
+			MissingEvidence:       d.hypothesis.MissingEvidence,
+			FalsificationCriteria: d.hypothesis.FalsificationCriteria,
+			RequiredData:          d.hypothesis.RequiredData,
+			RequiredComparisons:   d.hypothesis.RequiredComparisons,
+			CandidateDesigns:      d.hypothesis.CandidateDesigns,
+			SupportingCount:       len(supportRows), CounterCount: len(counterRows),
 		})
 
 		// Pattern references are validated the same way quotes are

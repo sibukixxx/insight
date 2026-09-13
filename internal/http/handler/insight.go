@@ -12,21 +12,30 @@ import (
 )
 
 type insightDTO struct {
-	ID                        string  `json:"id"`
-	ProjectID                 string  `json:"projectId"`
-	Title                     string  `json:"title"`
-	Observation               string  `json:"observation"`
-	StatedNeed                string  `json:"statedNeed"`
-	LatentNeed                string  `json:"latentNeed"`
-	JTBD                      string  `json:"jtbd"`
-	Expectation               string  `json:"expectation"`
-	SurprisingFact            string  `json:"surprisingFact"`
-	Rationale                 string  `json:"rationale"`
-	Interpretation            string  `json:"interpretation"`
-	AlternativeInterpretation string  `json:"alternativeInterpretation"`
-	ProductOpportunity        string  `json:"productOpportunity"`
-	MonetizationAngle         string  `json:"monetizationAngle"`
-	Confidence                float64 `json:"confidence"`
+	ID                        string                          `json:"id"`
+	ProjectID                 string                          `json:"projectId"`
+	Title                     string                          `json:"title"`
+	Observation               string                          `json:"observation"`
+	StatedNeed                string                          `json:"statedNeed"`
+	LatentNeed                string                          `json:"latentNeed"`
+	JTBD                      string                          `json:"jtbd"`
+	Expectation               string                          `json:"expectation"`
+	SurprisingFact            string                          `json:"surprisingFact"`
+	Rationale                 string                          `json:"rationale"`
+	Interpretation            string                          `json:"interpretation"`
+	AlternativeInterpretation string                          `json:"alternativeInterpretation"`
+	ProductOpportunity        string                          `json:"productOpportunity"`
+	MonetizationAngle         string                          `json:"monetizationAngle"`
+	Confidence                float64                         `json:"confidence"`
+	ExpectationBasis          domain.ExpectationBasis         `json:"expectationBasis"`
+	CausalStatus              domain.CausalStatus             `json:"causalStatus"`
+	ValidationStatus          domain.ValidationStatus         `json:"validationStatus"`
+	IdentificationStatus      domain.IdentificationStatus     `json:"identificationStatus"`
+	CompetingHypotheses       []domain.CompetingHypothesis    `json:"competingHypotheses"`
+	CausalStructure           domain.CandidateCausalStructure `json:"candidateCausalStructure"`
+	MissingEvidence           []string                        `json:"missingEvidence"`
+	FalsificationCriteria     []string                        `json:"falsificationCriteria"`
+	NextValidation            domain.ValidationNeed           `json:"nextValidation"`
 	// QualityFlags are app-side warnings (never model self-assessment)
 	// that this insight may not meet the definition of an insight; always
 	// an array so the client never has to null-check it.
@@ -50,9 +59,26 @@ func toInsightDTO(i *domain.Insight) insightDTO {
 		Expectation: i.Expectation, SurprisingFact: i.SurprisingFact, Rationale: i.Rationale,
 		Interpretation: i.Interpretation, AlternativeInterpretation: i.AlternativeInterpretation,
 		ProductOpportunity: i.ProductOpportunity, MonetizationAngle: i.MonetizationAngle, Confidence: i.Confidence,
+		ExpectationBasis: i.ExpectationBasis, CausalStatus: i.CausalStatus, ValidationStatus: i.ValidationStatus,
+		IdentificationStatus: i.IdentificationStatus, CompetingHypotheses: nonNilHypotheses(i.CompetingHypotheses),
+		CausalStructure: i.CausalStructure, MissingEvidence: nonNilStrings(i.MissingEvidence),
+		FalsificationCriteria: nonNilStrings(i.FalsificationCriteria), NextValidation: i.NextValidation,
 		QualityFlags: flags,
 		CreatedAt:    i.CreatedAt.UTC().Format(time.RFC3339),
 	}
+}
+
+func nonNilStrings(values []string) []string {
+	if values == nil {
+		return []string{}
+	}
+	return values
+}
+func nonNilHypotheses(values []domain.CompetingHypothesis) []domain.CompetingHypothesis {
+	if values == nil {
+		return []domain.CompetingHypothesis{}
+	}
+	return values
 }
 
 type evidenceDTO struct {
