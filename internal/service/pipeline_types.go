@@ -196,15 +196,23 @@ func traceDetectionSchema() llm.Schema {
 // (LatentNeed) such that if H were true, C would be a matter of course
 // (Rationale explains that "if H then C is natural" step).
 type hypothesisCandidate struct {
-	Title                    string   `json:"title"`
-	StatedNeed               string   `json:"statedNeed"`
-	LatentNeed               string   `json:"latentNeed"`
-	JTBD                     string   `json:"jtbd"`
-	Expectation              string   `json:"expectation"`
-	SurprisingFact           string   `json:"surprisingFact"`
-	Rationale                string   `json:"rationale"`
-	SupportingObservationIDs []string `json:"supportingObservationIds"`
-	BasedOnPatternIDs        []string `json:"basedOnPatternIds"`
+	Title                    string                          `json:"title"`
+	StatedNeed               string                          `json:"statedNeed"`
+	LatentNeed               string                          `json:"latentNeed"`
+	JTBD                     string                          `json:"jtbd"`
+	Expectation              string                          `json:"expectation"`
+	SurprisingFact           string                          `json:"surprisingFact"`
+	Rationale                string                          `json:"rationale"`
+	SupportingObservationIDs []string                        `json:"supportingObservationIds"`
+	BasedOnPatternIDs        []string                        `json:"basedOnPatternIds"`
+	ExpectationBasis         string                          `json:"expectationBasis,omitempty"`
+	AlternativeExplanations  []domain.CompetingHypothesis    `json:"alternativeExplanations,omitempty"`
+	CandidateCausalStructure domain.CandidateCausalStructure `json:"candidateCausalStructure,omitempty"`
+	MissingEvidence          []string                        `json:"missingEvidence,omitempty"`
+	FalsificationCriteria    []string                        `json:"falsificationCriteria,omitempty"`
+	RequiredData             []string                        `json:"requiredData,omitempty"`
+	RequiredComparisons      []string                        `json:"requiredComparisons,omitempty"`
+	CandidateDesigns         []string                        `json:"candidateDesigns,omitempty"`
 }
 
 type hypothesisOutput struct {
@@ -231,6 +239,17 @@ func hypothesisSchema() llm.Schema {
 							"rationale":                map[string]any{"type": "string"},
 							"supportingObservationIds": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
 							"basedOnPatternIds":        map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+							"expectationBasis":         map[string]any{"type": "string", "enum": []string{"SOURCE_BACKED", "MODEL_PROPOSED", "UNKNOWN"}},
+							"alternativeExplanations":  map[string]any{"type": "array", "items": map[string]any{"type": "object", "properties": map[string]any{"title": map[string]any{"type": "string"}, "explanation": map[string]any{"type": "string"}}, "required": []string{"title", "explanation"}}},
+							"candidateCausalStructure": map[string]any{"type": "object", "properties": map[string]any{
+								"variables": map[string]any{"type": "array", "items": map[string]any{"type": "object", "properties": map[string]any{"id": map[string]any{"type": "string"}, "name": map[string]any{"type": "string"}, "role": map[string]any{"type": "string", "enum": []string{"EXPOSURE", "OUTCOME", "CONFOUNDER", "MEDIATOR", "COLLIDER", "UNKNOWN"}}, "status": map[string]any{"type": "string", "enum": []string{"PROPOSED", "SUPPORTED", "UNKNOWN"}}}, "required": []string{"id", "name", "role", "status"}}},
+								"relations": map[string]any{"type": "array", "items": map[string]any{"type": "object", "properties": map[string]any{"from": map[string]any{"type": "string"}, "to": map[string]any{"type": "string"}, "status": map[string]any{"type": "string", "enum": []string{"PROPOSED", "SUPPORTED", "UNKNOWN"}}}, "required": []string{"from", "to", "status"}}},
+							}},
+							"missingEvidence":       map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+							"falsificationCriteria": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+							"requiredData":          map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+							"requiredComparisons":   map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+							"candidateDesigns":      map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
 						},
 						"required": []string{"title", "latentNeed", "expectation", "surprisingFact", "rationale", "supportingObservationIds", "basedOnPatternIds"},
 					},

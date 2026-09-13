@@ -73,6 +73,7 @@ type Insight struct {
 	//   Rationale      - why, if LatentNeed were true, the surprising fact
 	//                    would become a matter of course
 	Expectation               string
+	ExpectationBasis          ExpectationBasis
 	SurprisingFact            string
 	Rationale                 string
 	Interpretation            string
@@ -80,6 +81,14 @@ type Insight struct {
 	ProductOpportunity        string
 	MonetizationAngle         string
 	Confidence                float64
+	CausalStatus              CausalStatus
+	ValidationStatus          ValidationStatus
+	IdentificationStatus      IdentificationStatus
+	CompetingHypotheses       []CompetingHypothesis
+	CausalStructure           CandidateCausalStructure
+	MissingEvidence           []string
+	FalsificationCriteria     []string
+	NextValidation            ValidationNeed
 	QualityFlags              []QualityFlag
 	Evidence                  []Evidence
 	CreatedAt                 time.Time

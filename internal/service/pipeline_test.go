@@ -135,7 +135,22 @@ func (f *fakeLLM) Generate(ctx context.Context, req llm.GenerateRequest) (*llm.G
 			"surprisingFact":"時間がかかると言いながら最後は自分で確認している",
 			"rationale":"失敗による信頼喪失を避けたい欲求があるなら、時間をかけてでも確認する行動は当然になる",
 			"supportingObservationIds":%s,
-			"basedOnPatternIds":%s
+			"basedOnPatternIds":%s,
+			"expectationBasis":"MODEL_PROPOSED",
+			"alternativeExplanations":[
+				{"title":"承認プロセス","explanation":"社内規則が手動確認を要求している可能性"},
+				{"title":"操作習慣","explanation":"単なる習慣である可能性"}
+			],
+			"candidateCausalStructure":{"variables":[
+				{"id":"x","name":"自動計算への信頼","role":"EXPOSURE","status":"PROPOSED"},
+				{"id":"y","name":"手動確認","role":"OUTCOME","status":"PROPOSED"},
+				{"id":"c","name":"承認規則","role":"CONFOUNDER","status":"PROPOSED"}
+			],"relations":[{"from":"c","to":"x","status":"PROPOSED"},{"from":"c","to":"y","status":"PROPOSED"},{"from":"x","to":"y","status":"PROPOSED"}]},
+			"missingEvidence":["承認規則の有無"],
+			"falsificationCriteria":["承認規則がない利用者も同じ確認行動を示す"],
+			"requiredData":["利用者別の承認規則"],
+			"requiredComparisons":["承認規則あり・なし"],
+			"candidateDesigns":["additional observational data"]
 		},{
 			"title":"安心して使いたい",
 			"statedNeed":"安心して使いたい",
@@ -328,6 +343,12 @@ func TestPipelineRunEndToEnd(t *testing.T) {
 	}
 	if insight.Confidence <= 0 || insight.Confidence > 1 {
 		t.Errorf("Confidence = %f, want in (0,1]", insight.Confidence)
+	}
+	if insight.CausalStatus != domain.CausalHypothesis || insight.IdentificationStatus != domain.IdentificationNotIdentified {
+		t.Errorf("association must remain causal hypothesis/not identified: %s, %s", insight.CausalStatus, insight.IdentificationStatus)
+	}
+	if insight.ExpectationBasis != domain.ExpectationModelProposed || len(insight.CompetingHypotheses) != 2 || len(insight.MissingEvidence) != 1 {
+		t.Errorf("causal context did not round-trip: %+v", insight)
 	}
 
 	// The reasoning trail: this insight's hypothesis must be traceable

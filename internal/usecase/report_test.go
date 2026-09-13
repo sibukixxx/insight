@@ -22,7 +22,10 @@ func TestRenderProjectMarkdownIncludesDecisionContextAndGroundedEvidence(t *test
 				Expectation: "不満なら解約する", SurprisingFact: "不満なのに利用を続けた",
 				Rationale: "履歴を失う方が怖いなら継続が自然になる", Confidence: .82,
 				ProductOpportunity: "解約前のデータ保管プラン", MonetizationAngle: "低価格の休眠プラン",
-				QualityFlags: []domain.QualityFlag{{Code: domain.QualityNoTrace, Detail: "要確認"}},
+				QualityFlags:     []domain.QualityFlag{{Code: domain.QualityNoTrace, Detail: "要確認"}},
+				ExpectationBasis: domain.ExpectationModelProposed, CausalStatus: domain.CausalHypothesis,
+				ValidationStatus: domain.ValidationPartiallySupported, IdentificationStatus: domain.IdentificationNotIdentified,
+				MissingEvidence: []string{"対照地域"}, FalsificationCriteria: []string{"対照地域も同じ増加を示す"},
 			},
 			Evidence: []*domain.Evidence{{DocumentID: documentID, Type: domain.EvidenceSupport, Quote: "不満だけど、履歴が消えるのは困る"}},
 		}},
@@ -37,6 +40,8 @@ func TestRenderProjectMarkdownIncludesDecisionContextAndGroundedEvidence(t *test
 		"**Product Opportunity:** 解約前のデータ保管プラン",
 		"`no_trace`: 要確認",
 		"**support / Interview 01**",
+		"**Identification status:** NOT\\_IDENTIFIED",
+		"not a probability that a causal claim is true",
 		"> 不満だけど、履歴が消えるのは困る",
 	} {
 		if !strings.Contains(got, want) {
