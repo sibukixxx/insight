@@ -21,8 +21,6 @@ This distinction is especially important for LLM-assisted analysis because langu
 
 A classic example is ice-cream sales and heatstroke. Both increase on hot days, but banning ice cream would not be expected to reduce heatstroke.
 
-A plausible causal structure is:
-
 ```text
         Hot weather
         /         \
@@ -32,112 +30,28 @@ Ice-cream sales  Heatstroke
 
 Hot weather is a common cause of both variables. This is an example of **confounding**.
 
-For Insight Lab, the analogous question is not only:
-
-> Did X and Y appear together?
-
-but also:
-
-> What other variable could explain both X and Y?
-
 ## 3. Observation versus intervention
 
-Ordinary observational analysis often asks about:
+Observational analysis often asks about `P(Y | X)`. Causal inference asks what would happen under an intervention, conceptually `P(Y | do(X))`.
 
-```text
-P(Y | X)
-```
-
-For example:
-
-> Among people who published specialist content, how often did customer demand increase?
-
-Causal inference asks a different question:
-
-```text
-P(Y | do(X))
-```
-
-Conceptually:
-
-> What would happen to Y if we intervened and changed X while leaving the relevant causal system otherwise comparable?
-
-The `do(X)` notation is associated with structural causal models. Insight Lab should not claim to estimate `P(Y | do(X))` merely because an LLM can describe a possible causal story.
+Insight Lab should not claim to estimate intervention effects merely because an LLM can describe a possible causal story.
 
 ## 4. Running example: specialist content and customer demand
 
-Consider a synthetic example inspired by an unusual customer-behavior story.
-
-A service worker has a legal-education background. Instead of publishing the kind of promotional content normally expected in that industry, the worker regularly publishes detailed legal commentary. Customers working in legal professions subsequently begin mentioning those articles and requesting that worker.
-
-Let:
+Consider a synthetic example: a service worker with legal education publishes detailed legal commentary instead of the promotional content normally expected in that industry. Customers working in legal professions subsequently begin mentioning those articles and requesting that worker.
 
 ```text
 X = publishing legal/specialist content
 Y = requests from customers in legal professions
 ```
 
-An observed sequence such as:
+The sequence `X occurs -> Y increases` is interesting but does not establish `X causes Y`.
 
-```text
-X occurs
-↓
-Y increases
-```
+Possible explanations include shared intellectual interest, differentiation, perceived expertise, search/SEO discovery, social-media exposure, an unrelated time trend, and pre-existing popularity. The observation is therefore a surprising fact worth explaining and testing, not causal proof.
 
-is interesting, but it does not by itself justify:
-
-```text
-X causes Y
-```
-
-Possible explanations include:
-
-1. shared intellectual interest,
-2. differentiation from competitors,
-3. perceived expertise or intelligence,
-4. search/SEO discovery,
-5. increased social-media exposure,
-6. an unrelated time trend,
-7. pre-existing popularity.
-
-The value of the observation is therefore not that it proves a causal effect. Its value is that it creates a **surprising observation worth explaining and testing**.
-
-## 5. Confounders
-
-Suppose social-media exposure (`S`) affects both specialist-content publication and customer requests.
-
-```text
-       S
-      / \
-     v   v
-     X   Y
-```
-
-If we also suspect `X -> Y`, the graph becomes:
-
-```text
-       S
-      / \
-     v   v
-     X -> Y
-```
-
-The path:
-
-```text
-X <- S -> Y
-```
-
-is a backdoor path. A naive comparison between X and Y can mix the effect of X with the effect of S.
-
-This is why causal inference is not simply a matter of putting every available variable into a statistical model. The assumed causal structure matters.
-
-## 6. DAGs
+## 5. DAGs
 
 A **Directed Acyclic Graph (DAG)** represents causal assumptions using directed arrows.
-
-Example:
 
 ```text
 Advertising -> Awareness -> Purchase
@@ -145,83 +59,142 @@ Advertising -> Awareness -> Purchase
 
 A DAG is not automatically discovered truth. It is a representation of assumptions that can be inspected, challenged, and combined with data.
 
-For Insight Lab, a future causal hypothesis should therefore be treated as something like:
+The role of a variable is determined by the arrows in the causal graph, not by the variable's name.
+
+## 6. Confounders
+
+A confounder is a common cause of the treatment/exposure and outcome.
 
 ```text
-candidate causal structure
-+ supporting evidence
-+ counter-evidence
-+ possible confounders
-+ missing evidence
+X <- C -> Y
 ```
 
-rather than as an automatically established causal graph.
+For example, if social-media popularity affects both specialist-content publication and customer requests:
 
-## 7. Potential outcomes and counterfactuals
+```text
+Specialist content <- Social-media popularity -> Customer requests
+```
 
-Another major framework describes causal effects using potential outcomes.
+then the path through social-media popularity can make X and Y appear related even when part of the association comes from C. This is a **backdoor path**.
 
-For a treatment `X`:
+For estimating the causal effect of X on Y, a genuine pre-treatment confounder is generally a variable we want to account for or block, subject to the assumptions of the design.
+
+## 7. Mediators
+
+A mediator lies on a causal pathway from X to Y.
+
+```text
+X -> M -> Y
+```
+
+Example:
+
+```text
+Specialist content
+    -> perceived intellectual expertise
+    -> customer requests
+```
+
+Whether to adjust for a mediator depends on the estimand.
+
+If the question is the **total effect** of specialist content on customer requests, adjusting away the mediator can remove part of the very effect we want to measure. If the question is a **direct effect** that excludes the mediated pathway, mediation requires a different analysis and stronger assumptions.
+
+Therefore a mediator is not simply another control variable.
+
+## 8. Colliders
+
+A collider is a variable caused by two other variables.
+
+```text
+X -> C <- Y
+```
+
+Example:
+
+```text
+Specialist content -> Goes viral <- Pre-existing popularity
+```
+
+If we condition on or select only cases where `Goes viral = true`, we can create a statistical relationship between specialist content and pre-existing popularity even when no such causal relationship existed before conditioning.
+
+This is **collider bias**.
+
+A useful medical-style example is:
+
+```text
+Smoking -> Hospitalization <- Infection
+```
+
+Analyzing only hospitalized people can induce a misleading association between smoking and infection because hospitalization is a common effect of both.
+
+The practical lesson is important: **controlling for every available variable can make causal analysis worse**.
+
+## 9. Confounder vs mediator vs collider
+
+For a target causal relationship `X -> Y`:
+
+```text
+Confounder: X <- C -> Y
+Mediator:   X -> M -> Y
+Collider:   X -> C <- Y
+```
+
+A compact memory rule is:
+
+- **Confounder:** a common cause of X and Y; usually something we want to block.
+- **Mediator:** a mechanism through which X reaches Y; treatment depends on whether we want total or direct effect.
+- **Collider:** a common effect; generally do not condition on it without a specific causal reason.
+
+In Japanese shorthand:
+
+> 交絡は塞ぎたい。媒介は目的次第。Collider は不用意に触らない。
+
+## 10. Backdoor paths
+
+Suppose the target is:
+
+```text
+Specialist content -> Customer requests
+```
+
+but social-media popularity creates:
+
+```text
+Specialist content <- Social-media popularity -> Customer requests
+```
+
+The second route enters X through an arrow pointing into X, so it is a backdoor path. If it remains open, the observed X-Y association can mix the proposed effect of X with the influence of social-media popularity.
+
+The next learning step is the **backdoor criterion**: how to choose an adjustment set that blocks problematic backdoor paths without accidentally conditioning on mediators or colliders.
+
+## 11. Potential outcomes and counterfactuals
+
+For treatment X:
 
 ```text
 Y(1) = outcome if treatment is applied
 Y(0) = outcome if treatment is not applied
 ```
 
-The individual causal effect would conceptually be:
+The individual causal effect is conceptually `Y(1) - Y(0)`. We cannot observe both worlds for the same unit at the same time. This missing counterfactual is the fundamental problem of causal inference.
 
-```text
-Y(1) - Y(0)
-```
+## 12. Average Treatment Effect (ATE)
 
-The fundamental problem is that, for the same unit at the same time, we cannot observe both worlds.
-
-If a person publishes specialist content, we observe the outcome in that world. We cannot simultaneously observe what would have happened to the identical person under identical conditions had they not published it.
-
-This missing counterfactual is the fundamental problem of causal inference.
-
-## 8. Average Treatment Effect (ATE)
-
-Across a population, a common estimand is the Average Treatment Effect:
+A common population estimand is:
 
 ```text
 ATE = E[Y(1)] - E[Y(0)]
 ```
 
-For example, if a valid design estimates:
+The arithmetic is simple; the difficult part is establishing a research design and assumptions that make the comparison meaningful.
 
-```text
-E[Y(1)] = 0.60
-E[Y(0)] = 0.40
-```
+## 13. Randomized experiments
 
-then:
-
-```text
-ATE = 0.20
-```
-
-This means an estimated average increase of 20 percentage points, not that every individual improves by 20 points.
-
-The arithmetic is easy. The difficult question is whether the design and assumptions allow `E[Y(1)]` and `E[Y(0)]` to be estimated meaningfully.
-
-## 9. Randomized experiments
-
-Randomized controlled trials are powerful because random assignment can make treatment and control groups comparable on both observed and, in expectation, unobserved pre-treatment factors.
-
-In a simple randomized experiment, an effect estimate may be just:
-
-```text
-mean(Y | treatment) - mean(Y | control)
-```
-
-The statistical calculation can therefore be simple while the research design is the important part.
-
-This leads to an important learning principle:
+Random assignment can make treatment and control groups comparable, in expectation, on pre-treatment factors. This illustrates an important principle:
 
 > In causal inference, the hardest problem is often not calculation but deciding whether a comparison is valid.
 
-## 10. Prediction versus causal inference
+## 14. Prediction versus causal inference
 
 Prediction asks:
 
@@ -231,87 +204,58 @@ Causal inference asks:
 
 > Which action would reduce churn?
 
-A machine-learning model might accurately predict that a customer has an 80% probability of churn without telling us whether a discount, onboarding intervention, support call, or product change would reduce that probability.
-
 Therefore:
 
 ```text
 Prediction != Intervention Effect
 ```
 
-This distinction is highly relevant to Insight Lab. Finding a pattern is not the same as finding an action that would change the outcome.
+A highly accurate predictive model does not by itself tell us which intervention will change the outcome.
 
-## 11. Association, intervention, counterfactual
+## 15. Association, intervention, counterfactual
 
-A useful conceptual progression is:
-
-### Association
-
-What tends to happen when X is observed?
+A useful progression is:
 
 ```text
-P(Y | X)
+Association    -> What happens when X is observed?
+Intervention   -> What would happen if X were deliberately changed?
+Counterfactual -> For this case, what would have happened if X had been different?
 ```
-
-### Intervention
-
-What would happen if X were deliberately changed?
-
-```text
-P(Y | do(X))
-```
-
-### Counterfactual
-
-For a specific observed case, what would have happened if X had been different?
 
 These questions require increasingly strong assumptions and evidence.
 
-## 12. Connection to Insight Lab's methodology
-
-The current direction for Insight Lab can be summarized as:
+## 16. Connection to Insight Lab's methodology
 
 ```text
 Data
-  ↓
-Observation
-  ↓
-Expectation
-  ↓
-Expectation Violation / Surprise
-  ↓
-Competing Hypotheses
-  ↓
-Supporting Evidence + Counter-Evidence
-  ↓
-Possible Confounders
-  ↓
-Falsification Criteria
-  ↓
-Validation Status
-  ↓
-Insight Candidate
+  -> Observation
+  -> Expectation
+  -> Expectation Violation / Surprise
+  -> Competing Hypotheses
+  -> Supporting Evidence + Counter-Evidence
+  -> Possible Confounders
+  -> Falsification Criteria
+  -> Validation Status
+  -> Insight Candidate
 ```
 
-Causal inference adds an important guardrail:
+Causal inference adds a guardrail:
 
 ```text
 Observation
-    ↓
-Association
-    ↓
-Candidate causal hypothesis
-    ↓
-Possible causal structures
-    ↓
-Confounders / alternative explanations
-    ↓
-Required evidence
-    ↓
-Causal status
+  -> Association
+  -> Candidate causal hypothesis
+  -> Candidate DAG / causal structures
+  -> Variable roles
+       - confounder
+       - mediator
+       - collider
+  -> Alternative explanations
+  -> Required evidence / identification strategy
+  -> Causal status
 ```
 
-When the available data cannot identify a causal effect, the scientifically useful result is:
+When available data cannot identify a causal effect, the scientifically useful result is:
 
 ```text
 CAUSAL STATUS: NOT IDENTIFIED
@@ -319,85 +263,85 @@ CAUSAL STATUS: NOT IDENTIFIED
 
 rather than a fabricated causal confidence score.
 
-## 13. Relationship to abductive reasoning
+An LLM-generated DAG must remain a **candidate causal structure**, not be presented as the true causal graph.
 
-Causal inference is not the whole Insight Lab methodology.
-
-A useful separation is:
+## 17. Relationship to abductive reasoning
 
 ```text
 Surprise detection
-    ↓
-Abduction
-"What could explain this?"
-    ↓
-Competing hypotheses
-    ↓
-Causal reasoning
-"Would changing X actually change Y?"
-    ↓
-Evidence / falsification
+    -> Abduction: "What could explain this?"
+    -> Competing hypotheses
+    -> Causal reasoning: "Would changing X actually change Y?"
+    -> Evidence / falsification
 ```
 
-Abduction helps generate explanations. Causal inference helps determine what would be required to distinguish association from intervention effects. Falsification asks what observations should weaken a hypothesis.
+Abduction generates explanations. Causal inference asks what evidence/design is required to distinguish association from intervention effects. Falsification asks what observations should weaken a hypothesis.
 
-These roles should remain separate in the implementation.
+## 18. Important scientific guardrails
 
-## 14. Important scientific guardrails
-
-Insight Lab should avoid the following claims unless the data and research design genuinely support them:
+Avoid the following unless the data and research design genuinely support them:
 
 - correlation proves causation,
 - temporal order alone proves causation,
 - an LLM-generated explanation is evidence,
 - an LLM-generated DAG is the true causal graph,
 - a numerical confidence score is a probability that a causal hypothesis is true,
-- adding more control variables always improves a causal estimate.
+- adding more control variables always improves a causal estimate,
+- conditioning on a post-treatment variable is automatically safe.
 
-The system should instead expose assumptions and uncertainty.
+## 19. From theory to dogfooding
 
-## 15. Concepts to study next
+The next stage should deliberately move from toy examples to reproducible public-data case studies.
 
-The next learning topics are:
+For each case:
 
-1. DAGs in more detail
-2. confounders
-3. colliders
-4. mediators
-5. backdoor paths and the backdoor criterion
-6. adjustment sets
-7. potential outcomes and identification
-8. propensity scores / matching
-9. instrumental variables
-10. regression discontinuity designs
-11. difference-in-differences
-12. heterogeneous treatment effects / CATE
-13. causal forests
-14. double/debiased machine learning
-15. causal discovery
-16. Bayesian approaches to uncertainty and causal modeling
+1. define the question and target causal relationship X -> Y,
+2. record what is directly observed,
+3. draw a small candidate DAG before fitting a model,
+4. classify important variables as pre-treatment confounder, mediator, collider, or unresolved,
+5. identify backdoor paths,
+6. state what adjustment seems justified and why,
+7. search for alternative explanations and counter-evidence,
+8. run the simplest useful analysis,
+9. distinguish the numerical result from the causal claim,
+10. state what remains `NOT IDENTIFIED`,
+11. document what additional data or design would strengthen identification.
 
-The immediate next step should be **confounder vs collider vs mediator**, because this explains why controlling for every available variable can make a causal analysis worse rather than better.
+The objective is not to force a surprising causal conclusion. A high-quality case study may conclude that a popular causal interpretation cannot be identified from the available public data.
 
-## 16. Current takeaway
+## 20. Concepts to study next
 
-The key lesson so far is:
+1. backdoor criterion and adjustment sets
+2. practical DAG exercises using real public datasets
+3. potential outcomes and identification
+4. propensity scores / matching
+5. instrumental variables
+6. regression discontinuity designs
+7. difference-in-differences
+8. heterogeneous treatment effects / CATE
+9. causal forests
+10. double/debiased machine learning
+11. causal discovery
+12. Bayesian approaches to uncertainty and causal modeling
 
-> Causal inference is less about producing a sophisticated number and more about making explicit what must be assumed before data can justify a statement about what would happen under an intervention.
+The immediate priority is now **practice**: use real public data to make the distinction between observation, causal assumptions, adjustment, and identification concrete. Study additional theory when a real case requires it.
 
-For Insight Lab, this means the goal should not be to make the LLM sound more certain. The goal should be to make the reasoning trail more inspectable:
+## 21. Current takeaway
+
+Causal inference is less about producing a sophisticated number and more about making explicit what must be assumed before data can justify a statement about what would happen under an intervention.
+
+The current practical rules are:
 
 ```text
-What did we observe?
-What did we expect?
-Why is the difference surprising?
-What explanations compete?
-What causal relationship is being proposed?
-What could confound it?
-What evidence supports or contradicts it?
-What would falsify it?
-What additional data would be required?
-What can we currently claim — and what can we not claim?
+Do not start with regression.
+Start with the causal question.
+Draw the DAG.
+Do not control for everything.
+Block genuine backdoor paths.
+Treat mediators according to the estimand.
+Do not casually condition on colliders.
+Separate association from intervention claims.
+Say NOT IDENTIFIED when the design cannot support causality.
 ```
 
-This is the scientific boundary that should guide future causal features in Insight Lab.
+For Insight Lab, the goal is not to make the LLM sound more certain. The goal is to make assumptions, competing explanations, evidence, counter-evidence, and the boundary of what can be claimed inspectable.
