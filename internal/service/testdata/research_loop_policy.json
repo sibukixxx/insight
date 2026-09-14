@@ -1,0 +1,8 @@
+{
+  "question": "Did the intervention cause the treated outcome to increase?",
+  "treated": {"before": 100, "after": 130},
+  "comparison": {"before": 200, "after": 240},
+  "hypotheses": ["treatment effect", "common external trend", "measurement or registration change"],
+  "missingEvidence": ["pre-period trend", "comparison quality", "exact treatment timing", "possible confounders"],
+  "expectedIdentification": "NOT_IDENTIFIED"
+}

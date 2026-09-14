@@ -29,6 +29,7 @@ type Repositories struct {
 	Analyses     repository.AnalysisRepository
 	Insights     repository.InsightRepository
 	Evidence     repository.EvidenceRepository
+	Research     repository.ResearchRepository
 }
 
 // Application implements synchronous user-facing use cases. Transport layers

@@ -11,6 +11,8 @@ For causal questions, Insight Lab compares candidate explanations and records wh
 
 Competing explanations are evaluated independently against supporting and counter-evidence and grouped by the surprising fact they attempt to explain.
 
+For append-only investigation history, structured research gaps, next-data requirements, and human novelty evaluation, see [Research Loop dogfooding](docs/research-loop.md).
+
 ## Quick start
 
 Requirements: Go 1.25 or later and an OpenAI-compatible API.

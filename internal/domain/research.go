@@ -7,14 +7,14 @@ import "time"
 type ResearchGapCategory string
 
 const (
-	ResearchGapConfounder          ResearchGapCategory = "CONFOUNDER"
-	ResearchGapComparison          ResearchGapCategory = "COMPARISON_CONTROL"
-	ResearchGapPrePeriod           ResearchGapCategory = "PRE_PERIOD"
-	ResearchGapTiming              ResearchGapCategory = "TIMING"
-	ResearchGapMeasurement         ResearchGapCategory = "MEASUREMENT"
-	ResearchGapExternalContext     ResearchGapCategory = "EXTERNAL_CONTEXT"
-	ResearchGapSourceQuality       ResearchGapCategory = "SOURCE_QUALITY"
-	ResearchGapOther               ResearchGapCategory = "OTHER"
+	ResearchGapConfounder      ResearchGapCategory = "CONFOUNDER"
+	ResearchGapComparison      ResearchGapCategory = "COMPARISON_CONTROL"
+	ResearchGapPrePeriod       ResearchGapCategory = "PRE_PERIOD"
+	ResearchGapTiming          ResearchGapCategory = "TIMING"
+	ResearchGapMeasurement     ResearchGapCategory = "MEASUREMENT"
+	ResearchGapExternalContext ResearchGapCategory = "EXTERNAL_CONTEXT"
+	ResearchGapSourceQuality   ResearchGapCategory = "SOURCE_QUALITY"
+	ResearchGapOther           ResearchGapCategory = "OTHER"
 )
 
 type ResearchGap struct {
@@ -55,22 +55,31 @@ type HypothesisChange struct {
 	Reason       string              `json:"reason"`
 }
 
+type HypothesisState struct {
+	HypothesisID         string               `json:"hypothesisId"`
+	ComparisonKey        string               `json:"comparisonKey"`
+	ValidationStatus     ValidationStatus     `json:"validationStatus"`
+	IdentificationStatus IdentificationStatus `json:"identificationStatus"`
+}
+
 // ResearchIteration is append-only research history. Callers create a new
 // value for re-analysis instead of mutating an earlier iteration.
 type ResearchIteration struct {
-	ID                    string             `json:"id"`
-	Sequence              int                `json:"sequence"`
-	Question              string             `json:"question"`
-	InputReferences       []string           `json:"inputReferences,omitempty"`
-	ObservationIDs        []string           `json:"observationIds,omitempty"`
-	SurpriseIDs           []string           `json:"surpriseIds,omitempty"`
-	HypothesisSetIDs      []string           `json:"hypothesisSetIds,omitempty"`
-	ResearchGaps          []ResearchGap      `json:"researchGaps,omitempty"`
-	DataRequirements      []DataRequirement  `json:"dataRequirements,omitempty"`
-	AddedEvidence         []string           `json:"addedEvidence,omitempty"`
-	HypothesisChanges     []HypothesisChange `json:"hypothesisChanges,omitempty"`
-	WhatWeCannotConclude  []string           `json:"whatWeCannotConclude,omitempty"`
-	CreatedAt             time.Time          `json:"createdAt"`
+	ID                   string             `json:"id"`
+	Sequence             int                `json:"sequence"`
+	Question             string             `json:"question"`
+	InputReferences      []string           `json:"inputReferences,omitempty"`
+	ObservationIDs       []string           `json:"observationIds,omitempty"`
+	SurpriseIDs          []string           `json:"surpriseIds,omitempty"`
+	HypothesisSetIDs     []string           `json:"hypothesisSetIds,omitempty"`
+	InsightIDs           []string           `json:"insightIds,omitempty"`
+	HypothesisStates     []HypothesisState  `json:"hypothesisStates,omitempty"`
+	ResearchGaps         []ResearchGap      `json:"researchGaps,omitempty"`
+	DataRequirements     []DataRequirement  `json:"dataRequirements,omitempty"`
+	AddedEvidence        []string           `json:"addedEvidence,omitempty"`
+	HypothesisChanges    []HypothesisChange `json:"hypothesisChanges,omitempty"`
+	WhatWeCannotConclude []string           `json:"whatWeCannotConclude,omitempty"`
+	CreatedAt            time.Time          `json:"createdAt"`
 }
 
 type ResearchRun struct {
@@ -114,4 +123,12 @@ type HumanEvaluation struct {
 	OverallUsefulness      int          `json:"overallUsefulness"`
 	Notes                  string       `json:"notes,omitempty"`
 	EvaluatedAt            time.Time    `json:"evaluatedAt"`
+}
+
+func (n HumanNovelty) Valid() bool {
+	switch n {
+	case NoveltyKnownAlready, NoveltyPartiallyNew, NoveltyNew, NoveltySurprising, NoveltyNotUseful:
+		return true
+	}
+	return false
 }

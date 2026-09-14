@@ -37,7 +37,7 @@ func TestHumanNoveltyRequiresExplicitHumanValue(t *testing.T) {
 func TestAssociationOnlyIterationCanStateNotIdentifiedBoundary(t *testing.T) {
 	iteration := ResearchIteration{
 		ID: "iter-1", Sequence: 1, Question: "did the policy cause the increase?",
-		ResearchGaps: []ResearchGap{{ID: "gap-control", Category: ResearchGapComparison, Need: "comparison trend", WhyItMatters: "the treated increase alone cannot identify the intervention effect", Resolvable: true}},
+		ResearchGaps:         []ResearchGap{{ID: "gap-control", Category: ResearchGapComparison, Need: "comparison trend", WhyItMatters: "the treated increase alone cannot identify the intervention effect", Resolvable: true}},
 		WhatWeCannotConclude: []string{"The observed post-policy increase does not by itself establish that the policy caused the increase."},
 	}
 	if len(iteration.ResearchGaps) == 0 || len(iteration.WhatWeCannotConclude) == 0 {

@@ -23,7 +23,11 @@ func BuildResearchIteration(sequence int, question string, inputReferences []str
 			continue
 		}
 		if insight.ID != "" {
-			iteration.ObservationIDs = append(iteration.ObservationIDs, insight.ID)
+			iteration.InsightIDs = append(iteration.InsightIDs, insight.ID)
+			iteration.HypothesisStates = append(iteration.HypothesisStates, domain.HypothesisState{
+				HypothesisID: insight.ID, ComparisonKey: hypothesisComparisonKey(insight), ValidationStatus: insight.ValidationStatus,
+				IdentificationStatus: insight.IdentificationStatus,
+			})
 		}
 		if strings.TrimSpace(insight.SurprisingFact) != "" {
 			iteration.SurpriseIDs = append(iteration.SurpriseIDs, insight.ID)
@@ -32,21 +36,20 @@ func BuildResearchIteration(sequence int, question string, inputReferences []str
 			seenSets[insight.HypothesisSetID] = true
 			iteration.HypothesisSetIDs = append(iteration.HypothesisSetIDs, insight.HypothesisSetID)
 		}
-		for n, missing := range insight.MissingEvidence {
+		for _, missing := range insight.MissingEvidence {
 			missing = strings.TrimSpace(missing)
 			if missing == "" {
 				continue
 			}
 			gap := ResearchGapFromMissingEvidence(
-				newID("gap"), domain.ResearchGapOther, missing,
+				newID("gap"), ClassifyResearchGap(missing), missing,
 				"This evidence is missing from the current hypothesis evaluation.", []string{insight.ID},
 			)
 			iteration.ResearchGaps = append(iteration.ResearchGaps, gap)
-			req, err := PlanDataRequirement(gap, nil, "", "unspecified")
+			req, err := PlanDataRequirementForGap(gap)
 			if err == nil {
 				iteration.DataRequirements = append(iteration.DataRequirements, req)
 			}
-			_ = n
 		}
 		if insight.IdentificationStatus == domain.IdentificationNotIdentified {
 			iteration.WhatWeCannotConclude = append(iteration.WhatWeCannotConclude,
@@ -56,4 +59,52 @@ func BuildResearchIteration(sequence int, question string, inputReferences []str
 
 	sort.Strings(iteration.HypothesisSetIDs)
 	return iteration
+}
+
+// CompareHypothesisStates describes evidence/validation history. It never
+// changes causal or identification status and does not express probability.
+func CompareHypothesisStates(previous []domain.HypothesisState, current []domain.HypothesisState) []domain.HypothesisChange {
+	old := make(map[string]domain.HypothesisState, len(previous))
+	for _, state := range previous {
+		old[stateKey(state)] = state
+	}
+	changes := make([]domain.HypothesisChange, 0, len(current))
+	for _, state := range current {
+		prior, exists := old[stateKey(state)]
+		evolution := domain.HypothesisCreated
+		reason := "hypothesis first appears in this iteration"
+		if exists {
+			evolution, reason = validationEvolution(prior.ValidationStatus, state.ValidationStatus)
+		}
+		changes = append(changes, domain.HypothesisChange{HypothesisID: state.HypothesisID, Evolution: evolution, Reason: reason})
+	}
+	return changes
+}
+
+func hypothesisComparisonKey(insight *domain.Insight) string {
+	return strings.ToLower(strings.Join(strings.Fields(insight.Title), " "))
+}
+
+func stateKey(state domain.HypothesisState) string {
+	if state.ComparisonKey != "" {
+		return state.ComparisonKey
+	}
+	return state.HypothesisID
+}
+
+func validationEvolution(before, after domain.ValidationStatus) (domain.HypothesisEvolution, string) {
+	if before == after {
+		return domain.HypothesisUnchanged, "validation status is unchanged"
+	}
+	if after == domain.ValidationContradicted {
+		return domain.HypothesisContradicted, "new evaluation is contradicted by evidence"
+	}
+	rank := map[domain.ValidationStatus]int{
+		domain.ValidationUntested: 0, domain.ValidationInsufficientEvidence: 1,
+		domain.ValidationPlausible: 2, domain.ValidationPartiallySupported: 3, domain.ValidationSupported: 4,
+	}
+	if rank[after] > rank[before] {
+		return domain.HypothesisStrengthened, "validation status gained evidence support"
+	}
+	return domain.HypothesisWeakened, "validation status lost evidence support"
 }

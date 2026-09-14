@@ -30,6 +30,7 @@ func Run(ctx context.Context, cfg *Config) error {
 	analyses := sqlite.NewAnalysisRepository(db)
 	insights := sqlite.NewInsightRepository(db)
 	evidence := sqlite.NewEvidenceRepository(db)
+	research := sqlite.NewResearchRepository(db)
 
 	demoLoader := &service.DemoLoader{Projects: projects, Documents: documents}
 	if cfg.Demo {
@@ -56,7 +57,7 @@ func Run(ctx context.Context, cfg *Config) error {
 	jobManager.Start(ctx, analysisWorkers)
 	application := usecase.New(usecase.Repositories{
 		Projects: projects, Documents: documents, Observations: observations, Patterns: patterns,
-		Analyses: analyses, Insights: insights, Evidence: evidence,
+		Analyses: analyses, Insights: insights, Evidence: evidence, Research: research,
 	})
 
 	router := httpapi.NewRouter(httpapi.Deps{

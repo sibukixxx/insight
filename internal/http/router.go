@@ -65,7 +65,18 @@ func NewRouter(deps Deps) http.Handler {
 				r.Get("/patterns", h.ListPatterns)
 				r.Get("/evaluation", h.GetEvaluation)
 				r.Get("/report.md", h.ExportProjectReport)
+				r.Get("/research-runs", h.ListResearchRuns)
+				r.Post("/research-runs", h.CreateResearchRun)
 			})
+		})
+
+		r.Get("/research-runs/{runID}", h.GetResearchRun)
+		r.Route("/research-runs/{runID}", func(r chi.Router) {
+			r.Post("/iterations", h.AppendResearchIteration)
+			r.Get("/iterations/{iterationID}", h.GetResearchIteration)
+			r.Get("/iterations/{iterationID}/evaluation", h.GetHumanEvaluation)
+			r.Put("/iterations/{iterationID}/evaluation", h.SaveHumanEvaluation)
+			r.Get("/report.md", h.ExportResearchReport)
 		})
 
 		r.Get("/documents/{documentID}", h.GetDocument)
