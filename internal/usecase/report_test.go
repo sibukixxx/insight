@@ -77,3 +77,14 @@ func TestRenderProjectMarkdownComparesHypothesisSet(t *testing.T) {
 		}
 	}
 }
+
+func TestResearchReportShowsGapsRequirementsLimitsHistoryAndHumanEvaluation(t *testing.T) {
+	it := domain.ResearchIteration{ID: "it1", Sequence: 1, InputReferences: []string{"synthetic.csv"}, ResearchGaps: []domain.ResearchGap{{Category: domain.ResearchGapComparison, Need: "comparison trend", WhyItMatters: "common trend remains possible"}}, DataRequirements: []domain.DataRequirement{{Need: "comparison outcomes", Reason: "test common trend", RequiredDimensions: []string{"group", "year"}, SuggestedSourceCategory: "comparison dataset"}}, WhatWeCannotConclude: []string{"causal treatment effect is not identified"}}
+	report := ProjectReport{Project: &domain.Project{Name: "Policy"}, ResearchRun: &domain.ResearchRun{Question: "Did policy cause the increase?", Iterations: []domain.ResearchIteration{it}}, HumanEvaluations: map[string]*domain.HumanEvaluation{"it1": {Novelty: domain.NoveltyNew, OverallUsefulness: 4}}, GeneratedAt: time.Unix(0, 0)}
+	got := string(renderProjectMarkdown(report))
+	for _, want := range []string{"## Research Question", "## Research Gaps", "COMPARISON_CONTROL", "## Next Data Requirements", "## What We Cannot Conclude", "causal treatment effect is not identified", "## Iteration History", "## Human Evaluation", "novelty `NEW`"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("research report missing %q:\n%s", want, got)
+		}
+	}
+}

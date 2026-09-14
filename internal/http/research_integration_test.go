@@ -1,0 +1,102 @@
+package httpapi_test
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"insight-lab/internal/domain"
+	httpapi "insight-lab/internal/http"
+	"insight-lab/internal/repository/sqlite"
+	"insight-lab/internal/usecase"
+)
+
+func TestResearchHTTPDogfoodPathPersistsHumanEvaluationAndReport(t *testing.T) {
+	db, err := sqlite.Open(filepath.Join(t.TempDir(), "http.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	projects, documents := sqlite.NewProjectRepository(db), sqlite.NewDocumentRepository(db)
+	observations, patterns := sqlite.NewObservationRepository(db), sqlite.NewPatternRepository(db)
+	analyses, insights, evidence := sqlite.NewAnalysisRepository(db), sqlite.NewInsightRepository(db), sqlite.NewEvidenceRepository(db)
+	research := sqlite.NewResearchRepository(db)
+	now := time.Now().UTC()
+	ctx := context.Background()
+	if err := projects.Create(ctx, &domain.Project{ID: "p1", Name: "Synthetic policy", CreatedAt: now}); err != nil {
+		t.Fatal(err)
+	}
+	if err := analyses.Create(ctx, &domain.Analysis{ID: "a1", ProjectID: "p1", Status: domain.AnalysisCompleted, CreatedAt: now}); err != nil {
+		t.Fatal(err)
+	}
+	analysisID := "a1"
+	for n, title := range []string{"Treatment effect", "Common external trend", "Measurement change"} {
+		if err := insights.Create(ctx, &domain.Insight{ID: "h" + string(rune('1'+n)), ProjectID: "p1", AnalysisID: &analysisID, Title: title, SurprisingFact: "treated and comparison outcomes increased", HypothesisSetID: "set1", MissingEvidence: []string{"pre-period trend", "comparison quality"}, ValidationStatus: domain.ValidationInsufficientEvidence, IdentificationStatus: domain.IdentificationNotIdentified, CreatedAt: now}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	app := usecase.New(usecase.Repositories{Projects: projects, Documents: documents, Observations: observations, Patterns: patterns, Analyses: analyses, Insights: insights, Evidence: evidence, Research: research})
+	router := httpapi.NewRouter(httpapi.Deps{App: app})
+
+	create := httptest.NewRequest(http.MethodPost, "/api/projects/p1/research-runs", bytes.NewBufferString(`{"question":"Did treatment cause the increase?","inputReferences":["synthetic.csv"]}`))
+	create.Header.Set("content-type", "application/json")
+	created := httptest.NewRecorder()
+	router.ServeHTTP(created, create)
+	if created.Code != http.StatusCreated {
+		t.Fatalf("create run: %d %s", created.Code, created.Body.String())
+	}
+	var run domain.ResearchRun
+	if err := json.Unmarshal(created.Body.Bytes(), &run); err != nil {
+		t.Fatal(err)
+	}
+	if len(run.Iterations) != 1 || len(run.Iterations[0].ResearchGaps) == 0 {
+		t.Fatalf("research projection missing: %+v", run)
+	}
+
+	evaluationBody := `{"observationGrounding":4,"surpriseUsefulness":4,"hypothesisDiversity":5,"counterEvidenceQuality":3,"missingEvidenceQuality":4,"identificationHonesty":5,"nextDataUsefulness":4,"novelty":"NEW","overallUsefulness":4}`
+	evalURL := "/api/research-runs/" + run.ID + "/iterations/" + run.Iterations[0].ID + "/evaluation"
+	evalReq := httptest.NewRequest(http.MethodPut, evalURL, bytes.NewBufferString(evaluationBody))
+	evalReq.Header.Set("content-type", "application/json")
+	evalResp := httptest.NewRecorder()
+	router.ServeHTTP(evalResp, evalReq)
+	if evalResp.Code != http.StatusOK {
+		t.Fatalf("save evaluation: %d %s", evalResp.Code, evalResp.Body.String())
+	}
+
+	iterateReq := httptest.NewRequest(http.MethodPost, "/api/research-runs/"+run.ID+"/iterations", bytes.NewBufferString(`{"inputReferences":["comparison.csv"],"addedEvidence":["untreated comparison outcomes"]}`))
+	iterateReq.Header.Set("content-type", "application/json")
+	iterateResp := httptest.NewRecorder()
+	router.ServeHTTP(iterateResp, iterateReq)
+	if iterateResp.Code != http.StatusCreated {
+		t.Fatalf("append iteration: %d %s", iterateResp.Code, iterateResp.Body.String())
+	}
+	var second domain.ResearchIteration
+	if err := json.Unmarshal(iterateResp.Body.Bytes(), &second); err != nil {
+		t.Fatal(err)
+	}
+	if second.Sequence != 2 || len(second.AddedEvidence) != 1 || len(second.HypothesisChanges) != 3 {
+		t.Fatalf("iteration history not auditable: %+v", second)
+	}
+	persisted, err := research.GetResearchRun(ctx, run.ID)
+	if err != nil || len(persisted.Iterations) != 2 || persisted.Iterations[0].ID != run.Iterations[0].ID {
+		t.Fatalf("prior iteration was not preserved: %+v %v", persisted, err)
+	}
+
+	reportReq := httptest.NewRequest(http.MethodGet, "/api/research-runs/"+run.ID+"/report.md", nil)
+	reportResp := httptest.NewRecorder()
+	router.ServeHTTP(reportResp, reportReq)
+	if reportResp.Code != http.StatusOK {
+		t.Fatalf("report: %d %s", reportResp.Code, reportResp.Body.String())
+	}
+	for _, want := range []string{"Research Gaps", "What We Cannot Conclude", "novelty `NEW`"} {
+		if !strings.Contains(reportResp.Body.String(), want) {
+			t.Errorf("report missing %q", want)
+		}
+	}
+}

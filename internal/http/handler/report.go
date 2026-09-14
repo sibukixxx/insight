@@ -25,3 +25,19 @@ func (h *Handler) ExportProjectReport(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(report)
 }
+
+func (h *Handler) ExportResearchReport(w http.ResponseWriter, r *http.Request) {
+	report, err := h.App.ExportResearchMarkdown(r.Context(), chi.URLParam(r, "runID"))
+	if err != nil {
+		status := http.StatusInternalServerError
+		if errors.Is(err, usecase.ErrNotFound) {
+			status = http.StatusNotFound
+		}
+		writeError(w, status, err.Error())
+		return
+	}
+	w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
+	w.Header().Set("Content-Disposition", `attachment; filename="research-report.md"`)
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(report)
+}
