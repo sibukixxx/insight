@@ -58,3 +58,22 @@ func TestRenderProjectMarkdownHandlesNoInsights(t *testing.T) {
 		t.Fatalf("unexpected empty report: %s", got)
 	}
 }
+
+func TestRenderProjectMarkdownComparesHypothesisSet(t *testing.T) {
+	report := ProjectReport{
+		Project: &domain.Project{Name: "Policy"},
+		Insights: []*InsightDetail{
+			{Insight: &domain.Insight{Title: "Policy effect", SurprisingFact: "designations rose", HypothesisSetID: "hset_1", HypothesisRole: domain.HypothesisPrimary, ValidationStatus: domain.ValidationPlausible, IdentificationStatus: domain.IdentificationNotIdentified, MissingEvidence: []string{"control regions"}}, Evidence: []*domain.Evidence{{Type: domain.EvidenceSupport}}},
+			{Insight: &domain.Insight{Title: "Population inflow", SurprisingFact: "designations rose", HypothesisSetID: "hset_1", HypothesisRole: domain.HypothesisCompeting, ValidationStatus: domain.ValidationInsufficientEvidence, IdentificationStatus: domain.IdentificationNotIdentified}, Evidence: []*domain.Evidence{{Type: domain.EvidenceCounter}}},
+			{Insight: &domain.Insight{Title: "Registration artifact", SurprisingFact: "designations rose", HypothesisSetID: "hset_1", HypothesisRole: domain.HypothesisCompeting, ValidationStatus: domain.ValidationUntested, IdentificationStatus: domain.IdentificationNotIdentified}},
+		},
+		GeneratedAt: time.Unix(0, 0),
+	}
+
+	got := string(renderProjectMarkdown(report))
+	for _, want := range []string{"## Competing hypothesis comparison", "| PRIMARY | Policy effect", "| COMPETING | Population inflow", "| COMPETING | Registration artifact", "| 1 | 0 | 1 |"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("comparison report does not contain %q:\n%s", want, got)
+		}
+	}
+}

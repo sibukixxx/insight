@@ -9,6 +9,8 @@ Every insight is linked to verified source quotes, counter-evidence, and an appl
 
 For causal questions, Insight Lab compares candidate explanations and records what is missing. It does not let model prose or a high confidence score prove causality: the current pipeline reports causal hypotheses as `NOT_IDENTIFIED` until an appropriate external research design supplies stronger evidence. See [causal reasoning semantics](docs/causal-reasoning.md).
 
+Competing explanations are evaluated independently against supporting and counter-evidence and grouped by the surprising fact they attempt to explain.
+
 ## Quick start
 
 Requirements: Go 1.25 or later and an OpenAI-compatible API.

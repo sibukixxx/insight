@@ -125,6 +125,7 @@ func (p *Pipeline) Run(ctx context.Context, analysisID, projectID string, progre
 	if err != nil {
 		return nil, fmt.Errorf("hypothesis generation: %w", err)
 	}
+	hypotheses = expandCompetingHypotheses(hypotheses)
 
 	patternsByID := indexPatterns(patterns)
 	docByID := indexDocuments(docs)
@@ -142,6 +143,9 @@ func (p *Pipeline) Run(ctx context.Context, analysisID, projectID string, progre
 		writeup, err := p.writeupInsight(ctx, h, supporting, counter)
 		if err != nil {
 			return nil, fmt.Errorf("insight writeup (%s): %w", h.Title, err)
+		}
+		if h.HypothesisRole == domain.HypothesisCompeting {
+			writeup.Title = h.Title
 		}
 
 		drafts = append(drafts, draftInsight{
@@ -217,6 +221,7 @@ func (p *Pipeline) persistInsights(ctx context.Context, analysisID, projectID st
 			ExpectationBasis: expectationBasis(d.hypothesis.ExpectationBasis),
 			Interpretation:   d.writeup.Interpretation, AlternativeInterpretation: d.writeup.AlternativeInterpretation,
 			ProductOpportunity: d.writeup.ProductOpportunity, MonetizationAngle: d.writeup.MonetizationAngle,
+			HypothesisSetID: d.hypothesis.HypothesisSetID, HypothesisRole: d.hypothesis.HypothesisRole,
 			CompetingHypotheses:   d.hypothesis.AlternativeExplanations,
 			CausalStructure:       d.hypothesis.CandidateCausalStructure,
 			MissingEvidence:       d.hypothesis.MissingEvidence,
@@ -276,6 +281,12 @@ func (p *Pipeline) persistInsights(ctx context.Context, analysisID, projectID st
 			Expectation: insight.Expectation, SurprisingFact: insight.SurprisingFact,
 			Patterns: citedPatterns,
 		})
+		if d.hypothesis.HypothesisSetSize < 3 {
+			insight.QualityFlags = append(insight.QualityFlags, domain.QualityFlag{
+				Code:   domain.QualityInsufficientCompetition,
+				Detail: "fewer than three explanations were independently evaluated",
+			})
+		}
 
 		if err := p.Insights.Create(ctx, insight); err != nil {
 			return fmt.Errorf("save insight: %w", err)

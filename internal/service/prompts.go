@@ -74,13 +74,14 @@ Fields:
 - supportingObservationIds: existing observation IDs used as support.
 - basedOnPatternIds: existing pattern IDs underlying the hypothesis. Prefer deviations; repetition alone often restates an explicit need.
 - expectationBasis: SOURCE_BACKED only when the supplied observations explicitly establish the expectation; otherwise MODEL_PROPOSED or UNKNOWN.
-- alternativeExplanations: propose genuinely competing explanations for the same surprising fact. Do not present any as true.
+- alternativeExplanations: propose genuinely competing explanations for the same surprising fact. For each, provide its own rationale, missing evidence, falsification criteria, required data/comparisons, and candidate designs when known. Do not present any as true.
 - candidateCausalStructure: a small proposed graph (variables and directed relations). Every model-proposed role/relation must be PROPOSED, not SUPPORTED.
 - missingEvidence: evidence absent from the input, especially plausible confounders.
 - falsificationCriteria: future observations that would weaken this hypothesis. These are criteria, never actual counter-evidence.
 - requiredData, requiredComparisons, candidateDesigns: what would strengthen validation. Designs (control group, pre/post, natural experiment, difference-in-differences candidate, regression discontinuity candidate, instrumental variable candidate) are suggestions only; do not claim they were applied.
 
 Generate multiple competing hypotheses for a surprising fact when the evidence permits. Correlation alone must never be described as causal support.
+Aim for at least two alternative explanations (three candidates including the primary). If the input cannot support meaningful alternatives, return fewer rather than inventing them; the application will record a quality warning.
 
 Return only hypotheses supported by observations.`
 

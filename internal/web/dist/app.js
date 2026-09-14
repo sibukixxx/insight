@@ -58,6 +58,10 @@
       label: "Incomplete reasoning",
       desc: "The expected behavior or surprising fact is missing, so the reader cannot audit the expectation-to-deviation-to-hypothesis chain.",
     },
+    insufficient_competing_hypotheses: {
+      label: "Too few competing explanations",
+      desc: "Fewer than three explanations were independently checked for this surprising fact. Consider plausible alternatives before deciding.",
+    },
   };
 
   function qualityBadgesHTML(flags, { withDesc = false } = {}) {

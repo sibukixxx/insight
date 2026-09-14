@@ -20,7 +20,8 @@ func NewInsightRepository(db *DB) *InsightRepository {
 const insightColumns = `id, project_id, analysis_id, title, observation, stated_need, latent_need, jtbd,
 	 expectation, surprising_fact, rationale, interpretation, alternative_interpretation,
 	 product_opportunity, monetization_angle, confidence, quality_flags, expectation_basis,
-	 causal_status, validation_status, identification_status, causal_context, created_at`
+	 causal_status, validation_status, identification_status, causal_context,
+	 hypothesis_set_id, hypothesis_role, created_at`
 
 type causalContext struct {
 	CompetingHypotheses   []domain.CompetingHypothesis    `json:"competingHypotheses"`
@@ -41,13 +42,14 @@ func (r *InsightRepository) Create(ctx context.Context, insight *domain.Insight)
 	}
 	_, err = r.db.ExecContext(ctx,
 		`INSERT INTO insights (`+insightColumns+`)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		insight.ID, insight.ProjectID, nullableString(insight.AnalysisID), insight.Title, insight.Observation,
 		insight.StatedNeed, insight.LatentNeed, insight.JTBD,
 		nullableStringLiteral(insight.Expectation), nullableStringLiteral(insight.SurprisingFact), insight.Rationale,
 		insight.Interpretation, insight.AlternativeInterpretation, insight.ProductOpportunity, insight.MonetizationAngle,
 		insight.Confidence, flags, insight.ExpectationBasis, insight.CausalStatus, insight.ValidationStatus,
-		insight.IdentificationStatus, string(contextJSON), formatTime(insight.CreatedAt))
+		insight.IdentificationStatus, string(contextJSON), nullableStringLiteral(insight.HypothesisSetID),
+		insight.HypothesisRole, formatTime(insight.CreatedAt))
 	return err
 }
 
@@ -99,11 +101,12 @@ func encodeQualityFlags(flags []domain.QualityFlag) (any, error) {
 func scanInsight(s scanner) (*domain.Insight, error) {
 	var i domain.Insight
 	var createdAt string
-	var analysisID, expectation, surprisingFact, rationale, monetizationAngle, qualityFlags, causalContextJSON sql.NullString
+	var analysisID, expectation, surprisingFact, rationale, monetizationAngle, qualityFlags, causalContextJSON, hypothesisSetID sql.NullString
 	if err := s.Scan(&i.ID, &i.ProjectID, &analysisID, &i.Title, &i.Observation, &i.StatedNeed, &i.LatentNeed,
 		&i.JTBD, &expectation, &surprisingFact, &rationale, &i.Interpretation, &i.AlternativeInterpretation,
 		&i.ProductOpportunity, &monetizationAngle, &i.Confidence, &qualityFlags, &i.ExpectationBasis,
-		&i.CausalStatus, &i.ValidationStatus, &i.IdentificationStatus, &causalContextJSON, &createdAt); err != nil {
+		&i.CausalStatus, &i.ValidationStatus, &i.IdentificationStatus, &causalContextJSON,
+		&hypothesisSetID, &i.HypothesisRole, &createdAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, repository.ErrNotFound
 		}
@@ -117,6 +120,7 @@ func scanInsight(s scanner) (*domain.Insight, error) {
 	i.SurprisingFact = surprisingFact.String
 	i.Rationale = rationale.String
 	i.MonetizationAngle = monetizationAngle.String
+	i.HypothesisSetID = hypothesisSetID.String
 	if qualityFlags.Valid && qualityFlags.String != "" {
 		if err := json.Unmarshal([]byte(qualityFlags.String), &i.QualityFlags); err != nil {
 			return nil, fmt.Errorf("decode quality flags for %s: %w", i.ID, err)

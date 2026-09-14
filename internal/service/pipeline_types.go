@@ -213,6 +213,9 @@ type hypothesisCandidate struct {
 	RequiredData             []string                        `json:"requiredData,omitempty"`
 	RequiredComparisons      []string                        `json:"requiredComparisons,omitempty"`
 	CandidateDesigns         []string                        `json:"candidateDesigns,omitempty"`
+	HypothesisSetID          string                          `json:"-"`
+	HypothesisRole           domain.HypothesisRole           `json:"-"`
+	HypothesisSetSize        int                             `json:"-"`
 }
 
 type hypothesisOutput struct {
@@ -240,7 +243,12 @@ func hypothesisSchema() llm.Schema {
 							"supportingObservationIds": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
 							"basedOnPatternIds":        map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
 							"expectationBasis":         map[string]any{"type": "string", "enum": []string{"SOURCE_BACKED", "MODEL_PROPOSED", "UNKNOWN"}},
-							"alternativeExplanations":  map[string]any{"type": "array", "items": map[string]any{"type": "object", "properties": map[string]any{"title": map[string]any{"type": "string"}, "explanation": map[string]any{"type": "string"}}, "required": []string{"title", "explanation"}}},
+							"alternativeExplanations": map[string]any{"type": "array", "items": map[string]any{"type": "object", "properties": map[string]any{
+								"title": map[string]any{"type": "string"}, "explanation": map[string]any{"type": "string"}, "rationale": map[string]any{"type": "string"},
+								"missingEvidence": map[string]any{"type": "array", "items": map[string]any{"type": "string"}}, "falsificationCriteria": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+								"requiredData": map[string]any{"type": "array", "items": map[string]any{"type": "string"}}, "requiredComparisons": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+								"candidateDesigns": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+							}, "required": []string{"title", "explanation"}}},
 							"candidateCausalStructure": map[string]any{"type": "object", "properties": map[string]any{
 								"variables": map[string]any{"type": "array", "items": map[string]any{"type": "object", "properties": map[string]any{"id": map[string]any{"type": "string"}, "name": map[string]any{"type": "string"}, "role": map[string]any{"type": "string", "enum": []string{"EXPOSURE", "OUTCOME", "CONFOUNDER", "MEDIATOR", "COLLIDER", "UNKNOWN"}}, "status": map[string]any{"type": "string", "enum": []string{"PROPOSED", "SUPPORTED", "UNKNOWN"}}}, "required": []string{"id", "name", "role", "status"}}},
 								"relations": map[string]any{"type": "array", "items": map[string]any{"type": "object", "properties": map[string]any{"from": map[string]any{"type": "string"}, "to": map[string]any{"type": "string"}, "status": map[string]any{"type": "string", "enum": []string{"PROPOSED", "SUPPORTED", "UNKNOWN"}}}, "required": []string{"from", "to", "status"}}},

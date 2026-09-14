@@ -27,6 +27,8 @@ type insightDTO struct {
 	ProductOpportunity        string                          `json:"productOpportunity"`
 	MonetizationAngle         string                          `json:"monetizationAngle"`
 	Confidence                float64                         `json:"confidence"`
+	HypothesisSetID           string                          `json:"hypothesisSetId"`
+	HypothesisRole            domain.HypothesisRole           `json:"hypothesisRole"`
 	ExpectationBasis          domain.ExpectationBasis         `json:"expectationBasis"`
 	CausalStatus              domain.CausalStatus             `json:"causalStatus"`
 	ValidationStatus          domain.ValidationStatus         `json:"validationStatus"`
@@ -59,6 +61,7 @@ func toInsightDTO(i *domain.Insight) insightDTO {
 		Expectation: i.Expectation, SurprisingFact: i.SurprisingFact, Rationale: i.Rationale,
 		Interpretation: i.Interpretation, AlternativeInterpretation: i.AlternativeInterpretation,
 		ProductOpportunity: i.ProductOpportunity, MonetizationAngle: i.MonetizationAngle, Confidence: i.Confidence,
+		HypothesisSetID: i.HypothesisSetID, HypothesisRole: i.HypothesisRole,
 		ExpectationBasis: i.ExpectationBasis, CausalStatus: i.CausalStatus, ValidationStatus: i.ValidationStatus,
 		IdentificationStatus: i.IdentificationStatus, CompetingHypotheses: nonNilHypotheses(i.CompetingHypotheses),
 		CausalStructure: i.CausalStructure, MissingEvidence: nonNilStrings(i.MissingEvidence),

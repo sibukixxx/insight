@@ -91,3 +91,26 @@ func TestCompetingHypothesesRemainCandidates(t *testing.T) {
 		t.Fatal("competing explanations must remain unproven candidates")
 	}
 }
+
+func TestExpandCompetingHypothesesCreatesIndependentCandidates(t *testing.T) {
+	input := []hypothesisCandidate{{
+		Title: "policy", LatentNeed: "policy effect", SurprisingFact: "designations rose",
+		CandidateCausalStructure: domain.CandidateCausalStructure{Variables: []domain.CausalVariable{{ID: "x"}}},
+		MissingEvidence:          []string{"policy timing"},
+		AlternativeExplanations: []domain.CompetingHypothesis{
+			{Title: "population", Explanation: "population inflow", MissingEvidence: []string{"migration data"}},
+			{Title: "artifact", Explanation: "registration change", RequiredData: []string{"schema history"}},
+		},
+	}}
+
+	got := expandCompetingHypotheses(input)
+	if len(got) != 3 || got[0].HypothesisRole != domain.HypothesisPrimary || got[1].HypothesisRole != domain.HypothesisCompeting {
+		t.Fatalf("unexpected expansion: %+v", got)
+	}
+	if got[0].HypothesisSetID == "" || got[0].HypothesisSetID != got[1].HypothesisSetID || got[0].HypothesisSetSize != 3 {
+		t.Fatalf("candidates must share a three-item set: %+v", got)
+	}
+	if len(got[1].CandidateCausalStructure.Variables) != 0 || len(got[1].MissingEvidence) != 1 || got[1].MissingEvidence[0] != "migration data" {
+		t.Fatalf("alternative must not inherit primary-specific causal claims: %+v", got[1])
+	}
+}

@@ -274,8 +274,8 @@ func TestPipelineRunEndToEnd(t *testing.T) {
 		t.Errorf("UnsupportedClaimRate = %f, want %f", metrics.UnsupportedClaimRate, wantRate)
 	}
 
-	if metrics.FinalInsightCount != 2 {
-		t.Fatalf("FinalInsightCount = %d, want 2", metrics.FinalInsightCount)
+	if metrics.FinalInsightCount != 4 {
+		t.Fatalf("FinalInsightCount = %d, want 4", metrics.FinalInsightCount)
 	}
 	if metrics.EvidenceCoverage != 1.0 {
 		t.Errorf("EvidenceCoverage = %f, want 1.0", metrics.EvidenceCoverage)
@@ -287,11 +287,14 @@ func TestPipelineRunEndToEnd(t *testing.T) {
 	if metrics.PatternCount != 2 || metrics.TraceCount != 1 {
 		t.Errorf("PatternCount = %d, TraceCount = %d, want 2 and 1", metrics.PatternCount, metrics.TraceCount)
 	}
-	if metrics.TraceBackedInsightRate != 0.5 {
-		t.Errorf("TraceBackedInsightRate = %f, want 0.5 (one of two insights cites a trace)", metrics.TraceBackedInsightRate)
+	if metrics.TraceBackedInsightRate != 0.75 {
+		t.Errorf("TraceBackedInsightRate = %f, want 0.75 (three candidates cite a trace)", metrics.TraceBackedInsightRate)
 	}
-	if metrics.QualityFlaggedInsightRate != 0.5 {
-		t.Errorf("QualityFlaggedInsightRate = %f, want 0.5", metrics.QualityFlaggedInsightRate)
+	if metrics.QualityFlaggedInsightRate != 0.25 {
+		t.Errorf("QualityFlaggedInsightRate = %f, want 0.25", metrics.QualityFlaggedInsightRate)
+	}
+	if metrics.QualityFlagCounts[string(domain.QualityInsufficientCompetition)] != 1 {
+		t.Errorf("single-explanation set should be flagged: %+v", metrics.QualityFlagCounts)
 	}
 	for _, code := range []domain.QualityFlagCode{domain.QualityStatedNeedEcho, domain.QualityGenericTerm, domain.QualityNoTrace, domain.QualityAbductionIncomplete} {
 		if metrics.QualityFlagCounts[string(code)] != 1 {
@@ -301,19 +304,31 @@ func TestPipelineRunEndToEnd(t *testing.T) {
 
 	insights := sqlite.NewInsightRepository(db)
 	list, err := insights.ListByProject(ctx, project.ID)
-	if err != nil || len(list) != 2 {
+	if err != nil || len(list) != 4 {
 		t.Fatalf("ListByProject = %v, %v", list, err)
 	}
 	var insight, poor *domain.Insight
 	for _, i := range list {
 		if i.Title == "安心して使いたい" {
 			poor = i
-		} else {
+		} else if i.HypothesisRole == domain.HypothesisPrimary {
 			insight = i
 		}
 	}
 	if insight == nil || poor == nil {
 		t.Fatalf("expected both the proper and the poor-quality insight, got %+v", list)
+	}
+	var sameSet, independentlyEvaluated int
+	for _, candidate := range list {
+		if candidate.HypothesisSetID == insight.HypothesisSetID {
+			sameSet++
+			if candidate.ValidationStatus != "" {
+				independentlyEvaluated++
+			}
+		}
+	}
+	if sameSet != 3 || independentlyEvaluated != 3 {
+		t.Errorf("hypothesis set should contain three independently evaluated candidates: set=%d evaluated=%d", sameSet, independentlyEvaluated)
 	}
 
 	// The poor-quality insight is kept (the researcher decides), but every
@@ -347,7 +362,7 @@ func TestPipelineRunEndToEnd(t *testing.T) {
 	if insight.CausalStatus != domain.CausalHypothesis || insight.IdentificationStatus != domain.IdentificationNotIdentified {
 		t.Errorf("association must remain causal hypothesis/not identified: %s, %s", insight.CausalStatus, insight.IdentificationStatus)
 	}
-	if insight.ExpectationBasis != domain.ExpectationModelProposed || len(insight.CompetingHypotheses) != 2 || len(insight.MissingEvidence) != 1 {
+	if insight.ExpectationBasis != domain.ExpectationModelProposed || insight.HypothesisSetID == "" || insight.HypothesisRole != domain.HypothesisPrimary || len(insight.CompetingHypotheses) != 0 || len(insight.MissingEvidence) != 1 {
 		t.Errorf("causal context did not round-trip: %+v", insight)
 	}
 

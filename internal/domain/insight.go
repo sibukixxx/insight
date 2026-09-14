@@ -49,6 +49,9 @@ const (
 	// expectation or the surprising fact, so the abductive chain
 	// (予想 → ズレ → 仮説) cannot be checked by a reader.
 	QualityAbductionIncomplete QualityFlagCode = "abduction_incomplete"
+	// QualityInsufficientCompetition means fewer than three explanations
+	// were independently evaluated for the surprising fact.
+	QualityInsufficientCompetition QualityFlagCode = "insufficient_competing_hypotheses"
 )
 
 type QualityFlag struct {
@@ -81,6 +84,8 @@ type Insight struct {
 	ProductOpportunity        string
 	MonetizationAngle         string
 	Confidence                float64
+	HypothesisSetID           string
+	HypothesisRole            HypothesisRole
 	CausalStatus              CausalStatus
 	ValidationStatus          ValidationStatus
 	IdentificationStatus      IdentificationStatus
