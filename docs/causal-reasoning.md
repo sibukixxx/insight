@@ -86,3 +86,11 @@ For “Did municipal startup support increase company formation?”, the expecte
 - validation: no stronger than `PLAUSIBLE` from association-only input.
 
 The system may propose a control group, pre/post data, natural experiment, DiD, RDD, or IV as a candidate design. It must not claim that design was applied.
+
+## Competing hypothesis evaluation
+
+Alternative explanations are promoted into first-class Insight candidates before evidence retrieval. Candidates derived from the same surprising fact share a `HypothesisSetID`; their role is `PRIMARY` or `COMPETING`.
+
+Each candidate passes independently through the existing evidence retrieval, grounding, counter-evidence, confidence, validation, persistence, and report path. Evidence for one candidate is not automatically evidence for another candidate in the set.
+
+A set with fewer than three independently evaluated explanations receives the deterministic `insufficient_competing_hypotheses` quality warning. This is a review warning, not a reason to discard the hypothesis. Markdown reports include a per-set comparison table with support, counter-evidence, missing-evidence, validation, and identification state.

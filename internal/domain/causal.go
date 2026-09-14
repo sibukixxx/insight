@@ -79,9 +79,22 @@ type CandidateCausalStructure struct {
 }
 
 type CompetingHypothesis struct {
-	Title       string `json:"title"`
-	Explanation string `json:"explanation"`
+	Title                 string   `json:"title"`
+	Explanation           string   `json:"explanation"`
+	Rationale             string   `json:"rationale,omitempty"`
+	MissingEvidence       []string `json:"missingEvidence,omitempty"`
+	FalsificationCriteria []string `json:"falsificationCriteria,omitempty"`
+	RequiredData          []string `json:"requiredData,omitempty"`
+	RequiredComparisons   []string `json:"requiredComparisons,omitempty"`
+	CandidateDesigns      []string `json:"candidateDesigns,omitempty"`
 }
+
+type HypothesisRole string
+
+const (
+	HypothesisPrimary   HypothesisRole = "PRIMARY"
+	HypothesisCompeting HypothesisRole = "COMPETING"
+)
 
 type ValidationNeed struct {
 	Data       []string `json:"data"`
