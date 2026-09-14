@@ -361,6 +361,7 @@
               <option value="survey">Survey</option>
               <option value="job_posting">Job posting</option>
               <option value="social_post">Social post</option>
+			  <option value="dataset">Dataset observation</option>
             </select>
           </div>
           <div><label>Title</label><input type="text" name="title" placeholder="Example: Interview #15"></div>
@@ -371,13 +372,23 @@
 
       <div class="card">
         <div class="section-title">Import CSV</div>
-        <p class="hint">Columns: id,source,title,content. Source must be interview, review, support, sales, survey, job_posting, or social_post.</p>
+		<p class="hint">Columns: id,source,title,content. Source must be interview, review, support, sales, survey, job_posting, social_post, or dataset.</p>
         <form id="csv-form">
           <input type="file" name="file" accept=".csv,text/csv" required>
           <button type="submit" class="primary">Import</button>
         </form>
         <div id="csv-result"></div>
       </div>
+
+	  <div class="card">
+		<div class="section-title">Import ja-company analysis CSV</div>
+		<p class="hint">Aggregates exported administrative records by month, location, and event type. Record counts are not treated as startup counts or causal evidence.</p>
+		<form id="analysis-csv-form">
+		  <input type="file" name="file" accept=".csv,text/csv" required>
+		  <button type="submit" class="primary">Import analysis data</button>
+		</form>
+		<div id="analysis-csv-result"></div>
+	  </div>
 
       <div class="card">
         <div class="section-title">Documents</div>
@@ -416,6 +427,24 @@
         document.getElementById("csv-result").innerHTML = errorBox(e.message);
       }
     });
+
+	document.getElementById("analysis-csv-form").addEventListener("submit", async (ev) => {
+	  ev.preventDefault();
+	  const file = ev.target.file.files[0];
+	  if (!file) return;
+	  const formData = new FormData();
+	  formData.append("file", file);
+	  try {
+		const result = await api(`/api/projects/${encodeURIComponent(projectID)}/documents/import/analysis`, {
+		  method: "POST", body: formData,
+		});
+		document.getElementById("analysis-csv-result").innerHTML =
+		  `<div class="notice-box">Read ${result.recordsRead} records; imported ${result.imported} aggregate documents; skipped ${result.skipped}.</div>`;
+		renderProject(projectID);
+	  } catch (e) {
+		document.getElementById("analysis-csv-result").innerHTML = errorBox(e.message);
+	  }
+	});
 
     const runBtn = document.getElementById("run-analysis");
     runBtn.addEventListener("click", async () => {

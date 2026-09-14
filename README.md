@@ -11,6 +11,8 @@ For causal questions, Insight Lab compares candidate explanations and records wh
 
 Competing explanations are evaluated independently against supporting and counter-evidence and grouped by the surprising fact they attempt to explain.
 
+For a reproducible external-data exercise, see the [ja-company-base CSV dogfooding workflow](docs/dogfooding-ja-company.md).
+
 ## Quick start
 
 Requirements: Go 1.25 or later and an OpenAI-compatible API.
