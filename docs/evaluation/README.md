@@ -1,6 +1,6 @@
 # 実LLM評価の記録
 
-`make eval-demo`（`scripts/eval-demo.sh`）の出力を、`<日付>-<モデル>/` ごとに保存する。
+`make eval-demo`（`scripts/eval-demo.sh`）の出力を、`<日付>-<モデル>/` ごとに保存する。現在の架空政策デモでは通常のInsight結果に加え、`research-run.json`と`research-report.md`も生成する。Human EvaluationはLLMに自己評価させず、人間が別途入力する。
 
 | ファイル | 内容 |
 |---|---|
