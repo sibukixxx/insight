@@ -13,7 +13,7 @@ import (
 // DemoProjectID is fixed so loading the demo dataset is idempotent: a
 // second `--demo` run or a second click of "デモを試す" reuses the same
 // project instead of creating duplicates.
-const DemoProjectID = "demo-invoicing-saas"
+const DemoProjectID = "demo-research-policy-v2"
 
 type DemoLoader struct {
 	Projects  repository.ProjectRepository
@@ -37,7 +37,7 @@ func (l *DemoLoader) Ensure(ctx context.Context) (*domain.Project, error) {
 	now := time.Now().UTC()
 	project := &domain.Project{
 		ID:        DemoProjectID,
-		Name:      "Demo: Invoicing SaaS interviews",
+		Name:      "Demo: Evidence-grounded policy research",
 		CreatedAt: now,
 	}
 	if err := l.Projects.Create(ctx, project); err != nil {

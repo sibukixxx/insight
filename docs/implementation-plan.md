@@ -15,12 +15,12 @@
 - [x] HTTP サーバ + chi ルーティング + logging / recover ミドルウェア + Host/Origin 検証
 - [x] 埋め込み UI（Phase 1 は素の HTML/CSS/JS を `internal/web/dist` に直接コミットし `//go:embed all:dist`。Vite/Preact への移行は複雑化が必要になった時点で行う）
 - [x] CLI フラグ（--port --host --db --demo --no-browser --client）+ ブラウザ自動起動（3 OS 分岐）
-- [x] サンプルデータ（請求書 SaaS インタビュー20件、表面「操作が面倒」/ 深層「誤請求への恐怖」）の作成と `--demo` 冪等ロード
+- [x] サンプルデータ（架空の政策調査。処置群100→130、比較群200→240、事前トレンド・測定変更・交絡候補を含む）の作成と `--demo` 冪等ロード
 - [x] projects / documents API + 一覧・詳細 UI（プロジェクト作成、テキスト貼り付け）
 - [x] **デモ/納品ビルド分離**（`internal/sampledata` を `//go:build demo` / `!demo` で分割。納品ビルドはサンプルテキストがバイナリに一切リンクされないことを確認済み。`make build-demo` / `make build-delivery` / `make cross-compile`）
 - [x] unit test（domain, repository/sqlite の CRUD・カスケード削除・マイグレーション冪等性、sampledata の build tag 分岐）+ `go vet`（両タグ）
 
-**完了条件の検証**: デモビルドを起動 → `/api/projects` に20件ドキュメントの入ったデモプロジェクトが自動生成される → ブラウザで一覧・本文が閲覧できる → 納品ビルドは `--demo` 指定時にエラー終了し、バイナリに `経理担当` 等のサンプル文言が一切含まれないことを `grep` で確認済み。
+**完了条件の検証**: デモビルドを起動 → `/api/projects` に架空の政策調査ドキュメントが入ったデモプロジェクトが自動生成される → ブラウザで一覧・本文が閲覧できる → 納品ビルドにはサンプル本文が一切リンクされない。
 
 **完了条件**: バイナリ起動 → Try Demo → 20 件のインタビューが閲覧できる。
 

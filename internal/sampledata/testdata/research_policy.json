@@ -1,0 +1,86 @@
+[
+  {
+    "id": "policy-data-treated-2024",
+    "source": "survey",
+    "title": "Fictional administrative extract — treated region, 2024",
+    "content": "In the treated region, the recorded outcome count for calendar year 2024 was 100. The extract counts administrative records matching the published inclusion rule; it does not measure business commencement or policy impact.",
+    "metadata": {"fixture": "synthetic", "record_kind": "aggregate", "group": "treated", "period": "2024", "outcome_count": "100"}
+  },
+  {
+    "id": "policy-data-treated-2025",
+    "source": "survey",
+    "title": "Fictional administrative extract — treated region, 2025",
+    "content": "In the treated region, the recorded outcome count for calendar year 2025 was 130. The same published inclusion rule was used for this extract. This row records a count and makes no claim about why it changed.",
+    "metadata": {"fixture": "synthetic", "record_kind": "aggregate", "group": "treated", "period": "2025", "outcome_count": "130"}
+  },
+  {
+    "id": "policy-data-comparison-2024",
+    "source": "survey",
+    "title": "Fictional administrative extract — comparison region, 2024",
+    "content": "In the comparison region, which did not introduce the target program, the recorded outcome count for calendar year 2024 was 200.",
+    "metadata": {"fixture": "synthetic", "record_kind": "aggregate", "group": "comparison", "period": "2024", "outcome_count": "200"}
+  },
+  {
+    "id": "policy-data-comparison-2025",
+    "source": "survey",
+    "title": "Fictional administrative extract — comparison region, 2025",
+    "content": "In the comparison region, which did not introduce the target program, the recorded outcome count for calendar year 2025 was 240. The comparison outcome therefore also rose during the observation window.",
+    "metadata": {"fixture": "synthetic", "record_kind": "aggregate", "group": "comparison", "period": "2025", "outcome_count": "240"}
+  },
+  {
+    "id": "policy-data-treated-preperiod",
+    "source": "survey",
+    "title": "Fictional historical extract — treated region pre-period",
+    "content": "Before program introduction, treated-region outcome counts were 82 in 2022, 91 in 2023, and 100 in 2024. The series was already increasing before the program began.",
+    "metadata": {"fixture": "synthetic", "record_kind": "historical_series", "group": "treated", "period": "2022-2024"}
+  },
+  {
+    "id": "policy-data-comparison-preperiod",
+    "source": "survey",
+    "title": "Fictional historical extract — comparison region pre-period",
+    "content": "Comparison-region outcome counts were 165 in 2022, 183 in 2023, and 200 in 2024. The comparison series was also increasing before 2025.",
+    "metadata": {"fixture": "synthetic", "record_kind": "historical_series", "group": "comparison", "period": "2022-2024"}
+  },
+  {
+    "id": "policy-timeline",
+    "source": "sales",
+    "title": "Fictional program implementation record",
+    "content": "The treated municipality approved the support program on 15 December 2024. Applications opened on 1 February 2025 and the first grants were paid on 30 April 2025. The annual outcome extract does not show which records occurred before or after individual grants.",
+    "metadata": {"fixture": "synthetic", "record_kind": "timeline", "program_start": "2025-02-01"}
+  },
+  {
+    "id": "policy-national-context",
+    "source": "review",
+    "title": "Fictional national context bulletin",
+    "content": "The national bulletin reported that the same administrative outcome increased by 18 percent from 2024 to 2025 across municipalities, including areas without the target program. The bulletin did not provide municipality-level adjustments.",
+    "metadata": {"fixture": "synthetic", "record_kind": "external_context", "period": "2024-2025"}
+  },
+  {
+    "id": "policy-population-context",
+    "source": "review",
+    "title": "Fictional population statistics note",
+    "content": "The treated region's working-age population increased by 12 percent during 2025 following completion of a large housing development. The comparison region's working-age population increased by 1 percent.",
+    "metadata": {"fixture": "synthetic", "record_kind": "candidate_confounder", "variable": "working_age_population"}
+  },
+  {
+    "id": "policy-measurement-note",
+    "source": "support",
+    "title": "Fictional registry methodology notice",
+    "content": "A registry system migration was deployed nationwide on 1 January 2025. The notice states that previously delayed records could appear in 2025 extracts and that historical comparability requires a reconciliation table. No reconciliation table is included in this demo.",
+    "metadata": {"fixture": "synthetic", "record_kind": "measurement_change", "effective_date": "2025-01-01"}
+  },
+  {
+    "id": "policy-staff-interview",
+    "source": "interview",
+    "title": "Fictional interview — program coordinator",
+    "content": "We received more inquiries after announcing the program, and several applicants told us the grant affected their timing. We did not track applicants who decided not to proceed, and I cannot tell from our records how many would have acted without the program.",
+    "metadata": {"fixture": "synthetic", "role": "program_coordinator"}
+  },
+  {
+    "id": "policy-source-quality",
+    "source": "support",
+    "title": "Fictional data quality memorandum",
+    "content": "The 2025 extract is version 2. The provider revised 7 treated-region records and 11 comparison-region records after duplicate checks. The unrevised version is unavailable, so the effect of the revision cannot be independently reproduced from this fixture.",
+    "metadata": {"fixture": "synthetic", "record_kind": "source_quality", "source_version": "2"}
+  }
+]

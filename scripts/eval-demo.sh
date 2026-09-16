@@ -26,7 +26,7 @@ TIMEOUT="${EVAL_TIMEOUT:-1800}"
 MODEL_SLUG="$(printf '%s' "$INSIGHT_LAB_MODEL" | tr '/:' '--')"
 OUT="${EVAL_OUT:-docs/evaluation/$(date +%Y%m%d)-${MODEL_SLUG}}"
 API="http://127.0.0.1:${PORT}/api"
-PROJECT="demo-invoicing-saas"
+PROJECT="demo-research-policy-v2"
 
 cd "$(dirname "$0")/.."
 make build-demo >/dev/null
@@ -70,5 +70,12 @@ curl -sf "$API/projects/$PROJECT/insights" \
   | while read -r id; do curl -sf "$API/insights/$id"; echo; done \
   | python3 -c 'import sys,json;print(json.dumps([json.loads(l) for l in sys.stdin if l.strip()],ensure_ascii=False,indent=2))' >"$OUT/insights.json"
 
+curl -sf -X POST "$API/projects/$PROJECT/research-runs" \
+  -H 'content-type: application/json' \
+  -d '{"question":"Did the fictional support program cause the treated-region outcome to increase?","inputReferences":["embedded synthetic policy research fixture"]}' \
+  | python3 -m json.tool >"$OUT/research-run.json"
+run_id="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["id"])' "$OUT/research-run.json")"
+curl -sf "$API/research-runs/$run_id/report.md" >"$OUT/research-report.md"
+
 python3 scripts/eval-summary.py "$OUT" "$INSIGHT_LAB_MODEL" "$BASE_URL" >"$OUT/summary.md"
-echo "wrote $OUT/{metrics.json,patterns.json,insights.json,summary.md}"
+echo "wrote $OUT/{metrics.json,patterns.json,insights.json,research-run.json,research-report.md,summary.md}"
