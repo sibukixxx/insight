@@ -116,6 +116,13 @@ func (a *Application) ImportDocumentsCSV(ctx context.Context, projectID string, 
 	return service.ImportCSV(ctx, a.repos.Documents, projectID, r)
 }
 
+func (a *Application) ImportAnalysisCSV(ctx context.Context, projectID string, r io.Reader) (*service.AnalysisImportResult, error) {
+	if err := a.RequireProject(ctx, projectID); err != nil {
+		return nil, err
+	}
+	return service.ImportAnalysisCSV(ctx, a.repos.Documents, projectID, r)
+}
+
 func (a *Application) GetAnalysis(ctx context.Context, id string) (*domain.Analysis, error) {
 	return a.repos.Analyses.Get(ctx, id)
 }

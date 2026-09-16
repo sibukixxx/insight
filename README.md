@@ -60,6 +60,8 @@ See [Evidence-Grounded Causal Reasoning Semantics](docs/causal-reasoning.md) for
 
 For append-only investigation history, structured research gaps, next-data requirements, and human novelty evaluation, see [Research Loop dogfooding](docs/research-loop.md).
 
+For a reproducible external-data exercise, see the [ja-company-base CSV dogfooding workflow](docs/dogfooding-ja-company.md).
+
 ## Quick start
 
 ### Requirements

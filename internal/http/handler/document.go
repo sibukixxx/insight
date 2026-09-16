@@ -144,3 +144,28 @@ func (h *Handler) ImportDocumentsCSV(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, result)
 }
+
+// ImportAnalysisCSV accepts the ja-company-base AnalysisRecord CSV contract
+// and deterministically aggregates it into dataset Documents.
+func (h *Handler) ImportAnalysisCSV(w http.ResponseWriter, r *http.Request) {
+	projectID := chi.URLParam(r, "projectID")
+	if !h.requireProject(w, r, projectID) {
+		return
+	}
+	var reader io.Reader = r.Body
+	if strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data") {
+		file, _, err := r.FormFile("file")
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "the file field is required")
+			return
+		}
+		defer file.Close()
+		reader = file
+	}
+	result, err := h.App.ImportAnalysisCSV(r.Context(), projectID, reader)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}

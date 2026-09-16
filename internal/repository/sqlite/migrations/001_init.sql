@@ -7,7 +7,7 @@ CREATE TABLE projects (
 CREATE TABLE documents (
     id TEXT PRIMARY KEY,
     project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-    source TEXT NOT NULL CHECK (source IN ('interview','review','support','sales','survey','job_posting','social_post')),
+    source TEXT NOT NULL CHECK (source IN ('interview','review','support','sales','survey','job_posting','social_post','dataset')),
     title TEXT,
     content TEXT NOT NULL,
     metadata TEXT,

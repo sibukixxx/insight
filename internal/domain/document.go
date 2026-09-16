@@ -12,12 +12,13 @@ const (
 	SourceSurvey     SourceType = "survey"
 	SourceJobPosting SourceType = "job_posting" // 案件・募集文（発注者の悩み）
 	SourceSocialPost SourceType = "social_post" // SNS投稿・伸びている投稿の観察
+	SourceDataset    SourceType = "dataset"     // 公的・外部データセットからの決定的な集計
 )
 
 func (s SourceType) Valid() bool {
 	switch s {
 	case SourceInterview, SourceReview, SourceSupport, SourceSales, SourceSurvey,
-		SourceJobPosting, SourceSocialPost:
+		SourceJobPosting, SourceSocialPost, SourceDataset:
 		return true
 	}
 	return false
