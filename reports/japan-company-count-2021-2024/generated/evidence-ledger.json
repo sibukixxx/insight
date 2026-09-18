@@ -1,0 +1,76 @@
+[
+  {
+    "claim_id": "C1",
+    "claim": "公表された『企業等数』は2021年の3,684,049から2024年の2,549,827へ-1,134,222（-30.8%）異なる。",
+    "source": [
+      "https://www.stat.go.jp/data/e-census/2021/kekka/pdf/k_outline.pdf",
+      "https://www.stat.go.jp/data/e-census/2024/pdf/kekka_k.pdf"
+    ],
+    "dataset": [
+      "enterprise_equivalents:2021",
+      "enterprise_equivalents:2024"
+    ],
+    "calculation": "2549827 - 3684049 = -1134222; -1134222 / 3684049 * 100 = -30.8%",
+    "confidence": "HIGH for arithmetic; LOW for interpreting the difference as a real population trend",
+    "counter_evidence": ["C2", "C3"],
+    "limitations": [
+      "The 2021 and 2024 enterprise-equivalent populations are not definitionally identical.",
+      "Two cross-sectional snapshots do not identify causes of change."
+    ]
+  },
+  {
+    "claim_id": "C2",
+    "claim": "2024年の甲調査は雇用者のいない個人経営の事業所を対象外としており、2021年活動調査との単純比較には対象範囲差がある。",
+    "source": [
+      "https://www.stat.go.jp/data/e-census/2024/pdf/kekka_k.pdf",
+      "https://www.stat.go.jp/data/e-census/2024/kekka.html"
+    ],
+    "dataset": ["enterprise_equivalents:2024"],
+    "calculation": "population_scope(2021) != population_scope(2024)",
+    "confidence": "HIGH for the documented scope mismatch",
+    "counter_evidence": [],
+    "limitations": [
+      "A harmonized 2024 reference table including no-employee individual establishments is still required for a like-for-like total."
+    ]
+  },
+  {
+    "claim_id": "C3",
+    "claim": "会社企業の公表値は2021年の1,746,142から2024年の1,764,656へ+18,514（+1.1%）となり、『企業等数』の見かけ上の減少と逆方向である。",
+    "source": [
+      "https://www.stat.go.jp/data/e-census/2021/kekka/pdf/k_outline.pdf",
+      "https://www.stat.go.jp/data/e-census/2024/pdf/kekka_k.pdf"
+    ],
+    "dataset": [
+      "company_enterprises:2021",
+      "company_enterprises:2024"
+    ],
+    "calculation": "1764656 - 1746142 = 18514; 18514 / 1746142 * 100 = 1.1%",
+    "confidence": "HIGH for arithmetic; MEDIUM for cross-survey interpretation",
+    "counter_evidence": ["C1"],
+    "limitations": [
+      "The table note states that company count, sales and net value added are aggregated for enterprises from which necessary item values were obtained; treat this as a supporting slice, not a definitive harmonized company-total series.",
+      "The 2024 survey program and table definition differ from the 2021 Activity Census; use this as counter-evidence to a naive broad-decline claim, not as a fully harmonized time series.",
+      "The 2021 and 2024 surveys are different census programs and should not be treated as a fully harmonized panel without table-definition validation."
+    ]
+  },
+  {
+    "claim_id": "C4",
+    "claim": "現時点の4つの公表集計値だけでは『日本の会社は減っている』とは判断できない。",
+    "source": [
+      "https://www.stat.go.jp/data/e-census/2021/kekka/pdf/k_outline.pdf",
+      "https://www.stat.go.jp/data/e-census/2024/pdf/kekka_k.pdf",
+      "https://www.stat.go.jp/data/e-census/2021/kekka/pdf/k_outline.pdf",
+      "https://www.stat.go.jp/data/e-census/2024/pdf/kekka_k.pdf"
+    ],
+    "dataset": ["C1", "C2", "C3"],
+    "calculation": "Interpretation requires scope comparability; C2 invalidates a naive C1 trend claim and C3 points in the opposite direction.",
+    "confidence": "MEDIUM; this is an evidence-bounded interpretation rather than a population estimate",
+    "counter_evidence": [
+      "C1 is consistent with a decline if a future harmonized comparison confirms it."
+    ],
+    "limitations": [
+      "The 2024 harmonized reference table has not yet been normalized into this P0 dataset.",
+      "National Tax Agency longitudinal registry data has not yet been ingested for this report."
+    ]
+  }
+]
