@@ -507,21 +507,28 @@ func renderLimitations(values []string) string {
 }
 
 func formatInt(value int64) string {
+	negative := value < 0
+	if negative {
+		value = -value
+	}
 	s := strconv.FormatInt(value, 10)
-	if len(s) <= 3 {
-		return s
+	if len(s) > 3 {
+		var out []byte
+		first := len(s) % 3
+		if first == 0 {
+			first = 3
+		}
+		out = append(out, s[:first]...)
+		for i := first; i < len(s); i += 3 {
+			out = append(out, ',')
+			out = append(out, s[i:i+3]...)
+		}
+		s = string(out)
 	}
-	var out []byte
-	first := len(s) % 3
-	if first == 0 {
-		first = 3
+	if negative {
+		return "-" + s
 	}
-	out = append(out, s[:first]...)
-	for i := first; i < len(s); i += 3 {
-		out = append(out, ',')
-		out = append(out, s[i:i+3]...)
-	}
-	return string(out)
+	return s
 }
 
 func signedInt(value int64) string {
