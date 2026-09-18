@@ -411,10 +411,10 @@ TechVitは公開表の値をsource extractへ転記し、差分・変化率・�
 
 ## Methodology
 
-1. 公開統計表から対象行を `source_extract.csv` に保存する。
-2. `go run ./cmd/public-evidence-report` が入力を検証し、`normalized.csv` を生成する。
+1. 公開統計表から対象行を source_extract.csv に保存する。
+2. go run ./cmd/public-evidence-report が入力を検証し、normalized.csv を生成する。
 3. 差分、変化率、東京都の全国シェアをGoコードで計算する。
-4. 各公開主張を `evidence-ledger.json` の計算式と元データへ紐付ける。
+4. 各公開主張を evidence-ledger.json の計算式と元データへ紐付ける。
 5. 同じ計算結果からFull Report、note素材、SNS素材、Insight Lab再投入用CSVを生成する。
 6. LLMを数値計算・Evidence生成のsource of truthには使わない。
 
