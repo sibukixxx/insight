@@ -427,8 +427,8 @@ TechVitは公開表の値をsource extractへ転記し、差分・変化率・�
 ---
 Generated deterministically by Insight Lab Public Evidence Report Factory P0.
 `,
-		formatInt(a.National.FromCount), formatInt(a.National.ToCount), signedInt(a.National.Delta), a.National.PercentChange,
-		formatInt(a.Tokyo.FromCount), formatInt(a.Tokyo.ToCount), a.Tokyo.PercentChange,
+		formatInt(a.National.FromCount), formatInt(a.National.ToCount), signedInt(a.National.Delta), -a.National.PercentChange,
+		formatInt(a.Tokyo.FromCount), formatInt(a.Tokyo.ToCount), -a.Tokyo.PercentChange,
 		a.TokyoShareFrom, a.TokyoShareTo, a.TokyoShareDeltaPP,
 		metadata.SourceName, metadata.Publisher, metadata.CoveragePeriod, metadata.GeographicScope, metadata.Unit, metadata.RetrievedAt, metadata.SourceURL,
 		formatInt(a.National.FromCount), formatInt(a.National.ToCount), signedInt(a.National.Delta), a.National.PercentChange,
@@ -491,7 +491,7 @@ func renderSNSSummary(a Analysis) string {
 Full Report:
 [公開URLを設定]
 `,
-		a.National.PercentChange, a.Tokyo.PercentChange, a.TokyoShareFrom, a.TokyoShareTo, a.TokyoShareDeltaPP,
+		-a.National.PercentChange, -a.Tokyo.PercentChange, a.TokyoShareFrom, a.TokyoShareTo, a.TokyoShareDeltaPP,
 	)
 }
 
