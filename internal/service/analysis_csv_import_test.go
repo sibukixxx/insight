@@ -52,6 +52,35 @@ func TestImportAnalysisCSVAggregatesAdministrativeRecordsWithoutCausalMeaning(t 
 	}
 }
 
+func TestImportAnalysisCSVWithManifestRecordsHashAndManifestOnAggregates(t *testing.T) {
+	documents, project := newTestDocumentRepo(t)
+	input := analysisCSVHeader +
+		"1000000000001,A,株式会社,13,東京都,229,西東京市,2026-01-02,,,,,ASSIGNED,houjin_bangou,v4,2026-03-01T00:00:00Z\n" +
+		"1000000000002,B,株式会社,13,東京都,229,西東京市,2026-02-10,,,,,ASSIGNED,houjin_bangou,v4,2026-03-01T00:00:00Z\n"
+	manifest := validManifest()
+	manifest.SourceName = "ja-company-base"
+	manifest.SchemaID = "ja-company-analysis-csv"
+	manifest.Unit = "administrative records"
+
+	result, err := ImportAnalysisCSVWithManifest(context.Background(), documents, project.ID, strings.NewReader(input), &manifest)
+	if err != nil {
+		t.Fatalf("ImportAnalysisCSVWithManifest: %v", err)
+	}
+	if result.Imported != 2 || result.FileHash != sha256Hex(input) {
+		t.Fatalf("unexpected result: %+v", result)
+	}
+	docs, _ := documents.ListByProject(context.Background(), project.ID)
+	for _, doc := range docs {
+		got, ok := ManifestFromDocument(doc)
+		if !ok || got.FileHash != result.FileHash || got.Unit != "administrative records" {
+			t.Errorf("aggregate %s lacks manifest provenance: %v", doc.Title, doc.Metadata)
+		}
+		if doc.Metadata[MetadataDatasetHash] != result.FileHash || doc.Metadata["record_count"] != "1" {
+			t.Errorf("aggregate %s lost hash or count metadata: %v", doc.Title, doc.Metadata)
+		}
+	}
+}
+
 func TestImportAnalysisCSVRejectsMissingContractColumn(t *testing.T) {
 	documents, project := newTestDocumentRepo(t)
 	_, err := ImportAnalysisCSV(context.Background(), documents, project.ID, strings.NewReader("corporate_number,event_type\n1,ASSIGNED\n"))

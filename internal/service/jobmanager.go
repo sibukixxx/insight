@@ -100,16 +100,19 @@ func (m *JobManager) run(ctx context.Context, analysisID string) {
 		return // analysis row is gone (e.g. project was deleted); nothing to run
 	}
 
+	// Without a configured model the pipeline still runs its deterministic
+	// dataset pre-analysis (Issue #16); it fails itself, with guidance, when
+	// the project has nothing a rule can analyze.
 	settings := m.settings.Get()
-	if !settings.Configured() {
-		m.fail(ctx, a, fmt.Errorf("the LLM is not configured; enter a base URL and model on the Settings page"))
-		return
+	var client llm.Client
+	if settings.Configured() {
+		client = m.newLLMClient(settings)
 	}
 
 	pipeline := &Pipeline{
 		Documents: m.pipeline.Documents, Observations: m.pipeline.Observations,
 		Patterns: m.pipeline.Patterns, Insights: m.pipeline.Insights, Evidence: m.pipeline.Evidence,
-		LLM: m.newLLMClient(settings),
+		LLM: client, Model: settings.Model,
 	}
 
 	now := time.Now().UTC()

@@ -24,6 +24,7 @@ type AnalysisImportResult struct {
 	Imported    int              `json:"imported"`
 	Skipped     int              `json:"skipped"`
 	Errors      []ImportRowError `json:"errors"`
+	FileHash    string           `json:"fileHash"` // sha256 of the imported bytes, see ImportResult.FileHash
 }
 
 type analysisGroup struct {
@@ -42,7 +43,21 @@ type analysisGroup struct {
 // only generic dataset Documents. Every document is a deterministic count of
 // input rows, never an inferred count of startups or business commencements.
 func ImportAnalysisCSV(ctx context.Context, documents repository.DocumentRepository, projectID string, input io.Reader) (*AnalysisImportResult, error) {
-	reader := csv.NewReader(stripBOM(input))
+	return ImportAnalysisCSVWithManifest(ctx, documents, projectID, input, nil)
+}
+
+// ImportAnalysisCSVWithManifest is ImportAnalysisCSV plus an optional
+// acquisition manifest describing where the export came from. Row-level
+// provider/version columns stay as they are; the manifest is file-level
+// provenance layered on top of them.
+func ImportAnalysisCSVWithManifest(ctx context.Context, documents repository.DocumentRepository, projectID string, input io.Reader, manifest *AcquisitionManifest) (*AnalysisImportResult, error) {
+	if manifest != nil {
+		if err := manifest.Validate(); err != nil {
+			return nil, err
+		}
+	}
+	hashed := newHashingReader(input)
+	reader := csv.NewReader(stripBOM(hashed))
 	reader.FieldsPerRecord = -1
 	header, err := reader.Read()
 	if err != nil {
@@ -108,6 +123,7 @@ func ImportAnalysisCSV(ctx context.Context, documents repository.DocumentReposit
 		group.count++
 	}
 
+	result.FileHash = hashed.Sum()
 	keys := make([]string, 0, len(groups))
 	for key := range groups {
 		keys = append(keys, key)
@@ -125,11 +141,11 @@ func ImportAnalysisCSV(ctx context.Context, documents repository.DocumentReposit
 			ID: newID("doc"), ProjectID: projectID, Source: domain.SourceDataset,
 			Title:   fmt.Sprintf("%s %s %s (%d records)", group.period, location, group.eventType, group.count),
 			Content: content,
-			Metadata: map[string]string{
+			Metadata: provenanceMetadata(map[string]string{
 				"adapter": "ja-company-analysis-csv", "period": group.period, "event_type": group.eventType,
 				"prefecture_name": group.prefecture, "city_name": group.city, "record_count": fmt.Sprint(group.count),
 				"source_provider": group.sourceProvider, "source_version": group.sourceVersion, "source_fetched_at": group.sourceFetchedAt,
-			},
+			}, result.FileHash, manifest),
 			CreatedAt: time.Now().UTC(),
 		})
 	}
