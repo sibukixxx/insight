@@ -88,3 +88,48 @@ func TestResearchReportShowsGapsRequirementsLimitsHistoryAndHumanEvaluation(t *t
 		}
 	}
 }
+
+func TestResearchReportShowsDecisionReadinessAndStopReason(t *testing.T) {
+	it := domain.ResearchIteration{
+		ID: "it1", Sequence: 1,
+		ResearchGaps: []domain.ResearchGap{{ID: "gap-1", Category: domain.ResearchGapComparison, Need: "comparison trend", Resolved: false}},
+		Readiness: domain.ReadinessAssessment{
+			State:            domain.ReadinessDecisionReadyWithLimitation,
+			Reasons:          []string{"a single supported hypothesis survives"},
+			UnresolvedGapIDs: []string{"gap-1"},
+		},
+		Stop:           &domain.StopDecision{Reason: domain.StopHypothesesDistinguished, Source: domain.StopSourceSystem, Note: "critical hypotheses are sufficiently distinguished", UnresolvedGapIDs: []string{"gap-1"}},
+		HumanOverrides: []domain.HumanOverride{{Readiness: domain.ReadinessValidationRequired, Note: "reviewer disagreed with the system readiness"}},
+	}
+	report := ProjectReport{Project: &domain.Project{Name: "Policy"}, ResearchRun: &domain.ResearchRun{Question: "Did policy cause the increase?", Iterations: []domain.ResearchIteration{it}}, GeneratedAt: time.Unix(0, 0)}
+
+	got := string(renderProjectMarkdown(report))
+	for _, want := range []string{
+		"## Decision Readiness",
+		"DECISION_READY_WITH_LIMITATIONS",
+		"a single supported hypothesis survives",
+		"## Stop Decision",
+		"CRITICAL_HYPOTHESES_DISTINGUISHED",
+		"critical hypotheses are sufficiently distinguished",
+		"gap-1",
+		"## Human Overrides",
+		"reviewer disagreed with the system readiness",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("research report missing %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestResearchReportOmitsStopSectionWhenResearchIsStillRunning(t *testing.T) {
+	it := domain.ResearchIteration{ID: "it1", Sequence: 1, Readiness: domain.ReadinessAssessment{State: domain.ReadinessExploratoryOnly}}
+	report := ProjectReport{Project: &domain.Project{Name: "Policy"}, ResearchRun: &domain.ResearchRun{Question: "q", Iterations: []domain.ResearchIteration{it}}, GeneratedAt: time.Unix(0, 0)}
+
+	got := string(renderProjectMarkdown(report))
+	if strings.Contains(got, "## Stop Decision") {
+		t.Errorf("a run that has not stopped must not show a stop section:\n%s", got)
+	}
+	if !strings.Contains(got, "EXPLORATORY_ONLY") {
+		t.Errorf("readiness must still be shown while research continues:\n%s", got)
+	}
+}

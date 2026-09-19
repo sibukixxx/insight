@@ -220,6 +220,7 @@ func writeResearchLoop(b *strings.Builder, report ProjectReport) {
 	}
 	b.WriteString("## Validation / Identification\n\n")
 	b.WriteString("Statuses are shown per hypothesis below. History descriptors do not represent causal probability.\n\n")
+	writeDecisionReadiness(b, run)
 	b.WriteString("## What We Cannot Conclude\n\n")
 	if len(run.Iterations) > 0 {
 		for _, statement := range run.Iterations[len(run.Iterations)-1].WhatWeCannotConclude {
@@ -246,6 +247,39 @@ func writeResearchLoop(b *strings.Builder, report ProjectReport) {
 		}
 	}
 	b.WriteByte('\n')
+}
+
+// writeDecisionReadiness reports how prepared the research process is for a
+// responsible human decision, and — only when the loop has actually stopped
+// — why it stopped and what remained unresolved at that point. It is not a
+// truth probability, causal certainty, or commercial recommendation.
+func writeDecisionReadiness(b *strings.Builder, run *domain.ResearchRun) {
+	latest, ok := run.LatestIteration()
+	if !ok {
+		return
+	}
+	b.WriteString("## Decision Readiness\n\n")
+	fmt.Fprintf(b, "**State:** `%s` (effective: `%s`)\n\n", latest.Readiness.State, latest.EffectiveReadiness())
+	writeStringList(b, "Reasons", latest.Readiness.Reasons)
+	writeStringList(b, "Unresolved gap IDs", latest.Readiness.UnresolvedGapIDs)
+
+	if len(latest.HumanOverrides) > 0 {
+		b.WriteString("## Human Overrides\n\n")
+		for _, override := range latest.HumanOverrides {
+			fmt.Fprintf(b, "- readiness=`%s` stopReason=`%s`: %s\n", override.Readiness, override.StopReason, markdownInline(override.Note))
+		}
+		b.WriteByte('\n')
+	}
+
+	if latest.Stop == nil {
+		return
+	}
+	b.WriteString("## Stop Decision\n\n")
+	fmt.Fprintf(b, "**Reason:** `%s` (source: `%s`)\n\n", latest.Stop.Reason, latest.Stop.Source)
+	if latest.Stop.Note != "" {
+		fmt.Fprintf(b, "%s\n\n", markdownInline(latest.Stop.Note))
+	}
+	writeStringList(b, "Unresolved at stop", latest.Stop.UnresolvedGapIDs)
 }
 
 func writeHypothesisComparisons(b *strings.Builder, details []*InsightDetail) {
