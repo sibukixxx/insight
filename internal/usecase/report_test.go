@@ -78,6 +78,53 @@ func TestRenderProjectMarkdownComparesHypothesisSet(t *testing.T) {
 	}
 }
 
+func TestRenderProjectMarkdownShowsRunProvenance(t *testing.T) {
+	retrievedAt := time.Date(2026, 9, 1, 9, 0, 0, 0, time.UTC)
+	report := ProjectReport{
+		Project: &domain.Project{Name: "Dataset run"},
+		Metrics: &service.Metrics{
+			Provenance: service.RunProvenance{
+				Mode: service.AnalysisModeModelBacked, Model: "gpt-x", PromptFingerprint: "abc123",
+				RuleVersion: "dataset-preanalysis/v1", DatasetHashes: []string{"hash_a", "hash_b"},
+				Datasets: []service.DatasetProvenance{{
+					SourceName: "e-Stat", DatasetID: "000032143614", RetrievalMethod: service.RetrievalDownload,
+					RetrievedAt: retrievedAt, SchemaID: "estat-economic-census-enterprise", SchemaVersion: "2021",
+					RecipeRef: "recipes/estat-economic-census.md", FileHash: "hash_a",
+				}},
+				CompatibilityWarnings: []service.DatasetCompatibilityWarning{{
+					Code: service.CompatibilityUnitMismatch, DatasetIDs: []string{"000032143614", "000032143615"},
+					Detail: "unit \"enterprises\" differs from \"establishments\"",
+				}},
+				Notes: []string{"document doc_x: record_count \"many\" is not a number; skipped"},
+			},
+		},
+		GeneratedAt: time.Unix(0, 0),
+	}
+
+	got := string(renderProjectMarkdown(report))
+	for _, want := range []string{
+		"## Run provenance",
+		"model_backed", "gpt-x", "abc123", "dataset-preanalysis/v1",
+		"hash_a", "hash\\_b",
+		"e-Stat", "000032143614", "download", "estat-economic-census-enterprise", "2021", "recipes/estat-economic-census.md",
+		"unit_mismatch", "unit \"enterprises\" differs from \"establishments\"",
+		"document doc\\_x: record\\_count \"many\" is not a number; skipped",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("report does not contain %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestRenderProjectMarkdownOmitsRunProvenanceWhenAbsent(t *testing.T) {
+	got := string(renderProjectMarkdown(ProjectReport{
+		Project: &domain.Project{Name: "No metrics"}, GeneratedAt: time.Unix(0, 0),
+	}))
+	if strings.Contains(got, "## Run provenance") {
+		t.Errorf("a report with no metrics must not claim any provenance: %s", got)
+	}
+}
+
 func TestResearchReportShowsGapsRequirementsLimitsHistoryAndHumanEvaluation(t *testing.T) {
 	it := domain.ResearchIteration{ID: "it1", Sequence: 1, InputReferences: []string{"synthetic.csv"}, ResearchGaps: []domain.ResearchGap{{Category: domain.ResearchGapComparison, Need: "comparison trend", WhyItMatters: "common trend remains possible"}}, DataRequirements: []domain.DataRequirement{{Need: "comparison outcomes", Reason: "test common trend", RequiredDimensions: []string{"group", "year"}, SuggestedSourceCategory: "comparison dataset"}}, WhatWeCannotConclude: []string{"causal treatment effect is not identified"}}
 	report := ProjectReport{Project: &domain.Project{Name: "Policy"}, ResearchRun: &domain.ResearchRun{Question: "Did policy cause the increase?", Iterations: []domain.ResearchIteration{it}}, HumanEvaluations: map[string]*domain.HumanEvaluation{"it1": {Novelty: domain.NoveltyNew, OverallUsefulness: 4}}, GeneratedAt: time.Unix(0, 0)}

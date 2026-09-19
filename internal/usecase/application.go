@@ -109,18 +109,38 @@ func (a *Application) GetDocument(ctx context.Context, id string) (*domain.Docum
 	return a.repos.Documents.Get(ctx, id)
 }
 
-func (a *Application) ImportDocumentsCSV(ctx context.Context, projectID string, r io.Reader) (*service.ImportResult, error) {
+// ImportDocumentsCSV imports the fixed id,source,title,content CSV contract.
+// manifest is the optional acquisition manifest (Issue #16) as raw JSON; nil
+// means the import carries no manifest, matching prior behavior.
+func (a *Application) ImportDocumentsCSV(ctx context.Context, projectID string, r io.Reader, manifest io.Reader) (*service.ImportResult, error) {
 	if err := a.RequireProject(ctx, projectID); err != nil {
 		return nil, err
 	}
-	return service.ImportCSV(ctx, a.repos.Documents, projectID, r)
+	m, err := parseOptionalManifest(manifest)
+	if err != nil {
+		return nil, err
+	}
+	return service.ImportCSVWithManifest(ctx, a.repos.Documents, projectID, r, m)
 }
 
-func (a *Application) ImportAnalysisCSV(ctx context.Context, projectID string, r io.Reader) (*service.AnalysisImportResult, error) {
+// ImportAnalysisCSV imports the ja-company-base AnalysisRecord CSV contract.
+// manifest is the optional acquisition manifest, as with ImportDocumentsCSV.
+func (a *Application) ImportAnalysisCSV(ctx context.Context, projectID string, r io.Reader, manifest io.Reader) (*service.AnalysisImportResult, error) {
 	if err := a.RequireProject(ctx, projectID); err != nil {
 		return nil, err
 	}
-	return service.ImportAnalysisCSV(ctx, a.repos.Documents, projectID, r)
+	m, err := parseOptionalManifest(manifest)
+	if err != nil {
+		return nil, err
+	}
+	return service.ImportAnalysisCSVWithManifest(ctx, a.repos.Documents, projectID, r, m)
+}
+
+func parseOptionalManifest(r io.Reader) (*service.AcquisitionManifest, error) {
+	if r == nil {
+		return nil, nil
+	}
+	return service.ParseAcquisitionManifest(r)
 }
 
 func (a *Application) GetAnalysis(ctx context.Context, id string) (*domain.Analysis, error) {

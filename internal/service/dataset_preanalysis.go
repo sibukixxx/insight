@@ -117,7 +117,7 @@ func MaterializeDatasetObservations(docs []*domain.Document, now time.Time) ([]*
 		out = append(out, &domain.Observation{
 			ID: newID("obs"), DocumentID: d.ID, Quote: grounded.Quote,
 			StartOffset: grounded.StartOffset, EndOffset: grounded.EndOffset,
-			Behavior:  fmt.Sprintf("record_count=%s (%s)", formatCount(count), strings.Join(nonEmpty(d.Metadata["event_type"], d.Metadata["period"], datasetLocation(d.Metadata)), ", ")),
+			Behavior:  fmt.Sprintf("record_count=%s (%s)", formatCount(count), strings.Join(nonEmptyValues(d.Metadata["event_type"], d.Metadata["period"], datasetLocation(d.Metadata)), ", ")),
 			Topic:     firstNonEmpty(d.Metadata["event_type"], "dataset"),
 			CreatedAt: now,
 		})
@@ -153,7 +153,7 @@ func ComputeDatasetComparisons(docs []*domain.Document) ([]DatasetComparison, []
 		key := strings.Join([]string{d.Metadata["event_type"], datasetLocation(d.Metadata), provider, unit, population}, "\x00")
 		s := byKey[key]
 		if s == nil {
-			s = &series{label: strings.Join(nonEmpty(d.Metadata["event_type"], datasetLocation(d.Metadata), provider), " / ")}
+			s = &series{label: strings.Join(nonEmptyValues(d.Metadata["event_type"], datasetLocation(d.Metadata), provider), " / ")}
 			byKey[key] = s
 			keys = append(keys, key)
 		}
@@ -274,7 +274,7 @@ func formatSigned(v float64) string {
 	return formatCount(v)
 }
 
-func nonEmpty(values ...string) []string {
+func nonEmptyValues(values ...string) []string {
 	var out []string
 	for _, v := range values {
 		if strings.TrimSpace(v) != "" {
