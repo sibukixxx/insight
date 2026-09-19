@@ -36,8 +36,10 @@ func (a *Application) CreateResearchRun(ctx context.Context, in CreateResearchRu
 	if err != nil {
 		return nil, err
 	}
-	iteration := service.BuildResearchIteration(1, in.Question, in.InputReferences, insights, a.now())
-	run := &domain.ResearchRun{ID: newID("run"), ProjectID: in.ProjectID, Question: strings.TrimSpace(in.Question), Iterations: []domain.ResearchIteration{iteration}, CreatedAt: a.now()}
+	now := a.now()
+	iteration := service.BuildResearchIteration(1, in.Question, in.InputReferences, insights, now)
+	iteration = service.FinalizeResearchIteration(domain.ResearchRun{}, iteration, nil, now)
+	run := &domain.ResearchRun{ID: newID("run"), ProjectID: in.ProjectID, Question: strings.TrimSpace(in.Question), Iterations: []domain.ResearchIteration{iteration}, CreatedAt: now}
 	if err := a.repos.Research.CreateRun(ctx, run); err != nil {
 		return nil, fmt.Errorf("create research run: %w", err)
 	}
@@ -57,15 +59,59 @@ func (a *Application) AppendResearchIteration(ctx context.Context, in AppendRese
 	if question == "" {
 		question = run.Question
 	}
-	iteration := service.BuildResearchIteration(len(run.Iterations)+1, question, in.InputReferences, insights, a.now())
-	iteration.AddedEvidence = append([]string(nil), in.AddedEvidence...)
-	if len(run.Iterations) > 0 {
-		iteration.HypothesisChanges = service.CompareHypothesisStates(run.Iterations[len(run.Iterations)-1].HypothesisStates, iteration.HypothesisStates)
-	}
+	now := a.now()
+	iteration := service.BuildResearchIteration(len(run.Iterations)+1, question, in.InputReferences, insights, now)
+	iteration = service.FinalizeResearchIteration(*run, iteration, in.AddedEvidence, now)
 	if err := a.repos.Research.AppendResearchIteration(ctx, run.ID, iteration); err != nil {
 		return nil, fmt.Errorf("append research iteration: %w", err)
 	}
 	return &iteration, nil
+}
+
+// ApplyResearchHumanOverrideInput carries an explicit human decision about an
+// iteration's readiness or about stopping the research loop. Only the latest
+// iteration of a run may be overridden, because the run's stop state is
+// always read from its latest iteration.
+type ApplyResearchHumanOverrideInput struct {
+	RunID       string
+	IterationID string
+	Readiness   domain.DecisionReadiness
+	StopReason  domain.ResearchStopReason
+	Note        string
+}
+
+func (a *Application) ApplyResearchHumanOverride(ctx context.Context, in ApplyResearchHumanOverrideInput) (*domain.ResearchIteration, error) {
+	run, err := a.repos.Research.GetResearchRun(ctx, in.RunID)
+	if err != nil {
+		return nil, err
+	}
+	latest, ok := run.LatestIteration()
+	if !ok || latest.ID != in.IterationID {
+		return nil, fmt.Errorf("human override can only be applied to the latest research iteration")
+	}
+	updated, err := latest.ApplyHumanOverride(domain.HumanOverride{
+		Readiness: in.Readiness, StopReason: in.StopReason, Note: strings.TrimSpace(in.Note), RecordedAt: a.now(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err := a.repos.Research.UpdateResearchIteration(ctx, run.ID, updated); err != nil {
+		return nil, fmt.Errorf("update research iteration: %w", err)
+	}
+	return &updated, nil
+}
+
+// GetHumanHandoff assembles the final shape handed to a human for a research
+// run: strongest surviving hypotheses, contradicted and unresolved
+// alternatives, remaining uncertainty, why the loop stopped (if it has), and
+// what to research next. It never acquires evidence.
+func (a *Application) GetHumanHandoff(ctx context.Context, runID string) (*domain.HumanHandoff, error) {
+	run, err := a.repos.Research.GetResearchRun(ctx, runID)
+	if err != nil {
+		return nil, err
+	}
+	handoff := service.BuildHumanHandoff(*run)
+	return &handoff, nil
 }
 
 func (a *Application) latestInsights(ctx context.Context, projectID string) ([]*domain.Insight, error) {
