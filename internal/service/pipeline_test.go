@@ -206,7 +206,23 @@ func (f *fakeLLM) Generate(ctx context.Context, req llm.GenerateRequest) (*llm.G
 	return &llm.GenerateResponse{Content: raw, Mode: llm.ModeJSONSchema}, nil
 }
 
+func interviewTestDocuments(projectID string) []*domain.Document {
+	return []*domain.Document{
+		{ID: "doc_1", ProjectID: projectID, Source: domain.SourceInterview, Title: "Interview #1",
+			Content: "設定を間違えたら怖いんですよね。最後は自分で確認します。", CreatedAt: time.Now().UTC()},
+		{ID: "doc_2", ProjectID: projectID, Source: domain.SourceReview, Title: "Review #1",
+			Content: "別に設定は難しくないです。", CreatedAt: time.Now().UTC()},
+	}
+}
+
 func newTestPipeline(t *testing.T) (*Pipeline, *sqlite.DB, *domain.Project) {
+	t.Helper()
+	return newTestPipelineWith(t, newFakeLLM(), interviewTestDocuments("proj_1"))
+}
+
+// newTestPipelineWith builds a pipeline over a fresh SQLite database seeded
+// with docs. client may be nil to exercise the no-model path.
+func newTestPipelineWith(t *testing.T, client llm.Client, docs []*domain.Document) (*Pipeline, *sqlite.DB, *domain.Project) {
 	t.Helper()
 	db, err := sqlite.Open(filepath.Join(t.TempDir(), "pipeline_test.db"))
 	if err != nil {
@@ -227,11 +243,8 @@ func newTestPipeline(t *testing.T) (*Pipeline, *sqlite.DB, *domain.Project) {
 	if err := projects.Create(ctx, p); err != nil {
 		t.Fatalf("create project: %v", err)
 	}
-	docs := []*domain.Document{
-		{ID: "doc_1", ProjectID: p.ID, Source: domain.SourceInterview, Title: "Interview #1",
-			Content: "設定を間違えたら怖いんですよね。最後は自分で確認します。", CreatedAt: time.Now().UTC()},
-		{ID: "doc_2", ProjectID: p.ID, Source: domain.SourceReview, Title: "Review #1",
-			Content: "別に設定は難しくないです。", CreatedAt: time.Now().UTC()},
+	for _, d := range docs {
+		d.ProjectID = p.ID
 	}
 	if err := documents.CreateBatch(ctx, docs); err != nil {
 		t.Fatalf("create documents: %v", err)
@@ -244,9 +257,152 @@ func newTestPipeline(t *testing.T) (*Pipeline, *sqlite.DB, *domain.Project) {
 	pipeline := &Pipeline{
 		Documents: documents, Observations: observations, Patterns: patterns,
 		Insights: insights, Evidence: evidence,
-		LLM: newFakeLLM(),
+		LLM: client, Model: "fake-model",
 	}
 	return pipeline, db, p
+}
+
+func TestPipelineRunWithoutLLMCompletesDeterministicPreAnalysis(t *testing.T) {
+	manifest := validManifest()
+	manifest.FileHash = "hash_ja"
+	docs := append(interviewTestDocuments("proj_1"),
+		datasetDoc("doc_jan", "2026-01", "西東京市", "ASSIGNED", "2", manifest.DocumentMetadata(nil)),
+		datasetDoc("doc_feb", "2026-02", "西東京市", "ASSIGNED", "5", manifest.DocumentMetadata(nil)),
+	)
+	pipeline, db, project := newTestPipelineWith(t, nil, docs)
+	ctx := context.Background()
+
+	var progressLog []string
+	metrics, err := pipeline.Run(ctx, testAnalysisID, project.ID, func(step string, progress int, message string) {
+		progressLog = append(progressLog, fmt.Sprintf("%s:%d", step, progress))
+	})
+	if err != nil {
+		t.Fatalf("Run without LLM: %v", err)
+	}
+
+	prov := metrics.Provenance
+	if prov.Mode != AnalysisModeDeterministic || prov.Model != "" || prov.PromptFingerprint != "" {
+		t.Errorf("a run without a model must say so and record no model provenance: %+v", prov)
+	}
+	if prov.RuleVersion != datasetPreAnalysisRuleVersion || prov.DeterministicObservations != 2 || prov.DeterministicComparisons != 1 {
+		t.Errorf("deterministic provenance wrong: %+v", prov)
+	}
+	if len(prov.DatasetHashes) != 1 || prov.DatasetHashes[0] != "hash_ja" {
+		t.Errorf("DatasetHashes = %v, want [hash_ja]", prov.DatasetHashes)
+	}
+	if len(prov.Datasets) != 1 || prov.Datasets[0].SourceName != "e-Stat" || prov.Datasets[0].RecipeRef != manifest.RecipeRef || prov.Datasets[0].FileHash != "hash_ja" {
+		t.Errorf("Datasets provenance = %+v, want the manifest's source/recipe/hash", prov.Datasets)
+	}
+	if metrics.TotalObservationCandidates != 2 || metrics.GroundedObservations != 2 || metrics.UnsupportedClaimRate != 0 {
+		t.Errorf("observation metrics = %+v", metrics)
+	}
+	if metrics.PatternCount != 1 || metrics.TraceCount != 0 || metrics.FinalInsightCount != 0 || metrics.TotalInsightDrafts != 0 {
+		t.Errorf("deterministic run must persist the comparison and no insights: %+v", metrics)
+	}
+
+	observations, err := sqlite.NewObservationRepository(db).ListByProject(ctx, project.ID)
+	if err != nil || len(observations) != 2 {
+		t.Fatalf("observations = %v, %v; want 2 dataset observations", observations, err)
+	}
+	for _, o := range observations {
+		if !strings.HasPrefix(o.Quote, "Dataset observation: period=2026-0") {
+			t.Errorf("unexpected observation quote %q", o.Quote)
+		}
+	}
+	patterns, err := sqlite.NewPatternRepository(db).ListByProject(ctx, project.ID)
+	if err != nil || len(patterns) != 1 {
+		t.Fatalf("patterns = %v, %v; want 1 deterministic comparison", patterns, err)
+	}
+	if !strings.HasPrefix(patterns[0].Title, "Deterministic comparison:") || !strings.Contains(patterns[0].Description, "record_count 2 → 5") || len(patterns[0].ObservationIDs) != 2 {
+		t.Errorf("comparison pattern did not round-trip: %+v", patterns[0])
+	}
+	insights, _ := sqlite.NewInsightRepository(db).ListByProject(ctx, project.ID)
+	if len(insights) != 0 {
+		t.Errorf("no model means no hypotheses; got %d insights", len(insights))
+	}
+	if len(progressLog) == 0 || progressLog[len(progressLog)-1] != "completed:100" {
+		t.Errorf("progress log did not end with completed:100: %v", progressLog)
+	}
+}
+
+func TestPipelineRunWithoutLLMFailsWhenNothingCanBeAnalyzedDeterministically(t *testing.T) {
+	pipeline, _, project := newTestPipelineWith(t, nil, interviewTestDocuments("proj_1"))
+
+	_, err := pipeline.Run(context.Background(), testAnalysisID, project.ID, nil)
+
+	if err == nil || !strings.Contains(err.Error(), "Settings") || !strings.Contains(err.Error(), "dataset") {
+		t.Fatalf("expected an error pointing to Settings and dataset import, got %v", err)
+	}
+}
+
+func TestPipelineRunModelBackedKeepsDatasetNumbersOutOfTheModel(t *testing.T) {
+	fake := newFakeLLM()
+	docs := append(interviewTestDocuments("proj_1"),
+		datasetDoc("doc_jan", "2026-01", "西東京市", "ASSIGNED", "2", map[string]string{MetadataDatasetHash: "hash_ja"}),
+		datasetDoc("doc_feb", "2026-02", "西東京市", "ASSIGNED", "5", map[string]string{MetadataDatasetHash: "hash_ja"}),
+	)
+	pipeline, db, project := newTestPipelineWith(t, fake, docs)
+	ctx := context.Background()
+
+	metrics, err := pipeline.Run(ctx, testAnalysisID, project.ID, nil)
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+
+	// The two interview documents are one chunk each; the dataset documents
+	// must never reach the extraction prompt.
+	if fake.calls["observation_extraction"] != 2 {
+		t.Errorf("observation_extraction called %d times, want 2 (interview documents only)", fake.calls["observation_extraction"])
+	}
+	prov := metrics.Provenance
+	if prov.Mode != AnalysisModeModelBacked || prov.Model != "fake-model" || len(prov.PromptFingerprint) != 64 {
+		t.Errorf("model-backed provenance wrong: %+v", prov)
+	}
+	if prov.DeterministicObservations != 2 || prov.DeterministicComparisons != 1 || len(prov.DatasetHashes) != 1 {
+		t.Errorf("deterministic part of the provenance wrong: %+v", prov)
+	}
+	// 3 model candidates (1 fabricated) + 2 deterministic observations.
+	if metrics.TotalObservationCandidates != 5 || metrics.GroundedObservations != 4 {
+		t.Errorf("candidates=%d grounded=%d, want 5 and 4", metrics.TotalObservationCandidates, metrics.GroundedObservations)
+	}
+	wantRate := 1.0 / 5.0
+	if diff := metrics.UnsupportedClaimRate - wantRate; diff > 1e-9 || diff < -1e-9 {
+		t.Errorf("UnsupportedClaimRate = %f, want %f", metrics.UnsupportedClaimRate, wantRate)
+	}
+	// 1 trace + 1 deterministic comparison + 1 repetition.
+	if metrics.PatternCount != 3 || metrics.TraceCount != 1 {
+		t.Errorf("PatternCount = %d, TraceCount = %d, want 3 and 1", metrics.PatternCount, metrics.TraceCount)
+	}
+
+	patterns, err := sqlite.NewPatternRepository(db).ListByProject(ctx, project.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var comparison *domain.Pattern
+	for _, p := range patterns {
+		if strings.HasPrefix(p.Title, "Deterministic comparison:") {
+			comparison = p
+		}
+	}
+	if comparison == nil || !strings.Contains(comparison.Description, "delta +3") {
+		t.Fatalf("deterministic comparison should be persisted alongside model patterns: %+v", patterns)
+	}
+}
+
+func TestPipelineRunWithInterviewsOnlyRecordsModelBackedProvenance(t *testing.T) {
+	pipeline, _, project := newTestPipeline(t)
+
+	metrics, err := pipeline.Run(context.Background(), testAnalysisID, project.ID, nil)
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	prov := metrics.Provenance
+	if prov.Mode != AnalysisModeModelBacked || prov.Model != "fake-model" || prov.PromptFingerprint == "" || prov.RuleVersion != datasetPreAnalysisRuleVersion {
+		t.Errorf("provenance = %+v", prov)
+	}
+	if prov.DeterministicObservations != 0 || len(prov.DatasetHashes) != 0 || len(prov.Datasets) != 0 {
+		t.Errorf("no dataset documents means empty dataset provenance: %+v", prov)
+	}
 }
 
 func TestPipelineRunEndToEnd(t *testing.T) {
