@@ -2,11 +2,13 @@ package sqlite
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 	"testing"
 	"time"
 
 	"insight-lab/internal/domain"
+	"insight-lab/internal/repository"
 )
 
 func TestResearchRepositorySurvivesReloadAndPreservesIterations(t *testing.T) {
@@ -70,5 +72,52 @@ func TestResearchRepositoryRejectsDuplicateSequence(t *testing.T) {
 	}
 	if err := repo.AppendResearchIteration(ctx, "r1", domain.ResearchIteration{ID: "i2", Sequence: 1, CreatedAt: now}); err == nil {
 		t.Fatal("duplicate sequence must not overwrite iteration 1")
+	}
+}
+
+func TestResearchRepositoryUpdateResearchIterationPersistsHumanOverride(t *testing.T) {
+	db := openTestDB(t)
+	ctx := context.Background()
+	now := time.Now().UTC()
+	if _, err := db.ExecContext(ctx, `INSERT INTO projects (id, name, created_at) VALUES ('p1','p',?)`, formatTime(now)); err != nil {
+		t.Fatal(err)
+	}
+	repo := NewResearchRepository(db)
+	run := &domain.ResearchRun{ID: "r1", ProjectID: "p1", Question: "q", CreatedAt: now, Iterations: []domain.ResearchIteration{{ID: "i1", Sequence: 1, CreatedAt: now}}}
+	if err := repo.CreateRun(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+
+	updated := run.Iterations[0]
+	updated.HumanOverrides = []domain.HumanOverride{{Readiness: domain.ReadinessValidationRequired, Note: "human review pending", RecordedAt: now}}
+	if err := repo.UpdateResearchIteration(ctx, "r1", updated); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := repo.GetResearchIteration(ctx, "r1", "i1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.HumanOverrides) != 1 || got.HumanOverrides[0].Note != "human review pending" {
+		t.Fatalf("update was not persisted: %+v", got)
+	}
+	if got.Sequence != 1 {
+		t.Fatalf("update must not change the iteration's sequence: %+v", got)
+	}
+}
+
+func TestResearchRepositoryUpdateResearchIterationRejectsUnknownIteration(t *testing.T) {
+	db := openTestDB(t)
+	ctx := context.Background()
+	now := time.Now().UTC()
+	if _, err := db.ExecContext(ctx, `INSERT INTO projects (id, name, created_at) VALUES ('p1','p',?)`, formatTime(now)); err != nil {
+		t.Fatal(err)
+	}
+	repo := NewResearchRepository(db)
+	if err := repo.CreateRun(ctx, &domain.ResearchRun{ID: "r1", ProjectID: "p1", Question: "q", CreatedAt: now, Iterations: []domain.ResearchIteration{{ID: "i1", Sequence: 1, CreatedAt: now}}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.UpdateResearchIteration(ctx, "r1", domain.ResearchIteration{ID: "missing", Sequence: 1}); !errors.Is(err, repository.ErrNotFound) {
+		t.Fatalf("expected ErrNotFound, got %v", err)
 	}
 }

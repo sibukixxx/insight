@@ -128,6 +128,29 @@ func (r *ResearchRepository) AppendResearchIteration(ctx context.Context, runID 
 	return insertIteration(ctx, r.db, runID, iteration)
 }
 
+// UpdateResearchIteration overwrites the payload of an already-persisted
+// iteration in place. It is used only for human overrides applied after the
+// fact (e.g. a stop decision); it never changes id or sequence, and it never
+// inserts a new row.
+func (r *ResearchRepository) UpdateResearchIteration(ctx context.Context, runID string, iteration domain.ResearchIteration) error {
+	payload, err := json.Marshal(iteration)
+	if err != nil {
+		return err
+	}
+	result, err := r.db.ExecContext(ctx, `UPDATE research_iterations SET payload = ? WHERE research_run_id = ? AND id = ?`, string(payload), runID, iteration.ID)
+	if err != nil {
+		return err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return repository.ErrNotFound
+	}
+	return nil
+}
+
 func (r *ResearchRepository) SaveHumanEvaluation(ctx context.Context, evaluation *domain.HumanEvaluation) error {
 	payload, err := json.Marshal(evaluation)
 	if err != nil {

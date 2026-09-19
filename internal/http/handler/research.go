@@ -95,6 +95,44 @@ func (h *Handler) SaveHumanEvaluation(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, evaluation)
 }
 
+func (h *Handler) ApplyResearchHumanOverride(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Readiness  domain.DecisionReadiness  `json:"readiness"`
+		StopReason domain.ResearchStopReason `json:"stopReason"`
+		Note       string                    `json:"note"`
+	}
+	if json.NewDecoder(r.Body).Decode(&req) != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	iteration, err := h.App.ApplyResearchHumanOverride(r.Context(), usecase.ApplyResearchHumanOverrideInput{
+		RunID: chi.URLParam(r, "runID"), IterationID: chi.URLParam(r, "iterationID"),
+		Readiness: req.Readiness, StopReason: req.StopReason, Note: req.Note,
+	})
+	if err != nil {
+		status := http.StatusBadRequest
+		if errors.Is(err, usecase.ErrNotFound) {
+			status = http.StatusNotFound
+		}
+		writeError(w, status, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, iteration)
+}
+
+func (h *Handler) GetHumanHandoff(w http.ResponseWriter, r *http.Request) {
+	handoff, err := h.App.GetHumanHandoff(r.Context(), chi.URLParam(r, "runID"))
+	if err != nil {
+		status := http.StatusInternalServerError
+		if errors.Is(err, usecase.ErrNotFound) {
+			status = http.StatusNotFound
+		}
+		writeError(w, status, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, handoff)
+}
+
 func (h *Handler) GetHumanEvaluation(w http.ResponseWriter, r *http.Request) {
 	evaluation, err := h.App.GetHumanEvaluation(r.Context(), chi.URLParam(r, "runID"), chi.URLParam(r, "iterationID"))
 	if err != nil {
