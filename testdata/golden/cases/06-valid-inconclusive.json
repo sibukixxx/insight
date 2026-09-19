@@ -1,0 +1,93 @@
+{
+  "caseId": "GS-06",
+  "version": "0.1.0",
+  "title": "Valid inconclusive case: small-town childcare subsidy and births",
+  "kind": "synthetic",
+  "goldenSetIndex": 6,
+  "dimensions": [
+    "decision-readiness honesty",
+    "limitations disclosure",
+    "research-gap quality",
+    "next-data usefulness",
+    "required counter-evidence"
+  ],
+  "input": {
+    "researchQuestion": "Did the 2023 childcare subsidy in town X change the number of births?",
+    "stage": "EXPLORATORY",
+    "datasets": [
+      {
+        "id": "ds-townX",
+        "role": "hypothesis_generation",
+        "sourceKind": "primary",
+        "description": "Fictional annual births in town X (subsidy introduced 2023).",
+        "populationDefinitionId": "births_resident_mothers",
+        "harmonizationMethod": "observed",
+        "unit": "births",
+        "rows": [{"key": "2022", "value": 142}, {"key": "2024", "value": 139}]
+      },
+      {
+        "id": "ds-townY",
+        "role": "validation",
+        "sourceKind": "primary",
+        "description": "Fictional annual births in a comparison town without the subsidy.",
+        "populationDefinitionId": "births_resident_mothers",
+        "harmonizationMethod": "observed",
+        "unit": "births",
+        "rows": [{"key": "2022", "value": 150}, {"key": "2024", "value": 147}]
+      }
+    ]
+  },
+  "expected": {
+    "verdict": "INCONCLUSIVE",
+    "expectations": [
+      {
+        "id": "E1",
+        "text": "If the subsidy mattered, town X births would move differently from town Y after 2023.",
+        "basis": "MODEL_PROPOSED",
+        "provenance": "POST_HOC",
+        "declaredBeforeDataSeen": false
+      }
+    ],
+    "hypotheses": [
+      {"id": "H1", "role": "PRIMARY", "text": "The subsidy raised births.", "causalStatus": "CAUSAL_HYPOTHESIS", "validationStatus": "INSUFFICIENT_EVIDENCE", "identificationStatus": "NOT_IDENTIFIED"},
+      {"id": "H2", "role": "COMPETING", "text": "Both towns follow the same regional trend; the subsidy did nothing detectable.", "causalStatus": "CAUSAL_HYPOTHESIS", "validationStatus": "INSUFFICIENT_EVIDENCE", "identificationStatus": "NOT_IDENTIFIED"},
+      {"id": "H3", "role": "COMPETING", "text": "Counts this small cannot detect an effect of plausible size either way.", "causalStatus": "OBSERVED_ASSOCIATION", "validationStatus": "PLAUSIBLE", "identificationStatus": "UNKNOWN"}
+    ],
+    "evidence": [
+      {"id": "EV1", "type": "neutral", "hypothesisIds": ["H1", "H2"], "datasetId": "ds-townX", "usage": "generation", "sourceKind": "primary", "traceableToPrimary": true, "summary": "Town X births moved from 142 to 139."},
+      {"id": "EV2", "type": "counter", "hypothesisIds": ["H1"], "datasetId": "ds-townY", "usage": "independent_validation", "sourceKind": "primary", "traceableToPrimary": true, "summary": "The comparison town moved almost identically (150 to 147) without a subsidy."}
+    ],
+    "comparisons": [
+      {"id": "CMP-X", "baselineDatasetId": "ds-townX", "baselineRowKey": "2022", "currentDatasetId": "ds-townX", "currentRowKey": "2024", "expectedDelta": -3, "expectedPctChange": "-2.1", "comparabilityLabel": "COMPARABLE"},
+      {"id": "CMP-Y", "baselineDatasetId": "ds-townY", "baselineRowKey": "2022", "currentDatasetId": "ds-townY", "currentRowKey": "2024", "expectedDelta": -3, "expectedPctChange": "-2.0", "comparabilityLabel": "COMPARABLE"}
+    ],
+    "counterEvidenceSearched": true,
+    "mayClaimExhaustiveValidation": false,
+    "requiresCounterEvidence": true,
+    "requiredLimitations": [
+      "Annual counts around 140 cannot distinguish a small effect from noise.",
+      "Only one pre-period and one post-period year are available.",
+      "One comparison town does not establish a common trend."
+    ],
+    "requiredResearchGaps": [
+      {"category": "PRE_PERIOD", "need": "Births 2015-2022 for both towns to check pre-trends."},
+      {"category": "COMPARISON_CONTROL", "need": "Several comparison towns with similar age structure."},
+      {"category": "MEASUREMENT", "need": "Births by mother's age band and residence duration to separate in-migration."}
+    ],
+    "forbiddenClaims": [
+      "効果はなかった",
+      "効果があった",
+      "無意味だった",
+      "失敗した",
+      "had no effect",
+      "increased births"
+    ]
+  },
+  "humanReview": {
+    "status": "PENDING",
+    "reviewer": null,
+    "reviewedAt": null,
+    "outcome": null,
+    "notes": "Inconclusive is the correct answer here. A report that argues either direction fails."
+  }
+}

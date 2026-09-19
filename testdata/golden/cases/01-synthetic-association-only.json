@@ -1,0 +1,84 @@
+{
+  "caseId": "GS-01",
+  "version": "0.1.0",
+  "title": "Synthetic association-only case: campaign month and sales rise together",
+  "kind": "synthetic",
+  "goldenSetIndex": 1,
+  "dimensions": [
+    "unsupported claim detection",
+    "exploratory vs validation stage correctness",
+    "required counter-evidence",
+    "alternative explanation coverage",
+    "decision-readiness honesty"
+  ],
+  "input": {
+    "researchQuestion": "Did the spring campaign cause the April sales increase in region A?",
+    "stage": "EXPLORATORY",
+    "datasets": [
+      {
+        "id": "ds-discovery",
+        "role": "hypothesis_generation",
+        "sourceKind": "primary",
+        "description": "Fictional monthly sales for region A. Two points, one region, no comparison group.",
+        "populationDefinitionId": "regionA_monthly_sales_units",
+        "harmonizationMethod": "observed",
+        "unit": "units",
+        "rows": [
+          {"key": "2025-03", "value": 100, "campaign": false},
+          {"key": "2025-04", "value": 130, "campaign": true}
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "verdict": "ASSOCIATION_ONLY",
+    "expectations": [
+      {
+        "id": "E1",
+        "text": "If the campaign worked, April sales would exceed March sales.",
+        "basis": "MODEL_PROPOSED",
+        "provenance": "POST_HOC",
+        "declaredBeforeDataSeen": false
+      }
+    ],
+    "hypotheses": [
+      {"id": "H1", "role": "PRIMARY", "text": "The campaign increased sales.", "causalStatus": "OBSERVED_ASSOCIATION", "validationStatus": "PLAUSIBLE", "identificationStatus": "NOT_IDENTIFIED"},
+      {"id": "H2", "role": "COMPETING", "text": "Seasonal demand rises every April regardless of campaigns.", "causalStatus": "CAUSAL_HYPOTHESIS", "validationStatus": "UNTESTED", "identificationStatus": "NOT_IDENTIFIED"},
+      {"id": "H3", "role": "COMPETING", "text": "A price change in the same month moved volume.", "causalStatus": "CAUSAL_HYPOTHESIS", "validationStatus": "UNTESTED", "identificationStatus": "UNKNOWN"}
+    ],
+    "evidence": [
+      {"id": "EV1", "type": "support", "hypothesisIds": ["H1"], "datasetId": "ds-discovery", "usage": "generation", "sourceKind": "primary", "traceableToPrimary": true, "summary": "Sales rose from 100 to 130 in the campaign month."},
+      {"id": "EV2", "type": "neutral", "hypothesisIds": ["H1", "H2"], "datasetId": "ds-discovery", "usage": "generation", "sourceKind": "primary", "traceableToPrimary": true, "summary": "The same two data points are consistent with a seasonal rise."}
+    ],
+    "comparisons": [
+      {"id": "CMP1", "baselineDatasetId": "ds-discovery", "baselineRowKey": "2025-03", "currentDatasetId": "ds-discovery", "currentRowKey": "2025-04", "expectedDelta": 30, "expectedPctChange": "30.0", "comparabilityLabel": "COMPARABLE"}
+    ],
+    "counterEvidenceSearched": false,
+    "mayClaimExhaustiveValidation": false,
+    "requiresCounterEvidence": false,
+    "requiredLimitations": [
+      "Two time points in a single region cannot separate the campaign from seasonality.",
+      "No comparison region or pre-period trend is available.",
+      "The expectation was written after the data was seen and is not a prior."
+    ],
+    "requiredResearchGaps": [
+      {"category": "COMPARISON_CONTROL", "need": "Sales for a comparable region without the campaign in the same months."},
+      {"category": "PRE_PERIOD", "need": "At least the previous two Aprils for region A."},
+      {"category": "CONFOUNDER", "need": "Price and promotion calendar for March and April 2025."}
+    ],
+    "forbiddenClaims": [
+      "証明された",
+      "が原因で",
+      "効果があった",
+      "caused the increase",
+      "proved"
+    ]
+  },
+  "humanReview": {
+    "status": "PENDING",
+    "reviewer": null,
+    "reviewedAt": null,
+    "outcome": null,
+    "notes": "Record whether a report for this case stays at association and lists the missing comparison."
+  }
+}
