@@ -119,25 +119,22 @@ func (h *Handler) GetDocument(w http.ResponseWriter, r *http.Request) {
 
 // ImportDocumentsCSV accepts either a multipart/form-data upload (field
 // name "file") or a raw text/csv body, in the fixed
-// id,source,title,content shape (see internal/service/csv_import.go).
+// id,source,title,content shape (see internal/service/csv_import.go). A
+// multipart upload may also include a "manifest" field: the JSON
+// acquisition manifest from Issue #16, describing where the file came from.
 func (h *Handler) ImportDocumentsCSV(w http.ResponseWriter, r *http.Request) {
 	projectID := chi.URLParam(r, "projectID")
 	if !h.requireProject(w, r, projectID) {
 		return
 	}
 
-	var reader io.Reader = r.Body
-	if strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data") {
-		file, _, err := r.FormFile("file")
-		if err != nil {
-			writeError(w, http.StatusBadRequest, "the file field is required")
-			return
-		}
-		defer file.Close()
-		reader = file
+	reader, manifest, closeUpload, ok := readImportUpload(w, r)
+	if !ok {
+		return
 	}
+	defer closeUpload()
 
-	result, err := h.App.ImportDocumentsCSV(r.Context(), projectID, reader)
+	result, err := h.App.ImportDocumentsCSV(r.Context(), projectID, reader, manifest)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
@@ -146,26 +143,46 @@ func (h *Handler) ImportDocumentsCSV(w http.ResponseWriter, r *http.Request) {
 }
 
 // ImportAnalysisCSV accepts the ja-company-base AnalysisRecord CSV contract
-// and deterministically aggregates it into dataset Documents.
+// and deterministically aggregates it into dataset Documents. It accepts
+// the same optional "manifest" multipart field as ImportDocumentsCSV.
 func (h *Handler) ImportAnalysisCSV(w http.ResponseWriter, r *http.Request) {
 	projectID := chi.URLParam(r, "projectID")
 	if !h.requireProject(w, r, projectID) {
 		return
 	}
-	var reader io.Reader = r.Body
-	if strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data") {
-		file, _, err := r.FormFile("file")
-		if err != nil {
-			writeError(w, http.StatusBadRequest, "the file field is required")
-			return
-		}
-		defer file.Close()
-		reader = file
+	reader, manifest, closeUpload, ok := readImportUpload(w, r)
+	if !ok {
+		return
 	}
-	result, err := h.App.ImportAnalysisCSV(r.Context(), projectID, reader)
+	defer closeUpload()
+
+	result, err := h.App.ImportAnalysisCSV(r.Context(), projectID, reader, manifest)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	writeJSON(w, http.StatusOK, result)
+}
+
+// readImportUpload extracts the CSV body and, for multipart uploads, the
+// optional "manifest" JSON field. ok is false once an error response has
+// already been written. The returned close function must be deferred by
+// the caller (not here) since the upload's underlying file must stay open
+// until the caller has finished reading it.
+func readImportUpload(w http.ResponseWriter, r *http.Request) (reader io.Reader, manifest io.Reader, closeUpload func(), ok bool) {
+	closeUpload = func() {}
+	if !strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data") {
+		return r.Body, nil, closeUpload, true
+	}
+
+	file, _, err := r.FormFile("file")
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "the file field is required")
+		return nil, nil, closeUpload, false
+	}
+	closeUpload = func() { file.Close() }
+	if m := r.FormValue("manifest"); m != "" {
+		manifest = strings.NewReader(m)
+	}
+	return file, manifest, closeUpload, true
 }
