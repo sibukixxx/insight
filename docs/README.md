@@ -7,6 +7,7 @@ This directory contains three different kinds of documentation. Keeping them sep
 | Document | Purpose |
 | --- | --- |
 | [Project scope](project-scope.md) | What belongs in the public OSS project and what does not |
+| [BYO-Evidence boundary](byo-evidence-boundary.md) | Insight Lab reasons over provided evidence and never fetches it; how missing evidence leaves and re-enters the loop |
 | [Project status](project-status.md) | What is implemented now, current limitations, and the next validation phase |
 | [Causal reasoning semantics](causal-reasoning.md) | Runtime contract for causal claims, statuses, evidence, and guardrails |
 | [Evaluation](evaluation/README.md) | How to run and inspect repeatable model-backed evaluation |
