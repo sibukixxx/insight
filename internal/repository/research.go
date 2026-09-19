@@ -13,6 +13,7 @@ type ResearchRepository interface {
 	GetResearchIteration(ctx context.Context, runID, iterationID string) (*domain.ResearchIteration, error)
 	ListResearchIterations(ctx context.Context, runID string) ([]domain.ResearchIteration, error)
 	AppendResearchIteration(ctx context.Context, runID string, iteration domain.ResearchIteration) error
+	UpdateResearchIteration(ctx context.Context, runID string, iteration domain.ResearchIteration) error
 	SaveHumanEvaluation(ctx context.Context, evaluation *domain.HumanEvaluation) error
 	GetHumanEvaluation(ctx context.Context, runID, iterationID string) (*domain.HumanEvaluation, error)
 }
