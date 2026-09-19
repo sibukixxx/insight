@@ -78,6 +78,14 @@ Insight Lab
 
 A source-specific collector may know about a government API, company registry, survey platform, or other schema. Insight Lab's core domain should not.
 
+## Evidence acquisition boundary (BYO-Evidence)
+
+Insight Lab is a Bring-Your-Own-Evidence reasoning engine. It reasons over evidence it is given; it does not fetch evidence. Autonomous web search, authenticated retrieval from e-Stat or registries, SaaS/Drive/CRM connectors, credential management and continuous external monitoring stay outside the OSS core.
+
+What stays inside: stating precisely what evidence is missing (`ResearchGap`, `DataRequirement`), accepting acquired evidence back through the generic ingestion boundary, and continuing the same research as a new append-only `ResearchIteration`. External reports and AI answers may be supplied as artifacts, but they are not primary evidence.
+
+See [BYO-Evidence boundary](byo-evidence-boundary.md) for the full boundary and the integration contract.
+
 ## Design test
 
 Before adding a feature, ask:

@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/sibukixxx/insight/testdata/golden/schema/eval-case.v0.1.schema.json",
+  "title": "Insight Lab Golden Case (Shared Eval Contract v0.1)",
+  "description": "Shape of one golden case. Shared semantics may later move to TechVit Business; Insight-owned fixtures and invariants stay in this repository. The harness in ../harness validates the subset of this schema it needs with the standard library only.",
+  "type": "object",
+  "required": ["caseId", "version", "title", "kind", "goldenSetIndex", "dimensions", "input", "expected", "humanReview"],
+  "properties": {
+    "caseId": {"type": "string", "pattern": "^GS-[0-9]{2}$"},
+    "version": {"type": "string", "description": "semver of this fixture; bump when expected values change"},
+    "title": {"type": "string"},
+    "kind": {"enum": ["synthetic", "open_data"]},
+    "goldenSetIndex": {"type": "integer", "minimum": 1, "maximum": 7, "description": "position in the issue #14 Golden Set list"},
+    "dimensions": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+    "input": {
+      "type": "object",
+      "required": ["researchQuestion", "stage", "datasets"],
+      "properties": {
+        "researchQuestion": {"type": "string"},
+        "stage": {"enum": ["EXPLORATORY", "VALIDATION"]},
+        "datasets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "role", "sourceKind", "rows"],
+            "properties": {
+              "id": {"type": "string"},
+              "role": {"enum": ["hypothesis_generation", "validation", "context"]},
+              "sourceKind": {"enum": ["primary", "external_artifact", "ai_output"]},
+              "description": {"type": "string"},
+              "populationDefinitionId": {"type": "string", "description": "identity of who/what is counted; comparability is derived from equality of this id"},
+              "harmonizationMethod": {"type": "string", "default": "observed", "description": "'observed' or a named adjustment such as carry_forward_2021_inactive"},
+              "unit": {"type": "string"},
+              "rows": {"type": "array", "items": {"type": "object", "required": ["key", "value"], "properties": {"key": {"type": "string"}, "value": {"type": "number"}}}}
+            }
+          }
+        }
+      }
+    },
+    "expected": {
+      "type": "object",
+      "required": ["verdict", "expectations", "hypotheses", "evidence", "comparisons", "counterEvidenceSearched", "mayClaimExhaustiveValidation", "requiresCounterEvidence", "requiredLimitations", "requiredResearchGaps", "forbiddenClaims"],
+      "properties": {
+        "verdict": {"enum": ["ASSOCIATION_ONLY", "NOT_COMPARABLE", "INCONCLUSIVE", "COMPETING_UNRESOLVED", "SUPPORTED_WITH_LIMITS"]},
+        "expectations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "text", "basis", "provenance", "declaredBeforeDataSeen"],
+            "properties": {
+              "id": {"type": "string"},
+              "text": {"type": "string"},
+              "basis": {"enum": ["SOURCE_BACKED", "MODEL_PROPOSED", "UNKNOWN"], "description": "mirrors domain.ExpectationBasis"},
+              "provenance": {"enum": ["PRIOR", "POST_HOC"]},
+              "declaredBeforeDataSeen": {"type": "boolean"}
+            }
+          }
+        },
+        "hypotheses": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "role", "text", "causalStatus", "validationStatus", "identificationStatus"],
+            "properties": {
+              "id": {"type": "string"},
+              "role": {"enum": ["PRIMARY", "COMPETING"]},
+              "text": {"type": "string"},
+              "causalStatus": {"enum": ["OBSERVED_ASSOCIATION", "CAUSAL_HYPOTHESIS", "CAUSALLY_SUPPORTED", "NOT_IDENTIFIED"]},
+              "validationStatus": {"enum": ["UNTESTED", "PLAUSIBLE", "PARTIALLY_SUPPORTED", "SUPPORTED", "INSUFFICIENT_EVIDENCE", "CONTRADICTED"]},
+              "identificationStatus": {"enum": ["IDENTIFIED", "NOT_IDENTIFIED", "UNKNOWN"]}
+            }
+          }
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "type", "hypothesisIds", "datasetId", "usage", "sourceKind", "traceableToPrimary", "summary"],
+            "properties": {
+              "id": {"type": "string"},
+              "type": {"enum": ["support", "counter", "neutral"]},
+              "hypothesisIds": {"type": "array", "items": {"type": "string"}},
+              "datasetId": {"type": "string"},
+              "usage": {"enum": ["generation", "re_analysis", "independent_validation", "context"]},
+              "sourceKind": {"enum": ["primary", "external_artifact", "ai_output"]},
+              "traceableToPrimary": {"type": "boolean"},
+              "summary": {"type": "string"}
+            }
+          }
+        },
+        "comparisons": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "baselineDatasetId", "baselineRowKey", "currentDatasetId", "currentRowKey", "expectedDelta", "expectedPctChange", "comparabilityLabel"],
+            "properties": {
+              "id": {"type": "string"},
+              "baselineDatasetId": {"type": "string"},
+              "baselineRowKey": {"type": "string"},
+              "currentDatasetId": {"type": "string"},
+              "currentRowKey": {"type": "string"},
+              "expectedDelta": {"type": "number"},
+              "expectedPctChange": {"type": "string", "description": "decimal string rounded half-up to 0.1, e.g. \"-30.0\""},
+              "comparabilityLabel": {"enum": ["COMPARABLE", "HARMONIZED_REFERENCE", "NOT_COMPARABLE"]}
+            }
+          }
+        },
+        "counterEvidenceSearched": {"type": "boolean"},
+        "mayClaimExhaustiveValidation": {"type": "boolean"},
+        "requiresCounterEvidence": {"type": "boolean"},
+        "requiredLimitations": {"type": "array", "items": {"type": "string"}},
+        "requiredResearchGaps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["category", "need"],
+            "properties": {
+              "category": {"enum": ["CONFOUNDER", "COMPARISON_CONTROL", "PRE_PERIOD", "TIMING", "MEASUREMENT", "EXTERNAL_CONTEXT", "SOURCE_QUALITY", "OTHER"], "description": "mirrors domain.ResearchGapCategory"},
+              "need": {"type": "string"}
+            }
+          }
+        },
+        "forbiddenClaims": {"type": "array", "items": {"type": "string"}, "description": "phrases whose verbatim presence in a report fails the case"}
+      }
+    },
+    "humanReview": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": {"enum": ["PENDING", "PASS", "FAIL"]},
+        "reviewer": {"type": ["string", "null"]},
+        "reviewedAt": {"type": ["string", "null"], "format": "date-time"},
+        "outcome": {"type": ["string", "null"]},
+        "notes": {"type": "string"}
+      }
+    }
+  }
+}
