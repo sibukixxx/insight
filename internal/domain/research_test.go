@@ -44,3 +44,106 @@ func TestAssociationOnlyIterationCanStateNotIdentifiedBoundary(t *testing.T) {
 		t.Fatal("association-only research must retain unresolved identification boundaries")
 	}
 }
+
+func TestDecisionReadinessValuesDoNotCollideWithExistingStatuses(t *testing.T) {
+	existing := map[string]bool{}
+	for _, v := range []string{string(CausalObservedAssociation), string(CausalHypothesis), string(CausallySupported), string(CausalNotIdentified),
+		string(ValidationUntested), string(ValidationPlausible), string(ValidationPartiallySupported), string(ValidationSupported), string(ValidationInsufficientEvidence), string(ValidationContradicted),
+		string(IdentificationIdentified), string(IdentificationNotIdentified), string(IdentificationUnknown)} {
+		existing[v] = true
+	}
+	for _, state := range AllDecisionReadiness() {
+		if !state.Valid() {
+			t.Errorf("%s must be valid", state)
+		}
+		if existing[string(state)] {
+			t.Errorf("readiness %q collides with an existing status value", state)
+		}
+	}
+	if DecisionReadiness("READY").Valid() {
+		t.Error("unknown readiness must be invalid")
+	}
+}
+
+func TestApplyHumanStopKeepsHistoryAndUnresolvedGaps(t *testing.T) {
+	at := time.Date(2026, 9, 19, 0, 0, 0, 0, time.UTC)
+	iteration := ResearchIteration{
+		ID: "iter-2", Sequence: 2,
+		ResearchGaps: []ResearchGap{{ID: "gap-1", Need: "comparison trend"}, {ID: "gap-2", Need: "population", Resolved: true}},
+		Readiness:    ReadinessAssessment{State: ReadinessValidationRequired},
+	}
+
+	stopped, err := iteration.ApplyHumanOverride(HumanOverride{StopReason: StopHumanChoice, Note: "budget exhausted", RecordedAt: at})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if iteration.Stop != nil || len(iteration.HumanOverrides) != 0 {
+		t.Fatal("original iteration must not be mutated")
+	}
+	if stopped.Stop == nil || stopped.Stop.Reason != StopHumanChoice || stopped.Stop.Source != StopSourceHuman {
+		t.Fatalf("human stop not recorded: %+v", stopped.Stop)
+	}
+	if len(stopped.Stop.UnresolvedGapIDs) != 1 || stopped.Stop.UnresolvedGapIDs[0] != "gap-1" {
+		t.Fatalf("unresolved gaps must survive a stop: %+v", stopped.Stop.UnresolvedGapIDs)
+	}
+	if len(stopped.ResearchGaps) != 2 {
+		t.Fatal("stop must not delete research gaps")
+	}
+	if len(stopped.HumanOverrides) != 1 || stopped.HumanOverrides[0].Note != "budget exhausted" {
+		t.Fatalf("override history missing: %+v", stopped.HumanOverrides)
+	}
+	if stopped.Stop.ReadinessAtStop != ReadinessValidationRequired {
+		t.Fatalf("stop must record readiness at the time of stopping: %+v", stopped.Stop)
+	}
+}
+
+func TestHumanOverrideRejectsSystemOnlyStopReasons(t *testing.T) {
+	iteration := ResearchIteration{ID: "iter-1"}
+	if _, err := iteration.ApplyHumanOverride(HumanOverride{StopReason: StopHypothesesDistinguished}); err == nil {
+		t.Fatal("humans may only stop with HUMAN_STOPPED or EXTERNAL_BUDGET_BOUNDARY")
+	}
+	if _, err := iteration.ApplyHumanOverride(HumanOverride{Readiness: DecisionReadiness("READY")}); err == nil {
+		t.Fatal("invalid readiness override must be rejected")
+	}
+	if _, err := iteration.ApplyHumanOverride(HumanOverride{}); err == nil {
+		t.Fatal("an override must change readiness or stop the loop")
+	}
+}
+
+func TestEffectiveReadinessPrefersLatestHumanOverride(t *testing.T) {
+	iteration := ResearchIteration{ID: "iter-1", Readiness: ReadinessAssessment{State: ReadinessEvidenceConverging}}
+	if iteration.EffectiveReadiness() != ReadinessEvidenceConverging {
+		t.Fatal("computed readiness must apply when no override exists")
+	}
+	first, err := iteration.ApplyHumanOverride(HumanOverride{Readiness: ReadinessValidationRequired, Note: "counter evidence not yet reviewed"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := first.ApplyHumanOverride(HumanOverride{Readiness: ReadinessInconclusive, Note: "reviewed; still conflicting"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if second.EffectiveReadiness() != ReadinessInconclusive || second.Readiness.State != ReadinessEvidenceConverging {
+		t.Fatalf("latest override must win without erasing the computed assessment: %+v", second)
+	}
+	if len(second.HumanOverrides) != 2 {
+		t.Fatalf("override history must accumulate: %+v", second.HumanOverrides)
+	}
+}
+
+func TestResearchRunStoppedReflectsLatestIteration(t *testing.T) {
+	run := ResearchRun{Iterations: []ResearchIteration{{ID: "iter-1", Stop: &StopDecision{Reason: StopHumanChoice}}, {ID: "iter-2"}}}
+	if run.Stopped() {
+		t.Fatal("an earlier stop followed by a new iteration means research continues")
+	}
+	if latest, ok := run.LatestIteration(); !ok || latest.ID != "iter-2" {
+		t.Fatalf("latest iteration lookup failed: %+v %v", latest, ok)
+	}
+	run.Iterations[1].Stop = &StopDecision{Reason: StopNoFeasibleDataSource, Source: StopSourceSystem}
+	if !run.Stopped() {
+		t.Fatal("run with a stopped latest iteration must report stopped")
+	}
+	if _, ok := (ResearchRun{}).LatestIteration(); ok {
+		t.Fatal("empty run has no latest iteration")
+	}
+}
