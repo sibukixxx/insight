@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -22,7 +24,52 @@ type Pipeline struct {
 	Patterns     repository.PatternRepository
 	Insights     repository.InsightRepository
 	Evidence     repository.EvidenceRepository
-	LLM          llm.Client
+	// LLM may be nil. Without a model the run stops after the deterministic
+	// dataset pre-analysis (Issue #16): counts and comparisons are persisted,
+	// no hypotheses are generated, and the provenance says so.
+	LLM llm.Client
+	// Model is the configured model name, recorded in the run provenance so
+	// a report can be traced to the model version that wrote its narrative.
+	Model string
+}
+
+// AnalysisMode states whether a model took part in the run at all. It is
+// recorded rather than inferred so a "no insights" result cannot be
+// mistaken for "the model found nothing".
+type AnalysisMode string
+
+const (
+	AnalysisModeDeterministic AnalysisMode = "deterministic"
+	AnalysisModeModelBacked   AnalysisMode = "model_backed"
+)
+
+// RunProvenance is what a reader needs to reproduce or distrust a run:
+// which inputs (dataset hashes, manifests), which rules, and - if any -
+// which model and prompts. Numbers in Metrics come from counting; nothing
+// here is self-reported by the model.
+type RunProvenance struct {
+	Mode                      AnalysisMode                  `json:"mode"`
+	Model                     string                        `json:"model,omitempty"`
+	PromptFingerprint         string                        `json:"promptFingerprint,omitempty"` // sha256 over every system prompt used
+	RuleVersion               string                        `json:"ruleVersion"`
+	DatasetHashes             []string                      `json:"datasetHashes,omitempty"`
+	Datasets                  []DatasetProvenance           `json:"datasets,omitempty"`
+	DeterministicObservations int                           `json:"deterministicObservations"`
+	DeterministicComparisons  int                           `json:"deterministicComparisons"`
+	CompatibilityWarnings     []DatasetCompatibilityWarning `json:"compatibilityWarnings,omitempty"`
+	Notes                     []string                      `json:"notes,omitempty"`
+}
+
+// DatasetProvenance is the report-facing subset of an AcquisitionManifest.
+type DatasetProvenance struct {
+	SourceName      string          `json:"sourceName"`
+	DatasetID       string          `json:"datasetId"`
+	RetrievalMethod RetrievalMethod `json:"retrievalMethod"`
+	RetrievedAt     time.Time       `json:"retrievedAt"`
+	SchemaID        string          `json:"schemaId"`
+	SchemaVersion   string          `json:"schemaVersion,omitempty"`
+	RecipeRef       string          `json:"recipeRef,omitempty"`
+	FileHash        string          `json:"fileHash,omitempty"`
 }
 
 // Metrics is the evaluation summary computed at the end of a run and
@@ -52,6 +99,8 @@ type Metrics struct {
 	QualityFlaggedInsightRate float64 `json:"qualityFlaggedInsightRate"`
 	// QualityFlagCounts is how many insights carry each flag code.
 	QualityFlagCounts map[string]int `json:"qualityFlagCounts"`
+	// Provenance records inputs, rules and (if any) model behind this run.
+	Provenance RunProvenance `json:"provenance"`
 }
 
 type draftInsight struct {
@@ -75,13 +124,27 @@ func (p *Pipeline) Run(ctx context.Context, analysisID, projectID string, progre
 		return nil, fmt.Errorf("the project has no documents")
 	}
 
-	metrics := &Metrics{}
+	// Everything a rule can establish from dataset documents is computed
+	// first and without the model: counts, period arithmetic, provenance,
+	// comparability. The model never sees a dataset document's numbers as
+	// raw text to re-derive; it sees the finished observations and
+	// comparisons as input.
+	now := time.Now().UTC()
+	pre := RunDatasetPreAnalysis(docs, now)
+	metrics := &Metrics{Provenance: p.provenance(pre)}
+	if p.LLM == nil {
+		return p.runDeterministic(ctx, analysisID, projectID, pre, metrics, now, progress)
+	}
 
 	progress("extracting_observations", 5, "Reading documents...")
-	allObs, err := p.extractAndGroundAll(ctx, docs, metrics)
+	modelObs, err := p.extractAndGroundAll(ctx, documentsForModel(docs, pre), metrics)
 	if err != nil {
 		return nil, fmt.Errorf("observation extraction: %w", err)
 	}
+	allObs := append(append([]*domain.Observation{}, pre.Observations...), modelObs...)
+	metrics.TotalObservationCandidates += len(pre.Observations)
+	metrics.GroundedObservations += len(pre.Observations)
+	finalizeObservationMetrics(metrics)
 	if len(allObs) == 0 {
 		return nil, fmt.Errorf("no observations could be verified against the source text")
 	}
@@ -112,13 +175,14 @@ func (p *Pipeline) Run(ctx context.Context, analysisID, projectID string, progre
 		return nil, fmt.Errorf("pattern detection: %w", err)
 	}
 	repetitions := buildPatterns(projectID, analysisID, patternCandidates, obsByID)
-	patterns := append(append([]*domain.Pattern{}, traces...), repetitions...)
+	comparisons := buildComparisonPatterns(projectID, analysisID, pre.Comparisons, pre.Observations, now)
+	patterns := append(append(append([]*domain.Pattern{}, traces...), comparisons...), repetitions...)
 	if err := p.Patterns.CreateBatch(ctx, patterns); err != nil {
 		return nil, fmt.Errorf("save patterns: %w", err)
 	}
 	metrics.PatternCount = len(patterns)
 	metrics.TraceCount = len(traces)
-	progress("detecting_patterns", 40, fmt.Sprintf("Found %d recurring patterns", len(repetitions)))
+	progress("detecting_patterns", 40, fmt.Sprintf("Found %d recurring patterns and %d deterministic comparisons", len(repetitions), len(comparisons)))
 
 	progress("generating_hypotheses", 45, "Generating hidden-need hypotheses...")
 	hypotheses, err := p.generateHypotheses(ctx, patterns, allObs)
@@ -175,6 +239,91 @@ func (p *Pipeline) Run(ctx context.Context, analysisID, projectID string, progre
 	return metrics, nil
 }
 
+// runDeterministic is the whole pipeline when no model is configured:
+// persist the dataset observations and comparisons, record that no
+// hypotheses were attempted, and finish. Interview-style documents cannot
+// be analyzed this way, so a project without countable dataset documents
+// is an error that points the operator at both remedies.
+func (p *Pipeline) runDeterministic(ctx context.Context, analysisID, projectID string, pre DatasetPreAnalysis, metrics *Metrics, now time.Time, progress ProgressFunc) (*Metrics, error) {
+	if len(pre.Observations) == 0 {
+		return nil, fmt.Errorf("the LLM is not configured and the project has no dataset documents to pre-analyze deterministically; enter a base URL and model on the Settings page, or import a dataset CSV")
+	}
+	progress("extracting_observations", 10, "Materializing dataset observations (no model configured)...")
+	if err := p.Observations.CreateBatch(ctx, pre.Observations); err != nil {
+		return nil, fmt.Errorf("save observations: %w", err)
+	}
+	metrics.TotalObservationCandidates = len(pre.Observations)
+	metrics.GroundedObservations = len(pre.Observations)
+	finalizeObservationMetrics(metrics)
+
+	progress("detecting_patterns", 60, "Computing period comparisons...")
+	comparisons := buildComparisonPatterns(projectID, analysisID, pre.Comparisons, pre.Observations, now)
+	if len(comparisons) > 0 {
+		if err := p.Patterns.CreateBatch(ctx, comparisons); err != nil {
+			return nil, fmt.Errorf("save patterns: %w", err)
+		}
+	}
+	metrics.PatternCount = len(comparisons)
+	metrics.QualityFlagCounts = map[string]int{}
+
+	progress("completed", 100, fmt.Sprintf("Deterministic pre-analysis complete: %d dataset observations, %d period comparisons. No model is configured, so no hypotheses were generated.",
+		len(pre.Observations), len(comparisons)))
+	return metrics, nil
+}
+
+func (p *Pipeline) provenance(pre DatasetPreAnalysis) RunProvenance {
+	prov := RunProvenance{
+		Mode: AnalysisModeDeterministic, RuleVersion: pre.RuleVersion,
+		DatasetHashes:             pre.DatasetHashes,
+		DeterministicObservations: len(pre.Observations),
+		DeterministicComparisons:  len(pre.Comparisons),
+		CompatibilityWarnings:     pre.CompatibilityWarnings,
+		Notes:                     pre.Notes,
+	}
+	for _, m := range pre.Manifests {
+		prov.Datasets = append(prov.Datasets, DatasetProvenance{
+			SourceName: m.SourceName, DatasetID: m.DatasetID, RetrievalMethod: m.RetrievalMethod, RetrievedAt: m.RetrievedAt,
+			SchemaID: m.SchemaID, SchemaVersion: m.SchemaVersion, RecipeRef: m.RecipeRef, FileHash: m.FileHash,
+		})
+	}
+	if p.LLM != nil {
+		prov.Mode = AnalysisModeModelBacked
+		prov.Model = p.Model
+		prov.PromptFingerprint = promptFingerprint()
+	}
+	return prov
+}
+
+// promptFingerprint hashes every system prompt the pipeline can send, so a
+// stored run can be matched to the exact prompt wording that produced it.
+func promptFingerprint() string {
+	h := sha256.New()
+	for _, prompt := range []string{observationExtractionPrompt, traceDetectionPrompt, patternDetectionPrompt, hypothesisPrompt, evidenceRetrievalPrompt, insightWriteupPrompt, dedupePrompt} {
+		h.Write([]byte(prompt))
+		h.Write([]byte{0})
+	}
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+// documentsForModel drops the documents the pre-analysis already turned
+// into observations; sending them to the model would invite it to restate
+// (or misstate) numbers the app has already established.
+func documentsForModel(docs []*domain.Document, pre DatasetPreAnalysis) []*domain.Document {
+	out := make([]*domain.Document, 0, len(docs))
+	for _, d := range docs {
+		if !pre.Handled(d.ID) {
+			out = append(out, d)
+		}
+	}
+	return out
+}
+
+func finalizeObservationMetrics(metrics *Metrics) {
+	if metrics.TotalObservationCandidates > 0 {
+		metrics.UnsupportedClaimRate = 1 - float64(metrics.GroundedObservations)/float64(metrics.TotalObservationCandidates)
+	}
+}
+
 func (p *Pipeline) extractAndGroundAll(ctx context.Context, docs []*domain.Document, metrics *Metrics) ([]*domain.Observation, error) {
 	var allObs []*domain.Observation
 	for _, d := range docs {
@@ -197,9 +346,6 @@ func (p *Pipeline) extractAndGroundAll(ctx context.Context, docs []*domain.Docum
 				})
 			}
 		}
-	}
-	if metrics.TotalObservationCandidates > 0 {
-		metrics.UnsupportedClaimRate = 1 - float64(metrics.GroundedObservations)/float64(metrics.TotalObservationCandidates)
 	}
 	return allObs, nil
 }
