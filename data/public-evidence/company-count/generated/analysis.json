@@ -1,0 +1,23 @@
+{
+  "national": {
+    "geography": "全国",
+    "from_year": 2012,
+    "to_year": 2021,
+    "from_count": 3863530,
+    "to_count": 3375255,
+    "delta": -488275,
+    "percent_change": -12.63805380053992
+  },
+  "tokyo": {
+    "geography": "東京都",
+    "from_year": 2012,
+    "to_year": 2021,
+    "from_count": 447113,
+    "to_count": 423595,
+    "delta": -23518,
+    "percent_change": -5.25996783810804
+  },
+  "tokyo_share_from": 11.572655058974565,
+  "tokyo_share_to": 12.55001473962708,
+  "tokyo_share_delta_pp": 0.9773596806525156
+}
