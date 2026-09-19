@@ -94,9 +94,39 @@ func TestResearchHTTPDogfoodPathPersistsHumanEvaluationAndReport(t *testing.T) {
 	if reportResp.Code != http.StatusOK {
 		t.Fatalf("report: %d %s", reportResp.Code, reportResp.Body.String())
 	}
-	for _, want := range []string{"Research Gaps", "What We Cannot Conclude", "novelty `NEW`"} {
+	for _, want := range []string{"Research Gaps", "What We Cannot Conclude", "novelty `NEW`", "Decision Readiness"} {
 		if !strings.Contains(reportResp.Body.String(), want) {
 			t.Errorf("report missing %q", want)
 		}
+	}
+
+	overrideURL := "/api/research-runs/" + run.ID + "/iterations/" + second.ID + "/override"
+	overrideReq := httptest.NewRequest(http.MethodPut, overrideURL, bytes.NewBufferString(`{"stopReason":"EXTERNAL_BUDGET_BOUNDARY","note":"sprint ended"}`))
+	overrideReq.Header.Set("content-type", "application/json")
+	overrideResp := httptest.NewRecorder()
+	router.ServeHTTP(overrideResp, overrideReq)
+	if overrideResp.Code != http.StatusOK {
+		t.Fatalf("apply override: %d %s", overrideResp.Code, overrideResp.Body.String())
+	}
+	var overridden domain.ResearchIteration
+	if err := json.Unmarshal(overrideResp.Body.Bytes(), &overridden); err != nil {
+		t.Fatal(err)
+	}
+	if overridden.Stop == nil || overridden.Stop.Reason != domain.StopExternalBudgetBoundary || overridden.Stop.Source != domain.StopSourceHuman {
+		t.Fatalf("human override not recorded: %+v", overridden.Stop)
+	}
+
+	handoffReq := httptest.NewRequest(http.MethodGet, "/api/research-runs/"+run.ID+"/handoff", nil)
+	handoffResp := httptest.NewRecorder()
+	router.ServeHTTP(handoffResp, handoffReq)
+	if handoffResp.Code != http.StatusOK {
+		t.Fatalf("get handoff: %d %s", handoffResp.Code, handoffResp.Body.String())
+	}
+	var handoff domain.HumanHandoff
+	if err := json.Unmarshal(handoffResp.Body.Bytes(), &handoff); err != nil {
+		t.Fatal(err)
+	}
+	if handoff.ResearchRunID != run.ID || handoff.Stop == nil || handoff.Stop.Reason != domain.StopExternalBudgetBoundary {
+		t.Fatalf("handoff must reflect the human stop decision: %+v", handoff)
 	}
 }
