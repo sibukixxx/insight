@@ -211,7 +211,7 @@ func prioritizeRequirement(gap domain.ResearchGap, req domain.DataRequirement, s
 	}
 
 	p.AcquisitionDifficulty = acquisitionDifficulty(gap, req)
-	p.Rationale = append(p.Rationale, fmt.Sprintf("acquisition from %q is qualitatively %s; Insight does not acquire it", nonEmpty(req.SuggestedSourceCategory, "unspecified"), p.AcquisitionDifficulty))
+	p.Rationale = append(p.Rationale, fmt.Sprintf("acquisition from %q is qualitatively %s; Insight does not acquire it", orDefault(req.SuggestedSourceCategory, "unspecified"), p.AcquisitionDifficulty))
 	if len(gap.DependsOnGapIDs) > 0 {
 		p.Rationale = append(p.Rationale, "depends on unresolved gap(s) "+strings.Join(gap.DependsOnGapIDs, ", ")+": collect those first")
 	}
@@ -535,7 +535,7 @@ func identificationLabel(status domain.IdentificationStatus) string {
 	return string(status)
 }
 
-func nonEmpty(value, fallback string) string {
+func orDefault(value, fallback string) string {
 	if strings.TrimSpace(value) == "" {
 		return fallback
 	}
