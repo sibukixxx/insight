@@ -2,8 +2,11 @@ package service
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/csv"
+	"encoding/hex"
 	"fmt"
+	"hash"
 	"io"
 	"strings"
 	"time"
@@ -26,6 +29,9 @@ type ImportResult struct {
 	Imported int              `json:"imported"`
 	Skipped  int              `json:"skipped"`
 	Errors   []ImportRowError `json:"errors"`
+	// FileHash is the sha256 of the imported bytes. Every created document
+	// carries it as metadata so a run can be traced back to the exact file.
+	FileHash string `json:"fileHash"`
 }
 
 // ImportCSV parses r as the fixed id,source,title,content CSV and inserts
@@ -34,7 +40,20 @@ type ImportResult struct {
 // column isn't guaranteed unique across separate imports/projects; the
 // original value is kept in metadata["csv_id"] for traceability.
 func ImportCSV(ctx context.Context, documents repository.DocumentRepository, projectID string, r io.Reader) (*ImportResult, error) {
-	reader := csv.NewReader(stripBOM(r))
+	return ImportCSVWithManifest(ctx, documents, projectID, r, nil)
+}
+
+// ImportCSVWithManifest is ImportCSV plus an optional acquisition manifest
+// (Issue #16). The manifest is validated before any row is read and, with
+// the file hash filled in, attached to every created document.
+func ImportCSVWithManifest(ctx context.Context, documents repository.DocumentRepository, projectID string, r io.Reader, manifest *AcquisitionManifest) (*ImportResult, error) {
+	if manifest != nil {
+		if err := manifest.Validate(); err != nil {
+			return nil, err
+		}
+	}
+	hashed := newHashingReader(r)
+	reader := csv.NewReader(stripBOM(hashed))
 	reader.FieldsPerRecord = -1
 
 	header, err := reader.Read()
@@ -91,6 +110,10 @@ func ImportCSV(ctx context.Context, documents repository.DocumentRepository, pro
 		})
 	}
 
+	result.FileHash = hashed.Sum()
+	for _, doc := range toInsert {
+		doc.Metadata = provenanceMetadata(doc.Metadata, result.FileHash, manifest)
+	}
 	if len(toInsert) > 0 {
 		if err := documents.CreateBatch(ctx, toInsert); err != nil {
 			return nil, fmt.Errorf("save document: %w", err)
@@ -99,6 +122,41 @@ func ImportCSV(ctx context.Context, documents repository.DocumentRepository, pro
 	result.Imported = len(toInsert)
 	return result, nil
 }
+
+// provenanceMetadata adds the file hash and, when present, the manifest to
+// base. The hash is written twice on purpose: once as a flat key any reader
+// can grep for, once inside the manifest so the manifest is self-contained.
+func provenanceMetadata(base map[string]string, fileHash string, manifest *AcquisitionManifest) map[string]string {
+	if manifest == nil {
+		out := make(map[string]string, len(base)+1)
+		for k, v := range base {
+			out[k] = v
+		}
+		out[MetadataDatasetHash] = fileHash
+		return out
+	}
+	stamped := *manifest
+	stamped.FileHash = fileHash
+	return stamped.DocumentMetadata(base)
+}
+
+// hashingReader computes the sha256 of everything read through it, so the
+// importer gets the file hash without buffering the upload in memory.
+type hashingReader struct {
+	r io.Reader
+	h hash.Hash
+}
+
+func newHashingReader(r io.Reader) *hashingReader {
+	h := sha256.New()
+	return &hashingReader{r: io.TeeReader(r, h), h: h}
+}
+
+func (h *hashingReader) Read(p []byte) (int, error) { return h.r.Read(p) }
+
+// Sum returns the hex digest of the bytes read so far. Call it after the
+// CSV reader has hit EOF; the whole file has been consumed by then.
+func (h *hashingReader) Sum() string { return hex.EncodeToString(h.h.Sum(nil)) }
 
 func headerMatches(header []string) bool {
 	if len(header) < len(csvHeader) {
