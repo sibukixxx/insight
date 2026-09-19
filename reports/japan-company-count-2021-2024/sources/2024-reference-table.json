@@ -1,0 +1,20 @@
+{
+  "source_id": "estat-2024-reference-enterprises-including-no-employee-sole-proprietors",
+  "source_name": "令和6年経済センサス‐基礎調査 甲調査（民営事業所） 参考表 表1",
+  "publisher": "総務省統計局",
+  "source_url": "https://www.e-stat.go.jp/stat-search/files?stat_infid=000040389375",
+  "stat_infid": "000040389375",
+  "survey_period": "2024-06",
+  "published_at": "2025-12-24",
+  "geographic_scope": ["全国", "都道府県", "市区町村"],
+  "table_title": "企業産業(中分類)、経営組織(5区分)別企業等数、事業所数及び従業者数(雇用者のいない個人経営の企業を含む)－全国、都道府県、市区町村",
+  "target_cell": {"measure":"企業等数","industry":"全産業（S_公務を除く）","management_organization":"総数","region":"全国","period":"2024年"},
+  "population_basis": "private-enterprise-equivalents-including-individual-proprietorships-with-no-employees",
+  "normalization_target_metric_id": "enterprise_equivalents_harmonized",
+  "status": "source-identified-value-not-yet-normalized",
+  "known_limitations": [
+    "The reference table is supplied as an Excel file rather than the standard e-Stat DB table used by the main 2024 aggregation.",
+    "A like-for-like trend claim must not be emitted until the target cell is extracted and the 2021 population definition is validated against the same conceptual basis.",
+    "Source metadata alone is not evidence of the numeric value."
+  ]
+}

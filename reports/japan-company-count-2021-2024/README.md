@@ -46,3 +46,21 @@ Do not commit the AppID. Also do not interpret `ASSIGNED` as incorporation/start
 ## Why the first result is intentionally inconclusive
 
 The apparent 2021→2024 drop in the top-line enterprise-equivalent count fails a population-comparability check. The 2024 survey excludes individual proprietorship establishments with no employees, while a company-enterprise slice points in the opposite direction. The correct P0 result is therefore not a dramatic trend claim; it is a reproducible demonstration that definition mismatch can invalidate a simple delta.
+
+
+## P1 harmonization source contract
+
+The official 2024 reference table that includes individual proprietorships with no employees is pinned in `sources/2024-reference-table.json` (e-Stat `stat_infid=000040389375`). The contract identifies the exact target cell to normalize: enterprise count / all industries / all management organizations / Japan / 2024.
+
+P1 deliberately separates **source discovery** from **numeric normalization**. A discovered Excel table is not allowed to become numeric evidence until its target cell has been extracted and verified. This prevents a search snippet, LLM output, or guessed value from entering the Evidence Ledger.
+
+Validate the source contract with:
+
+```bash
+python3 scripts/validate_public_source.py \
+  reports/japan-company-count-2021-2024/sources/2024-reference-table.json
+
+python3 scripts/test_validate_public_source.py
+```
+
+The next normalization commit must change the source status to `normalized`, record the verified value/provenance, add the harmonized 2024 row, and only then permit a like-for-like 2021→2024 calculation.
