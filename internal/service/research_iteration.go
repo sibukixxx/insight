@@ -17,7 +17,9 @@ import (
 func BuildResearchIteration(sequence int, question string, inputReferences []string, insights []*domain.Insight, now time.Time) domain.ResearchIteration {
 	iteration := domain.ResearchIteration{
 		ID: newID("rit"), Sequence: sequence, Stage: domain.StageExploratory, Question: strings.TrimSpace(question),
-		InputReferences: append([]string(nil), inputReferences...), CreatedAt: now,
+		InputReferences: append([]string(nil), inputReferences...),
+		InputSnapshot: domain.InputSetSnapshot{ArtifactReferences: append([]string(nil), inputReferences...)},
+		CreatedAt: now,
 		Promotion: domain.PromotionAssessment{State: domain.PromotionDraft, AssessedAt: now},
 	}
 
@@ -128,6 +130,8 @@ func FinalizeResearchIterationWithLinks(run domain.ResearchRun, iteration domain
 		iteration = CarryForwardResearchGapsWithLinks(previous, iteration, addedEvidence, links)
 		iteration = CarryForwardFrozenExpectations(previous, iteration, now)
 		iteration.HypothesisChanges = CompareHypothesisStates(previous.HypothesisStates, iteration.HypothesisStates)
+		delta := CompareResearchIterations(previous, iteration)
+		iteration.Delta = &delta
 		// The run's stage only moves via an explicit transition (see
 		// domain.ResearchStage.Transition); building a new iteration from the
 		// latest insights must not silently reset it back to EXPLORATORY.
