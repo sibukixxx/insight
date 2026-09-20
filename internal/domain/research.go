@@ -344,6 +344,9 @@ type ResearchIteration struct {
 	ID               string            `json:"id"`
 	Sequence         int               `json:"sequence"`
 	Stage            ResearchStage     `json:"stage,omitempty"`
+	AnalysisMode     AnalysisMode      `json:"analysisMode,omitempty"`
+	ArtifactClass    ArtifactClass     `json:"artifactClass,omitempty"`
+	Claims           []Claim           `json:"claims,omitempty"`
 	Question         string            `json:"question"`
 	InputReferences  []string          `json:"inputReferences,omitempty"`
 	InputSnapshot    ResearchInputSnapshot `json:"inputSnapshot,omitempty"`
