@@ -10,6 +10,7 @@ type InsightRepository interface {
 	Create(ctx context.Context, insight *domain.Insight) error
 	Get(ctx context.Context, id string) (*domain.Insight, error)
 	ListByProject(ctx context.Context, projectID string) ([]*domain.Insight, error)
+	UpdateGeneralizations(ctx context.Context, insightID string, values []domain.GeneralizationCandidate) error
 }
 
 type EvidenceRepository interface {
