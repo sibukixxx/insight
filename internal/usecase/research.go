@@ -13,6 +13,7 @@ type CreateResearchRunInput struct {
 	ProjectID       string
 	Question        string
 	InputReferences []string
+	InputSnapshot   domain.ResearchInputSnapshot
 }
 
 type AppendResearchIterationInput struct {
@@ -21,6 +22,7 @@ type AppendResearchIterationInput struct {
 	InputReferences   []string
 	AddedEvidence     []string
 	EvidenceAdditions []domain.EvidenceAddition
+	InputSnapshot      domain.ResearchInputSnapshot
 }
 
 func (a *Application) CreateResearchRun(ctx context.Context, in CreateResearchRunInput) (*domain.ResearchRun, error) {
@@ -38,7 +40,7 @@ func (a *Application) CreateResearchRun(ctx context.Context, in CreateResearchRu
 		return nil, err
 	}
 	now := a.now()
-	iteration := service.BuildResearchIteration(1, in.Question, in.InputReferences, insights, now)
+	iteration := service.BuildResearchIterationWithSnapshot(1, in.Question, in.InputReferences, in.InputSnapshot, insights, now)
 	iteration = service.FinalizeResearchIteration(domain.ResearchRun{}, iteration, nil, now)
 	run := &domain.ResearchRun{ID: newID("run"), ProjectID: in.ProjectID, Question: strings.TrimSpace(in.Question), Iterations: []domain.ResearchIteration{iteration}, CreatedAt: now}
 	if err := a.repos.Research.CreateRun(ctx, run); err != nil {
@@ -61,7 +63,7 @@ func (a *Application) AppendResearchIteration(ctx context.Context, in AppendRese
 		question = run.Question
 	}
 	now := a.now()
-	iteration := service.BuildResearchIteration(len(run.Iterations)+1, question, in.InputReferences, insights, now)
+	iteration := service.BuildResearchIterationWithSnapshot(len(run.Iterations)+1, question, in.InputReferences, in.InputSnapshot, insights, now)
 	additions := append([]domain.EvidenceAddition(nil), in.EvidenceAdditions...)
 	for i := range additions {
 		if additions[i].AddedAt.IsZero() {
@@ -284,6 +286,19 @@ func (a *Application) ListResearchRuns(ctx context.Context, projectID string) ([
 }
 func (a *Application) GetResearchIteration(ctx context.Context, runID, iterationID string) (*domain.ResearchIteration, error) {
 	return a.repos.Research.GetResearchIteration(ctx, runID, iterationID)
+}
+
+func (a *Application) CompareResearchIterations(ctx context.Context, runID, fromID, toID string) (*domain.InsightDelta, error) {
+	from, err := a.repos.Research.GetResearchIteration(ctx, runID, fromID)
+	if err != nil {
+		return nil, err
+	}
+	to, err := a.repos.Research.GetResearchIteration(ctx, runID, toID)
+	if err != nil {
+		return nil, err
+	}
+	delta := service.CompareResearchIterations(*from, *to)
+	return &delta, nil
 }
 
 func (a *Application) SaveHumanEvaluation(ctx context.Context, evaluation *domain.HumanEvaluation) error {
