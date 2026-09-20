@@ -279,6 +279,7 @@ func hypothesisSchema() llm.Schema {
 								"distinguishingEvidence": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
 							}, "required": []string{"statement"}}},
 							"generalizations": map[string]any{"type": "array", "items": map[string]any{"type": "object", "properties": map[string]any{
+								"id": map[string]any{"type": "string"},
 								"principle": map[string]any{"type": "string"},
 								"sourceContext": map[string]any{"type": "string"},
 								"targetContexts": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
