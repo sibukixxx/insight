@@ -121,9 +121,9 @@ type MechanismCandidate struct {
 type GeneralizationStatus string
 
 const (
-	GeneralizationCandidate GeneralizationStatus = "CANDIDATE"
-	GeneralizationSupported GeneralizationStatus = "SUPPORTED"
-	GeneralizationRejected  GeneralizationStatus = "REJECTED"
+	GeneralizationStatusCandidate GeneralizationStatus = "CANDIDATE"
+	GeneralizationStatusSupported GeneralizationStatus = "SUPPORTED"
+	GeneralizationStatusRejected  GeneralizationStatus = "REJECTED"
 )
 
 // GeneralizationCandidate describes a possible transferable principle. It can
@@ -140,7 +140,7 @@ type GeneralizationCandidate struct {
 }
 
 func (g GeneralizationCandidate) PermitsTransferClaim() bool {
-	return g.Status == GeneralizationSupported && g.HumanReviewed
+	return g.Status == GeneralizationStatusSupported && g.HumanReviewed
 }
 
 type Insight struct {
