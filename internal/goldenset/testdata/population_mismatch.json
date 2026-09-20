@@ -1,0 +1,29 @@
+{
+  "manifests": [
+    {
+      "sourceName": "e-Stat",
+      "datasetId": "000032143614",
+      "retrievalMethod": "fixture",
+      "retrievedAt": "2026-01-01T00:00:00Z",
+      "schemaId": "estat-corp-count",
+      "unit": "count",
+      "populationScope": "全法人",
+      "period": "2021"
+    },
+    {
+      "sourceName": "e-Stat",
+      "datasetId": "000032143615",
+      "retrievalMethod": "fixture",
+      "retrievedAt": "2026-01-01T00:00:00Z",
+      "schemaId": "estat-corp-count",
+      "unit": "count",
+      "populationScope": "資本金1000万円以上の法人",
+      "period": "2021"
+    }
+  ],
+  "expectedCode": "population_mismatch",
+  "expectedDatasetIds": [
+    "000032143614",
+    "000032143615"
+  ]
+}

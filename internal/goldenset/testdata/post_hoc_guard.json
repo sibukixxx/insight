@@ -1,0 +1,12 @@
+{
+  "statement": "registrations rise only in municipalities with a startup consultation desk",
+  "provenance": "MODEL_PROPOSED_POST_HOC",
+  "authorType": "MODEL",
+  "researchIterationId": "iter-1",
+  "observedDataAvailableAtCreation": true,
+  "falsificationCriteria": [
+    "increase also appears where no desk exists"
+  ],
+  "newExpectationId": "exp-2",
+  "newIterationId": "iter-2"
+}

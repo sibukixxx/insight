@@ -1,0 +1,48 @@
+{
+  "question": "Did the marketing campaign cause the signup increase?",
+  "iteration1": [
+    {
+      "id": "h1",
+      "title": "campaign effect",
+      "hypothesisSetId": "set1",
+      "surprisingFact": "signups rose during the campaign window",
+      "causalStatus": "CAUSAL_HYPOTHESIS",
+      "validationStatus": "PARTIALLY_SUPPORTED",
+      "identificationStatus": "NOT_IDENTIFIED"
+    },
+    {
+      "id": "h2",
+      "title": "seasonal demand",
+      "hypothesisSetId": "set1",
+      "surprisingFact": "signups rose during the campaign window",
+      "causalStatus": "CAUSAL_HYPOTHESIS",
+      "validationStatus": "PARTIALLY_SUPPORTED",
+      "identificationStatus": "NOT_IDENTIFIED"
+    }
+  ],
+  "iteration2AddedEvidence": [
+    "prior-year seasonal series"
+  ],
+  "iteration2": [
+    {
+      "id": "h1b",
+      "title": "campaign effect",
+      "hypothesisSetId": "set1",
+      "surprisingFact": "signups rose during the campaign window",
+      "causalStatus": "CAUSAL_HYPOTHESIS",
+      "validationStatus": "PARTIALLY_SUPPORTED",
+      "identificationStatus": "NOT_IDENTIFIED"
+    },
+    {
+      "id": "h2b",
+      "title": "seasonal demand",
+      "hypothesisSetId": "set1",
+      "surprisingFact": "signups rose during the campaign window",
+      "causalStatus": "CAUSAL_HYPOTHESIS",
+      "validationStatus": "PARTIALLY_SUPPORTED",
+      "identificationStatus": "NOT_IDENTIFIED"
+    }
+  ],
+  "expectedReadiness": "INCONCLUSIVE",
+  "expectedStopReason": "IDENTIFICATION_UNRESOLVED"
+}

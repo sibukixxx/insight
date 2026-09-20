@@ -1,0 +1,49 @@
+{
+  "question": "Did the new subsidy cause the rise in company registrations?",
+  "iteration1": [
+    {
+      "id": "h1",
+      "title": "policy effect",
+      "hypothesisSetId": "set1",
+      "surprisingFact": "registrations rose after the subsidy started",
+      "causalStatus": "OBSERVED_ASSOCIATION",
+      "validationStatus": "PLAUSIBLE",
+      "identificationStatus": "NOT_IDENTIFIED"
+    },
+    {
+      "id": "h2",
+      "title": "macro trend",
+      "hypothesisSetId": "set1",
+      "surprisingFact": "registrations rose after the subsidy started",
+      "causalStatus": "OBSERVED_ASSOCIATION",
+      "validationStatus": "PLAUSIBLE",
+      "identificationStatus": "NOT_IDENTIFIED"
+    }
+  ],
+  "iteration2AddedEvidence": [
+    "comparison municipality series without the subsidy"
+  ],
+  "iteration2": [
+    {
+      "id": "h1b",
+      "title": "policy effect",
+      "hypothesisSetId": "set1",
+      "surprisingFact": "registrations rose after the subsidy started",
+      "causalStatus": "OBSERVED_ASSOCIATION",
+      "validationStatus": "SUPPORTED",
+      "identificationStatus": "NOT_IDENTIFIED"
+    },
+    {
+      "id": "h2b",
+      "title": "macro trend",
+      "hypothesisSetId": "set1",
+      "surprisingFact": "registrations rose after the subsidy started",
+      "causalStatus": "OBSERVED_ASSOCIATION",
+      "validationStatus": "CONTRADICTED",
+      "identificationStatus": "NOT_IDENTIFIED"
+    }
+  ],
+  "expectedReadiness": "DECISION_READY_WITH_LIMITATIONS",
+  "expectedStopReason": "CRITICAL_HYPOTHESES_DISTINGUISHED",
+  "expectedReasonSubstring": "NOT_IDENTIFIED"
+}
