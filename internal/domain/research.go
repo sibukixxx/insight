@@ -2,6 +2,7 @@ package domain
 
 import (
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -122,6 +123,39 @@ type HypothesisState struct {
 	IdentificationStatus IdentificationStatus `json:"identificationStatus"`
 }
 
+// ValidationEvidenceProvenance records why an evidence source was treated as
+// independent for a VALIDATION transition. This is audit provenance, not a
+// probability or causal-certainty score.
+type ValidationEvidenceProvenance struct {
+	ExpectationID     string    `json:"expectationId"`
+	EvidenceReference string    `json:"evidenceReference"`
+	SourceIterationID string    `json:"sourceIterationId,omitempty"`
+	DatasetReference  string    `json:"datasetReference,omitempty"`
+	IndependenceRationale string `json:"independenceRationale"`
+	Actor             string    `json:"actor,omitempty"`
+	RecordedAt        time.Time `json:"recordedAt"`
+}
+
+func (v ValidationEvidenceProvenance) Validate(currentIterationID string, expectations []Expectation) error {
+	if strings.TrimSpace(v.ExpectationID) == "" || strings.TrimSpace(v.EvidenceReference) == "" || strings.TrimSpace(v.IndependenceRationale) == "" {
+		return fmt.Errorf("validation evidence provenance requires expectationId, evidenceReference and independenceRationale")
+	}
+	if v.SourceIterationID != "" && v.SourceIterationID == currentIterationID {
+		return fmt.Errorf("same-iteration evidence cannot be recorded as independent validation evidence")
+	}
+	foundFrozen := false
+	for _, e := range expectations {
+		if e.ID == v.ExpectationID && e.FrozenForValidation {
+			foundFrozen = true
+			break
+		}
+	}
+	if !foundFrozen {
+		return fmt.Errorf("validation evidence references non-frozen expectation %q", v.ExpectationID)
+	}
+	return nil
+}
+
 // DecisionReadiness states how far the research process has been prepared
 // for a responsible human decision. It is not a truth probability, not a
 // causal certainty, and not a commercial recommendation. Values are chosen so
@@ -235,6 +269,7 @@ type ResearchIteration struct {
 	DataRequirements     []DataRequirement   `json:"dataRequirements,omitempty"`
 	AddedEvidence        []string            `json:"addedEvidence,omitempty"`
 	HypothesisChanges    []HypothesisChange  `json:"hypothesisChanges,omitempty"`
+	ValidationEvidence   []ValidationEvidenceProvenance `json:"validationEvidence,omitempty"`
 	WhatWeCannotConclude []string            `json:"whatWeCannotConclude,omitempty"`
 	Readiness            ReadinessAssessment `json:"readiness"`
 	Stop                 *StopDecision       `json:"stop,omitempty"`

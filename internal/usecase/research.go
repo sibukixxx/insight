@@ -153,7 +153,10 @@ type TransitionResearchStageInput struct {
 	RunID                      string
 	IterationID                string
 	TargetStage                domain.ResearchStage
+	// Deprecated compatibility flag. New callers should supply ValidationEvidence
+	// so the reason for VALIDATION remains auditable after the transition.
 	IndependentEvidencePlanned bool
+	ValidationEvidence         []domain.ValidationEvidenceProvenance
 }
 
 // TransitionResearchStage moves the latest iteration to TargetStage after
@@ -177,16 +180,33 @@ func (a *Application) TransitionResearchStage(ctx context.Context, in Transition
 			completedValidations++
 		}
 	}
+	validationEvidence := append([]domain.ValidationEvidenceProvenance(nil), in.ValidationEvidence...)
+	if in.TargetStage == domain.StageValidation {
+		for idx := range validationEvidence {
+			if validationEvidence[idx].RecordedAt.IsZero() {
+				validationEvidence[idx].RecordedAt = a.now()
+			}
+			if strings.TrimSpace(validationEvidence[idx].Actor) == "" {
+				validationEvidence[idx].Actor = "HUMAN"
+			}
+			if err := validationEvidence[idx].Validate(latest.ID, latest.Expectations); err != nil {
+				return nil, err
+			}
+		}
+	}
 	if err := latest.Stage.Transition(in.TargetStage, domain.StageTransitionInput{
 		ObservationCount:           len(latest.ObservationIDs),
 		Expectations:               latest.Expectations,
-		IndependentEvidencePlanned: in.IndependentEvidencePlanned,
+		IndependentEvidencePlanned: len(validationEvidence) > 0 || in.IndependentEvidencePlanned,
 		CompletedValidationCount:   completedValidations,
 	}); err != nil {
 		return nil, err
 	}
 	updated := latest
 	updated.Stage = in.TargetStage
+	if in.TargetStage == domain.StageValidation && len(validationEvidence) > 0 {
+		updated.ValidationEvidence = append([]domain.ValidationEvidenceProvenance(nil), validationEvidence...)
+	}
 	if err := a.repos.Research.UpdateResearchIteration(ctx, run.ID, updated); err != nil {
 		return nil, fmt.Errorf("update research iteration: %w", err)
 	}

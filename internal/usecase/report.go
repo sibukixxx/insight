@@ -300,6 +300,18 @@ func writeResearchLoop(b *strings.Builder, report ProjectReport) {
 	}
 	b.WriteString("## Validation / Identification\n\n")
 	b.WriteString("Statuses are shown per hypothesis below. History descriptors do not represent causal probability.\n\n")
+	if len(run.Iterations) > 0 {
+		latest := run.Iterations[len(run.Iterations)-1]
+		if len(latest.ValidationEvidence) > 0 {
+			b.WriteString("**Independent validation evidence provenance:**\n\n")
+			for _, v := range latest.ValidationEvidence {
+				fmt.Fprintf(b, "- expectation=`%s` evidence=%s sourceIteration=`%s` dataset=%s rationale=%s actor=`%s`\n",
+					markdownInline(v.ExpectationID), markdownInline(v.EvidenceReference), markdownInline(v.SourceIterationID),
+					markdownInline(v.DatasetReference), markdownInline(v.IndependenceRationale), markdownInline(v.Actor))
+			}
+			b.WriteByte('\n')
+		}
+	}
 	writeDecisionReadiness(b, run)
 	writePromotionStatus(b, run)
 	b.WriteString("## What We Cannot Conclude\n\n")
