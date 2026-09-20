@@ -76,6 +76,8 @@ func NewRouter(deps Deps) http.Handler {
 			r.Post("/iterations", h.AppendResearchIteration)
 			r.Get("/compare", h.CompareResearchIterations)
 			r.Get("/iterations/{iterationID}", h.GetResearchIteration)
+			r.Put("/iterations/{iterationID}/expectations/{expectationID}/freeze", h.FreezeResearchExpectation)
+			r.Put("/iterations/{iterationID}/stage-transition", h.TransitionResearchStage)
 			r.Get("/iterations/{iterationID}/evaluation", h.GetHumanEvaluation)
 			r.Put("/iterations/{iterationID}/evaluation", h.SaveHumanEvaluation)
 			r.Put("/iterations/{iterationID}/override", h.ApplyResearchHumanOverride)
