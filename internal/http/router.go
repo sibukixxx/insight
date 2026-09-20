@@ -84,6 +84,7 @@ func NewRouter(deps Deps) http.Handler {
 			r.Get("/handoff", h.GetHumanHandoff)
 			r.Get("/report.md", h.ExportResearchReport)
 			r.Get("/artifact.json", h.GetResearchArtifact)
+			r.Get("/approved-artifact.json", h.GetApprovedResearchArtifact)
 		})
 
 		r.Get("/documents/{documentID}", h.GetDocument)

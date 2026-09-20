@@ -30,10 +30,10 @@ func fullyReadyPromotionInput() domain.PromotionGateInput {
 	}
 }
 
-func TestAssessPromotionShouldAdvanceAllTheWayWhenEveryGateIsSatisfied(t *testing.T) {
+func TestAssessPromotionShouldAdvanceToReadyWhenEveryGateIsSatisfied(t *testing.T) {
 	now := time.Date(2026, 9, 20, 0, 0, 0, 0, time.UTC)
 	got := AssessPromotion(domain.PromotionDraft, fullyReadyPromotionInput(), now)
-	if got.State != domain.PromotionPublished {
+	if got.State != domain.PromotionPublicationReady {
 		t.Fatalf("got state %q, want PUBLISHED: reasons %v", got.State, got.Reasons)
 	}
 	if len(got.Reasons) != 0 {

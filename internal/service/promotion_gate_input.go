@@ -7,18 +7,18 @@ import "insight-lab/internal/domain"
 // holds. They never encode a judgment call about whether the research is
 // good; they only report whether a mechanically checkable box is filled in.
 type PromotionArtifactFacts struct {
-	Stage                                     domain.ResearchStage
-	ProvenanceMode                            string
-	DatasetHashesPresent                      bool
-	GroundedObservations                      int
-	TotalObservationCandidates                int
-	AllInsightsHaveExpectationBasis           bool
-	AllInsightsHaveEvidence                   bool
-	AnyCounterEvidenceOrFalsificationCriteria bool
-	AnyLimitationsDisclosed                   bool
-	ResearchGapsDisclosed                     bool
-	UnresolvableConclusionsDisclosed          bool
-	CompatibilityWarningsPresent              bool
+	Stage                            domain.ResearchStage
+	ProvenanceMode                   string
+	DatasetHashesPresent             bool
+	GroundedObservations             int
+	TotalObservationCandidates       int
+	AllInsightsHaveExpectationBasis  bool
+	AllInsightsHaveEvidence          bool
+	CounterEvidenceSearched          bool
+	AnyLimitationsDisclosed          bool
+	ResearchGapsDisclosed            bool
+	UnresolvableConclusionsDisclosed bool
+	CompatibilityWarningsPresent     bool
 }
 
 // BuildPublicationChecklist derives the mechanically-verifiable items of a
@@ -35,7 +35,7 @@ func BuildPublicationChecklist(facts PromotionArtifactFacts, human domain.Public
 		ExpectationProvenanceVisible:          facts.AllInsightsHaveExpectationBasis,
 		ResearchStageVisible:                  facts.Stage != "",
 		ClaimEvidenceMappingComplete:          facts.AllInsightsHaveEvidence,
-		CounterEvidenceSearched:               facts.AnyCounterEvidenceOrFalsificationCriteria,
+		CounterEvidenceSearched:               facts.CounterEvidenceSearched,
 		LimitationsPresent:                    facts.AnyLimitationsDisclosed,
 		ResearchGapsDisclosed:                 facts.ResearchGapsDisclosed,
 		UnresolvableConclusionsDisclosed:      facts.UnresolvableConclusionsDisclosed,

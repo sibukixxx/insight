@@ -422,6 +422,9 @@ func writePromotionStatus(b *strings.Builder, run *domain.ResearchRun) {
 	if latest.PromotionGateInput.Contribution != "" {
 		fmt.Fprintf(b, "**Contribution:** `%s`\n\n", latest.PromotionGateInput.Contribution)
 	}
+	if latest.ApprovedArtifact != nil {
+		fmt.Fprintf(b, "**Approved artifact:** `%s`\n\n", latest.ApprovedArtifact.Reference)
+	}
 	writeStringList(b, "Blocking reasons", latest.Promotion.Reasons)
 	writeStringList(b, "Unmet publication checklist items", latest.PromotionGateInput.Checklist.UnmetItems())
 }
@@ -489,7 +492,6 @@ func writeStringList(b *strings.Builder, label string, values []string) {
 	}
 	b.WriteByte('\n')
 }
-
 
 func writeInsightSemantics(b *strings.Builder, i *domain.Insight) {
 	if i.Connection.Statement != "" || len(i.Connection.Sources) > 0 || len(i.Connection.Targets) > 0 {

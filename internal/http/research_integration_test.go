@@ -219,6 +219,21 @@ func TestResearchHTTPPromotionReviewAndTransition(t *testing.T) {
 		}
 	}
 
+	artifactResp := httptest.NewRecorder()
+	router.ServeHTTP(artifactResp, httptest.NewRequest(http.MethodGet, "/api/research-runs/"+run.ID+"/artifact.json", nil))
+	var artifact usecase.ResearchArtifact
+	if err := json.Unmarshal(artifactResp.Body.Bytes(), &artifact); err != nil {
+		t.Fatal(err)
+	}
+	if artifact.Promotion.State != reviewed.Promotion.State || len(artifact.Promotion.Reasons) == 0 {
+		t.Fatal("JSON omitted blocked promotion assessment")
+	}
+	approvedResp := httptest.NewRecorder()
+	router.ServeHTTP(approvedResp, httptest.NewRequest(http.MethodGet, "/api/research-runs/"+run.ID+"/approved-artifact.json", nil))
+	if approvedResp.Code != http.StatusConflict {
+		t.Fatalf("unapproved download: %d", approvedResp.Code)
+	}
+
 	transitionURL := "/api/research-runs/" + run.ID + "/iterations/" + run.Iterations[0].ID + "/promotion-transition"
 	transitionReq := httptest.NewRequest(http.MethodPut, transitionURL, bytes.NewBufferString(`{"targetState":"REJECTED_FOR_PUBLICATION"}`))
 	transitionReq.Header.Set("content-type", "application/json")
