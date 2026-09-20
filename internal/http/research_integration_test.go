@@ -129,4 +129,24 @@ func TestResearchHTTPDogfoodPathPersistsHumanEvaluationAndReport(t *testing.T) {
 	if handoff.ResearchRunID != run.ID || handoff.Stop == nil || handoff.Stop.Reason != domain.StopExternalBudgetBoundary {
 		t.Fatalf("handoff must reflect the human stop decision: %+v", handoff)
 	}
+
+	artifactReq := httptest.NewRequest(http.MethodGet, "/api/research-runs/"+run.ID+"/artifact.json", nil)
+	artifactResp := httptest.NewRecorder()
+	router.ServeHTTP(artifactResp, artifactReq)
+	if artifactResp.Code != http.StatusOK {
+		t.Fatalf("get artifact: %d %s", artifactResp.Code, artifactResp.Body.String())
+	}
+	var artifact usecase.ResearchArtifact
+	if err := json.Unmarshal(artifactResp.Body.Bytes(), &artifact); err != nil {
+		t.Fatal(err)
+	}
+	if artifact.ArtifactSchema != usecase.ResearchArtifactSchema || artifact.SchemaVersion != usecase.ResearchArtifactVersion {
+		t.Fatalf("artifact must declare its schema/version: %+v", artifact)
+	}
+	if artifact.ResearchRunID != run.ID || artifact.IterationID != second.ID {
+		t.Fatalf("artifact must snapshot the run's latest iteration: %+v", artifact)
+	}
+	if artifact.StopDecision == nil || artifact.StopDecision.Reason != domain.StopExternalBudgetBoundary {
+		t.Fatalf("artifact must reflect the human stop decision: %+v", artifact.StopDecision)
+	}
 }

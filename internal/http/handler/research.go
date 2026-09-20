@@ -133,6 +133,19 @@ func (h *Handler) GetHumanHandoff(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, handoff)
 }
 
+func (h *Handler) GetResearchArtifact(w http.ResponseWriter, r *http.Request) {
+	artifact, err := h.App.GetResearchArtifact(r.Context(), chi.URLParam(r, "runID"))
+	if err != nil {
+		status := http.StatusInternalServerError
+		if errors.Is(err, usecase.ErrNotFound) {
+			status = http.StatusNotFound
+		}
+		writeError(w, status, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, artifact)
+}
+
 func (h *Handler) GetHumanEvaluation(w http.ResponseWriter, r *http.Request) {
 	evaluation, err := h.App.GetHumanEvaluation(r.Context(), chi.URLParam(r, "runID"), chi.URLParam(r, "iterationID"))
 	if err != nil {

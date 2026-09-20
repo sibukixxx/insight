@@ -80,6 +80,7 @@ func NewRouter(deps Deps) http.Handler {
 			r.Put("/iterations/{iterationID}/override", h.ApplyResearchHumanOverride)
 			r.Get("/handoff", h.GetHumanHandoff)
 			r.Get("/report.md", h.ExportResearchReport)
+			r.Get("/artifact.json", h.GetResearchArtifact)
 		})
 
 		r.Get("/documents/{documentID}", h.GetDocument)
