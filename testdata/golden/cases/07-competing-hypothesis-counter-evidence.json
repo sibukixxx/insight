@@ -1,0 +1,100 @@
+{
+  "caseId": "GS-07",
+  "version": "0.1.0",
+  "title": "Competing-hypothesis / counter-evidence case: app redesign, doubled ad spend and a competitor outage in the same month",
+  "kind": "synthetic",
+  "goldenSetIndex": 7,
+  "dimensions": [
+    "alternative explanation coverage",
+    "required counter-evidence",
+    "expectation provenance integrity",
+    "source / evidence validity",
+    "citation / provenance completeness"
+  ],
+  "input": {
+    "researchQuestion": "Did the May 2025 app redesign raise the conversion rate?",
+    "stage": "VALIDATION",
+    "datasets": [
+      {
+        "id": "ds-analytics",
+        "role": "hypothesis_generation",
+        "sourceKind": "primary",
+        "description": "Fictional conversions per 10,000 sessions before and after the redesign.",
+        "populationDefinitionId": "conversions_per_10k_sessions",
+        "harmonizationMethod": "observed",
+        "unit": "conversions",
+        "rows": [{"key": "2025-04", "value": 200}, {"key": "2025-05", "value": 260}]
+      },
+      {
+        "id": "ds-marketing",
+        "role": "validation",
+        "sourceKind": "primary",
+        "description": "Fictional paid-ads spend index (April = 100).",
+        "populationDefinitionId": "paid_ads_spend_index",
+        "harmonizationMethod": "observed",
+        "unit": "index",
+        "rows": [{"key": "2025-04", "value": 100}, {"key": "2025-05", "value": 200}]
+      },
+      {
+        "id": "ds-market-news",
+        "role": "context",
+        "sourceKind": "external_artifact",
+        "description": "Fictional trade-press article reporting a week-long outage at the main competitor in May 2025, with a link to the competitor's own status page.",
+        "rows": []
+      }
+    ]
+  },
+  "expected": {
+    "verdict": "COMPETING_UNRESOLVED",
+    "expectations": [
+      {
+        "id": "E1",
+        "text": "The redesign brief (April 2025) predicted conversions per 10k sessions would rise by about 30 after launch.",
+        "basis": "SOURCE_BACKED",
+        "provenance": "PRIOR",
+        "declaredBeforeDataSeen": true
+      }
+    ],
+    "hypotheses": [
+      {"id": "H1", "role": "PRIMARY", "text": "The redesign improved conversion.", "causalStatus": "CAUSAL_HYPOTHESIS", "validationStatus": "PARTIALLY_SUPPORTED", "identificationStatus": "NOT_IDENTIFIED"},
+      {"id": "H2", "role": "COMPETING", "text": "Doubled ad spend brought higher-intent traffic.", "causalStatus": "CAUSAL_HYPOTHESIS", "validationStatus": "PLAUSIBLE", "identificationStatus": "NOT_IDENTIFIED"},
+      {"id": "H3", "role": "COMPETING", "text": "A competitor outage diverted ready-to-buy customers.", "causalStatus": "CAUSAL_HYPOTHESIS", "validationStatus": "PLAUSIBLE", "identificationStatus": "UNKNOWN"}
+    ],
+    "evidence": [
+      {"id": "EV1", "type": "support", "hypothesisIds": ["H1"], "datasetId": "ds-analytics", "usage": "generation", "sourceKind": "primary", "traceableToPrimary": true, "summary": "Conversions rose from 200 to 260 per 10k sessions, above the +30 predicted."},
+      {"id": "EV2", "type": "counter", "hypothesisIds": ["H1"], "datasetId": "ds-marketing", "usage": "independent_validation", "sourceKind": "primary", "traceableToPrimary": true, "summary": "Ad spend doubled in the same month, so the rise cannot be attributed to the redesign alone."},
+      {"id": "EV3", "type": "support", "hypothesisIds": ["H2"], "datasetId": "ds-marketing", "usage": "independent_validation", "sourceKind": "primary", "traceableToPrimary": true, "summary": "Spend index 100 to 200 coincides with the conversion jump."},
+      {"id": "EV4", "type": "support", "hypothesisIds": ["H3"], "datasetId": "ds-market-news", "usage": "context", "sourceKind": "external_artifact", "traceableToPrimary": true, "summary": "Trade-press report of the competitor outage, traceable to the competitor's status page."}
+    ],
+    "comparisons": [
+      {"id": "CMP-conv", "baselineDatasetId": "ds-analytics", "baselineRowKey": "2025-04", "currentDatasetId": "ds-analytics", "currentRowKey": "2025-05", "expectedDelta": 60, "expectedPctChange": "30.0", "comparabilityLabel": "COMPARABLE"},
+      {"id": "CMP-spend", "baselineDatasetId": "ds-marketing", "baselineRowKey": "2025-04", "currentDatasetId": "ds-marketing", "currentRowKey": "2025-05", "expectedDelta": 100, "expectedPctChange": "100.0", "comparabilityLabel": "COMPARABLE"}
+    ],
+    "counterEvidenceSearched": true,
+    "mayClaimExhaustiveValidation": false,
+    "requiresCounterEvidence": true,
+    "requiredLimitations": [
+      "Three candidate causes changed in the same month; the design cannot separate them.",
+      "The prior expectation being met does not rule out the competing explanations.",
+      "The competitor outage is reported by a third party and its traffic effect is not measured."
+    ],
+    "requiredResearchGaps": [
+      {"category": "CONFOUNDER", "need": "Conversion split by traffic source (paid vs organic) for April and May."},
+      {"category": "TIMING", "need": "Daily conversions around the redesign launch date and the outage window."},
+      {"category": "EXTERNAL_CONTEXT", "need": "Referral traffic from the competitor's domain during the outage."}
+    ],
+    "forbiddenClaims": [
+      "リデザインによってコンバージョンが向上した",
+      "リデザインの効果が証明",
+      "the redesign increased conversion",
+      "proves the redesign"
+    ]
+  },
+  "humanReview": {
+    "status": "PENDING",
+    "reviewer": null,
+    "reviewedAt": null,
+    "outcome": null,
+    "notes": "A passing report keeps all three hypotheses open and names the traffic-source split as the next data."
+  }
+}
