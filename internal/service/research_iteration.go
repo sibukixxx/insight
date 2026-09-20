@@ -118,9 +118,14 @@ func CarryForwardFrozenExpectations(previous domain.ResearchIteration, current d
 // requirement priority, readiness and a system stop decision. The caller
 // still decides whether to persist it; nothing here acquires evidence.
 func FinalizeResearchIteration(run domain.ResearchRun, iteration domain.ResearchIteration, addedEvidence []string, now time.Time) domain.ResearchIteration {
+	return FinalizeResearchIterationWithLinks(run, iteration, addedEvidence, nil, now)
+}
+
+func FinalizeResearchIterationWithLinks(run domain.ResearchRun, iteration domain.ResearchIteration, addedEvidence []string, links []domain.AddedEvidenceLink, now time.Time) domain.ResearchIteration {
 	iteration.AddedEvidence = append([]string(nil), addedEvidence...)
+	iteration.AddedEvidenceLinks = append([]domain.AddedEvidenceLink(nil), links...)
 	if previous, ok := run.LatestIteration(); ok {
-		iteration = CarryForwardResearchGaps(previous, iteration, addedEvidence)
+		iteration = CarryForwardResearchGapsWithLinks(previous, iteration, addedEvidence, links)
 		iteration = CarryForwardFrozenExpectations(previous, iteration, now)
 		iteration.HypothesisChanges = CompareHypothesisStates(previous.HypothesisStates, iteration.HypothesisStates)
 		// The run's stage only moves via an explicit transition (see
@@ -141,7 +146,19 @@ func FinalizeResearchIteration(run domain.ResearchRun, iteration domain.Research
 // otherwise it is carried forward unresolved, because a model simply not
 // mentioning a gap is not evidence that the gap closed.
 func CarryForwardResearchGaps(previous domain.ResearchIteration, current domain.ResearchIteration, addedEvidence []string) domain.ResearchIteration {
+	return CarryForwardResearchGapsWithLinks(previous, current, addedEvidence, nil)
+}
+
+func CarryForwardResearchGapsWithLinks(previous domain.ResearchIteration, current domain.ResearchIteration, addedEvidence []string, links []domain.AddedEvidenceLink) domain.ResearchIteration {
 	out := current
+	targeted := map[string]bool{}
+	for _, link := range links {
+		for _, gapID := range link.GapIDs {
+			if strings.TrimSpace(gapID) != "" {
+				targeted[gapID] = true
+			}
+		}
+	}
 	out.ResearchGaps = append([]domain.ResearchGap(nil), current.ResearchGaps...)
 	out.DataRequirements = append([]domain.DataRequirement(nil), current.DataRequirements...)
 
@@ -163,9 +180,18 @@ func CarryForwardResearchGaps(previous domain.ResearchIteration, current domain.
 		carried := prior
 		carried.AffectedHypothesisIDs = append([]string(nil), prior.AffectedHypothesisIDs...)
 		carried.DependsOnGapIDs = nil
-		if !carried.Resolved && len(addedEvidence) > 0 {
-			carried.Resolved = true
-			carried.AddressedInIterationID = current.ID
+		if !carried.Resolved {
+			if len(links) > 0 {
+				if targeted[carried.ID] {
+					carried.Resolved = true
+					carried.AddressedInIterationID = current.ID
+				}
+			} else if len(addedEvidence) > 0 {
+				// Backward-compatible legacy behavior for callers that have
+				// not adopted structured gap linkage yet.
+				carried.Resolved = true
+				carried.AddressedInIterationID = current.ID
+			}
 		}
 		out.ResearchGaps = append(out.ResearchGaps, carried)
 		if !carried.Resolved {
