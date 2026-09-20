@@ -23,6 +23,24 @@ func BuildResearchIterationWithMode(sequence int, question string, inputReferenc
 	iteration.AnalysisMode = mode
 	iteration.ArtifactClass = class
 	iteration.Claims = append([]domain.Claim(nil), claims...)
+	if mode == domain.AnalysisModeResearchReview {
+		for _, claim := range claims {
+			if claim.HasUnderlyingEvidence() {
+				continue
+			}
+			need := "underlying evidence for claim: " + claim.Statement
+			gap := ResearchGapFromMissingEvidence(newID("gap"), domain.ResearchGapSourceQuality, need,
+				"An imported claim is an assertion, not primary evidence; inspect its underlying sources before relying on it.", []string{claim.ID})
+			gap.FirstSeenIterationID = iteration.ID
+			iteration.ResearchGaps = append(iteration.ResearchGaps, gap)
+			if req, err := PlanDataRequirementForGap(gap); err == nil {
+				iteration.DataRequirements = append(iteration.DataRequirements, req)
+			}
+			iteration.WhatWeCannotConclude = append(iteration.WhatWeCannotConclude,
+				"Claim "+claim.ID+" cannot be treated as primary evidence until its underlying evidence is supplied and evaluated.")
+		}
+		iteration = PrioritizeResearchIteration(iteration)
+	}
 	return iteration
 }
 
