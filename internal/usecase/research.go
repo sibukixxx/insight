@@ -210,14 +210,17 @@ func (a *Application) TransitionResearchStage(ctx context.Context, in Transition
 	}
 	validationEvidence := append([]domain.ValidationEvidenceProvenance(nil), in.ValidationEvidence...)
 	if in.TargetStage == domain.StageValidation {
-		if len(validationEvidence) == 0 {
-			return nil, fmt.Errorf("VALIDATION requires concrete independent-evidence provenance; the legacy boolean is not auditable")
-		}
 		frozen := map[string]domain.Expectation{}
 		for _, expectation := range latest.Expectations {
 			if expectation.FrozenForValidation {
 				frozen[expectation.ID] = expectation
 			}
+		}
+		if len(frozen) == 0 {
+			return nil, domain.ErrStageRequiresFrozenTarget
+		}
+		if len(validationEvidence) == 0 {
+			return nil, fmt.Errorf("VALIDATION requires concrete independent-evidence provenance; the legacy boolean is not auditable")
 		}
 		covered := map[string]bool{}
 		for i := range validationEvidence {
