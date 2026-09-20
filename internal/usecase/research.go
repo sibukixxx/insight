@@ -14,6 +14,9 @@ type CreateResearchRunInput struct {
 	Question        string
 	InputReferences []string
 	InputSnapshot   domain.ResearchInputSnapshot
+	AnalysisMode    domain.AnalysisMode
+	ArtifactClass   domain.ArtifactClass
+	Claims          []domain.Claim
 }
 
 type AppendResearchIterationInput struct {
@@ -23,6 +26,9 @@ type AppendResearchIterationInput struct {
 	AddedEvidence     []string
 	EvidenceAdditions []domain.EvidenceAddition
 	InputSnapshot      domain.ResearchInputSnapshot
+	AnalysisMode       domain.AnalysisMode
+	ArtifactClass      domain.ArtifactClass
+	Claims             []domain.Claim
 }
 
 func (a *Application) CreateResearchRun(ctx context.Context, in CreateResearchRunInput) (*domain.ResearchRun, error) {
@@ -40,7 +46,11 @@ func (a *Application) CreateResearchRun(ctx context.Context, in CreateResearchRu
 		return nil, err
 	}
 	now := a.now()
-	iteration := service.BuildResearchIterationWithSnapshot(1, in.Question, in.InputReferences, in.InputSnapshot, insights, now)
+	mode, err := domain.ResolveAnalysisMode(in.AnalysisMode, in.ArtifactClass)
+	if err != nil {
+		return nil, err
+	}
+	iteration := service.BuildResearchIterationWithMode(1, in.Question, in.InputReferences, in.InputSnapshot, mode, in.ArtifactClass, in.Claims, insights, now)
 	iteration = service.FinalizeResearchIteration(domain.ResearchRun{}, iteration, nil, now)
 	run := &domain.ResearchRun{ID: newID("run"), ProjectID: in.ProjectID, Question: strings.TrimSpace(in.Question), Iterations: []domain.ResearchIteration{iteration}, CreatedAt: now}
 	if err := a.repos.Research.CreateRun(ctx, run); err != nil {
@@ -63,7 +73,16 @@ func (a *Application) AppendResearchIteration(ctx context.Context, in AppendRese
 		question = run.Question
 	}
 	now := a.now()
-	iteration := service.BuildResearchIterationWithSnapshot(len(run.Iterations)+1, question, in.InputReferences, in.InputSnapshot, insights, now)
+	mode, err := domain.ResolveAnalysisMode(in.AnalysisMode, in.ArtifactClass)
+	if err != nil {
+		return nil, err
+	}
+	if in.AnalysisMode == "" && in.ArtifactClass == "" {
+		if previous, ok := run.LatestIteration(); ok && previous.AnalysisMode.Valid() {
+			mode = previous.AnalysisMode
+		}
+	}
+	iteration := service.BuildResearchIterationWithMode(len(run.Iterations)+1, question, in.InputReferences, in.InputSnapshot, mode, in.ArtifactClass, in.Claims, insights, now)
 	additions := append([]domain.EvidenceAddition(nil), in.EvidenceAdditions...)
 	for i := range additions {
 		if additions[i].AddedAt.IsZero() {
