@@ -1,0 +1,15 @@
+{
+  "schemaVersion":"1",
+  "caseId":"GS-09-insight-delta-change",
+  "domain":"insight",
+  "input":{"references":["population.csv","income.csv"],"contextReferences":["issue-49"]},
+  "expected":{
+    "properties":["added variable and resulting hypothesis change are both auditable"],
+    "requiredEvidence":["income.csv"],
+    "prohibitedClaims":["income caused the interpretation change"],
+    "schemaChecks":["input delta and result delta are both present"],
+    "qualityChecks":["temporal succession is not labeled causality"]
+  },
+  "humanReview":{"required":false,"result":"NOT_REVIEWED"},
+  "outcome":{"status":"PASS"}
+}
