@@ -280,3 +280,67 @@ func TestGoldenValidInconclusiveKeepsBothHypothesesOpen(t *testing.T) {
 		t.Fatalf("neither hypothesis was contradicted; the tie must not be broken artificially: %+v", handoff.ContradictedHypotheses)
 	}
 }
+
+
+// TestGoldenPolishedButUnsupportedCannotReachPublicationReady connects the
+// Golden Set to the Public Report Promotion Gate (#24). A plausible,
+// publication-shaped narrative is not enough: mechanically verifiable
+// research-quality checks must be satisfied before PUBLICATION_READY.
+func TestGoldenPolishedButUnsupportedCannotReachPublicationReady(t *testing.T) {
+	now := time.Date(2026, 9, 20, 0, 0, 0, 0, time.UTC)
+	in := domain.PromotionGateInput{
+		Contribution:         domain.ContributionNovelMismatch,
+		HumanReviewCompleted: true,
+		Checklist: domain.PublicationChecklist{
+			SourceProvenanceComplete:              true,
+			DeterministicCalculationsReproducible: true,
+			// Intentionally unsupported despite polished prose:
+			ObservationGrounded:                  false,
+			ExpectationProvenanceVisible:         true,
+			ResearchStageVisible:                 true,
+			ClaimEvidenceMappingComplete:         false,
+			CompetingHypothesisConsidered:        false,
+			CounterEvidenceSearched:              false,
+			LimitationsPresent:                   false,
+			ResearchGapsDisclosed:                false,
+			UnresolvableConclusionsDisclosed:     false,
+			NoHiddenPopulationUnitPeriodMismatch: true,
+			IndependentValidationStatusAccurate:  false,
+			DecisionReadinessHonestlyStated:      false,
+		},
+	}
+	assessment := service.AssessPromotion(domain.PromotionDraft, in, now)
+	if assessment.State == domain.PromotionPublicationReady || assessment.State == domain.PromotionPublished {
+		t.Fatalf("polished but unsupported research must not be publication-ready: %+v", assessment)
+	}
+	if assessment.State != domain.PromotionHumanReviewRequired {
+		t.Fatalf("expected promotion to stop at HUMAN_REVIEW_REQUIRED, got %+v", assessment)
+	}
+	if len(assessment.Reasons) == 0 || !strings.Contains(assessment.Reasons[0], "publication checklist is incomplete") {
+		t.Fatalf("blocking reason must expose incomplete research checks: %+v", assessment)
+	}
+}
+
+// TestGoldenHumanReviewRemainsExternalInput guards the Shared Eval / Research
+// Loop boundary: a human review outcome can be represented, but no model or
+// promotion assessment is allowed to manufacture it.
+func TestGoldenHumanReviewRemainsExternalInput(t *testing.T) {
+	evaluation := domain.HumanEvaluation{
+		ResearchRunID:        "run-golden-human",
+		IterationID:          "iter-golden-human",
+		ObservationGrounding: 5,
+		SurpriseUsefulness:    4,
+		HypothesisDiversity:   4,
+		CounterEvidenceQuality: 4,
+		MissingEvidenceQuality: 5,
+		IdentificationHonesty:  5,
+		NextDataUsefulness:      4,
+		Novelty:                 domain.NoveltyPartiallyNew,
+		OverallUsefulness:       4,
+		Notes:                   "human-supplied golden review",
+		EvaluatedAt:             time.Date(2026, 9, 20, 0, 0, 0, 0, time.UTC),
+	}
+	if evaluation.Novelty != domain.NoveltyPartiallyNew || evaluation.OverallUsefulness != 4 {
+		t.Fatalf("human review outcome must be preserved exactly: %+v", evaluation)
+	}
+}

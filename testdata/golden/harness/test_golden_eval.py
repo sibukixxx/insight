@@ -17,6 +17,8 @@ from golden_eval import (
     load_case,
     load_cases,
     scan_report_for_forbidden_claims,
+    to_shared_eval_contract,
+    check_shared_eval_contract,
 )
 
 
@@ -40,6 +42,22 @@ class GoldenCasesAreConsistentTest(unittest.TestCase):
         for case in load_cases(CASES_DIR):
             with self.subTest(case=case["caseId"]):
                 self.assertIn(case["humanReview"]["status"], {"PENDING", "PASS", "FAIL"})
+
+    def test_every_checked_in_case_maps_to_shared_eval_contract_v1(self):
+        for case in load_cases(CASES_DIR):
+            with self.subTest(case=case["caseId"]):
+                checks = check_case(case)
+                envelope = to_shared_eval_contract(case, checks)
+                self.assertEqual(envelope["schemaVersion"], "1")
+                self.assertEqual(envelope["caseId"], case["caseId"])
+                self.assertEqual(envelope["domain"], "insight")
+                self.assertEqual(check_shared_eval_contract(envelope, case["caseId"]).status, "PASS")
+
+    def test_pending_human_review_maps_to_not_reviewed_not_fake_pass(self):
+        case = load_case(CASES_DIR / "01-synthetic-association-only.json")
+        envelope = to_shared_eval_contract(case, check_case(case))
+        self.assertEqual(envelope["humanReview"]["result"], "NOT_REVIEWED")
+        self.assertEqual(envelope["outcome"]["status"], "PARTIAL")
 
 
 class InvariantDetectionTest(unittest.TestCase):
