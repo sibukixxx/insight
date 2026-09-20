@@ -1,0 +1,15 @@
+{
+  "schemaVersion":"1",
+  "caseId":"GS-10-insight-delta-no-change",
+  "domain":"insight",
+  "input":{"references":["population.csv"],"contextReferences":["issue-49"]},
+  "expected":{
+    "properties":["re-analysis may legitimately leave interpretation unchanged"],
+    "requiredEvidence":[],
+    "prohibitedClaims":["every added input must create a new insight"],
+    "schemaChecks":["empty delta is representable"],
+    "qualityChecks":["no novelty pressure"]
+  },
+  "humanReview":{"required":false,"result":"NOT_REVIEWED"},
+  "outcome":{"status":"PASS"}
+}
