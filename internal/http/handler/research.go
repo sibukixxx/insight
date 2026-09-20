@@ -66,8 +66,9 @@ func (h *Handler) GetResearchIteration(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) AppendResearchIteration(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Question        string   `json:"question"`
-		InputReferences []string `json:"inputReferences"`
+		Question          string                       `json:"question"`
+		InputReferences   []string                     `json:"inputReferences"`
+		InputSnapshot     domain.ResearchInputSnapshot `json:"inputSnapshot"`
 		AddedEvidence     []string                  `json:"addedEvidence"`
 		EvidenceAdditions []domain.EvidenceAddition `json:"evidenceAdditions"`
 	}
