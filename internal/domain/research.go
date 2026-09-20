@@ -234,7 +234,13 @@ type ResearchIteration struct {
 	Readiness            ReadinessAssessment `json:"readiness"`
 	Stop                 *StopDecision       `json:"stop,omitempty"`
 	HumanOverrides       []HumanOverride     `json:"humanOverrides,omitempty"`
-	CreatedAt            time.Time           `json:"createdAt"`
+	// PromotionGateInput is the evidence a promotion transition was last
+	// checked against (issue #24). It is kept alongside Promotion so a later
+	// explicit transition (e.g. to PUBLISHED) can be re-checked without the
+	// caller having to resupply every fact.
+	PromotionGateInput PromotionGateInput  `json:"promotionGateInput,omitempty"`
+	Promotion          PromotionAssessment `json:"promotion"`
+	CreatedAt          time.Time           `json:"createdAt"`
 }
 
 // UnresolvedGapIDs lists gaps that are still open in this iteration.
@@ -308,6 +314,18 @@ func (r ResearchRun) CurrentStage() ResearchStage {
 		return ""
 	}
 	return latest.Stage
+}
+
+// CurrentPromotionState is the promotion state of the latest iteration, or
+// DRAFT for a run with no iterations yet or whose latest iteration has never
+// been assessed. It is never inferred from anything other than the latest
+// iteration's own recorded promotion state.
+func (r ResearchRun) CurrentPromotionState() PromotionState {
+	latest, ok := r.LatestIteration()
+	if !ok || latest.Promotion.State == "" {
+		return PromotionDraft
+	}
+	return latest.Promotion.State
 }
 
 // Stopped reports whether the latest iteration carries a stop decision. A new
