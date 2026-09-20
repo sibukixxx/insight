@@ -101,6 +101,54 @@ func (a *Application) ApplyResearchHumanOverride(ctx context.Context, in ApplyRe
 	return &updated, nil
 }
 
+// TransitionResearchStageInput carries an explicit human request to move a
+// research iteration's stage. Like ApplyResearchHumanOverride, only the
+// latest iteration of a run may transition, because the run's current stage
+// is always read from its latest iteration.
+type TransitionResearchStageInput struct {
+	RunID                      string
+	IterationID                string
+	TargetStage                domain.ResearchStage
+	IndependentEvidencePlanned bool
+}
+
+// TransitionResearchStage moves the latest iteration to TargetStage after
+// checking domain.ResearchStage.Transition's requirements. Stage never
+// advances on its own: forward moves require this explicit call, and a move
+// into VALIDATION is rejected unless at least one expectation on the
+// iteration is frozen for validation — which today's pipeline does not yet
+// produce, so EXPLORATORY -> VALIDATION correctly fails until Expectation
+// entities are wired into the research loop.
+func (a *Application) TransitionResearchStage(ctx context.Context, in TransitionResearchStageInput) (*domain.ResearchIteration, error) {
+	run, err := a.repos.Research.GetResearchRun(ctx, in.RunID)
+	if err != nil {
+		return nil, err
+	}
+	latest, ok := run.LatestIteration()
+	if !ok || latest.ID != in.IterationID {
+		return nil, fmt.Errorf("stage transition can only be applied to the latest research iteration")
+	}
+	completedValidations := 0
+	for _, iteration := range run.Iterations {
+		if iteration.Stage == domain.StageValidation {
+			completedValidations++
+		}
+	}
+	if err := latest.Stage.Transition(in.TargetStage, domain.StageTransitionInput{
+		ObservationCount:           len(latest.ObservationIDs),
+		IndependentEvidencePlanned: in.IndependentEvidencePlanned,
+		CompletedValidationCount:   completedValidations,
+	}); err != nil {
+		return nil, err
+	}
+	updated := latest
+	updated.Stage = in.TargetStage
+	if err := a.repos.Research.UpdateResearchIteration(ctx, run.ID, updated); err != nil {
+		return nil, fmt.Errorf("update research iteration: %w", err)
+	}
+	return &updated, nil
+}
+
 // GetHumanHandoff assembles the final shape handed to a human for a research
 // run: strongest surviving hypotheses, contradicted and unresolved
 // alternatives, remaining uncertainty, why the loop stopped (if it has), and

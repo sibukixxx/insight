@@ -16,7 +16,7 @@ import (
 // its discriminating value across hypotheses is visible.
 func BuildResearchIteration(sequence int, question string, inputReferences []string, insights []*domain.Insight, now time.Time) domain.ResearchIteration {
 	iteration := domain.ResearchIteration{
-		ID: newID("rit"), Sequence: sequence, Question: strings.TrimSpace(question),
+		ID: newID("rit"), Sequence: sequence, Stage: domain.StageExploratory, Question: strings.TrimSpace(question),
 		InputReferences: append([]string(nil), inputReferences...), CreatedAt: now,
 	}
 
@@ -82,6 +82,10 @@ func FinalizeResearchIteration(run domain.ResearchRun, iteration domain.Research
 	if previous, ok := run.LatestIteration(); ok {
 		iteration = CarryForwardResearchGaps(previous, iteration, addedEvidence)
 		iteration.HypothesisChanges = CompareHypothesisStates(previous.HypothesisStates, iteration.HypothesisStates)
+		// The run's stage only moves via an explicit transition (see
+		// domain.ResearchStage.Transition); building a new iteration from the
+		// latest insights must not silently reset it back to EXPLORATORY.
+		iteration.Stage = previous.Stage
 	}
 	iteration = PrioritizeResearchIteration(iteration)
 	candidate := run.AppendIteration(iteration)
