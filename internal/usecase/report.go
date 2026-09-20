@@ -276,6 +276,18 @@ func writeResearchLoop(b *strings.Builder, report ProjectReport) {
 	fmt.Fprintf(b, "%s\n\n", markdownInline(run.Question))
 	b.WriteString("## Research Stage\n\n")
 	fmt.Fprintf(b, "**Current stage:** `%s`\n\n", run.CurrentStage())
+	if latest, ok := run.LatestIteration(); ok {
+		fmt.Fprintf(b, "**Semantic analysis mode:** `%s`\n\n", latest.AnalysisMode.Normalize())
+		if len(latest.Claims) > 0 {
+			b.WriteString("**Research-review claims (claims are not primary evidence):**\n\n")
+			for _, claim := range latest.Claims {
+				fmt.Fprintf(b, "- `%s` %s; source=%s; evidenceRefs=[%s]\n",
+					markdownInline(claim.ID), markdownInline(claim.Statement), markdownInline(claim.SourceReference),
+					markdownInline(strings.Join(claim.EvidenceReferences, ", ")))
+			}
+			b.WriteByte('\n')
+		}
+	}
 	b.WriteString("## Inputs / Provenance\n\n")
 	if len(run.Iterations) > 0 {
 		writeStringList(b, "Input references", run.Iterations[len(run.Iterations)-1].InputReferences)
