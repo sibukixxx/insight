@@ -130,6 +130,7 @@ const (
 // only be presented as supported after an explicit human review; the LLM may
 // propose the candidate and its boundaries but cannot self-certify transfer.
 type GeneralizationCandidate struct {
+	ID                string               `json:"id,omitempty"`
 	Principle         string               `json:"principle"`
 	SourceContext     string               `json:"sourceContext,omitempty"`
 	TargetContexts    []string             `json:"targetContexts,omitempty"`
