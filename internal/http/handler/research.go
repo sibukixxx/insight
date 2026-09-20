@@ -22,14 +22,17 @@ func (h *Handler) ListResearchRuns(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) CreateResearchRun(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Question        string   `json:"question"`
-		InputReferences []string `json:"inputReferences"`
+		Question        string                  `json:"question"`
+		InputReferences []string                `json:"inputReferences"`
+		AnalysisMode    domain.AnalysisMode     `json:"semanticAnalysisMode"`
+		InputSnapshot   domain.InputSetSnapshot `json:"inputSnapshot"`
+		Claims          []domain.ResearchClaim  `json:"claims"`
 	}
 	if json.NewDecoder(r.Body).Decode(&req) != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
-	run, err := h.App.CreateResearchRun(r.Context(), usecase.CreateResearchRunInput{ProjectID: chi.URLParam(r, "projectID"), Question: req.Question, InputReferences: req.InputReferences})
+	run, err := h.App.CreateResearchRun(r.Context(), usecase.CreateResearchRunInput{ProjectID: chi.URLParam(r, "projectID"), Question: req.Question, InputReferences: req.InputReferences, AnalysisMode: req.AnalysisMode, InputSnapshot: req.InputSnapshot, Claims: req.Claims})
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
@@ -70,12 +73,14 @@ func (h *Handler) AppendResearchIteration(w http.ResponseWriter, r *http.Request
 		AddedEvidence      []string                   `json:"addedEvidence"`
 		AddedEvidenceLinks []domain.AddedEvidenceLink `json:"addedEvidenceLinks"`
 		InputSnapshot      domain.InputSetSnapshot    `json:"inputSnapshot"`
+		AnalysisMode       domain.AnalysisMode        `json:"semanticAnalysisMode"`
+		Claims             []domain.ResearchClaim     `json:"claims"`
 	}
 	if json.NewDecoder(r.Body).Decode(&req) != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
-	it, err := h.App.AppendResearchIteration(r.Context(), usecase.AppendResearchIterationInput{RunID: chi.URLParam(r, "runID"), Question: req.Question, InputReferences: req.InputReferences, AddedEvidence: req.AddedEvidence, AddedEvidenceLinks: req.AddedEvidenceLinks, InputSnapshot: req.InputSnapshot})
+	it, err := h.App.AppendResearchIteration(r.Context(), usecase.AppendResearchIterationInput{RunID: chi.URLParam(r, "runID"), Question: req.Question, InputReferences: req.InputReferences, AddedEvidence: req.AddedEvidence, AddedEvidenceLinks: req.AddedEvidenceLinks, InputSnapshot: req.InputSnapshot, AnalysisMode: req.AnalysisMode, Claims: req.Claims})
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
