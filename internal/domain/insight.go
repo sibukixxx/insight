@@ -138,6 +138,9 @@ type GeneralizationCandidate struct {
 	KnownFailures     []string             `json:"knownFailures,omitempty"`
 	Status            GeneralizationStatus `json:"status,omitempty"`
 	HumanReviewed     bool                 `json:"humanReviewed"`
+	ReviewedBy        AuthorType           `json:"reviewedBy,omitempty"`
+	ReviewedAt        *time.Time           `json:"reviewedAt,omitempty"`
+	ReviewNote        string               `json:"reviewNote,omitempty"`
 }
 
 func (g GeneralizationCandidate) PermitsTransferClaim() bool {
