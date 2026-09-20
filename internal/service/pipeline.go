@@ -501,6 +501,9 @@ func (p *Pipeline) persistInsights(ctx context.Context, analysisID, projectID st
 func sanitizeGeneralizations(values []domain.GeneralizationCandidate) []domain.GeneralizationCandidate {
 	out := make([]domain.GeneralizationCandidate, 0, len(values))
 	for _, value := range values {
+		if value.ID == "" {
+			value.ID = newID("gen")
+		}
 		value.Status = domain.GeneralizationStatusCandidate
 		value.HumanReviewed = false
 		out = append(out, value)
