@@ -1,12 +1,12 @@
 # BYO-Evidence boundary
 
-Insight Lab is a **Bring Your Own Evidence** OSS research / reasoning engine. It reasons over evidence that is handed to it. It does not go and get evidence. This page fixes that boundary (issue #21) so that features are not added on the wrong side of it.
+Insight Lab is a **Bring Your Own Evidence** OSS research / reasoning engine. It reasons over evidence that is handed to it. It does not go and get evidence. This page fixes that boundary (issue #21, closed) so that features are not added on the wrong side of it.
 
 The boundary is not "stop when evidence is missing". Insight Lab must be able to say precisely what is missing, hand that requirement out, accept the acquired evidence back, and continue the same research as a new iteration.
 
 ## What Insight Lab does
 
-- Discovery / Dataset Analysis / Research Review over provided documents and CSV datasets.
+- Reasoning over provided documents and CSV datasets. A first-class, explicitly-selected Discovery / Dataset Analysis / Research Review mode split is being formalized in #18; today the reasoning path is the same pipeline regardless of input maturity.
 - Deterministic dataset analysis (aggregates, differences, comparability labels) outside the LLM.
 - Observation and Claim extraction with grounding.
 - Expectation / Mismatch (Surprise) with provenance (`SOURCE_BACKED`, `MODEL_PROPOSED`).
@@ -14,7 +14,7 @@ The boundary is not "stop when evidence is missing". Insight Lab must be able to
 - Validation, causal and identification statuses, kept conservative (see [causal-reasoning.md](causal-reasoning.md)).
 - `ResearchGap` and `DataRequirement` as structured statements of what is missing.
 - Append-only `ResearchIteration` history; re-analysis when added evidence is supplied.
-- Research Artifact / report export (Markdown today; a versioned JSON artifact is tracked in #17).
+- Research Artifact / report export: Markdown report and a versioned JSON artifact (`GET /api/research-runs/{id}/artifact.json`, schema `insight-lab.research-artifact` v1).
 - Local or self-hosted analysis.
 
 ## What Insight Lab does not do (hard boundary)
@@ -74,11 +74,12 @@ Insight Lab exports to a private or downstream layer:
 
 | Export | Status today |
 |---|---|
-| Research Artifact (Markdown report) | implemented (`/api/research-runs/{id}/report.md`) |
-| current Research Stage | planned (#22) |
+| Research Artifact (Markdown report) | implemented (`/api/research-runs/{id}/report.md`), includes the current Research Stage |
+| Research Artifact (versioned JSON) | implemented (`/api/research-runs/{id}/artifact.json`, schema v1, #17) |
+| current Research Stage on the JSON artifact | tracked in the domain (`ResearchIteration.Stage`, #26) and in the Markdown report, but not yet a field on the JSON artifact; closing that gap is tracked in #37 |
 | Claim / Hypothesis states (validation, identification) | implemented in `ResearchIteration.hypothesisStates` |
 | `ResearchGap` | implemented |
-| `DataRequirement` | implemented as a struct; formal outbound contract with stable versioning is planned (#17) |
+| `DataRequirement` | implemented as a struct and exported on the JSON artifact (#17) |
 | provenance references | implemented (`inputReferences`) |
 | what-we-cannot-conclude | implemented |
 
@@ -87,9 +88,10 @@ Insight Lab re-imports from that layer:
 | Import | Status today |
 |---|---|
 | acquired dataset / artifact | via the existing CSV / document ingestion |
-| acquisition manifest (source, retrieval time, terms) | manual (see `ACQUISITION.md` pattern); no schema yet |
-| requirement linkage (`DataRequirement.gapId` → added evidence) | `addedEvidence` is free text today; linkage by gap id is planned (#23) |
-| collection timestamp | not yet a first-class field |
+| acquisition manifest (source, retrieval method/time, dataset id, hashes, caveats) | implemented as a validated JSON schema (`AcquisitionManifest`, #16); credential-looking fields are rejected |
+| dataset compatibility warnings (unit / population / period / schema version mismatch across manifests) | implemented (`CheckDatasetCompatibility`) |
+| requirement linkage (`DataRequirement.gapId` → added evidence) | not yet implemented; `ResearchIteration.addedEvidence` is still free text with no explicit link back to the `gapId` it resolves. Tracked in #39 |
+| collection timestamp | implemented at the dataset level via `AcquisitionManifest.retrievedAt`; a free-text `addedEvidence` entry supplied without a manifest still has no timestamp |
 
 New iterations append; they never overwrite a previous iteration.
 
@@ -106,4 +108,4 @@ Reasoning belongs here. Getting belongs to an adapter, a human, or the private l
 - [project-scope.md](project-scope.md) — public / private and external-data boundaries
 - [research-loop.md](research-loop.md) — append-only iterations and the dogfood path
 - `testdata/golden/README.md` — invariants that keep external artifacts from being promoted to primary evidence
-- Issues #7 (Research Loop), #16 (reproducible external dataset runs), #17 (artifact export), #18 (multi-mode analysis), #21 (this boundary), #23 (decision-ready loop gate)
+- Issues #7 (Research Loop), #16 (reproducible external dataset runs, shipped), #17 (artifact export, shipped), #18 (multi-mode analysis, in progress), #21 (this boundary, closed), #23 (decision-ready loop gate, shipped), #37 (Research Stage on the JSON artifact), #39 (requirement linkage by `gapId`)
