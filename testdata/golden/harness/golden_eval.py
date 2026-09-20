@@ -35,6 +35,7 @@ from typing import Any, Iterable
 HERE = Path(__file__).resolve().parent
 CASES_DIR = HERE.parent / "cases"
 CONTRACT_VERSION = "0.1"
+SHARED_EVAL_CONTRACT_VERSION = "1"
 
 # --- vocab -------------------------------------------------------------------------
 # Mirrors internal/domain where a concept already exists there.
@@ -53,6 +54,8 @@ DATASET_ROLES = {"hypothesis_generation", "validation", "context"}
 COMPARABILITY = {"COMPARABLE", "HARMONIZED_REFERENCE", "NOT_COMPARABLE"}
 GAP_CATEGORIES = {"CONFOUNDER", "COMPARISON_CONTROL", "PRE_PERIOD", "TIMING", "MEASUREMENT", "EXTERNAL_CONTEXT", "SOURCE_QUALITY", "OTHER"}
 HUMAN_REVIEW_STATUS = {"PENDING", "PASS", "FAIL"}
+SHARED_HUMAN_REVIEW_STATUS = {"PASS", "FAIL", "PARTIAL", "NOT_REVIEWED"}
+SHARED_OUTCOME_STATUS = {"PASS", "FAIL", "PARTIAL"}
 NON_CAUSAL_VERDICTS = {"ASSOCIATION_ONLY", "NOT_COMPARABLE", "INCONCLUSIVE", "COMPETING_UNRESOLVED"}
 
 REQUIRED_TOP = ["caseId", "version", "title", "kind", "goldenSetIndex", "dimensions", "input", "expected", "humanReview"]
@@ -295,12 +298,103 @@ INVARIANTS = [
 ]
 
 
+def _shared_human_review(case: dict[str, Any]) -> dict[str, Any]:
+    review = case.get("humanReview") or {}
+    status = review.get("status")
+    mapped = {
+        "PENDING": "NOT_REVIEWED",
+        "PASS": "PASS",
+        "FAIL": "FAIL",
+    }.get(status, "NOT_REVIEWED")
+    return {
+        "required": True,
+        "reviewer": review.get("reviewer") or "",
+        "result": mapped,
+        "notes": review.get("notes") or "",
+    }
+
+
+def to_shared_eval_contract(case: dict[str, Any], checks: list[Check] | None = None) -> dict[str, Any]:
+    """Map an Insight-owned golden case into TechVit Shared Eval Contract v1.
+
+    This is an exchange-format adapter only; Insight keeps its domain fixtures and
+    semantic checks local and does not take a runtime dependency on TechVit Business.
+    """
+    if checks is None:
+        checks = []
+    failures = [c for c in checks if c.status == "FAIL"]
+    warnings = [c for c in checks if c.status == "WARN"]
+    outcome = "FAIL" if failures else ("PARTIAL" if warnings else "PASS")
+    expected = case.get("expected", {})
+    evidence = expected.get("evidence", [])
+    return {
+        "schemaVersion": SHARED_EVAL_CONTRACT_VERSION,
+        "caseId": case.get("caseId", ""),
+        "domain": "insight",
+        "input": {
+            "references": [
+                d.get("id", "")
+                for d in case.get("input", {}).get("datasets", [])
+                if d.get("id")
+            ],
+            "contextReferences": [
+                f"stage:{case.get('input', {}).get('stage', '')}",
+                f"kind:{case.get('kind', '')}",
+            ],
+        },
+        "expected": {
+            "properties": list(case.get("dimensions", [])),
+            "requiredEvidence": [e.get("id", "") for e in evidence if e.get("id")],
+            "prohibitedClaims": list(expected.get("forbiddenClaims", [])),
+            "schemaChecks": ["SCHEMA", "SHARED_EVAL_CONTRACT"],
+            "qualityChecks": [c.invariant for c in checks if c.invariant != "SHARED_EVAL_CONTRACT"],
+        },
+        "humanReview": _shared_human_review(case),
+        "outcome": {
+            "status": outcome,
+            "reasons": [c.detail for c in failures + warnings],
+        },
+    }
+
+
+def check_shared_eval_contract(envelope: dict[str, Any], case_id: str) -> Check:
+    problems: list[str] = []
+    if envelope.get("schemaVersion") != SHARED_EVAL_CONTRACT_VERSION:
+        problems.append("schemaVersion must be 1")
+    if not envelope.get("caseId"):
+        problems.append("caseId is required")
+    inp = envelope.get("input")
+    if not isinstance(inp, dict) or not isinstance(inp.get("references"), list):
+        problems.append("input.references must be an array")
+    expected = envelope.get("expected")
+    if not isinstance(expected, dict):
+        problems.append("expected must be an object")
+    else:
+        for key in ("properties", "requiredEvidence", "prohibitedClaims", "schemaChecks", "qualityChecks"):
+            if key in expected and not isinstance(expected[key], list):
+                problems.append(f"expected.{key} must be an array")
+    review = envelope.get("humanReview")
+    if not isinstance(review, dict) or review.get("result") not in SHARED_HUMAN_REVIEW_STATUS:
+        problems.append("humanReview.result is invalid")
+    outcome = envelope.get("outcome")
+    if not isinstance(outcome, dict) or outcome.get("status") not in SHARED_OUTCOME_STATUS:
+        problems.append("outcome.status is invalid")
+    return Check(
+        case_id,
+        "SHARED_EVAL_CONTRACT",
+        "FAIL" if problems else "PASS",
+        "; ".join(problems) or "maps to TechVit Shared Eval Contract v1",
+    )
+
+
 def check_case(case: dict[str, Any]) -> list[Check]:
     checks = check_schema(case)
     if checks[0].status == "FAIL":
         return checks
     for invariant in INVARIANTS:
         checks.extend(invariant(case))
+    envelope = to_shared_eval_contract(case, checks)
+    checks.append(check_shared_eval_contract(envelope, case["caseId"]))
     return checks
 
 
