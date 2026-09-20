@@ -16,10 +16,11 @@ type CreateResearchRunInput struct {
 }
 
 type AppendResearchIterationInput struct {
-	RunID           string
-	Question        string
-	InputReferences []string
-	AddedEvidence   []string
+	RunID             string
+	Question          string
+	InputReferences   []string
+	AddedEvidence     []string
+	EvidenceAdditions []domain.EvidenceAddition
 }
 
 func (a *Application) CreateResearchRun(ctx context.Context, in CreateResearchRunInput) (*domain.ResearchRun, error) {
@@ -61,7 +62,13 @@ func (a *Application) AppendResearchIteration(ctx context.Context, in AppendRese
 	}
 	now := a.now()
 	iteration := service.BuildResearchIteration(len(run.Iterations)+1, question, in.InputReferences, insights, now)
-	iteration = service.FinalizeResearchIteration(*run, iteration, in.AddedEvidence, now)
+	additions := append([]domain.EvidenceAddition(nil), in.EvidenceAdditions...)
+	for i := range additions {
+		if additions[i].AddedAt.IsZero() {
+			additions[i].AddedAt = now
+		}
+	}
+	iteration = service.FinalizeResearchIterationWithEvidence(*run, iteration, in.AddedEvidence, additions, now)
 	if err := a.repos.Research.AppendResearchIteration(ctx, run.ID, iteration); err != nil {
 		return nil, fmt.Errorf("append research iteration: %w", err)
 	}
@@ -150,10 +157,13 @@ func (a *Application) FreezeResearchExpectation(ctx context.Context, in FreezeRe
 // latest iteration of a run may transition, because the run's current stage
 // is always read from its latest iteration.
 type TransitionResearchStageInput struct {
-	RunID                      string
-	IterationID                string
-	TargetStage                domain.ResearchStage
+	RunID       string
+	IterationID string
+	TargetStage domain.ResearchStage
+	// IndependentEvidencePlanned is retained for source compatibility only.
+	// VALIDATION now requires concrete ValidationEvidence provenance.
 	IndependentEvidencePlanned bool
+	ValidationEvidence         []domain.ValidationEvidenceProvenance
 }
 
 // TransitionResearchStage moves the latest iteration to TargetStage after
@@ -177,16 +187,49 @@ func (a *Application) TransitionResearchStage(ctx context.Context, in Transition
 			completedValidations++
 		}
 	}
+	validationEvidence := append([]domain.ValidationEvidenceProvenance(nil), in.ValidationEvidence...)
+	if in.TargetStage == domain.StageValidation {
+		if len(validationEvidence) == 0 {
+			return nil, fmt.Errorf("VALIDATION requires concrete independent-evidence provenance; the legacy boolean is not auditable")
+		}
+		frozen := map[string]domain.Expectation{}
+		for _, expectation := range latest.Expectations {
+			if expectation.FrozenForValidation {
+				frozen[expectation.ID] = expectation
+			}
+		}
+		covered := map[string]bool{}
+		for i := range validationEvidence {
+			e, ok := frozen[validationEvidence[i].ExpectationID]
+			if !ok {
+				return nil, fmt.Errorf("validation evidence references non-frozen expectation %q", validationEvidence[i].ExpectationID)
+			}
+			validationEvidence[i].RecordedBy = domain.AuthorHuman
+			validationEvidence[i].RecordedAt = a.now()
+			if err := validationEvidence[i].ValidateAgainst(e); err != nil {
+				return nil, err
+			}
+			covered[e.ID] = true
+		}
+		for id := range frozen {
+			if !covered[id] {
+				return nil, fmt.Errorf("frozen expectation %q has no independent validation evidence provenance", id)
+			}
+		}
+	}
 	if err := latest.Stage.Transition(in.TargetStage, domain.StageTransitionInput{
 		ObservationCount:           len(latest.ObservationIDs),
 		Expectations:               latest.Expectations,
-		IndependentEvidencePlanned: in.IndependentEvidencePlanned,
+		IndependentEvidencePlanned: in.TargetStage != domain.StageValidation || len(validationEvidence) > 0,
 		CompletedValidationCount:   completedValidations,
 	}); err != nil {
 		return nil, err
 	}
 	updated := latest
 	updated.Stage = in.TargetStage
+	if in.TargetStage == domain.StageValidation {
+		updated.ValidationEvidence = append(append([]domain.ValidationEvidenceProvenance(nil), latest.ValidationEvidence...), validationEvidence...)
+	}
 	if err := a.repos.Research.UpdateResearchIteration(ctx, run.ID, updated); err != nil {
 		return nil, fmt.Errorf("update research iteration: %w", err)
 	}
