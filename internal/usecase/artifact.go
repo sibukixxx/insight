@@ -109,7 +109,10 @@ type ArtifactInsight struct {
 	CausalStatus              domain.CausalStatus          `json:"causalStatus,omitempty"`
 	ValidationStatus          domain.ValidationStatus      `json:"validationStatus,omitempty"`
 	IdentificationStatus      domain.IdentificationStatus  `json:"identificationStatus,omitempty"`
-	CompetingHypotheses       []domain.CompetingHypothesis `json:"competingHypotheses,omitempty"`
+	CompetingHypotheses       []domain.CompetingHypothesis     `json:"competingHypotheses,omitempty"`
+	Connections               []domain.InsightConnection       `json:"connections,omitempty"`
+	Mechanisms                []domain.MechanismCandidate      `json:"mechanisms,omitempty"`
+	Generalizations           []domain.GeneralizationCandidate `json:"generalizations,omitempty"`
 	MissingEvidence           []string                     `json:"missingEvidence,omitempty"`
 	FalsificationCriteria     []string                     `json:"falsificationCriteria,omitempty"`
 	QualityWarnings           []domain.QualityFlag         `json:"qualityWarnings,omitempty"`
@@ -202,7 +205,9 @@ func (a *Application) artifactInsights(ctx context.Context, insightIDs []string)
 			Rationale: i.Rationale, AlternativeInterpretation: i.AlternativeInterpretation,
 			HypothesisSetID: i.HypothesisSetID, HypothesisRole: i.HypothesisRole, CausalStatus: i.CausalStatus,
 			ValidationStatus: i.ValidationStatus, IdentificationStatus: i.IdentificationStatus,
-			CompetingHypotheses: i.CompetingHypotheses, MissingEvidence: i.MissingEvidence,
+			CompetingHypotheses: i.CompetingHypotheses, Connections: i.Connections,
+			Mechanisms: i.Mechanisms, Generalizations: i.Generalizations,
+			MissingEvidence: i.MissingEvidence,
 			FalsificationCriteria: i.FalsificationCriteria, QualityWarnings: i.QualityFlags,
 		}
 		for _, evidence := range detail.Evidence {
