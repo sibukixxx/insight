@@ -150,6 +150,7 @@ func renderProjectMarkdown(report ProjectReport) []byte {
 		writeReportField(&b, "Product Opportunity", i.ProductOpportunity)
 		writeReportField(&b, "Monetization Angle", i.MonetizationAngle)
 		writeReportField(&b, "Alternative interpretation", i.AlternativeInterpretation)
+		writeInsightSemantics(&b, i)
 		writeReportField(&b, "Causal status", string(i.CausalStatus))
 		writeReportField(&b, "Identification status", string(i.IdentificationStatus))
 		writeReportField(&b, "Validation status", string(i.ValidationStatus))
@@ -444,6 +445,52 @@ func writeStringList(b *strings.Builder, label string, values []string) {
 		fmt.Fprintf(b, "- %s\n", markdownInline(value))
 	}
 	b.WriteByte('\n')
+}
+
+
+func writeInsightSemantics(b *strings.Builder, i *domain.Insight) {
+	if i.Connection.Statement != "" || len(i.Connection.Sources) > 0 || len(i.Connection.Targets) > 0 {
+		b.WriteString("**Non-obvious connection:**\n\n")
+		if i.Connection.Kind != "" {
+			fmt.Fprintf(b, "- Kind: `%s` (descriptive, not causal status)\n", i.Connection.Kind)
+		}
+		if i.Connection.Statement != "" {
+			fmt.Fprintf(b, "- Statement: %s\n", markdownInline(i.Connection.Statement))
+		}
+		if i.Connection.WhyItMatters != "" {
+			fmt.Fprintf(b, "- Why it matters: %s\n", markdownInline(i.Connection.WhyItMatters))
+		}
+		for _, ref := range i.Connection.Sources {
+			fmt.Fprintf(b, "- Source: `%s` %s %s\n", ref.Kind, markdownInline(ref.ID), markdownInline(ref.Label))
+		}
+		for _, ref := range i.Connection.Targets {
+			fmt.Fprintf(b, "- Target: `%s` %s %s\n", ref.Kind, markdownInline(ref.ID), markdownInline(ref.Label))
+		}
+		b.WriteByte('\n')
+	}
+	if i.Mechanism.Statement != "" || len(i.Mechanism.Steps) > 0 {
+		b.WriteString("**Candidate mechanism (proposed, not validated by narrative coherence):**\n\n")
+		writeReportField(b, "Mechanism", i.Mechanism.Statement)
+		for idx, step := range i.Mechanism.Steps {
+			fmt.Fprintf(b, "- Step %d: %s\n", idx+1, markdownInline(step.Statement))
+			writeStringList(b, "  Evidence refs", step.EvidenceRefs)
+			writeStringList(b, "  Bridge assumptions", step.Assumptions)
+			writeStringList(b, "  Missing evidence", step.MissingEvidence)
+		}
+		writeStringList(b, "Alternative mechanisms", i.Mechanism.AlternativeMechanisms)
+		writeStringList(b, "Mechanism counter-evidence refs", i.Mechanism.CounterEvidenceRefs)
+		writeStringList(b, "Mechanism falsification criteria", i.Mechanism.FalsificationCriteria)
+	}
+	if i.Generalization.Principle != "" || i.Generalization.Status != "" {
+		b.WriteString("**Generalization / transfer candidate:**\n\n")
+		writeReportField(b, "Source context", i.Generalization.SourceContext)
+		writeReportField(b, "Transferable principle", i.Generalization.Principle)
+		writeReportField(b, "Target context", i.Generalization.TargetContext)
+		writeReportField(b, "Generalization status", string(i.Generalization.Status))
+		writeStringList(b, "Applicability conditions", i.Generalization.ApplicabilityConditions)
+		writeStringList(b, "Boundary conditions", i.Generalization.BoundaryConditions)
+		writeStringList(b, "Known failure conditions", i.Generalization.KnownFailureConditions)
+	}
 }
 
 func writeCausalStructure(b *strings.Builder, structure domain.CandidateCausalStructure) {
