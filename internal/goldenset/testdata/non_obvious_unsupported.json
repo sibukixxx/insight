@@ -1,0 +1,15 @@
+{
+  "schemaVersion":"1",
+  "caseId":"GS-08-non-obvious-unsupported",
+  "domain":"insight",
+  "input":{"references":["obs-a","obs-b"],"contextReferences":["issue-48"]},
+  "expected":{
+    "properties":["non-obvious connection remains a candidate until bridge evidence exists"],
+    "requiredEvidence":["bridge-step-evidence"],
+    "prohibitedClaims":["validated causal mechanism","model-certified novelty"],
+    "schemaChecks":["connection.kind is descriptive, not causal status"],
+    "qualityChecks":["human review required before publication"]
+  },
+  "humanReview":{"required":true,"result":"NOT_REVIEWED"},
+  "outcome":{"status":"PARTIAL","reasons":["mechanism bridge remains unsupported"]}
+}
