@@ -64,6 +64,8 @@ type ResearchArtifact struct {
 	RuleVersion       string                `json:"ruleVersion,omitempty"`
 
 	InputReferences              []string                              `json:"inputReferences,omitempty"`
+	InputSnapshot                domain.ResearchInputSnapshot          `json:"inputSnapshot,omitempty"`
+	// legacy line replaced below
 	AcquisitionManifests         []service.DatasetProvenance           `json:"acquisitionManifests,omitempty"`
 	DatasetHashes                []string                              `json:"datasetHashes,omitempty"`
 	DatasetCompatibilityWarnings []service.DatasetCompatibilityWarning `json:"datasetCompatibilityWarnings,omitempty"`
@@ -76,6 +78,7 @@ type ResearchArtifact struct {
 	Expectations         []domain.Expectation      `json:"expectations,omitempty"`
 	HypothesisStates     []domain.HypothesisState  `json:"hypothesisStates,omitempty"`
 	HypothesisHistory    []domain.HypothesisChange `json:"hypothesisHistory,omitempty"`
+	InsightDelta         *domain.InsightDelta       `json:"insightDelta,omitempty"`
 	WhatWeCannotConclude []string                  `json:"whatWeCannotConclude,omitempty"`
 	AddedEvidence        []string                              `json:"addedEvidence,omitempty"`
 	EvidenceAdditions    []domain.EvidenceAddition             `json:"evidenceAdditions,omitempty"`
@@ -145,13 +148,14 @@ func (a *Application) GetResearchArtifact(ctx context.Context, runID string) (*R
 		ArtifactSchema: ResearchArtifactSchema, SchemaVersion: ResearchArtifactVersion,
 		ProjectID: run.ProjectID, ResearchRunID: run.ID, IterationID: iteration.ID,
 		IterationSequence: iteration.Sequence, IterationCount: len(run.Iterations),
-		ResearchQuestion: run.Question, ResearchStage: iteration.Stage, InputReferences: iteration.InputReferences,
+		ResearchQuestion: run.Question, ResearchStage: iteration.Stage, InputReferences: iteration.InputReferences, InputSnapshot: iteration.InputSnapshot,
 		Insights:             insights,
 		ResearchGaps:         iteration.ResearchGaps,
 		NextDataRequirements: iteration.DataRequirements,
 		Expectations:         iteration.Expectations,
 		HypothesisStates:     iteration.HypothesisStates,
 		HypothesisHistory:    iteration.HypothesisChanges,
+		InsightDelta:         iteration.Delta,
 		WhatWeCannotConclude: iteration.WhatWeCannotConclude,
 		AddedEvidence:        iteration.AddedEvidence,
 		EvidenceAdditions:    iteration.EvidenceAdditions,
