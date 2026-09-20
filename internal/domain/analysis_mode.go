@@ -1,6 +1,9 @@
 package domain
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // AnalysisMode describes how supplied information should be interpreted.
 // It is orthogonal to ResearchStage (research maturity) and ExecutionMode
@@ -77,6 +80,18 @@ type Claim struct {
 	SourceReference              string    `json:"sourceReference,omitempty"`
 	UnderlyingEvidenceReferences []string  `json:"underlyingEvidenceReferences,omitempty"`
 	Assumptions                  []string  `json:"assumptions,omitempty"`
+}
+
+func (c Claim) Validate() error {
+	if strings.TrimSpace(c.ID) == "" || strings.TrimSpace(c.Statement) == "" {
+		return fmt.Errorf("claim id and statement are required")
+	}
+	switch c.Kind {
+	case ClaimSourceStatement, ClaimInterpretation, ClaimAssumption, ClaimRecommendation:
+		return nil
+	default:
+		return fmt.Errorf("invalid claim kind %q", c.Kind)
+	}
 }
 
 func (c Claim) HasUnderlyingEvidence() bool {
