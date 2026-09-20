@@ -83,10 +83,11 @@ type DatasetProvenance struct {
 // value here comes from counting grounded/discarded/linked records, never
 // from asking the model to self-report quality.
 type Metrics struct {
-	TotalObservationCandidates int     `json:"totalObservationCandidates"`
-	GroundedObservations       int     `json:"groundedObservations"`
-	UnsupportedClaimRate       float64 `json:"unsupportedClaimRate"`
-	PatternCount               int     `json:"patternCount"`
+	ContextReduction           ContextStats `json:"contextReduction"`
+	TotalObservationCandidates int          `json:"totalObservationCandidates"`
+	GroundedObservations       int          `json:"groundedObservations"`
+	UnsupportedClaimRate       float64      `json:"unsupportedClaimRate"`
+	PatternCount               int          `json:"patternCount"`
 	// TraceCount is how many deviation-from-expectation patterns (traces
 	// of desire) were found. PatternCount includes them.
 	TraceCount                int     `json:"traceCount"`
@@ -142,8 +143,18 @@ func (p *Pipeline) Run(ctx context.Context, analysisID, projectID string, progre
 		return p.runDeterministic(ctx, analysisID, projectID, pre, metrics, now, progress)
 	}
 
-	progress("extracting_observations", 5, "Reading documents...")
-	modelObs, err := p.extractAndGroundAll(ctx, documentsForModel(docs, pre), metrics)
+	passages, contextStats := prepareLLMContext(documentsForModel(docs, pre), defaultContextRuneLimit)
+	metrics.ContextReduction = contextStats
+	if len(passages) == 0 && len(pre.Observations) == 0 {
+		return nil, fmt.Errorf("no usable document context remains after filtering (drops: %v)", contextStats.DroppedPassages)
+	}
+
+	progress("extracting_observations", 5, fmt.Sprintf(
+		"Reading reduced context (%d→%d documents, %d→%d estimated tokens)...",
+		contextStats.BeforeDocuments, contextStats.AfterDocuments,
+		contextStats.BeforeEstimatedTokens, contextStats.AfterEstimatedTokens,
+	))
+	modelObs, err := p.extractAndGroundAll(ctx, passages, metrics)
 	if err != nil {
 		return nil, fmt.Errorf("observation extraction: %w", err)
 	}
@@ -237,7 +248,7 @@ func (p *Pipeline) Run(ctx context.Context, analysisID, projectID string, progre
 	}
 
 	progress("scoring_confidence", 90, "Calculating confidence and saving insights...")
-	if err := p.persistInsights(ctx, analysisID, projectID, drafts, keepIdx, docByID, patternsByID, len(docs), metrics); err != nil {
+	if err := p.persistInsights(ctx, analysisID, projectID, drafts, keepIdx, docByID, patternsByID, contextStats.AfterDocuments, metrics); err != nil {
 		return nil, err
 	}
 
@@ -330,27 +341,26 @@ func finalizeObservationMetrics(metrics *Metrics) {
 	}
 }
 
-func (p *Pipeline) extractAndGroundAll(ctx context.Context, docs []*domain.Document, metrics *Metrics) ([]*domain.Observation, error) {
+func (p *Pipeline) extractAndGroundAll(ctx context.Context, passages []contextPassage, metrics *Metrics) ([]*domain.Observation, error) {
 	var allObs []*domain.Observation
-	for _, d := range docs {
-		for _, chunk := range Chunk(d.Content) {
-			out, err := p.extractObservations(ctx, chunk)
-			if err != nil {
-				return nil, fmt.Errorf("document %s: %w", d.ID, err)
+	for _, passage := range passages {
+		d := passage.document
+		out, err := p.extractObservations(ctx, passage.content)
+		if err != nil {
+			return nil, fmt.Errorf("document %s: %w", d.ID, err)
+		}
+		for _, cand := range out.Observations {
+			metrics.TotalObservationCandidates++
+			grounded, ok := Ground(d.Content, cand.Quote)
+			if !ok {
+				continue
 			}
-			for _, cand := range out.Observations {
-				metrics.TotalObservationCandidates++
-				grounded, ok := Ground(d.Content, cand.Quote)
-				if !ok {
-					continue
-				}
-				metrics.GroundedObservations++
-				allObs = append(allObs, &domain.Observation{
-					ID: newID("obs"), DocumentID: d.ID, Quote: grounded.Quote,
-					StartOffset: grounded.StartOffset, EndOffset: grounded.EndOffset,
-					Behavior: cand.Behavior, Topic: cand.Topic, CreatedAt: time.Now().UTC(),
-				})
-			}
+			metrics.GroundedObservations++
+			allObs = append(allObs, &domain.Observation{
+				ID: newID("obs"), DocumentID: d.ID, Quote: grounded.Quote,
+				StartOffset: grounded.StartOffset, EndOffset: grounded.EndOffset,
+				Behavior: cand.Behavior, Topic: cand.Topic, CreatedAt: time.Now().UTC(),
+			})
 		}
 	}
 	return allObs, nil
