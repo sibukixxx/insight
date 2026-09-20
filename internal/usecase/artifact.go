@@ -65,7 +65,6 @@ type ResearchArtifact struct {
 
 	InputReferences              []string                              `json:"inputReferences,omitempty"`
 	InputSnapshot                domain.ResearchInputSnapshot          `json:"inputSnapshot,omitempty"`
-	// legacy line replaced below
 	AcquisitionManifests         []service.DatasetProvenance           `json:"acquisitionManifests,omitempty"`
 	DatasetHashes                []string                              `json:"datasetHashes,omitempty"`
 	DatasetCompatibilityWarnings []service.DatasetCompatibilityWarning `json:"datasetCompatibilityWarnings,omitempty"`
