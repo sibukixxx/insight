@@ -125,7 +125,8 @@ type AddedEvidenceLink struct {
 }
 
 type InputSetSnapshot struct {
-	ArtifactReferences []string `json:"artifactReferences,omitempty"`
+	ArtifactReferences []string       `json:"artifactReferences,omitempty"`
+	Artifacts          []InputArtifact `json:"artifacts,omitempty"`
 	EvidenceReferences []string `json:"evidenceReferences,omitempty"`
 	Variables          []string `json:"variables,omitempty"`
 	Dimensions         []string `json:"dimensions,omitempty"`
@@ -305,6 +306,7 @@ type ResearchIteration struct {
 	ID               string            `json:"id"`
 	Sequence         int               `json:"sequence"`
 	Stage            ResearchStage     `json:"stage,omitempty"`
+	AnalysisMode     AnalysisMode      `json:"semanticAnalysisMode,omitempty"`
 	Question         string            `json:"question"`
 	InputReferences  []string          `json:"inputReferences,omitempty"`
 	InputSnapshot    InputSetSnapshot  `json:"inputSnapshot,omitempty"`
@@ -312,6 +314,7 @@ type ResearchIteration struct {
 	SurpriseIDs      []string          `json:"surpriseIds,omitempty"`
 	HypothesisSetIDs []string          `json:"hypothesisSetIds,omitempty"`
 	InsightIDs       []string          `json:"insightIds,omitempty"`
+	Claims           []ResearchClaim   `json:"claims,omitempty"`
 	HypothesisStates []HypothesisState `json:"hypothesisStates,omitempty"`
 	// Expectations are the first-class validation targets carried on this
 	// iteration: those built from this iteration's own insights plus any
