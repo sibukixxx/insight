@@ -216,16 +216,21 @@ type HumanOverride struct {
 // ResearchIteration is append-only research history. Callers create a new
 // value for re-analysis instead of mutating an earlier iteration.
 type ResearchIteration struct {
-	ID                   string              `json:"id"`
-	Sequence             int                 `json:"sequence"`
-	Stage                ResearchStage       `json:"stage,omitempty"`
-	Question             string              `json:"question"`
-	InputReferences      []string            `json:"inputReferences,omitempty"`
-	ObservationIDs       []string            `json:"observationIds,omitempty"`
-	SurpriseIDs          []string            `json:"surpriseIds,omitempty"`
-	HypothesisSetIDs     []string            `json:"hypothesisSetIds,omitempty"`
-	InsightIDs           []string            `json:"insightIds,omitempty"`
-	HypothesisStates     []HypothesisState   `json:"hypothesisStates,omitempty"`
+	ID               string            `json:"id"`
+	Sequence         int               `json:"sequence"`
+	Stage            ResearchStage     `json:"stage,omitempty"`
+	Question         string            `json:"question"`
+	InputReferences  []string          `json:"inputReferences,omitempty"`
+	ObservationIDs   []string          `json:"observationIds,omitempty"`
+	SurpriseIDs      []string          `json:"surpriseIds,omitempty"`
+	HypothesisSetIDs []string          `json:"hypothesisSetIds,omitempty"`
+	InsightIDs       []string          `json:"insightIds,omitempty"`
+	HypothesisStates []HypothesisState `json:"hypothesisStates,omitempty"`
+	// Expectations are the first-class validation targets carried on this
+	// iteration: those built from this iteration's own insights plus any
+	// frozen expectation derived from a prior iteration. They are never
+	// mutated in place; freezing or deriving always produces a new entry.
+	Expectations         []Expectation       `json:"expectations,omitempty"`
 	ResearchGaps         []ResearchGap       `json:"researchGaps,omitempty"`
 	DataRequirements     []DataRequirement   `json:"dataRequirements,omitempty"`
 	AddedEvidence        []string            `json:"addedEvidence,omitempty"`

@@ -73,6 +73,7 @@ type ResearchArtifact struct {
 
 	ResearchGaps         []domain.ResearchGap      `json:"researchGaps,omitempty"`
 	NextDataRequirements []domain.DataRequirement  `json:"nextDataRequirements,omitempty"`
+	Expectations         []domain.Expectation      `json:"expectations,omitempty"`
 	HypothesisStates     []domain.HypothesisState  `json:"hypothesisStates,omitempty"`
 	HypothesisHistory    []domain.HypothesisChange `json:"hypothesisHistory,omitempty"`
 	WhatWeCannotConclude []string                  `json:"whatWeCannotConclude,omitempty"`
@@ -143,6 +144,7 @@ func (a *Application) GetResearchArtifact(ctx context.Context, runID string) (*R
 		Insights:             insights,
 		ResearchGaps:         iteration.ResearchGaps,
 		NextDataRequirements: iteration.DataRequirements,
+		Expectations:         iteration.Expectations,
 		HypothesisStates:     iteration.HypothesisStates,
 		HypothesisHistory:    iteration.HypothesisChanges,
 		WhatWeCannotConclude: iteration.WhatWeCannotConclude,

@@ -101,6 +101,50 @@ func (a *Application) ApplyResearchHumanOverride(ctx context.Context, in ApplyRe
 	return &updated, nil
 }
 
+// FreezeResearchExpectationInput identifies which expectation on the latest
+// iteration a human is fixing for validation.
+type FreezeResearchExpectationInput struct {
+	RunID         string
+	IterationID   string
+	ExpectationID string
+}
+
+// FreezeResearchExpectation fixes one of the latest iteration's expectations
+// so it can be used as a VALIDATION-stage target. Like ApplyResearchHumanOverride,
+// only the latest iteration may be changed, and freezing never rewrites the
+// expectation's provenance (domain.Expectation.Freeze enforces this).
+func (a *Application) FreezeResearchExpectation(ctx context.Context, in FreezeResearchExpectationInput) (*domain.ResearchIteration, error) {
+	run, err := a.repos.Research.GetResearchRun(ctx, in.RunID)
+	if err != nil {
+		return nil, err
+	}
+	latest, ok := run.LatestIteration()
+	if !ok || latest.ID != in.IterationID {
+		return nil, fmt.Errorf("expectation can only be frozen on the latest research iteration")
+	}
+	idx := -1
+	for i, e := range latest.Expectations {
+		if e.ID == in.ExpectationID {
+			idx = i
+			break
+		}
+	}
+	if idx == -1 {
+		return nil, fmt.Errorf("expectation %q not found on iteration %q", in.ExpectationID, in.IterationID)
+	}
+	frozen, err := latest.Expectations[idx].Freeze(a.now())
+	if err != nil {
+		return nil, err
+	}
+	updated := latest
+	updated.Expectations = append([]domain.Expectation(nil), latest.Expectations...)
+	updated.Expectations[idx] = frozen
+	if err := a.repos.Research.UpdateResearchIteration(ctx, run.ID, updated); err != nil {
+		return nil, fmt.Errorf("update research iteration: %w", err)
+	}
+	return &updated, nil
+}
+
 // TransitionResearchStageInput carries an explicit human request to move a
 // research iteration's stage. Like ApplyResearchHumanOverride, only the
 // latest iteration of a run may transition, because the run's current stage
@@ -115,10 +159,9 @@ type TransitionResearchStageInput struct {
 // TransitionResearchStage moves the latest iteration to TargetStage after
 // checking domain.ResearchStage.Transition's requirements. Stage never
 // advances on its own: forward moves require this explicit call, and a move
-// into VALIDATION is rejected unless at least one expectation on the
-// iteration is frozen for validation — which today's pipeline does not yet
-// produce, so EXPLORATORY -> VALIDATION correctly fails until Expectation
-// entities are wired into the research loop.
+// into VALIDATION is rejected unless at least one of the iteration's
+// Expectations is frozen for validation (see FreezeResearchExpectation) and
+// every frozen one still validates.
 func (a *Application) TransitionResearchStage(ctx context.Context, in TransitionResearchStageInput) (*domain.ResearchIteration, error) {
 	run, err := a.repos.Research.GetResearchRun(ctx, in.RunID)
 	if err != nil {
@@ -136,6 +179,7 @@ func (a *Application) TransitionResearchStage(ctx context.Context, in Transition
 	}
 	if err := latest.Stage.Transition(in.TargetStage, domain.StageTransitionInput{
 		ObservationCount:           len(latest.ObservationIDs),
+		Expectations:               latest.Expectations,
 		IndependentEvidencePlanned: in.IndependentEvidencePlanned,
 		CompletedValidationCount:   completedValidations,
 	}); err != nil {

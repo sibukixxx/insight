@@ -147,6 +147,51 @@ func TestResearchArtifactStageAgreesWithReportStage(t *testing.T) {
 	}
 }
 
+func TestGetResearchArtifactCarriesStageAndExpectationsLosslessly(t *testing.T) {
+	app, ctx := newResearchTestApp(t)
+	now := time.Date(2026, 9, 19, 0, 0, 0, 0, time.UTC)
+	app.now = func() time.Time { return now }
+	if err := app.repos.Projects.Create(ctx, &domain.Project{ID: "p1", Name: "policy", CreatedAt: now}); err != nil {
+		t.Fatal(err)
+	}
+	seedAnalysis(t, app, ctx, "p1", "a1", now, []*domain.Insight{
+		{
+			ID: "h1", Title: "Policy effect", Expectation: "registrations rise after the subsidy starts",
+			ExpectationBasis: domain.ExpectationPrior, FalsificationCriteria: []string{"registrations flat or falling"},
+			ValidationStatus: domain.ValidationPlausible, IdentificationStatus: domain.IdentificationNotIdentified,
+		},
+	})
+	run, err := app.CreateResearchRun(ctx, CreateResearchRunInput{ProjectID: "p1", Question: "q"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	artifact, err := app.GetResearchArtifact(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if artifact.ResearchStage != domain.StageExploratory {
+		t.Fatalf("artifact must carry the iteration's research stage: %+v", artifact)
+	}
+	if len(artifact.Expectations) != 1 || artifact.Expectations[0].ID != run.Iterations[0].Expectations[0].ID {
+		t.Fatalf("artifact must carry first-class expectations losslessly: %+v", artifact.Expectations)
+	}
+
+	encoded, err := json.Marshal(artifact)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var roundTrip map[string]any
+	if err := json.Unmarshal(encoded, &roundTrip); err != nil {
+		t.Fatal(err)
+	}
+	for _, field := range []string{"researchStage", "expectations"} {
+		if _, ok := roundTrip[field]; !ok {
+			t.Errorf("exported JSON is missing field %q for downstream consumption: %s", field, encoded)
+		}
+	}
+}
+
 func TestGetResearchArtifactReturnsNotFoundForUnknownRun(t *testing.T) {
 	app, ctx := newResearchTestApp(t)
 	if _, err := app.GetResearchArtifact(ctx, "missing-run"); !errors.Is(err, ErrNotFound) {
