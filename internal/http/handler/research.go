@@ -146,6 +146,61 @@ func (h *Handler) GetResearchArtifact(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, artifact)
 }
 
+func (h *Handler) SubmitPromotionReview(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Contribution                        domain.ContributionType `json:"contribution"`
+		HumanReviewCompleted                bool                    `json:"humanReviewCompleted"`
+		MakesStrongClaim                    bool                    `json:"makesStrongClaim"`
+		HasUnresolvedCriticalGap            bool                    `json:"hasUnresolvedCriticalGap"`
+		CompetingHypothesisConsidered       bool                    `json:"competingHypothesisConsidered"`
+		IndependentValidationStatusAccurate bool                    `json:"independentValidationStatusAccurate"`
+		DecisionReadinessHonestlyStated     bool                    `json:"decisionReadinessHonestlyStated"`
+	}
+	if json.NewDecoder(r.Body).Decode(&req) != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	iteration, err := h.App.SubmitPromotionReview(r.Context(), usecase.SubmitPromotionReviewInput{
+		RunID: chi.URLParam(r, "runID"), IterationID: chi.URLParam(r, "iterationID"),
+		Contribution: req.Contribution, HumanReviewCompleted: req.HumanReviewCompleted,
+		MakesStrongClaim: req.MakesStrongClaim, HasUnresolvedCriticalGap: req.HasUnresolvedCriticalGap,
+		CompetingHypothesisConsidered:       req.CompetingHypothesisConsidered,
+		IndependentValidationStatusAccurate: req.IndependentValidationStatusAccurate,
+		DecisionReadinessHonestlyStated:     req.DecisionReadinessHonestlyStated,
+	})
+	if err != nil {
+		status := http.StatusBadRequest
+		if errors.Is(err, usecase.ErrNotFound) {
+			status = http.StatusNotFound
+		}
+		writeError(w, status, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, iteration)
+}
+
+func (h *Handler) TransitionPromotionState(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		TargetState domain.PromotionState `json:"targetState"`
+	}
+	if json.NewDecoder(r.Body).Decode(&req) != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	iteration, err := h.App.TransitionPromotionState(r.Context(), usecase.TransitionPromotionStateInput{
+		RunID: chi.URLParam(r, "runID"), IterationID: chi.URLParam(r, "iterationID"), TargetState: req.TargetState,
+	})
+	if err != nil {
+		status := http.StatusBadRequest
+		if errors.Is(err, usecase.ErrNotFound) {
+			status = http.StatusNotFound
+		}
+		writeError(w, status, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, iteration)
+}
+
 func (h *Handler) GetHumanEvaluation(w http.ResponseWriter, r *http.Request) {
 	evaluation, err := h.App.GetHumanEvaluation(r.Context(), chi.URLParam(r, "runID"), chi.URLParam(r, "iterationID"))
 	if err != nil {
