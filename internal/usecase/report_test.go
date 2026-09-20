@@ -232,6 +232,49 @@ func TestResearchReportShowsDecisionReadinessAndStopReason(t *testing.T) {
 	}
 }
 
+func TestResearchReportShowsPromotionStatusContributionAndBlockingReasons(t *testing.T) {
+	it := domain.ResearchIteration{
+		ID: "it1", Sequence: 1,
+		PromotionGateInput: domain.PromotionGateInput{Contribution: domain.ContributionCorrection},
+		Promotion: domain.PromotionAssessment{
+			State:   domain.PromotionHumanReviewRequired,
+			Reasons: []string{"promotion: human review has not been completed for this promoted output"},
+		},
+	}
+	report := ProjectReport{Project: &domain.Project{Name: "Policy"}, ResearchRun: &domain.ResearchRun{Question: "Did policy cause the increase?", Iterations: []domain.ResearchIteration{it}}, GeneratedAt: time.Unix(0, 0)}
+
+	got := string(renderProjectMarkdown(report))
+	for _, want := range []string{
+		"## Promotion Status",
+		"**State:** `HUMAN_REVIEW_REQUIRED`",
+		"**Contribution:** `CORRECTION`",
+		"promotion: human review has not been completed for this promoted output",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("research report missing %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestResearchReportListsUnmetPublicationChecklistItemsWhenPromotionIsBlocked(t *testing.T) {
+	it := domain.ResearchIteration{
+		ID: "it1", Sequence: 1,
+		PromotionGateInput: domain.PromotionGateInput{
+			Contribution: domain.ContributionCorrection,
+			Checklist:    domain.PublicationChecklist{SourceProvenanceComplete: true},
+		},
+		Promotion: domain.PromotionAssessment{State: domain.PromotionHumanReviewRequired},
+	}
+	report := ProjectReport{Project: &domain.Project{Name: "Policy"}, ResearchRun: &domain.ResearchRun{Question: "q", Iterations: []domain.ResearchIteration{it}}, GeneratedAt: time.Unix(0, 0)}
+
+	got := string(renderProjectMarkdown(report))
+	for _, want := range []string{"Unmet publication checklist items", "deterministic\\_calculations\\_reproducible", "observation\\_grounded"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("research report missing %q:\n%s", want, got)
+		}
+	}
+}
+
 func TestResearchReportOmitsStopSectionWhenResearchIsStillRunning(t *testing.T) {
 	it := domain.ResearchIteration{ID: "it1", Sequence: 1, Readiness: domain.ReadinessAssessment{State: domain.ReadinessExploratoryOnly}}
 	report := ProjectReport{Project: &domain.Project{Name: "Policy"}, ResearchRun: &domain.ResearchRun{Question: "q", Iterations: []domain.ResearchIteration{it}}, GeneratedAt: time.Unix(0, 0)}
