@@ -77,7 +77,9 @@ type ResearchArtifact struct {
 	HypothesisStates     []domain.HypothesisState  `json:"hypothesisStates,omitempty"`
 	HypothesisHistory    []domain.HypothesisChange `json:"hypothesisHistory,omitempty"`
 	WhatWeCannotConclude []string                  `json:"whatWeCannotConclude,omitempty"`
-	AddedEvidence        []string                  `json:"addedEvidence,omitempty"`
+	AddedEvidence        []string                              `json:"addedEvidence,omitempty"`
+	EvidenceAdditions    []domain.EvidenceAddition             `json:"evidenceAdditions,omitempty"`
+	ValidationEvidence   []domain.ValidationEvidenceProvenance `json:"validationEvidence,omitempty"`
 
 	Readiness          domain.ReadinessAssessment `json:"decisionReadiness"`
 	EffectiveReadiness domain.DecisionReadiness   `json:"effectiveDecisionReadiness"`
@@ -152,6 +154,8 @@ func (a *Application) GetResearchArtifact(ctx context.Context, runID string) (*R
 		HypothesisHistory:    iteration.HypothesisChanges,
 		WhatWeCannotConclude: iteration.WhatWeCannotConclude,
 		AddedEvidence:        iteration.AddedEvidence,
+		EvidenceAdditions:    iteration.EvidenceAdditions,
+		ValidationEvidence:   iteration.ValidationEvidence,
 		Readiness:            iteration.Readiness, EffectiveReadiness: iteration.EffectiveReadiness(),
 		StopDecision: iteration.Stop, HumanOverrides: iteration.HumanOverrides,
 		CreatedAt: iteration.CreatedAt, ExportedAt: a.now(),
