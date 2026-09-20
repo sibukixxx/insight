@@ -15,9 +15,16 @@ import (
 // missing-evidence needs shared by several hypotheses become one gap so that
 // its discriminating value across hypotheses is visible.
 func BuildResearchIteration(sequence int, question string, inputReferences []string, insights []*domain.Insight, now time.Time) domain.ResearchIteration {
+	return BuildResearchIterationWithSnapshot(sequence, question, inputReferences, domain.ResearchInputSnapshot{References: append([]string(nil), inputReferences...)}, insights, now)
+}
+
+func BuildResearchIterationWithSnapshot(sequence int, question string, inputReferences []string, snapshot domain.ResearchInputSnapshot, insights []*domain.Insight, now time.Time) domain.ResearchIteration {
+	if len(snapshot.References) == 0 {
+		snapshot.References = append([]string(nil), inputReferences...)
+	}
 	iteration := domain.ResearchIteration{
 		ID: newID("rit"), Sequence: sequence, Stage: domain.StageExploratory, Question: strings.TrimSpace(question),
-		InputReferences: append([]string(nil), inputReferences...), CreatedAt: now,
+		InputReferences: append([]string(nil), inputReferences...), InputSnapshot: snapshot, CreatedAt: now,
 		Promotion: domain.PromotionAssessment{State: domain.PromotionDraft, AssessedAt: now},
 	}
 
@@ -127,6 +134,11 @@ func FinalizeResearchIteration(run domain.ResearchRun, iteration domain.Research
 func FinalizeResearchIterationWithEvidence(run domain.ResearchRun, iteration domain.ResearchIteration, addedEvidence []string, additions []domain.EvidenceAddition, now time.Time) domain.ResearchIteration {
 	iteration.AddedEvidence = append([]string(nil), addedEvidence...)
 	iteration.EvidenceAdditions = append([]domain.EvidenceAddition(nil), additions...)
+	for _, addition := range additions {
+		if addition.Reference != "" {
+			iteration.InputSnapshot.EvidenceReferences = appendUnique(iteration.InputSnapshot.EvidenceReferences, addition.Reference)
+		}
+	}
 	if previous, ok := run.LatestIteration(); ok {
 		iteration = CarryForwardResearchGapsWithLinks(previous, iteration, additions)
 		iteration = CarryForwardFrozenExpectations(previous, iteration, now)
@@ -135,8 +147,13 @@ func FinalizeResearchIterationWithEvidence(run domain.ResearchRun, iteration dom
 		// domain.ResearchStage.Transition); building a new iteration from the
 		// latest insights must not silently reset it back to EXPLORATORY.
 		iteration.Stage = previous.Stage
+		iteration = PrioritizeResearchIteration(iteration)
+		delta := CompareResearchIterations(previous, iteration)
+		iteration.Delta = &delta
+	} else {
+		iteration = PrioritizeResearchIteration(iteration)
 	}
-	iteration = PrioritizeResearchIteration(iteration)
+
 	candidate := run.AppendIteration(iteration)
 	iteration.Readiness = AssessDecisionReadiness(candidate, now)
 	iteration.Stop = DecideStop(candidate, iteration.Readiness, now)
@@ -202,6 +219,74 @@ func evidenceAddressesGap(additions []domain.EvidenceAddition, gapID string) boo
 		}
 	}
 	return false
+}
+
+// CompareResearchIterations computes an auditable before/after comparison.
+// It deliberately records coexistence, not causal attribution.
+func CompareResearchIterations(previous, current domain.ResearchIteration) domain.InsightDelta {
+	delta := domain.InsightDelta{FromIterationID: previous.ID, ToIterationID: current.ID}
+	delta.InputChanges = append(delta.InputChanges, compareSet("reference", previous.InputSnapshot.References, current.InputSnapshot.References)...)
+	delta.InputChanges = append(delta.InputChanges, compareSet("evidence", previous.InputSnapshot.EvidenceReferences, current.InputSnapshot.EvidenceReferences)...)
+	delta.InputChanges = append(delta.InputChanges, compareSet("variable", previous.InputSnapshot.Variables, current.InputSnapshot.Variables)...)
+	delta.InputChanges = append(delta.InputChanges, compareSet("dimension", previous.InputSnapshot.Dimensions, current.InputSnapshot.Dimensions)...)
+	delta.InputChanges = append(delta.InputChanges, compareSet("filter", previous.InputSnapshot.Filters, current.InputSnapshot.Filters)...)
+	delta.InputChanges = append(delta.InputChanges, compareSet("context", previous.InputSnapshot.ContextReferences, current.InputSnapshot.ContextReferences)...)
+	delta.InputChanges = append(delta.InputChanges, compareSet("transform", previous.InputSnapshot.TransformReferences, current.InputSnapshot.TransformReferences)...)
+	delta.InputChanges = append(delta.InputChanges, compareScalar("period", previous.InputSnapshot.Period, current.InputSnapshot.Period)...)
+	delta.InputChanges = append(delta.InputChanges, compareScalar("population", previous.InputSnapshot.Population, current.InputSnapshot.Population)...)
+	delta.InputChanges = append(delta.InputChanges, compareScalar("geography", previous.InputSnapshot.Geography, current.InputSnapshot.Geography)...)
+
+	delta.Result.ObservationAdded, delta.Result.ObservationRemoved = setDiff(previous.ObservationIDs, current.ObservationIDs)
+	delta.Result.InsightAdded, delta.Result.InsightRemoved = setDiff(previous.InsightIDs, current.InsightIDs)
+	priorGaps := map[string]domain.ResearchGap{}
+	for _, gap := range previous.ResearchGaps {
+		priorGaps[gap.ID] = gap
+	}
+	for _, gap := range current.ResearchGaps {
+		prior, existed := priorGaps[gap.ID]
+		if !existed {
+			delta.Result.GapCreated = append(delta.Result.GapCreated, gap.ID)
+		} else if !prior.Resolved && gap.Resolved {
+			delta.Result.GapResolved = append(delta.Result.GapResolved, gap.ID)
+		}
+	}
+	priorReq, currentReq := make([]string, 0, len(previous.DataRequirements)), make([]string, 0, len(current.DataRequirements))
+	for _, req := range previous.DataRequirements { priorReq = append(priorReq, req.GapID) }
+	for _, req := range current.DataRequirements { currentReq = append(currentReq, req.GapID) }
+	delta.Result.DataRequirementAdded, delta.Result.DataRequirementRemoved = setDiff(priorReq, currentReq)
+	delta.Result.CannotConcludeAdded, delta.Result.CannotConcludeRemoved = setDiff(previous.WhatWeCannotConclude, current.WhatWeCannotConclude)
+	delta.Result.HypothesisChanges = append([]domain.HypothesisChange(nil), current.HypothesisChanges...)
+	return delta
+}
+
+func compareSet(category string, before, after []string) []domain.ResearchDeltaChange {
+	added, removed := setDiff(before, after)
+	out := make([]domain.ResearchDeltaChange, 0, len(added)+len(removed))
+	for _, value := range added {
+		out = append(out, domain.ResearchDeltaChange{Category: category, Kind: domain.DeltaAdded, Value: value})
+	}
+	for _, value := range removed {
+		out = append(out, domain.ResearchDeltaChange{Category: category, Kind: domain.DeltaRemoved, Value: value})
+	}
+	return out
+}
+
+func compareScalar(category, before, after string) []domain.ResearchDeltaChange {
+	if before == after {
+		return nil
+	}
+	return []domain.ResearchDeltaChange{{Category: category, Kind: domain.DeltaChanged, Before: before, After: after}}
+}
+
+func setDiff(before, after []string) (added, removed []string) {
+	b, a := map[string]bool{}, map[string]bool{}
+	for _, value := range before { if value != "" { b[value] = true } }
+	for _, value := range after { if value != "" { a[value] = true } }
+	for value := range a { if !b[value] { added = append(added, value) } }
+	for value := range b { if !a[value] { removed = append(removed, value) } }
+	sort.Strings(added)
+	sort.Strings(removed)
+	return added, removed
 }
 
 // PrioritizeResearchIteration explains which additional evidence would best
