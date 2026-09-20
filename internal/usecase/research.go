@@ -41,15 +41,18 @@ func (a *Application) CreateResearchRun(ctx context.Context, in CreateResearchRu
 	if strings.TrimSpace(in.Question) == "" {
 		return nil, fmt.Errorf("question is required")
 	}
-	insights, err := a.latestInsights(ctx, in.ProjectID)
-	if err != nil {
-		return nil, err
-	}
-	now := a.now()
 	mode, err := domain.ResolveAnalysisMode(in.AnalysisMode, in.ArtifactClass)
 	if err != nil {
 		return nil, err
 	}
+	if err := validateClaimsForMode(mode, in.Claims); err != nil {
+		return nil, err
+	}
+	insights, err := a.researchInsightsForMode(ctx, in.ProjectID, mode)
+	if err != nil {
+		return nil, err
+	}
+	now := a.now()
 	iteration := service.BuildResearchIterationWithMode(1, in.Question, in.InputReferences, in.InputSnapshot, mode, in.ArtifactClass, in.Claims, insights, now)
 	iteration = service.FinalizeResearchIteration(domain.ResearchRun{}, iteration, nil, now)
 	run := &domain.ResearchRun{ID: newID("run"), ProjectID: in.ProjectID, Question: strings.TrimSpace(in.Question), Iterations: []domain.ResearchIteration{iteration}, CreatedAt: now}
@@ -64,15 +67,10 @@ func (a *Application) AppendResearchIteration(ctx context.Context, in AppendRese
 	if err != nil {
 		return nil, err
 	}
-	insights, err := a.latestInsights(ctx, run.ProjectID)
-	if err != nil {
-		return nil, err
-	}
 	question := strings.TrimSpace(in.Question)
 	if question == "" {
 		question = run.Question
 	}
-	now := a.now()
 	mode, err := domain.ResolveAnalysisMode(in.AnalysisMode, in.ArtifactClass)
 	if err != nil {
 		return nil, err
@@ -82,6 +80,14 @@ func (a *Application) AppendResearchIteration(ctx context.Context, in AppendRese
 			mode = previous.AnalysisMode
 		}
 	}
+	if err := validateClaimsForMode(mode, in.Claims); err != nil {
+		return nil, err
+	}
+	insights, err := a.researchInsightsForMode(ctx, run.ProjectID, mode)
+	if err != nil {
+		return nil, err
+	}
+	now := a.now()
 	iteration := service.BuildResearchIterationWithMode(len(run.Iterations)+1, question, in.InputReferences, in.InputSnapshot, mode, in.ArtifactClass, in.Claims, insights, now)
 	additions := append([]domain.EvidenceAddition(nil), in.EvidenceAdditions...)
 	for i := range additions {
@@ -271,6 +277,28 @@ func (a *Application) GetHumanHandoff(ctx context.Context, runID string) (*domai
 	}
 	handoff := service.BuildHumanHandoff(*run)
 	return &handoff, nil
+}
+
+func validateClaimsForMode(mode domain.AnalysisMode, claims []domain.Claim) error {
+	if mode == domain.AnalysisModeResearchReview && len(claims) == 0 {
+		return fmt.Errorf("RESEARCH_REVIEW requires at least one Claim")
+	}
+	for _, claim := range claims {
+		if err := claim.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (a *Application) researchInsightsForMode(ctx context.Context, projectID string, mode domain.AnalysisMode) ([]*domain.Insight, error) {
+	if mode == domain.AnalysisModeResearchReview {
+		// Research Review starts from imported claims, not from a prior
+		// discovery analysis. Underlying evidence is fed back through the same
+		// generic evidence/research loop later.
+		return nil, nil
+	}
+	return a.latestInsights(ctx, projectID)
 }
 
 func (a *Application) latestInsights(ctx context.Context, projectID string) ([]*domain.Insight, error) {
