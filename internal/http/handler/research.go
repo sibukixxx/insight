@@ -90,6 +90,41 @@ func (h *Handler) AppendResearchIteration(w http.ResponseWriter, r *http.Request
 	writeJSON(w, http.StatusCreated, it)
 }
 
+func (h *Handler) FreezeResearchExpectation(w http.ResponseWriter, r *http.Request) {
+	iteration, err := h.App.FreezeResearchExpectation(r.Context(), usecase.FreezeResearchExpectationInput{
+		RunID: chi.URLParam(r, "runID"), IterationID: chi.URLParam(r, "iterationID"), ExpectationID: chi.URLParam(r, "expectationID"),
+	})
+	if err != nil {
+		status := http.StatusBadRequest
+		if errors.Is(err, usecase.ErrNotFound) { status = http.StatusNotFound }
+		writeError(w, status, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, iteration)
+}
+
+func (h *Handler) TransitionResearchStage(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		TargetStage        domain.ResearchStage                   `json:"targetStage"`
+		ValidationEvidence []domain.ValidationEvidenceProvenance `json:"validationEvidence"`
+	}
+	if json.NewDecoder(r.Body).Decode(&req) != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	iteration, err := h.App.TransitionResearchStage(r.Context(), usecase.TransitionResearchStageInput{
+		RunID: chi.URLParam(r, "runID"), IterationID: chi.URLParam(r, "iterationID"),
+		TargetStage: req.TargetStage, ValidationEvidence: req.ValidationEvidence,
+	})
+	if err != nil {
+		status := http.StatusBadRequest
+		if errors.Is(err, usecase.ErrNotFound) { status = http.StatusNotFound }
+		writeError(w, status, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, iteration)
+}
+
 func (h *Handler) SaveHumanEvaluation(w http.ResponseWriter, r *http.Request) {
 	evaluation := &domain.HumanEvaluation{ResearchRunID: chi.URLParam(r, "runID"), IterationID: chi.URLParam(r, "iterationID")}
 	if json.NewDecoder(r.Body).Decode(evaluation) != nil {
