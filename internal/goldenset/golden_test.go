@@ -7,12 +7,11 @@
 //
 // Run with: go test -tags=golden ./internal/goldenset/...
 //
-// This file currently covers the four cases that are deterministic and need
-// no LLM call: association-only, population/definition mismatch, the
-// post-hoc expectation (HARKing) guard, and valid inconclusive. The
-// remaining three cases from issue #14 (real Open Data reproducibility,
-// new-evidence re-analysis, competing-hypothesis/counter-evidence) need a
-// live research run and are tracked separately.
+// These tests cover deterministic Research Loop semantics without an LLM.
+// Additional #48/#46/#39/#49/#18/#24 regressions live in
+// research_semantics_test.go under the same golden build tag. Real Open Data
+// fixtures remain versioned under testdata/golden and are checked separately
+// by the Shared Eval Contract harness.
 package goldenset
 
 import (
