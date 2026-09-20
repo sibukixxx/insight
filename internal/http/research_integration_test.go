@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -44,7 +45,7 @@ func TestResearchHTTPDogfoodPathPersistsHumanEvaluationAndReport(t *testing.T) {
 	app := usecase.New(usecase.Repositories{Projects: projects, Documents: documents, Observations: observations, Patterns: patterns, Analyses: analyses, Insights: insights, Evidence: evidence, Research: research})
 	router := httpapi.NewRouter(httpapi.Deps{App: app})
 
-	create := httptest.NewRequest(http.MethodPost, "/api/projects/p1/research-runs", bytes.NewBufferString(`{"question":"Did treatment cause the increase?","inputReferences":["synthetic.csv"]}`))
+	create := httptest.NewRequest(http.MethodPost, "/api/projects/p1/research-runs", bytes.NewBufferString(`{"question":"Did treatment cause the increase?","inputReferences":["synthetic.csv"],"artifactClass":"STRUCTURED_DATASET","inputSnapshot":{"references":["synthetic.csv"],"variables":["treated_outcome"]}}`))
 	create.Header.Set("content-type", "application/json")
 	created := httptest.NewRecorder()
 	router.ServeHTTP(created, create)
@@ -58,6 +59,9 @@ func TestResearchHTTPDogfoodPathPersistsHumanEvaluationAndReport(t *testing.T) {
 	if len(run.Iterations) != 1 || len(run.Iterations[0].ResearchGaps) == 0 {
 		t.Fatalf("research projection missing: %+v", run)
 	}
+	if run.Iterations[0].AnalysisMode != domain.AnalysisModeDatasetAnalysis {
+		t.Fatalf("structured dataset must resolve to DATASET_ANALYSIS: %+v", run.Iterations[0])
+	}
 
 	evaluationBody := `{"observationGrounding":4,"surpriseUsefulness":4,"hypothesisDiversity":5,"counterEvidenceQuality":3,"missingEvidenceQuality":4,"identificationHonesty":5,"nextDataUsefulness":4,"novelty":"NEW","overallUsefulness":4}`
 	evalURL := "/api/research-runs/" + run.ID + "/iterations/" + run.Iterations[0].ID + "/evaluation"
@@ -69,7 +73,9 @@ func TestResearchHTTPDogfoodPathPersistsHumanEvaluationAndReport(t *testing.T) {
 		t.Fatalf("save evaluation: %d %s", evalResp.Code, evalResp.Body.String())
 	}
 
-	iterateReq := httptest.NewRequest(http.MethodPost, "/api/research-runs/"+run.ID+"/iterations", bytes.NewBufferString(`{"inputReferences":["comparison.csv"],"addedEvidence":["untreated comparison outcomes"]}`))
+	linkedGapID := run.Iterations[0].ResearchGaps[0].ID
+	iterateBody := fmt.Sprintf(`{"inputReferences":["synthetic.csv","comparison.csv"],"inputSnapshot":{"references":["synthetic.csv","comparison.csv"],"variables":["treated_outcome","comparison_outcome"]},"addedEvidence":["untreated comparison outcomes"],"evidenceAdditions":[{"reference":"comparison.csv","gapIds":[%q]}]}`, linkedGapID)
+	iterateReq := httptest.NewRequest(http.MethodPost, "/api/research-runs/"+run.ID+"/iterations", bytes.NewBufferString(iterateBody))
 	iterateReq.Header.Set("content-type", "application/json")
 	iterateResp := httptest.NewRecorder()
 	router.ServeHTTP(iterateResp, iterateReq)
@@ -82,6 +88,24 @@ func TestResearchHTTPDogfoodPathPersistsHumanEvaluationAndReport(t *testing.T) {
 	}
 	if second.Sequence != 2 || len(second.AddedEvidence) != 1 || len(second.HypothesisChanges) != 3 {
 		t.Fatalf("iteration history not auditable: %+v", second)
+	}
+	if len(second.EvidenceAdditions) != 1 || second.EvidenceAdditions[0].Reference != "comparison.csv" {
+		t.Fatalf("structured evidence addition must be persisted: %+v", second.EvidenceAdditions)
+	}
+	if second.AnalysisMode != domain.AnalysisModeDatasetAnalysis {
+		t.Fatalf("append without an explicit mode must inherit DATASET_ANALYSIS: %+v", second)
+	}
+	if second.Delta == nil {
+		t.Fatal("second iteration must include an Insight Delta")
+	}
+	var sawComparisonVariable bool
+	for _, change := range second.Delta.InputChanges {
+		if change.Category == "variable" && change.Kind == domain.DeltaAdded && change.Value == "comparison_outcome" {
+			sawComparisonVariable = true
+		}
+	}
+	if !sawComparisonVariable {
+		t.Fatalf("delta must expose the newly added comparison variable: %+v", second.Delta)
 	}
 	persisted, err := research.GetResearchRun(ctx, run.ID)
 	if err != nil || len(persisted.Iterations) != 2 || persisted.Iterations[0].ID != run.Iterations[0].ID {
@@ -151,6 +175,9 @@ func TestResearchHTTPDogfoodPathPersistsHumanEvaluationAndReport(t *testing.T) {
 	}
 	if artifact.ResearchStage != overridden.Stage {
 		t.Fatalf("artifact must export the latest iteration's research stage losslessly over HTTP: artifact=%q iteration=%q", artifact.ResearchStage, overridden.Stage)
+	}
+	if artifact.InputAnalysisMode != domain.AnalysisModeDatasetAnalysis || artifact.InsightDelta == nil || len(artifact.EvidenceAdditions) != 1 {
+		t.Fatalf("artifact must export mode, delta and evidence linkage losslessly: %+v", artifact)
 	}
 }
 
