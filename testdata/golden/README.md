@@ -13,7 +13,7 @@ testdata/golden/
   harness/test_golden_eval.py    unittest: fixtures stay consistent, every invariant fires when broken
 ```
 
-`testdata/` is ignored by the Go toolchain, so nothing here affects `go build` or `go test ./...`.
+`testdata/` is ignored by the Go toolchain. The domain/service regressions that exercise these semantics live under `internal/goldenset` with the `golden` build tag.
 
 ## Cases
 
@@ -43,9 +43,24 @@ testdata/golden/
 | `EXTERNAL_ARTIFACT_NOT_PRIMARY` | untraceable external / AI artifacts cannot be validation evidence |
 | `HUMAN_REVIEW` | a review block exists; `PENDING` is a warning, an unknown status fails |
 
+## Additional semantic regressions
+
+`internal/goldenset/research_semantics_test.go` pins the implementation-level contracts introduced by the Research Loop:
+
+- non-obvious Connection / candidate Mechanism never self-promotes causality;
+- Generalization requires human review;
+- same-pass post-hoc evidence cannot validate itself;
+- EvidenceAddition resolves only the exact linked ResearchGap;
+- Insight Delta records changed and unchanged interpretations without causal attribution;
+- semantic AnalysisMode remains orthogonal to ResearchStage;
+- a polished but unsupported artifact cannot pass the publication Promotion Gate.
+
 ## Run
 
 ```bash
+make test-golden
+# equivalent to:
+go test -tags=golden ./internal/goldenset/...
 python3 testdata/golden/harness/test_golden_eval.py          # regression tests
 python3 testdata/golden/harness/golden_eval.py               # table of checks, exit 1 on FAIL
 python3 testdata/golden/harness/golden_eval.py --json
@@ -53,11 +68,11 @@ python3 testdata/golden/harness/golden_eval.py --case GS-02 \
   --report reports/japan-company-count-2021-2024/generated/report.md   # forbidden-claim scan
 ```
 
-## What the skeleton does not do yet
+## Remaining boundary
 
-- Score a generated report or evidence ledger against `expected` (only the forbidden-claim scan is report-facing).
-- Run the Go pipeline or an LLM. Cases 3 and 5 will need an adapter that feeds a case into the existing CSV import / Research Run path and maps the output back to this contract.
-- Validate with a JSON Schema library; the harness checks the subset it needs so the repository stays dependency-free.
+- The Python contract harness still does not score arbitrary generated prose beyond the forbidden-claim scan.
+- Model quality itself is not certified by these deterministic tests; model-backed dogfooding remains a separate evaluation step.
+- JSON Schema validation remains dependency-free and is implemented as the explicit subset checked by the harness.
 
 ## Editing rules
 
