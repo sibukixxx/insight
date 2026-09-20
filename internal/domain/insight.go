@@ -59,6 +59,90 @@ type QualityFlag struct {
 	Detail string          `json:"detail,omitempty"`
 }
 
+// ConnectionReferenceKind identifies the kind of already-observed or externally
+// supplied node an InsightConnection connects. These references are pointers
+// into the evidence/research model; their existence does not make the
+// connection true.
+type ConnectionReferenceKind string
+
+const (
+	ConnectionRefObservation ConnectionReferenceKind = "OBSERVATION"
+	ConnectionRefFinding     ConnectionReferenceKind = "FINDING"
+	ConnectionRefVariable    ConnectionReferenceKind = "VARIABLE"
+	ConnectionRefClaim       ConnectionReferenceKind = "CLAIM"
+	ConnectionRefContext     ConnectionReferenceKind = "CONTEXT"
+	ConnectionRefDataset     ConnectionReferenceKind = "DATASET"
+	ConnectionRefOther       ConnectionReferenceKind = "OTHER"
+)
+
+type ConnectionReference struct {
+	Kind  ConnectionReferenceKind `json:"kind"`
+	ID    string                  `json:"id,omitempty"`
+	Label string                  `json:"label,omitempty"`
+}
+
+type ConnectionKind string
+
+const (
+	ConnectionAssociation        ConnectionKind = "ASSOCIATION"
+	ConnectionContrast           ConnectionKind = "CONTRAST"
+	ConnectionSequence           ConnectionKind = "SEQUENCE"
+	ConnectionInteraction        ConnectionKind = "INTERACTION"
+	ConnectionConstraint         ConnectionKind = "CONSTRAINT"
+	ConnectionMechanismCandidate ConnectionKind = "MECHANISM_CANDIDATE"
+	ConnectionOther              ConnectionKind = "OTHER"
+)
+
+// InsightConnection represents the non-obvious line between facts/variables/
+// contexts. It is deliberately separate from CausalStatus: a coherent line
+// or sequence is not evidence that causality has been identified.
+type InsightConnection struct {
+	ID           string                `json:"id,omitempty"`
+	Kind         ConnectionKind        `json:"kind"`
+	Statement    string                `json:"statement"`
+	From         []ConnectionReference `json:"from,omitempty"`
+	To           []ConnectionReference `json:"to,omitempty"`
+	WhyItMatters string                `json:"whyItMatters,omitempty"`
+}
+
+// MechanismCandidate keeps the explanatory bridge inspectable. A model may
+// propose it, but status/evidence are not a truth probability and never
+// override Insight.CausalStatus or IdentificationStatus.
+type MechanismCandidate struct {
+	Statement             string   `json:"statement"`
+	BridgeAssumptions     []string `json:"bridgeAssumptions,omitempty"`
+	SupportingEvidenceIDs []string `json:"supportingEvidenceIds,omitempty"`
+	CounterEvidenceIDs    []string `json:"counterEvidenceIds,omitempty"`
+	AlternativeMechanisms []string `json:"alternativeMechanisms,omitempty"`
+	UnresolvedGaps        []string `json:"unresolvedGaps,omitempty"`
+	DistinguishingEvidence []string `json:"distinguishingEvidence,omitempty"`
+}
+
+type GeneralizationStatus string
+
+const (
+	GeneralizationCandidate GeneralizationStatus = "CANDIDATE"
+	GeneralizationSupported GeneralizationStatus = "SUPPORTED"
+	GeneralizationRejected  GeneralizationStatus = "REJECTED"
+)
+
+// GeneralizationCandidate describes a possible transferable principle. It can
+// only be presented as supported after an explicit human review; the LLM may
+// propose the candidate and its boundaries but cannot self-certify transfer.
+type GeneralizationCandidate struct {
+	Principle         string               `json:"principle"`
+	SourceContext     string               `json:"sourceContext,omitempty"`
+	TargetContexts    []string             `json:"targetContexts,omitempty"`
+	BoundaryConditions []string            `json:"boundaryConditions,omitempty"`
+	KnownFailures     []string             `json:"knownFailures,omitempty"`
+	Status            GeneralizationStatus `json:"status,omitempty"`
+	HumanReviewed     bool                 `json:"humanReviewed"`
+}
+
+func (g GeneralizationCandidate) PermitsTransferClaim() bool {
+	return g.Status == GeneralizationSupported && g.HumanReviewed
+}
+
 type Insight struct {
 	ID         string
 	ProjectID  string
@@ -90,6 +174,9 @@ type Insight struct {
 	ValidationStatus          ValidationStatus
 	IdentificationStatus      IdentificationStatus
 	CompetingHypotheses       []CompetingHypothesis
+	Connections               []InsightConnection
+	Mechanisms                []MechanismCandidate
+	Generalizations           []GeneralizationCandidate
 	CausalStructure           CandidateCausalStructure
 	MissingEvidence           []string
 	FalsificationCriteria     []string
