@@ -79,6 +79,9 @@ Fields:
 - missingEvidence: evidence absent from the input, especially plausible confounders.
 - falsificationCriteria: future observations that would weaken this hypothesis. These are criteria, never actual counter-evidence.
 - requiredData, requiredComparisons, candidateDesigns: what would strengthen validation. Designs (control group, pre/post, natural experiment, difference-in-differences candidate, regression discontinuity candidate, instrumental variable candidate) are suggestions only; do not claim they were applied.
+- connections: when useful, state a non-obvious relationship between supplied observations, variables, findings or contexts. A connection is a candidate relationship, never causal proof.
+- mechanisms: make the explanatory bridge explicit. List bridge assumptions, alternative mechanisms, unresolved gaps and evidence that would distinguish them. Narrative coherence is not evidence.
+- generalizations: optionally propose a transferable principle with boundary conditions and known failure conditions. Always set status=CANDIDATE and humanReviewed=false. Never self-certify novelty or generalizability.
 
 Generate multiple competing hypotheses for a surprising fact when the evidence permits. Correlation alone must never be described as causal support.
 Aim for at least two alternative explanations (three candidates including the primary). If the input cannot support meaningful alternatives, return fewer rather than inventing them; the application will record a quality warning.
