@@ -80,7 +80,7 @@ func TestGoldenRealOpenDataRunsThroughDeterministicPipeline(t *testing.T) {
 			"location": "Japan",
 			"record_count": row.value,
 			"source_provider": "statistics_bureau",
-			"source_version": row.harmonizationMethod,
+			"source_version": "economic-census",
 		})
 		first := "Dataset observation: period=" + row.period + "; location=Japan; event_type=enterprise_equivalents; record_count=" + row.value + "."
 		docs = append(docs, &domain.Document{
