@@ -72,7 +72,7 @@ Falsification criteria describe what future observation would weaken a hypothesi
 
 A `ResearchIteration` carries a `ResearchStage`: `DISCOVERY` (turning input into observations), `EXPLORATORY` (generating expectations and hypotheses from data already observed), `VALIDATION` (testing frozen expectations against evidence independent of the exploratory pass), or `SYNTHESIS` (combining results while stating remaining uncertainty). A result's `FindingKind` follows directly from the stage: only `VALIDATION` produces `VALIDATION_RESULT`, only `SYNTHESIS` produces `SYNTHESIS`, everything else is `EXPLORATORY_FINDING`. Stage never advances on its own; a human calls `TransitionResearchStage` for each forward move, and stepping back is always allowed because it never promotes a claim.
 
-`BuildResearchIteration` projects each insight's `Expectation` / `ExpectationBasis` / `FalsificationCriteria` into a first-class `Expectation` entity on the iteration, unfrozen, with `ObservedDataAvailableAtCreation` set solely from the basis's own timing (never guessed, never used to relabel a post-hoc basis as prior). A human fixes one of these for validation via `FreezeResearchExpectation`; freezing requires known provenance and at least one falsification criterion, and it never changes the statement or provenance it fixes. `EXPLORATORY -> VALIDATION` is rejected (`ErrStageRequiresFrozenTarget`) unless the iteration carries at least one frozen, valid expectation, and (`ErrStageRequiresIndependentEvidence`) unless the caller states that evidence independent of the generating iteration has been identified for the validation run.
+`BuildResearchIteration` projects each insight's `Expectation` / `ExpectationBasis` / `FalsificationCriteria` into a first-class `Expectation` entity on the iteration, unfrozen, with `ObservedDataAvailableAtCreation` set solely from the basis's own timing (never guessed, never used to relabel a post-hoc basis as prior). A human fixes one of these for validation via `FreezeResearchExpectation`; freezing requires known provenance and at least one falsification criterion, and it never changes the statement or provenance it fixes. `EXPLORATORY -> VALIDATION` is rejected (`ErrStageRequiresFrozenTarget`) unless the iteration carries at least one frozen, valid expectation. The application additionally requires persisted `ValidationEvidenceProvenance` for every frozen validation target: the Expectation ID, evidence reference, independence relation, rationale, actor, and timestamp are stored on the iteration. The former boolean-only `IndependentEvidencePlanned` input is retained only for source compatibility and cannot by itself authorize VALIDATION.
 
 Appending a new iteration carries every frozen expectation from the previous iteration forward as a fresh, unfrozen validation target on the new one (`DERIVED_FROM_PRIOR_RUN`, with `DerivedFromExpectationID` recording the lineage). This is how an expectation formed while exploring one dataset becomes a pre-registered target tested against a later, independent pass — the historical iteration itself is never mutated.
 
@@ -83,6 +83,22 @@ Invariants enforced by the domain model:
 - evidence from the same iteration that produced an expectation counts as independent only if the expectation was fixed before that iteration's data was observed (`Expectation.IsIndependentEvidence`);
 - a validation target can be frozen before any additional evidence is seen;
 - historical iterations are never overwritten — carrying an expectation forward or freezing it always produces a new value.
+
+## Insight semantics and iteration deltas
+
+A non-obvious relationship is represented as an `InsightConnection`. A proposed explanatory bridge is a `MechanismCandidate`, including bridge assumptions, alternative mechanisms, unresolved gaps, and evidence that could distinguish explanations. Neither structure changes `CausalStatus`, `ValidationStatus`, or `IdentificationStatus` by itself.
+
+Candidate transfer across contexts is represented by `GeneralizationCandidate`. Model-generated candidates are forced to `CANDIDATE` / `humanReviewed=false`; only an explicitly human-reviewed `SUPPORTED` candidate permits a transfer claim.
+
+Research iterations may also carry `EvidenceAddition` records linking a concrete evidence reference to exact `ResearchGap` IDs. A free-text evidence note never resolves a gap. `InsightDelta` compares iteration input snapshots and research outcomes, but it records co-change only; adding a variable before a conclusion changes is not treated as evidence that the variable caused the change.
+
+Semantic `AnalysisMode` is orthogonal to Research Stage and model execution:
+
+- `DISCOVERY`: raw primary evidence;
+- `DATASET_ANALYSIS`: structured data with deterministic source-of-truth calculations;
+- `RESEARCH_REVIEW`: already-interpreted reports, memos, or AI artifacts decomposed into `Claim` values.
+
+An imported `Claim` is not primary Evidence unless its underlying evidence references are separately supplied and evaluated.
 
 ## External structured data
 
