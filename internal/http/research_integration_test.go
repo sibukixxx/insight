@@ -149,6 +149,9 @@ func TestResearchHTTPDogfoodPathPersistsHumanEvaluationAndReport(t *testing.T) {
 	if artifact.StopDecision == nil || artifact.StopDecision.Reason != domain.StopExternalBudgetBoundary {
 		t.Fatalf("artifact must reflect the human stop decision: %+v", artifact.StopDecision)
 	}
+	if artifact.ResearchStage != overridden.Stage {
+		t.Fatalf("artifact must export the latest iteration's research stage losslessly over HTTP: artifact=%q iteration=%q", artifact.ResearchStage, overridden.Stage)
+	}
 }
 
 func TestResearchHTTPPromotionReviewAndTransition(t *testing.T) {

@@ -9,7 +9,7 @@ import (
 func satisfiedArtifactFacts() PromotionArtifactFacts {
 	return PromotionArtifactFacts{
 		Stage:                                     domain.StageValidation,
-		ProvenanceMode:                            string(AnalysisModeDeterministic),
+		ProvenanceMode:                            string(ExecutionModeDeterministic),
 		DatasetHashesPresent:                      true,
 		GroundedObservations:                      4,
 		TotalObservationCandidates:                4,

@@ -63,6 +63,9 @@ func BuildResearchIteration(sequence int, question string, inputReferences []str
 			iteration.WhatWeCannotConclude = append(iteration.WhatWeCannotConclude,
 				"Causality is not identified for hypothesis "+insight.ID+" from the current evidence.")
 		}
+		if exp, ok := expectationFromInsight(insight, iteration.ID, now); ok {
+			iteration.Expectations = append(iteration.Expectations, exp)
+		}
 	}
 	for _, gap := range iteration.ResearchGaps {
 		if req, err := PlanDataRequirementForGap(gap); err == nil {
@@ -74,6 +77,42 @@ func BuildResearchIteration(sequence int, question string, inputReferences []str
 	return PrioritizeResearchIteration(iteration)
 }
 
+// expectationFromInsight projects an Insight's Expectation/ExpectationBasis
+// pair into a first-class domain.Expectation. It never rewrites a post-hoc
+// basis into a pre-observation one: ObservedDataAvailableAtCreation is set
+// purely from the basis's own ObservationTiming, and the basis itself is
+// carried verbatim. The result starts unfrozen; freezing it for validation is
+// a separate, explicit decision.
+func expectationFromInsight(insight *domain.Insight, iterationID string, now time.Time) (domain.Expectation, bool) {
+	statement := strings.TrimSpace(insight.Expectation)
+	if statement == "" {
+		return domain.Expectation{}, false
+	}
+	return domain.Expectation{
+		ID: newID("exp"), Statement: statement, Provenance: insight.ExpectationBasis,
+		AuthorType: domain.AuthorModel, ResearchIterationID: iterationID,
+		FalsificationCriteria:           append([]string(nil), insight.FalsificationCriteria...),
+		ObservedDataAvailableAtCreation: insight.ExpectationBasis.ObservationTiming() == domain.TimingPostObservation,
+		CreatedAt:                       now,
+	}, true
+}
+
+// CarryForwardFrozenExpectations derives a validation target on the new
+// iteration for every expectation frozen on the previous one. Unfrozen
+// (still-exploratory) expectations are not carried: only a frozen statement
+// is safe to test again, and DeriveForValidation records the lineage back to
+// its exploratory source without ever mutating the historical iteration.
+func CarryForwardFrozenExpectations(previous domain.ResearchIteration, current domain.ResearchIteration, now time.Time) domain.ResearchIteration {
+	out := current
+	for _, e := range previous.Expectations {
+		if !e.FrozenForValidation {
+			continue
+		}
+		out.Expectations = append(out.Expectations, e.DeriveForValidation(newID("exp"), current.ID, now))
+	}
+	return out
+}
+
 // FinalizeResearchIteration links a freshly built iteration to the run it
 // extends: added evidence, gap carry-forward, hypothesis change history,
 // requirement priority, readiness and a system stop decision. The caller
@@ -82,6 +121,7 @@ func FinalizeResearchIteration(run domain.ResearchRun, iteration domain.Research
 	iteration.AddedEvidence = append([]string(nil), addedEvidence...)
 	if previous, ok := run.LatestIteration(); ok {
 		iteration = CarryForwardResearchGaps(previous, iteration, addedEvidence)
+		iteration = CarryForwardFrozenExpectations(previous, iteration, now)
 		iteration.HypothesisChanges = CompareHypothesisStates(previous.HypothesisStates, iteration.HypothesisStates)
 		// The run's stage only moves via an explicit transition (see
 		// domain.ResearchStage.Transition); building a new iteration from the

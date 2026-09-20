@@ -1,0 +1,173 @@
+{
+  "caseId": "GS-05",
+  "version": "0.1.0",
+  "title": "New-evidence re-analysis case: referral program signup spike revisited with an independent source log",
+  "kind": "synthetic",
+  "goldenSetIndex": 5,
+  "dimensions": [
+    "exploratory vs validation stage correctness",
+    "expectation provenance integrity",
+    "required counter-evidence",
+    "alternative explanation coverage",
+    "decision-readiness honesty"
+  ],
+  "input": {
+    "researchQuestion": "Did the June referral program cause the signup spike?",
+    "stage": "VALIDATION",
+    "datasets": [
+      {
+        "id": "ds-signups",
+        "role": "hypothesis_generation",
+        "sourceKind": "primary",
+        "description": "Fictional monthly new-signup totals before and after the referral program launched in June.",
+        "populationDefinitionId": "monthly_new_signups_total",
+        "harmonizationMethod": "observed",
+        "unit": "signups",
+        "rows": [
+          {
+            "key": "2025-05",
+            "value": 400
+          },
+          {
+            "key": "2025-06",
+            "value": 900
+          }
+        ]
+      },
+      {
+        "id": "ds-signup-source-log",
+        "role": "validation",
+        "sourceKind": "primary",
+        "description": "Fictional server-side signup source-attribution log, pulled independently after the initial May-to-June finding, breaking the 500 new June signups down by referral tag and IP range.",
+        "populationDefinitionId": "june_signups_by_source_tag",
+        "harmonizationMethod": "observed",
+        "unit": "signups",
+        "rows": [
+          {
+            "key": "referral_tagged",
+            "value": 80
+          },
+          {
+            "key": "suspicious_ip_range",
+            "value": 420
+          }
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "verdict": "COMPETING_UNRESOLVED",
+    "expectations": [
+      {
+        "id": "E1",
+        "text": "If the referral program caused the spike, most of the 500 new June signups should carry a referral attribution tag in the source log.",
+        "basis": "MODEL_PROPOSED",
+        "provenance": "POST_HOC",
+        "declaredBeforeDataSeen": false
+      }
+    ],
+    "hypotheses": [
+      {
+        "id": "H1",
+        "role": "PRIMARY",
+        "text": "The referral program caused the June signup spike.",
+        "causalStatus": "CAUSAL_HYPOTHESIS",
+        "validationStatus": "CONTRADICTED",
+        "identificationStatus": "NOT_IDENTIFIED"
+      },
+      {
+        "id": "H2",
+        "role": "COMPETING",
+        "text": "A traffic anomaly unrelated to the referral program inflated the June signup count.",
+        "causalStatus": "OBSERVED_ASSOCIATION",
+        "validationStatus": "SUPPORTED",
+        "identificationStatus": "NOT_IDENTIFIED"
+      }
+    ],
+    "evidence": [
+      {
+        "id": "EV1",
+        "type": "support",
+        "hypothesisIds": [
+          "H1"
+        ],
+        "datasetId": "ds-signups",
+        "usage": "generation",
+        "sourceKind": "primary",
+        "traceableToPrimary": true,
+        "summary": "Signups rose from 400 to 900 the month the referral program launched."
+      },
+      {
+        "id": "EV2",
+        "type": "counter",
+        "hypothesisIds": [
+          "H1"
+        ],
+        "datasetId": "ds-signup-source-log",
+        "usage": "independent_validation",
+        "sourceKind": "primary",
+        "traceableToPrimary": true,
+        "summary": "Only 80 of the 500 new June signups carry a referral attribution tag; the rest are unaccounted for by the referral program."
+      },
+      {
+        "id": "EV3",
+        "type": "support",
+        "hypothesisIds": [
+          "H2"
+        ],
+        "datasetId": "ds-signup-source-log",
+        "usage": "independent_validation",
+        "sourceKind": "primary",
+        "traceableToPrimary": true,
+        "summary": "420 of the 500 new signups share a narrow IP range, independent of the referral program's own attribution tagging."
+      }
+    ],
+    "comparisons": [
+      {
+        "id": "CMP-signups",
+        "baselineDatasetId": "ds-signups",
+        "baselineRowKey": "2025-05",
+        "currentDatasetId": "ds-signups",
+        "currentRowKey": "2025-06",
+        "expectedDelta": 500,
+        "expectedPctChange": "125.0",
+        "comparabilityLabel": "COMPARABLE"
+      }
+    ],
+    "counterEvidenceSearched": true,
+    "mayClaimExhaustiveValidation": false,
+    "requiresCounterEvidence": true,
+    "requiredLimitations": [
+      "The source-attribution log was pulled after the initial finding and covers only June; it cannot rule out genuine referral-driven signups in later months.",
+      "A shared IP range is suggestive of automated signups but is not a definitive bot or fraud determination.",
+      "The original May-to-June comparison alone cannot separate the referral launch from the concurrent traffic anomaly."
+    ],
+    "requiredResearchGaps": [
+      {
+        "category": "MEASUREMENT",
+        "need": "A bot/fraud classification pass on the 420 suspicious signups (e.g. email verification rate, device fingerprint)."
+      },
+      {
+        "category": "TIMING",
+        "need": "Daily signup counts around the referral launch date and the start of the suspicious traffic, to separate the two by timing."
+      },
+      {
+        "category": "COMPARISON_CONTROL",
+        "need": "Signup counts for a comparable period with the referral program active but without the traffic anomaly."
+      }
+    ],
+    "forbiddenClaims": [
+      "紹介プログラムが増加の原因である",
+      "the referral program drove the signup increase",
+      "不正アクセスであることが確認された",
+      "confirmed bot fraud"
+    ]
+  },
+  "humanReview": {
+    "status": "PENDING",
+    "reviewer": null,
+    "reviewedAt": null,
+    "outcome": null,
+    "notes": "A passing report must not keep crediting the referral program once the independent source log contradicts it, and must not overclaim the suspicious-IP signups as confirmed fraud."
+  }
+}

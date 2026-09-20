@@ -26,10 +26,11 @@ const (
 // either copied verbatim from append-only domain history or derived
 // deterministically from it.
 //
-// Fields the domain does not yet track per iteration - ResearchStage, stage
-// transition history, and Expectation provenance (Issue #22) - are
-// intentionally absent rather than guessed. They can be added additively
-// once that wiring exists, without a schema version bump.
+// ResearchStage (below) and per-insight Expectation provenance
+// (ArtifactInsight.ExpectationBasis) are already exported. Stage transition
+// history (Issue #22) is the remaining field the domain does not yet track
+// per iteration; it is intentionally absent rather than guessed and can be
+// added additively once that wiring exists, without a schema version bump.
 type ResearchArtifact struct {
 	ArtifactSchema string `json:"artifactSchema"`
 	SchemaVersion  string `json:"schemaVersion"`
@@ -41,13 +42,26 @@ type ResearchArtifact struct {
 	IterationCount    int    `json:"iterationCount"`
 	ResearchQuestion  string `json:"researchQuestion"`
 
-	// AnalysisMode, ModelVersion, PromptFingerprint and RuleVersion come from
+	// ResearchStage is the latest iteration's own recorded stage (Issue #37),
+	// copied verbatim so a downstream consumer never has to re-derive it from
+	// iteration history the way domain.ResearchRun.CurrentStage does.
+	ResearchStage domain.ResearchStage `json:"researchStage,omitempty"`
+
+	// ExecutionMode, ModelVersion, PromptFingerprint and RuleVersion come from
 	// the latest analysis's RunProvenance, so a no-model (deterministic-only)
 	// run can never be mistaken for a model-backed one.
-	AnalysisMode      service.AnalysisMode `json:"analysisMode,omitempty"`
-	ModelVersion      string               `json:"modelVersion,omitempty"`
-	PromptFingerprint string               `json:"promptFingerprint,omitempty"`
-	RuleVersion       string               `json:"ruleVersion,omitempty"`
+	//
+	// The Go field is named ExecutionMode (Issue #38) because that is what
+	// this value actually is: whether a model executed, not the semantic
+	// input-reading mode (DISCOVERY / DATASET_ANALYSIS / RESEARCH_REVIEW)
+	// Issue #18 will add. The JSON key stays "analysisMode" because it is
+	// already part of the versioned v1 wire contract (Issue #17); renaming
+	// the wire field would be a breaking change. When #18 lands, it must
+	// introduce its own field rather than repurpose this one.
+	ExecutionMode     service.ExecutionMode `json:"analysisMode,omitempty"`
+	ModelVersion      string                `json:"modelVersion,omitempty"`
+	PromptFingerprint string                `json:"promptFingerprint,omitempty"`
+	RuleVersion       string                `json:"ruleVersion,omitempty"`
 
 	InputReferences              []string                              `json:"inputReferences,omitempty"`
 	AcquisitionManifests         []service.DatasetProvenance           `json:"acquisitionManifests,omitempty"`
@@ -59,6 +73,7 @@ type ResearchArtifact struct {
 
 	ResearchGaps         []domain.ResearchGap      `json:"researchGaps,omitempty"`
 	NextDataRequirements []domain.DataRequirement  `json:"nextDataRequirements,omitempty"`
+	Expectations         []domain.Expectation      `json:"expectations,omitempty"`
 	HypothesisStates     []domain.HypothesisState  `json:"hypothesisStates,omitempty"`
 	HypothesisHistory    []domain.HypothesisChange `json:"hypothesisHistory,omitempty"`
 	WhatWeCannotConclude []string                  `json:"whatWeCannotConclude,omitempty"`
@@ -125,10 +140,11 @@ func (a *Application) GetResearchArtifact(ctx context.Context, runID string) (*R
 		ArtifactSchema: ResearchArtifactSchema, SchemaVersion: ResearchArtifactVersion,
 		ProjectID: run.ProjectID, ResearchRunID: run.ID, IterationID: iteration.ID,
 		IterationSequence: iteration.Sequence, IterationCount: len(run.Iterations),
-		ResearchQuestion: run.Question, InputReferences: iteration.InputReferences,
+		ResearchQuestion: run.Question, ResearchStage: iteration.Stage, InputReferences: iteration.InputReferences,
 		Insights:             insights,
 		ResearchGaps:         iteration.ResearchGaps,
 		NextDataRequirements: iteration.DataRequirements,
+		Expectations:         iteration.Expectations,
 		HypothesisStates:     iteration.HypothesisStates,
 		HypothesisHistory:    iteration.HypothesisChanges,
 		WhatWeCannotConclude: iteration.WhatWeCannotConclude,
@@ -143,7 +159,7 @@ func (a *Application) GetResearchArtifact(ctx context.Context, runID string) (*R
 	}
 
 	if prov, ok := a.latestRunProvenance(ctx, run.ProjectID); ok {
-		artifact.AnalysisMode = prov.Mode
+		artifact.ExecutionMode = prov.Mode
 		artifact.ModelVersion = prov.Model
 		artifact.PromptFingerprint = prov.PromptFingerprint
 		artifact.RuleVersion = prov.RuleVersion

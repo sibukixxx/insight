@@ -355,7 +355,7 @@ Insight Labの公開OSS境界は、Evidence-Grounded Research Artifact、Researc
 - [Current Project Status](docs/project-status.md)
 - [Research Loop](docs/research-loop.md)
 - [Causal Reasoning Semantics](docs/causal-reasoning.md)
-- [Detailed Design](docs/detailed-design.md)
+- [Detailed Design](docs/detailed-design.md)（historical v1）
 - [Evaluation](docs/evaluation/README.md)
 - [Contributing](CONTRIBUTING.md)
 - [Security](SECURITY.md)

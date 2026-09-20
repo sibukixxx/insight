@@ -30,7 +30,7 @@ type PromotionArtifactFacts struct {
 func BuildPublicationChecklist(facts PromotionArtifactFacts, human domain.PublicationChecklist) domain.PublicationChecklist {
 	return domain.PublicationChecklist{
 		SourceProvenanceComplete:              facts.DatasetHashesPresent,
-		DeterministicCalculationsReproducible: facts.ProvenanceMode == string(AnalysisModeDeterministic),
+		DeterministicCalculationsReproducible: facts.ProvenanceMode == string(ExecutionModeDeterministic),
 		ObservationGrounded:                   facts.TotalObservationCandidates > 0 && facts.GroundedObservations == facts.TotalObservationCandidates,
 		ExpectationProvenanceVisible:          facts.AllInsightsHaveExpectationBasis,
 		ResearchStageVisible:                  facts.Stage != "",

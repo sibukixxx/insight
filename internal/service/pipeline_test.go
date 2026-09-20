@@ -281,7 +281,7 @@ func TestPipelineRunWithoutLLMCompletesDeterministicPreAnalysis(t *testing.T) {
 	}
 
 	prov := metrics.Provenance
-	if prov.Mode != AnalysisModeDeterministic || prov.Model != "" || prov.PromptFingerprint != "" {
+	if prov.Mode != ExecutionModeDeterministic || prov.Model != "" || prov.PromptFingerprint != "" {
 		t.Errorf("a run without a model must say so and record no model provenance: %+v", prov)
 	}
 	if prov.RuleVersion != datasetPreAnalysisRuleVersion || prov.DeterministicObservations != 2 || prov.DeterministicComparisons != 1 {
@@ -355,7 +355,7 @@ func TestPipelineRunModelBackedKeepsDatasetNumbersOutOfTheModel(t *testing.T) {
 		t.Errorf("observation_extraction called %d times, want 2 (interview documents only)", fake.calls["observation_extraction"])
 	}
 	prov := metrics.Provenance
-	if prov.Mode != AnalysisModeModelBacked || prov.Model != "fake-model" || len(prov.PromptFingerprint) != 64 {
+	if prov.Mode != ExecutionModeModelBacked || prov.Model != "fake-model" || len(prov.PromptFingerprint) != 64 {
 		t.Errorf("model-backed provenance wrong: %+v", prov)
 	}
 	if prov.DeterministicObservations != 2 || prov.DeterministicComparisons != 1 || len(prov.DatasetHashes) != 1 {
@@ -397,7 +397,7 @@ func TestPipelineRunWithInterviewsOnlyRecordsModelBackedProvenance(t *testing.T)
 		t.Fatalf("Run: %v", err)
 	}
 	prov := metrics.Provenance
-	if prov.Mode != AnalysisModeModelBacked || prov.Model != "fake-model" || prov.PromptFingerprint == "" || prov.RuleVersion != datasetPreAnalysisRuleVersion {
+	if prov.Mode != ExecutionModeModelBacked || prov.Model != "fake-model" || prov.PromptFingerprint == "" || prov.RuleVersion != datasetPreAnalysisRuleVersion {
 		t.Errorf("provenance = %+v", prov)
 	}
 	if prov.DeterministicObservations != 0 || len(prov.DatasetHashes) != 0 || len(prov.Datasets) != 0 {

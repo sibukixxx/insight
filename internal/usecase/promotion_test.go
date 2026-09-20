@@ -23,7 +23,7 @@ func seedFullySupportedRun(t *testing.T, app *Application, ctx context.Context, 
 	}
 	metrics := service.Metrics{
 		TotalObservationCandidates: 4, GroundedObservations: 4,
-		Provenance: service.RunProvenance{Mode: service.AnalysisModeDeterministic, RuleVersion: "v1", DatasetHashes: []string{"sha256:abc"}},
+		Provenance: service.RunProvenance{Mode: service.ExecutionModeDeterministic, RuleVersion: "v1", DatasetHashes: []string{"sha256:abc"}},
 	}
 	metricsJSON, err := json.Marshal(metrics)
 	if err != nil {

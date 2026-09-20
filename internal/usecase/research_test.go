@@ -266,6 +266,172 @@ func TestTransitionResearchStageRejectsForwardMoveWithoutFrozenExpectations(t *t
 	}
 }
 
+func TestFreezeResearchExpectationPersistsFrozenCopyWithoutChangingProvenance(t *testing.T) {
+	app, ctx := newResearchTestApp(t)
+	now := time.Date(2026, 9, 19, 0, 0, 0, 0, time.UTC)
+	app.now = func() time.Time { return now }
+	if err := app.repos.Projects.Create(ctx, &domain.Project{ID: "p1", Name: "policy", CreatedAt: now}); err != nil {
+		t.Fatal(err)
+	}
+	seedAnalysis(t, app, ctx, "p1", "a1", now, []*domain.Insight{
+		{
+			ID: "h1", Title: "Policy effect", Expectation: "registrations rise after the subsidy starts",
+			ExpectationBasis: domain.ExpectationPrior, FalsificationCriteria: []string{"registrations flat or falling"},
+			ValidationStatus: domain.ValidationPlausible, IdentificationStatus: domain.IdentificationNotIdentified,
+		},
+	})
+	run, err := app.CreateResearchRun(ctx, CreateResearchRunInput{ProjectID: "p1", Question: "q"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(run.Iterations[0].Expectations) != 1 {
+		t.Fatalf("expected the insight's expectation to be projected onto the iteration: %+v", run.Iterations[0])
+	}
+	expectationID := run.Iterations[0].Expectations[0].ID
+
+	updated, err := app.FreezeResearchExpectation(ctx, FreezeResearchExpectationInput{
+		RunID: run.ID, IterationID: run.Iterations[0].ID, ExpectationID: expectationID,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !updated.Expectations[0].FrozenForValidation || updated.Expectations[0].FrozenAt == nil {
+		t.Fatalf("expectation must be frozen: %+v", updated.Expectations[0])
+	}
+	if updated.Expectations[0].Provenance != domain.ExpectationPrior {
+		t.Fatalf("freezing must not change provenance: %+v", updated.Expectations[0])
+	}
+
+	persisted, err := app.GetResearchIteration(ctx, run.ID, run.Iterations[0].ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !persisted.Expectations[0].FrozenForValidation {
+		t.Fatalf("frozen expectation must be persisted: %+v", persisted.Expectations[0])
+	}
+}
+
+func TestFreezeResearchExpectationRejectsUnknownExpectationID(t *testing.T) {
+	app, ctx := newResearchTestApp(t)
+	now := time.Date(2026, 9, 19, 0, 0, 0, 0, time.UTC)
+	app.now = func() time.Time { return now }
+	if err := app.repos.Projects.Create(ctx, &domain.Project{ID: "p1", Name: "policy", CreatedAt: now}); err != nil {
+		t.Fatal(err)
+	}
+	seedAnalysis(t, app, ctx, "p1", "a1", now, []*domain.Insight{
+		{ID: "h1", Title: "Policy effect", ValidationStatus: domain.ValidationPlausible, IdentificationStatus: domain.IdentificationNotIdentified},
+	})
+	run, err := app.CreateResearchRun(ctx, CreateResearchRunInput{ProjectID: "p1", Question: "q"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := app.FreezeResearchExpectation(ctx, FreezeResearchExpectationInput{
+		RunID: run.ID, IterationID: run.Iterations[0].ID, ExpectationID: "missing",
+	}); err == nil {
+		t.Fatal("expected an error for an unknown expectation id")
+	}
+}
+
+func TestTransitionResearchStageSucceedsWithAFrozenExpectationAndIndependentEvidencePlanned(t *testing.T) {
+	app, ctx := newResearchTestApp(t)
+	now := time.Date(2026, 9, 19, 0, 0, 0, 0, time.UTC)
+	app.now = func() time.Time { return now }
+	if err := app.repos.Projects.Create(ctx, &domain.Project{ID: "p1", Name: "policy", CreatedAt: now}); err != nil {
+		t.Fatal(err)
+	}
+	seedAnalysis(t, app, ctx, "p1", "a1", now, []*domain.Insight{
+		{
+			ID: "h1", Title: "Policy effect", Expectation: "registrations rise after the subsidy starts",
+			ExpectationBasis: domain.ExpectationPrior, FalsificationCriteria: []string{"registrations flat or falling"},
+			ValidationStatus: domain.ValidationPlausible, IdentificationStatus: domain.IdentificationNotIdentified,
+		},
+	})
+	run, err := app.CreateResearchRun(ctx, CreateResearchRunInput{ProjectID: "p1", Question: "q"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	iterationID := run.Iterations[0].ID
+	expectationID := run.Iterations[0].Expectations[0].ID
+
+	if _, err := app.FreezeResearchExpectation(ctx, FreezeResearchExpectationInput{
+		RunID: run.ID, IterationID: iterationID, ExpectationID: expectationID,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	updated, err := app.TransitionResearchStage(ctx, TransitionResearchStageInput{
+		RunID: run.ID, IterationID: iterationID, TargetStage: domain.StageValidation, IndependentEvidencePlanned: true,
+	})
+	if err != nil {
+		t.Fatalf("expected the transition to succeed with a persisted frozen expectation: %v", err)
+	}
+	if updated.Stage != domain.StageValidation {
+		t.Fatalf("expected stage VALIDATION, got %s", updated.Stage)
+	}
+
+	persisted, err := app.GetResearchRun(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if persisted.CurrentStage() != domain.StageValidation {
+		t.Fatalf("stage transition must be persisted: %+v", persisted.Iterations)
+	}
+}
+
+func TestAppendResearchIterationCarriesFrozenExpectationIntoTheNextIterationAsValidationTarget(t *testing.T) {
+	app, ctx := newResearchTestApp(t)
+	first := time.Date(2026, 9, 19, 0, 0, 0, 0, time.UTC)
+	second := first.Add(time.Hour)
+	app.now = func() time.Time { return first }
+	if err := app.repos.Projects.Create(ctx, &domain.Project{ID: "p1", Name: "policy", CreatedAt: first}); err != nil {
+		t.Fatal(err)
+	}
+	seedAnalysis(t, app, ctx, "p1", "a1", first, []*domain.Insight{
+		{
+			ID: "h1", Title: "Policy effect", Expectation: "registrations rise after the subsidy starts",
+			ExpectationBasis: domain.ExpectationPrior, FalsificationCriteria: []string{"registrations flat or falling"},
+			ValidationStatus: domain.ValidationPlausible, IdentificationStatus: domain.IdentificationNotIdentified,
+		},
+	})
+	run, err := app.CreateResearchRun(ctx, CreateResearchRunInput{ProjectID: "p1", Question: "q"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	frozen, err := app.FreezeResearchExpectation(ctx, FreezeResearchExpectationInput{
+		RunID: run.ID, IterationID: run.Iterations[0].ID, ExpectationID: run.Iterations[0].Expectations[0].ID,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	app.now = func() time.Time { return second }
+	seedAnalysis(t, app, ctx, "p1", "a2", second, []*domain.Insight{
+		{ID: "h1b", Title: "Policy effect", ValidationStatus: domain.ValidationSupported, IdentificationStatus: domain.IdentificationNotIdentified},
+	})
+
+	got, err := app.AppendResearchIteration(ctx, AppendResearchIterationInput{RunID: run.ID, AddedEvidence: []string{"independent comparison series"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var carried *domain.Expectation
+	for i := range got.Expectations {
+		if got.Expectations[i].DerivedFromExpectationID == frozen.Expectations[0].ID {
+			carried = &got.Expectations[i]
+		}
+	}
+	if carried == nil {
+		t.Fatalf("expected the frozen expectation to be carried into the new iteration: %+v", got.Expectations)
+	}
+	if carried.FrozenForValidation {
+		t.Fatal("carried expectation must start unfrozen so it becomes this iteration's validation target")
+	}
+	if carried.Provenance != domain.ExpectationDerivedFromPriorRun {
+		t.Fatalf("carried expectation must be marked DERIVED_FROM_PRIOR_RUN: %+v", carried)
+	}
+}
+
 func TestTransitionResearchStageAllowsAnExplicitBackwardMoveAndPersistsIt(t *testing.T) {
 	app, ctx := newResearchTestApp(t)
 	now := time.Date(2026, 9, 19, 0, 0, 0, 0, time.UTC)
