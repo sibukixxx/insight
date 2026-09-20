@@ -26,10 +26,11 @@ const (
 // either copied verbatim from append-only domain history or derived
 // deterministically from it.
 //
-// Fields the domain does not yet track per iteration - stage transition
-// history and Expectation provenance (Issue #22) - are intentionally absent
-// rather than guessed. They can be added additively once that wiring exists,
-// without a schema version bump.
+// ResearchStage (below) and per-insight Expectation provenance
+// (ArtifactInsight.ExpectationBasis) are already exported. Stage transition
+// history (Issue #22) is the remaining field the domain does not yet track
+// per iteration; it is intentionally absent rather than guessed and can be
+// added additively once that wiring exists, without a schema version bump.
 type ResearchArtifact struct {
 	ArtifactSchema string `json:"artifactSchema"`
 	SchemaVersion  string `json:"schemaVersion"`

@@ -14,7 +14,7 @@ This directory contains three different kinds of documentation. Keeping them sep
 
 ## Architecture and implementation
 
-- [Detailed design](detailed-design.md) — deeper architecture and implementation details.
+- [Detailed design](detailed-design.md) — historical v1 design (pre BYO-Evidence / Research Loop). Kept for record; see `project-status.md` and `byo-evidence-boundary.md` for the current architecture.
 - [Implementation plan](implementation-plan.md) — implementation history and planned phases. Treat current code and `project-status.md` as authoritative when they differ from older planning notes.
 - [Design review](design-review.md) — historical design review and rationale.
 

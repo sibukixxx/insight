@@ -342,7 +342,7 @@ Key documents:
 - [Current project status](docs/project-status.md)
 - [Research Loop](docs/research-loop.md)
 - [Causal reasoning semantics](docs/causal-reasoning.md)
-- [Detailed design](docs/detailed-design.md)
+- [Detailed design](docs/detailed-design.md) (historical v1)
 - [Evaluation](docs/evaluation/README.md)
 - [Contributing](CONTRIBUTING.md)
 - [Security](SECURITY.md)

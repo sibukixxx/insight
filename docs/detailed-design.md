@@ -1,6 +1,15 @@
-# Insight Lab / Hidden Needs Finder 詳細設計（確定版 v1）
+# Insight Lab / Hidden Needs Finder 詳細設計（確定版 v1・historical）
 
-本書はドラフト設計を検証（[design-review.md](./design-review.md)）した結果を反映した、実装着手可能な確定版設計である。ドラフトから変更した箇所には **[変更]** を付す。
+> **historical design document.** これは初期の「Hidden Needs Finder」構想（インタビュー/レビュー/商談ログを対象にした interview 中心のツール）の確定版 v1 であり、**現在の main の実装を表していない**。
+>
+> 現在は Dataset / Research Run / Research Stage / BYO-Evidence 境界 / Research Artifact を中心とした Research Loop アーキテクチャに発展しており、SourceType も本書の 5 種類より多い。current architecture の正は以下を参照すること：
+>
+> - [Project status](project-status.md) — 現在実装済みの機能と既知の制限
+> - [BYO-Evidence boundary](byo-evidence-boundary.md) — Evidence取得の責務境界と現在のexport/import contract
+> - [Research Loop](research-loop.md) — append-only iteration と再調査フロー
+> - [Project scope](project-scope.md) — OSS coreとprivate/downstream layerの境界
+>
+> 本書はドラフト設計を検証（[design-review.md](./design-review.md)）した結果を反映した、実装着手可能な確定版設計（v1時点）である。ドラフトから変更した箇所には **[変更]** を付す。DDL / API / パイプラインの記述は当時のものであり、現行 main のスキーマ・APIとは一致しない。
 
 ---
 

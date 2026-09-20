@@ -1,6 +1,6 @@
 # Project Status
 
-_Last reviewed: 2026-09-14_
+_Last reviewed: 2026-09-20_
 
 This document describes the current project state. It is intentionally more conservative than roadmap or design documents.
 
@@ -57,6 +57,29 @@ Data
 - Markdown report export.
 - Production and fictional-demo builds.
 - Repeatable `make eval-demo` workflow.
+
+### External dataset provenance (BYO-Evidence)
+
+- Deterministic dataset pre-analysis for reproducible external-data runs, independent of any model call.
+- `ExecutionMode` distinguishes deterministic-only runs from model-backed ones (`RunProvenance`). It is deliberately not named `AnalysisMode`: that name is reserved for the semantic Discovery / Dataset Analysis / Research Review split #18 is still completing (see #38).
+- Validated acquisition manifest schema (source, retrieval method, retrieval time, dataset id, hashes, caveats); credential-looking fields are rejected.
+- Dataset hash provenance and cross-dataset compatibility warnings (unit / population scope / period granularity / schema version mismatches).
+- See [byo-evidence-boundary.md](byo-evidence-boundary.md) for what Insight Lab does and does not fetch itself.
+
+### Research Loop, Stage and artifact export
+
+- Append-only `ResearchRun` / `ResearchIteration` history; prior iterations are never overwritten.
+- `ResearchGap` / `DataRequirement`, including gap dependencies and discriminating-power priority ordering.
+- Decision readiness assessment, explicit stop reasons, and human override / evaluation handoff.
+- `ResearchStage` (`DISCOVERY` / `EXPLORATORY` / `VALIDATION` / `SYNTHESIS`) with guarded transitions, wired into the service, usecase and Markdown report layers.
+- Expectation provenance (`SOURCE_BACKED` vs `MODEL_PROPOSED`) guards against treating a post-hoc explanation as a prior prediction.
+- Versioned, machine-consumable Research Artifact JSON export (`/api/research-runs/{id}/artifact.json`, schema v1), including the latest iteration's Research Stage (#37).
+- Requirement linkage from an acquired evidence item back to the `DataRequirement.gapId` it resolves is not yet implemented; `addedEvidence` remains free text (tracked in #39).
+
+### Promotion Gate
+
+- Domain and service layer implemented (rules for when a claim is fit to promote into a public report).
+- Not yet wired into the usecase / HTTP / report layers, so it does not yet gate what a published report can contain (tracked in #24).
 
 ## Known limitations
 
