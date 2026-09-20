@@ -1,0 +1,15 @@
+{
+  "schemaVersion":"1",
+  "caseId":"GS-11-research-review-claim-boundary",
+  "domain":"insight",
+  "input":{"references":["external-report.pdf","official-table.csv"],"contextReferences":["issue-18"]},
+  "expected":{
+    "properties":["external report claim is a review target, not primary evidence"],
+    "requiredEvidence":["official-table.csv"],
+    "prohibitedClaims":["external claim equals primary evidence"],
+    "schemaChecks":["semanticAnalysisMode=RESEARCH_REVIEW"],
+    "qualityChecks":["claim evidence references remain explicit"]
+  },
+  "humanReview":{"required":false,"result":"NOT_REVIEWED"},
+  "outcome":{"status":"PASS"}
+}
