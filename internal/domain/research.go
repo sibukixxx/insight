@@ -213,6 +213,63 @@ type HumanOverride struct {
 	RecordedAt time.Time          `json:"recordedAt"`
 }
 
+// ResearchInputSnapshot records the analysis inputs that can materially change
+// interpretation. It is intentionally provider-neutral and is not an ML
+// feature store.
+type ResearchInputSnapshot struct {
+	References          []string `json:"references,omitempty"`
+	EvidenceReferences  []string `json:"evidenceReferences,omitempty"`
+	Variables           []string `json:"variables,omitempty"`
+	Dimensions          []string `json:"dimensions,omitempty"`
+	Period              string   `json:"period,omitempty"`
+	Population          string   `json:"population,omitempty"`
+	Geography           string   `json:"geography,omitempty"`
+	Filters             []string `json:"filters,omitempty"`
+	ContextReferences   []string `json:"contextReferences,omitempty"`
+	TransformReferences []string `json:"transformReferences,omitempty"`
+}
+
+type DeltaChangeKind string
+
+const (
+	DeltaAdded   DeltaChangeKind = "ADDED"
+	DeltaRemoved DeltaChangeKind = "REMOVED"
+	DeltaChanged DeltaChangeKind = "CHANGED"
+)
+
+// ResearchDeltaChange says what changed between two input snapshots. It does
+// not claim that the changed input caused any downstream result change.
+type ResearchDeltaChange struct {
+	Category string          `json:"category"`
+	Kind     DeltaChangeKind `json:"kind"`
+	Value    string          `json:"value,omitempty"`
+	Before   string          `json:"before,omitempty"`
+	After    string          `json:"after,omitempty"`
+}
+
+type ResearchResultDelta struct {
+	ObservationAdded         []string           `json:"observationAdded,omitempty"`
+	ObservationRemoved       []string           `json:"observationRemoved,omitempty"`
+	InsightAdded             []string           `json:"insightAdded,omitempty"`
+	InsightRemoved           []string           `json:"insightRemoved,omitempty"`
+	GapCreated               []string           `json:"gapCreated,omitempty"`
+	GapResolved              []string           `json:"gapResolved,omitempty"`
+	DataRequirementAdded     []string           `json:"dataRequirementAdded,omitempty"`
+	DataRequirementRemoved   []string           `json:"dataRequirementRemoved,omitempty"`
+	CannotConcludeAdded      []string           `json:"cannotConcludeAdded,omitempty"`
+	CannotConcludeRemoved    []string           `json:"cannotConcludeRemoved,omitempty"`
+	HypothesisChanges        []HypothesisChange `json:"hypothesisChanges,omitempty"`
+}
+
+// InsightDelta is an auditable comparison, not a causal attribution. It
+// answers what changed in inputs and outputs between two iterations.
+type InsightDelta struct {
+	FromIterationID string              `json:"fromIterationId"`
+	ToIterationID   string              `json:"toIterationId"`
+	InputChanges    []ResearchDeltaChange `json:"inputChanges,omitempty"`
+	Result          ResearchResultDelta `json:"result"`
+}
+
 type ValidationIndependenceRelation string
 
 const (
@@ -289,6 +346,7 @@ type ResearchIteration struct {
 	Stage            ResearchStage     `json:"stage,omitempty"`
 	Question         string            `json:"question"`
 	InputReferences  []string          `json:"inputReferences,omitempty"`
+	InputSnapshot    ResearchInputSnapshot `json:"inputSnapshot,omitempty"`
 	ObservationIDs   []string          `json:"observationIds,omitempty"`
 	SurpriseIDs      []string          `json:"surpriseIds,omitempty"`
 	HypothesisSetIDs []string          `json:"hypothesisSetIds,omitempty"`
@@ -305,6 +363,7 @@ type ResearchIteration struct {
 	EvidenceAdditions    []EvidenceAddition  `json:"evidenceAdditions,omitempty"`
 	ValidationEvidence   []ValidationEvidenceProvenance `json:"validationEvidence,omitempty"`
 	HypothesisChanges    []HypothesisChange  `json:"hypothesisChanges,omitempty"`
+	Delta                *InsightDelta       `json:"insightDelta,omitempty"`
 	WhatWeCannotConclude []string            `json:"whatWeCannotConclude,omitempty"`
 	Readiness            ReadinessAssessment `json:"readiness"`
 	Stop                 *StopDecision       `json:"stop,omitempty"`
