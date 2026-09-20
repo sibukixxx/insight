@@ -302,6 +302,9 @@ func writeResearchLoop(b *strings.Builder, report ProjectReport) {
 	}
 	b.WriteString("## Validation / Identification\n\n")
 	b.WriteString("Statuses are shown per hypothesis below. History descriptors do not represent causal probability.\n\n")
+	if len(run.Iterations) > 0 {
+		writeValidationEvidence(b, run.Iterations[len(run.Iterations)-1].ValidationEvidence)
+	}
 	writeDecisionReadiness(b, run)
 	writePromotionStatus(b, run)
 	b.WriteString("## What We Cannot Conclude\n\n")
@@ -313,7 +316,10 @@ func writeResearchLoop(b *strings.Builder, report ProjectReport) {
 	}
 	b.WriteString("## Iteration History\n\n")
 	for _, iteration := range run.Iterations {
-		fmt.Fprintf(b, "### Iteration %d\n\n- ID: `%s`\n- Added evidence: %s\n", iteration.Sequence, markdownInline(iteration.ID), markdownInline(strings.Join(iteration.AddedEvidence, ", ")))
+		fmt.Fprintf(b, "### Iteration %d\n\n- ID: `%s`\n- Added evidence (legacy text): %s\n", iteration.Sequence, markdownInline(iteration.ID), markdownInline(strings.Join(iteration.AddedEvidence, ", ")))
+		for _, addition := range iteration.EvidenceAdditions {
+			fmt.Fprintf(b, "- Evidence `%s` addresses gap(s): %s\n", markdownInline(addition.Reference), markdownInline(strings.Join(addition.GapIDs, ", ")))
+		}
 		for _, change := range iteration.HypothesisChanges {
 			fmt.Fprintf(b, "- `%s`: **%s** — %s\n", markdownInline(change.HypothesisID), change.Evolution, markdownInline(change.Reason))
 		}
@@ -328,6 +334,21 @@ func writeResearchLoop(b *strings.Builder, report ProjectReport) {
 		if evaluation := report.HumanEvaluations[iteration.ID]; evaluation != nil {
 			fmt.Fprintf(b, "- Iteration %d: novelty `%s`, overall usefulness %d/5. %s\n", iteration.Sequence, evaluation.Novelty, evaluation.OverallUsefulness, markdownInline(evaluation.Notes))
 		}
+	}
+	b.WriteByte('\n')
+}
+
+func writeValidationEvidence(b *strings.Builder, values []domain.ValidationEvidenceProvenance) {
+	if len(values) == 0 {
+		return
+	}
+	b.WriteString("**Independent validation evidence provenance:**\n\n")
+	for _, value := range values {
+		fmt.Fprintf(b, "- expectation=`%s` evidence=`%s` relation=`%s`", markdownInline(value.ExpectationID), markdownInline(value.EvidenceReference), value.Relation)
+		if value.EvidenceIterationID != "" {
+			fmt.Fprintf(b, " evidenceIteration=`%s`", markdownInline(value.EvidenceIterationID))
+		}
+		fmt.Fprintf(b, " — %s\n", markdownInline(value.Rationale))
 	}
 	b.WriteByte('\n')
 }
