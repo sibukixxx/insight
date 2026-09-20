@@ -116,6 +116,14 @@ type HypothesisChange struct {
 	Reason       string              `json:"reason"`
 }
 
+// AddedEvidenceLink preserves why a newly supplied evidence item entered the
+// research loop and which prior gaps it was intended to address.
+type AddedEvidenceLink struct {
+	Reference string   `json:"reference"`
+	GapIDs    []string `json:"gapIds,omitempty"`
+	Note      string   `json:"note,omitempty"`
+}
+
 type HypothesisState struct {
 	HypothesisID         string               `json:"hypothesisId"`
 	ComparisonKey        string               `json:"comparisonKey"`
@@ -268,6 +276,7 @@ type ResearchIteration struct {
 	ResearchGaps         []ResearchGap       `json:"researchGaps,omitempty"`
 	DataRequirements     []DataRequirement   `json:"dataRequirements,omitempty"`
 	AddedEvidence        []string            `json:"addedEvidence,omitempty"`
+	AddedEvidenceLinks   []AddedEvidenceLink `json:"addedEvidenceLinks,omitempty"`
 	HypothesisChanges    []HypothesisChange  `json:"hypothesisChanges,omitempty"`
 	ValidationEvidence   []ValidationEvidenceProvenance `json:"validationEvidence,omitempty"`
 	WhatWeCannotConclude []string            `json:"whatWeCannotConclude,omitempty"`
