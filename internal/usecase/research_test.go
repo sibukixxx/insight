@@ -220,6 +220,50 @@ func TestApplyResearchHumanOverrideRejectsOverridingAnEarlierIteration(t *testin
 	}
 }
 
+func TestCreateResearchReviewRunStartsFromClaimsWithoutPriorAnalysis(t *testing.T) {
+	app, ctx := newResearchTestApp(t)
+	now := time.Date(2026, 9, 20, 0, 0, 0, 0, time.UTC)
+	app.now = func() time.Time { return now }
+	if err := app.repos.Projects.Create(ctx, &domain.Project{ID: "p-review", Name: "review", CreatedAt: now}); err != nil {
+		t.Fatal(err)
+	}
+	run, err := app.CreateResearchRun(ctx, CreateResearchRunInput{
+		ProjectID: "p-review", Question: "Can this external conclusion be relied on?",
+		ArtifactClass: domain.ArtifactClassResearchArtifact,
+		Claims: []domain.Claim{{
+			ID: "claim-1", Statement: "the intervention caused the increase",
+			Kind: domain.ClaimInterpretation, SourceReference: "consulting-report.pdf",
+		}},
+	})
+	if err != nil {
+		t.Fatalf("Research Review must not require a prior Insight analysis: %v", err)
+	}
+	got := run.Iterations[0]
+	if got.AnalysisMode != domain.AnalysisModeResearchReview || len(got.Claims) != 1 {
+		t.Fatalf("review mode/claims not preserved: %+v", got)
+	}
+	if len(got.ResearchGaps) != 1 || got.ResearchGaps[0].Category != domain.ResearchGapSourceQuality {
+		t.Fatalf("claim without underlying evidence must create a source-quality gap: %+v", got.ResearchGaps)
+	}
+	if len(got.WhatWeCannotConclude) == 0 {
+		t.Fatal("review must state that an ungrounded imported claim cannot be treated as primary evidence")
+	}
+}
+
+func TestCreateResearchReviewRunRequiresClaims(t *testing.T) {
+	app, ctx := newResearchTestApp(t)
+	now := time.Date(2026, 9, 20, 0, 0, 0, 0, time.UTC)
+	if err := app.repos.Projects.Create(ctx, &domain.Project{ID: "p-review", Name: "review", CreatedAt: now}); err != nil {
+		t.Fatal(err)
+	}
+	_, err := app.CreateResearchRun(ctx, CreateResearchRunInput{
+		ProjectID: "p-review", Question: "review", ArtifactClass: domain.ArtifactClassResearchArtifact,
+	})
+	if err == nil || !strings.Contains(err.Error(), "requires at least one Claim") {
+		t.Fatalf("empty Research Review must be rejected: %v", err)
+	}
+}
+
 func TestApplyResearchHumanOverrideRejectsUnknownIteration(t *testing.T) {
 	app, ctx := newResearchTestApp(t)
 	now := time.Date(2026, 9, 19, 0, 0, 0, 0, time.UTC)
