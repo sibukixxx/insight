@@ -68,8 +68,8 @@ func (h *Handler) GetResearchIteration(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) AppendResearchIteration(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Question        string   `json:"question"`
-		InputReferences []string `json:"inputReferences"`
+		Question           string                     `json:"question"`
+		InputReferences    []string                   `json:"inputReferences"`
 		AddedEvidence      []string                   `json:"addedEvidence"`
 		AddedEvidenceLinks []domain.AddedEvidenceLink `json:"addedEvidenceLinks"`
 		InputSnapshot      domain.InputSetSnapshot    `json:"inputSnapshot"`
@@ -221,7 +221,6 @@ func (h *Handler) GetHumanEvaluation(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, evaluation)
 }
 
-
 func (h *Handler) CompareResearchIterations(w http.ResponseWriter, r *http.Request) {
 	delta, err := h.App.CompareResearchIterations(
 		r.Context(),
@@ -238,4 +237,17 @@ func (h *Handler) CompareResearchIterations(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	writeJSON(w, http.StatusOK, delta)
+}
+
+func (h *Handler) GetApprovedResearchArtifact(w http.ResponseWriter, r *http.Request) {
+	artifact, err := h.App.GetApprovedResearchArtifact(r.Context(), chi.URLParam(r, "runID"))
+	if err != nil {
+		status := http.StatusConflict
+		if errors.Is(err, usecase.ErrNotFound) {
+			status = http.StatusNotFound
+		}
+		writeError(w, status, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, artifact)
 }

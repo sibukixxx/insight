@@ -216,7 +216,10 @@ func (s PromotionState) Transition(to PromotionState, in PromotionGateInput) err
 		if !in.Contribution.Valid() || !in.Contribution.PermitsPublicationValue() {
 			return ErrPromotionContributionRequired
 		}
-	case PromotionPublicationReady:
+	case PromotionPublicationReady, PromotionPublished:
+		if !in.Contribution.PermitsPublicationValue() {
+			return ErrPromotionContributionRequired
+		}
 		if unmet := in.Checklist.UnmetItems(); len(unmet) > 0 {
 			return fmt.Errorf("%w: %v", ErrPromotionChecklistIncomplete, unmet)
 		}

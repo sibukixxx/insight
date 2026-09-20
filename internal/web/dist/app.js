@@ -339,6 +339,7 @@
           <button class="primary" id="run-analysis" ${isRunning || documents.length === 0 ? "disabled" : ""}>Run analysis</button>
           <a class="btn" href="#/projects/${encodeURIComponent(projectID)}/patterns">View traces and patterns</a>
           <a class="btn" href="#/projects/${encodeURIComponent(projectID)}/evaluation">View evaluation</a>
+          <a class="btn" href="#/projects/${encodeURIComponent(projectID)}/research">Research publications</a>
           <a class="btn" href="/api/projects/${encodeURIComponent(projectID)}/report.md" download>Download report</a>
         </div>
       </div>
@@ -787,11 +788,89 @@
     bindEvidenceToggles();
   }
 
+  async function renderResearchRuns(projectID) {
+    try {
+      const runs = await api(`/api/projects/${encodeURIComponent(projectID)}/research-runs`);
+      layout(`<a href="#/projects/${encodeURIComponent(projectID)}">Back to project</a>
+        <h1>Research publications</h1>
+        <div class="card">${(runs || []).map(run => `<p><a href="#/research-runs/${encodeURIComponent(run.id)}">${escapeHtml(run.question)}</a></p>`).join("") || "No research runs yet."}</div>
+        <form id="new-research" class="card"><label>Research question <input name="question" required></label><button class="primary">Create from latest completed analysis</button></form>
+        <div id="research-error" role="alert"></div>`);
+      document.getElementById("new-research").onsubmit = async event => {
+        event.preventDefault();
+        const button = event.currentTarget.querySelector("button"); button.disabled = true;
+        try {
+          const run = await api(`/api/projects/${encodeURIComponent(projectID)}/research-runs`, {method: "POST", body: JSON.stringify({question: new FormData(event.currentTarget).get("question")})});
+          location.hash = `#/research-runs/${encodeURIComponent(run.id)}`;
+        } catch (error) { document.getElementById("research-error").textContent = error.message; button.disabled = false; }
+      };
+    } catch (error) { layout(errorBox(error.message)); }
+  }
+
+  async function renderPromotion(runID) {
+    try {
+      const base = `/api/research-runs/${encodeURIComponent(runID)}`;
+      const run = await api(base);
+      const iteration = run.iterations[run.iterations.length - 1];
+      if (!iteration) { layout(errorBox("This research run has no iterations.")); return; }
+      const promotion = iteration.promotion || {state: "DRAFT"};
+      const gate = iteration.promotionGateInput || {};
+      const terminal = ["PUBLISHED", "REJECTED_FOR_PUBLICATION"].includes(promotion.state);
+      const judgments = [
+        ["competingHypothesisConsidered", "Competing hypotheses or alternative interpretations considered"],
+        ["independentValidationStatusAccurate", "Independent validation status accurately represented"],
+        ["decisionReadinessHonestlyStated", "Decision readiness honestly stated"],
+        ["makesStrongClaim", "The report makes a strong, decision-driving claim"],
+        ["hasUnresolvedCriticalGap", "An unresolved critical research gap remains"],
+        ["humanReviewCompleted", "I completed the human review of this output"],
+      ];
+      const contributions = ["CORRECTION", "REFINEMENT", "REPLICATION", "DEFINITION_AUDIT", "COUNTER_EVIDENCE", "INCONCLUSIVE_BUT_DECISION_RELEVANT", "NOVEL_MISMATCH", "OTHER"];
+      layout(`<a href="#/projects/${encodeURIComponent(run.projectId)}/research">Back to research publications</a>
+        <h1>${escapeHtml(run.question)}</h1>
+        <div class="card"><h2>${escapeHtml(promotion.state || "DRAFT")}</h2>
+          <p>Iteration ${iteration.sequence}. Review approval and publication are separate actions.</p>
+          <ul>${(promotion.reasons || []).map(reason => `<li>${escapeHtml(reason)}</li>`).join("")}</ul>
+          <p><a href="${base}/report.md" download>Research report</a> · <a href="${base}/artifact.json" target="_blank" rel="noopener">Current artifact</a>
+          ${iteration.approvedArtifact ? ` · <a href="${base}/approved-artifact.json" target="_blank" rel="noopener">Approved artifact</a>` : ""}</p>
+          ${iteration.approvedArtifact ? `<p>Approved reference: <code>${escapeHtml(iteration.approvedArtifact.reference)}</code></p>` : ""}
+          <ul>${Object.entries(gate.Checklist || {}).map(([key, value]) => `<li>${value ? "✓" : "Missing:"} ${escapeHtml(key)}</li>`).join("")}</ul>
+        </div>
+        ${terminal ? "" : `<form id="promotion-review" class="card"><h2>Human publication review</h2>
+          <p>Read the report and evidence before submitting. Each submission replaces the previous review.</p>
+          <label>Contribution <select name="contribution" required><option value="">Choose a contribution</option>${contributions.map(value => `<option>${value}</option>`).join("")}</select></label>
+          ${judgments.map(([key, label]) => `<p><label><input type="checkbox" name="${key}"> ${label}</label></p>`).join("")}
+          <button class="primary">Save review and assess readiness</button></form>
+          <div class="card">${promotion.state === "PUBLICATION_READY" && iteration.approvedArtifact ? `<button id="mark-published">Mark approved artifact as published</button><p>This records publication; it does not post to external services.</p>` : ""}
+          <button id="reject-publication">Reject for publication</button></div>`}
+        <div id="promotion-error" role="alert"></div>`);
+      const submit = async (path, body, button) => {
+        button.disabled = true;
+        try { await api(`${base}/iterations/${encodeURIComponent(iteration.id)}/${path}`, {method: "PUT", body: JSON.stringify(body)}); await renderPromotion(runID); }
+        catch (error) { document.getElementById("promotion-error").textContent = error.message; button.disabled = false; }
+      };
+      const form = document.getElementById("promotion-review");
+      if (form) form.onsubmit = event => {
+        event.preventDefault(); const data = new FormData(form); const body = {contribution: data.get("contribution")};
+        judgments.forEach(([key]) => { body[key] = data.has(key); });
+        submit("promotion-review", body, form.querySelector("button"));
+      };
+      for (const [id, targetState] of [["mark-published", "PUBLISHED"], ["reject-publication", "REJECTED_FOR_PUBLICATION"]]) {
+        const button = document.getElementById(id);
+        if (button) button.onclick = () => submit("promotion-transition", {targetState}, button);
+      }
+    } catch (error) { layout(errorBox(error.message)); }
+  }
+
   // ---------- Router ----------
 
   function route() {
     closeActiveStream();
     const hash = location.hash || "#/";
+
+    const researchMatch = hash.match(/^#\/projects\/([^/]+)\/research$/);
+    if (researchMatch) { renderResearchRuns(decodeURIComponent(researchMatch[1])); return; }
+    const promotionMatch = hash.match(/^#\/research-runs\/([^/]+)$/);
+    if (promotionMatch) { renderPromotion(decodeURIComponent(promotionMatch[1])); return; }
 
     const patternsMatch = hash.match(/^#\/projects\/([^/]+)\/patterns$/);
     if (patternsMatch) { renderPatterns(decodeURIComponent(patternsMatch[1])); return; }

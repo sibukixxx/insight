@@ -183,7 +183,7 @@ func TestPromotionStateTransitionToPublicationReadyShouldSucceedWhenEverythingIs
 }
 
 func TestPromotionStateTransitionShouldAllowPublicationReadyToPublished(t *testing.T) {
-	if err := PromotionPublicationReady.Transition(PromotionPublished, PromotionGateInput{}); err != nil {
+	if err := PromotionPublicationReady.Transition(PromotionPublished, PromotionGateInput{Contribution: ContributionCorrection, Checklist: completeChecklist(), HumanReviewCompleted: true}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }

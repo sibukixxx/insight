@@ -32,8 +32,10 @@ const (
 // per iteration; it is intentionally absent rather than guessed and can be
 // added additively once that wiring exists, without a schema version bump.
 type ResearchArtifact struct {
-	ArtifactSchema string `json:"artifactSchema"`
-	SchemaVersion  string `json:"schemaVersion"`
+	Promotion          domain.PromotionAssessment `json:"promotion"`
+	PromotionGateInput domain.PromotionGateInput  `json:"promotionGateInput"`
+	ArtifactSchema     string                     `json:"artifactSchema"`
+	SchemaVersion      string                     `json:"schemaVersion"`
 
 	ProjectID         string `json:"projectId"`
 	ResearchRunID     string `json:"researchRunId"`
@@ -72,18 +74,18 @@ type ResearchArtifact struct {
 
 	Insights []ArtifactInsight `json:"insights"`
 
-	ResearchGaps         []domain.ResearchGap      `json:"researchGaps,omitempty"`
-	NextDataRequirements []domain.DataRequirement  `json:"nextDataRequirements,omitempty"`
-	Expectations         []domain.Expectation      `json:"expectations,omitempty"`
-	HypothesisStates     []domain.HypothesisState  `json:"hypothesisStates,omitempty"`
-	HypothesisHistory    []domain.HypothesisChange `json:"hypothesisHistory,omitempty"`
+	ResearchGaps         []domain.ResearchGap                  `json:"researchGaps,omitempty"`
+	NextDataRequirements []domain.DataRequirement              `json:"nextDataRequirements,omitempty"`
+	Expectations         []domain.Expectation                  `json:"expectations,omitempty"`
+	HypothesisStates     []domain.HypothesisState              `json:"hypothesisStates,omitempty"`
+	HypothesisHistory    []domain.HypothesisChange             `json:"hypothesisHistory,omitempty"`
 	ValidationEvidence   []domain.ValidationEvidenceProvenance `json:"validationEvidence,omitempty"`
-	WhatWeCannotConclude []string                  `json:"whatWeCannotConclude,omitempty"`
-	AddedEvidence        []string                  `json:"addedEvidence,omitempty"`
-	AddedEvidenceLinks   []domain.AddedEvidenceLink `json:"addedEvidenceLinks,omitempty"`
-	InputSnapshot        domain.InputSetSnapshot   `json:"inputSnapshot,omitempty"`
-	Claims               []domain.ResearchClaim    `json:"claims,omitempty"`
-	InsightDelta         *domain.InsightDelta      `json:"insightDelta,omitempty"`
+	WhatWeCannotConclude []string                              `json:"whatWeCannotConclude,omitempty"`
+	AddedEvidence        []string                              `json:"addedEvidence,omitempty"`
+	AddedEvidenceLinks   []domain.AddedEvidenceLink            `json:"addedEvidenceLinks,omitempty"`
+	InputSnapshot        domain.InputSetSnapshot               `json:"inputSnapshot,omitempty"`
+	Claims               []domain.ResearchClaim                `json:"claims,omitempty"`
+	InsightDelta         *domain.InsightDelta                  `json:"insightDelta,omitempty"`
 
 	Readiness          domain.ReadinessAssessment `json:"decisionReadiness"`
 	EffectiveReadiness domain.DecisionReadiness   `json:"effectiveDecisionReadiness"`
@@ -146,6 +148,7 @@ func (a *Application) GetResearchArtifact(ctx context.Context, runID string) (*R
 	}
 
 	artifact := &ResearchArtifact{
+		Promotion: iteration.Promotion, PromotionGateInput: iteration.PromotionGateInput,
 		ArtifactSchema: ResearchArtifactSchema, SchemaVersion: ResearchArtifactVersion,
 		ProjectID: run.ProjectID, ResearchRunID: run.ID, IterationID: iteration.ID,
 		IterationSequence: iteration.Sequence, IterationCount: len(run.Iterations),
@@ -172,7 +175,8 @@ func (a *Application) GetResearchArtifact(ctx context.Context, runID string) (*R
 		artifact.HumanEvaluation = evaluation
 	}
 
-	if prov, ok := a.latestRunProvenance(ctx, run.ProjectID); ok {
+	if metrics, ok := a.iterationMetrics(ctx, run.ProjectID, iteration); ok {
+		prov := metrics.Provenance
 		artifact.ExecutionMode = prov.Mode
 		artifact.ModelVersion = prov.Model
 		artifact.PromptFingerprint = prov.PromptFingerprint
@@ -233,4 +237,45 @@ func (a *Application) artifactInsights(ctx context.Context, insightIDs []string)
 		out = append(out, artifactInsight)
 	}
 	return out, nil
+}
+
+// GetApprovedResearchArtifact returns persisted reviewed bytes, never a regenerated export.
+func (a *Application) GetApprovedResearchArtifact(ctx context.Context, runID string) (*domain.ApprovedResearchArtifact, error) {
+	run, err := a.repos.Research.GetResearchRun(ctx, runID)
+	if err != nil {
+		return nil, err
+	}
+	iteration, ok := run.LatestIteration()
+	if !ok || (iteration.Promotion.State != domain.PromotionPublicationReady && iteration.Promotion.State != domain.PromotionPublished) || iteration.ApprovedArtifact == nil {
+		return nil, fmt.Errorf("latest iteration has no approved research artifact")
+	}
+	return iteration.ApprovedArtifact, nil
+}
+
+// iterationMetrics binds provenance to the analysis that produced this iteration's
+// insights. A later project analysis must never silently change an older report.
+func (a *Application) iterationMetrics(ctx context.Context, projectID string, iteration domain.ResearchIteration) (service.Metrics, bool) {
+	var analysisID string
+	for _, id := range iteration.InsightIDs {
+		insight, err := a.repos.Insights.Get(ctx, id)
+		if err != nil || insight.ProjectID != projectID || insight.AnalysisID == nil || *insight.AnalysisID == "" {
+			return service.Metrics{}, false
+		}
+		if analysisID != "" && analysisID != *insight.AnalysisID {
+			return service.Metrics{}, false
+		}
+		analysisID = *insight.AnalysisID
+	}
+	if analysisID == "" {
+		return service.Metrics{}, false
+	}
+	analysis, err := a.repos.Analyses.Get(ctx, analysisID)
+	if err != nil || analysis.ProjectID != projectID || analysis.Status != domain.AnalysisCompleted {
+		return service.Metrics{}, false
+	}
+	var metrics service.Metrics
+	if json.Unmarshal([]byte(analysis.Metrics), &metrics) != nil {
+		return service.Metrics{}, false
+	}
+	return metrics, true
 }

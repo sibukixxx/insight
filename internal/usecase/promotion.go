@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 
@@ -41,6 +42,9 @@ func (a *Application) SubmitPromotionReview(ctx context.Context, in SubmitPromot
 	if !ok || latest.ID != in.IterationID {
 		return nil, fmt.Errorf("promotion review can only be applied to the latest research iteration")
 	}
+	if run.CurrentPromotionState() == domain.PromotionPublished || run.CurrentPromotionState() == domain.PromotionRejectedForPublication {
+		return nil, domain.ErrPromotionTransitionNotAllowed
+	}
 	facts, err := a.promotionArtifactFacts(ctx, *run)
 	if err != nil {
 		return nil, err
@@ -56,7 +60,21 @@ func (a *Application) SubmitPromotionReview(ctx context.Context, in SubmitPromot
 	}
 	updated := latest
 	updated.PromotionGateInput = gateInput
-	updated.Promotion = service.AssessPromotion(run.CurrentPromotionState(), gateInput, a.now())
+	updated.Promotion = service.AssessPromotion(domain.PromotionDraft, gateInput, a.now())
+	updated.ApprovedArtifact = nil
+	if updated.Promotion.State == domain.PromotionPublicationReady {
+		artifact, err := a.GetResearchArtifact(ctx, run.ID)
+		if err != nil {
+			return nil, err
+		}
+		artifact.Promotion = updated.Promotion
+		artifact.PromotionGateInput = updated.PromotionGateInput
+		data, err := json.Marshal(artifact)
+		if err != nil {
+			return nil, err
+		}
+		updated.ApprovedArtifact = &domain.ApprovedResearchArtifact{Reference: fmt.Sprintf("sha256:%x", sha256.Sum256(data)), Artifact: data, ApprovedAt: updated.Promotion.AssessedAt}
+	}
 	if err := a.repos.Research.UpdateResearchIteration(ctx, run.ID, updated); err != nil {
 		return nil, fmt.Errorf("update research iteration: %w", err)
 	}
@@ -91,6 +109,9 @@ func (a *Application) TransitionPromotionState(ctx context.Context, in Transitio
 	if err := current.Transition(in.TargetState, latest.PromotionGateInput); err != nil {
 		return nil, err
 	}
+	if in.TargetState == domain.PromotionPublished && latest.ApprovedArtifact == nil {
+		return nil, fmt.Errorf("approved artifact missing; submit a new review")
+	}
 	updated := latest
 	updated.Promotion = domain.PromotionAssessment{State: in.TargetState, AssessedAt: a.now()}
 	if err := a.repos.Research.UpdateResearchIteration(ctx, run.ID, updated); err != nil {
@@ -108,19 +129,19 @@ func (a *Application) promotionArtifactFacts(ctx context.Context, run domain.Res
 		facts.ResearchGapsDisclosed = len(latest.ResearchGaps) > 0
 		facts.UnresolvableConclusionsDisclosed = len(latest.WhatWeCannotConclude) > 0
 	}
-	if analysis, err := a.repos.Analyses.LatestByProject(ctx, run.ProjectID); err == nil && analysis.Metrics != "" {
-		var metrics service.Metrics
-		if json.Unmarshal([]byte(analysis.Metrics), &metrics) == nil {
+	if iteration, ok := run.LatestIteration(); ok {
+		if metrics, ok := a.iterationMetrics(ctx, run.ProjectID, iteration); ok {
 			facts.ProvenanceMode = string(metrics.Provenance.Mode)
 			facts.DatasetHashesPresent = len(metrics.Provenance.DatasetHashes) > 0
 			facts.GroundedObservations = metrics.GroundedObservations
 			facts.TotalObservationCandidates = metrics.TotalObservationCandidates
 			facts.CompatibilityWarningsPresent = len(metrics.Provenance.CompatibilityWarnings) > 0
+			facts.CounterEvidenceSearched = metrics.CounterEvidenceCoverage == 1
 		}
 	}
 
 	referenced := map[string]bool{}
-	for _, iteration := range run.Iterations {
+	if iteration, ok := run.LatestIteration(); ok {
 		for _, id := range iteration.InsightIDs {
 			referenced[id] = true
 		}
@@ -140,9 +161,6 @@ func (a *Application) promotionArtifactFacts(ctx context.Context, run domain.Res
 		if len(insight.MissingEvidence) > 0 {
 			facts.AnyLimitationsDisclosed = true
 		}
-		if len(insight.FalsificationCriteria) > 0 {
-			facts.AnyCounterEvidenceOrFalsificationCriteria = true
-		}
 		evidence, err := a.repos.Evidence.ListByInsight(ctx, id)
 		if err != nil {
 			return service.PromotionArtifactFacts{}, fmt.Errorf("promotion facts: list evidence %s: %w", id, err)
@@ -152,7 +170,7 @@ func (a *Application) promotionArtifactFacts(ctx context.Context, run domain.Res
 		}
 		for _, e := range evidence {
 			if e.Type == domain.EvidenceCounter {
-				facts.AnyCounterEvidenceOrFalsificationCriteria = true
+				facts.CounterEvidenceSearched = true
 			}
 		}
 	}

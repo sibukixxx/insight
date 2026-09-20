@@ -8,18 +8,18 @@ import (
 
 func satisfiedArtifactFacts() PromotionArtifactFacts {
 	return PromotionArtifactFacts{
-		Stage:                                     domain.StageValidation,
-		ProvenanceMode:                            string(ExecutionModeDeterministic),
-		DatasetHashesPresent:                      true,
-		GroundedObservations:                      4,
-		TotalObservationCandidates:                4,
-		AllInsightsHaveExpectationBasis:           true,
-		AllInsightsHaveEvidence:                   true,
-		AnyCounterEvidenceOrFalsificationCriteria: true,
-		AnyLimitationsDisclosed:                   true,
-		ResearchGapsDisclosed:                     true,
-		UnresolvableConclusionsDisclosed:          true,
-		CompatibilityWarningsPresent:              false,
+		Stage:                            domain.StageValidation,
+		ProvenanceMode:                   string(ExecutionModeDeterministic),
+		DatasetHashesPresent:             true,
+		GroundedObservations:             4,
+		TotalObservationCandidates:       4,
+		AllInsightsHaveExpectationBasis:  true,
+		AllInsightsHaveEvidence:          true,
+		CounterEvidenceSearched:          true,
+		AnyLimitationsDisclosed:          true,
+		ResearchGapsDisclosed:            true,
+		UnresolvableConclusionsDisclosed: true,
+		CompatibilityWarningsPresent:     false,
 	}
 }
 

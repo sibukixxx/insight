@@ -80,7 +80,8 @@ Data
 
 - Domain and service layer implemented (rules for when a claim is fit to promote into a public report).
 - Wired into the usecase (`SubmitPromotionReview`, `TransitionPromotionState`), HTTP (`PUT /api/research-runs/{id}/iterations/{id}/promotion-review`, `.../promotion-transition`), and Markdown report (`## Promotion Status`) layers.
-- The versioned Research Artifact JSON export (`artifact.json`) does not yet surface promotion status (tracked in #24).
+- Research Artifact JSON exports promotion status, blocking reasons, and the reviewed checklist. The project’s **Research publications** screen supports human review, explicit publication recording, and rejection. Review stops at `PUBLICATION_READY`; it never publishes automatically.
+- `approved-artifact.json` returns the exact persisted approval snapshot with its SHA-256 reference. Later analyses and publication recording cannot change those bytes. See [publication workflow](publication-workflow.md).
 
 ## Known limitations
 

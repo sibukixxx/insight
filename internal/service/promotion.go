@@ -14,7 +14,6 @@ var promotionForwardOrder = []domain.PromotionState{
 	domain.PromotionResearchComplete,
 	domain.PromotionHumanReviewRequired,
 	domain.PromotionPublicationReady,
-	domain.PromotionPublished,
 }
 
 // AssessPromotion reports the furthest PromotionState reachable from current
@@ -23,7 +22,7 @@ var promotionForwardOrder = []domain.PromotionState{
 // new state, keeping the human review step out of the system's hands.
 func AssessPromotion(current domain.PromotionState, in domain.PromotionGateInput, now time.Time) domain.PromotionAssessment {
 	assessment := domain.PromotionAssessment{State: current, AssessedAt: now}
-	if current == domain.PromotionRejectedForPublication {
+	if current == domain.PromotionRejectedForPublication || current == domain.PromotionPublished {
 		return assessment
 	}
 	start := -1

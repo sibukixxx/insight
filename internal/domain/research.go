@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -125,14 +126,14 @@ type AddedEvidenceLink struct {
 }
 
 type InputSetSnapshot struct {
-	ArtifactReferences []string       `json:"artifactReferences,omitempty"`
+	ArtifactReferences []string        `json:"artifactReferences,omitempty"`
 	Artifacts          []InputArtifact `json:"artifacts,omitempty"`
-	EvidenceReferences []string `json:"evidenceReferences,omitempty"`
-	Variables          []string `json:"variables,omitempty"`
-	Dimensions         []string `json:"dimensions,omitempty"`
-	Filters            []string `json:"filters,omitempty"`
-	Contexts           []string `json:"contexts,omitempty"`
-	Transforms         []string `json:"transforms,omitempty"`
+	EvidenceReferences []string        `json:"evidenceReferences,omitempty"`
+	Variables          []string        `json:"variables,omitempty"`
+	Dimensions         []string        `json:"dimensions,omitempty"`
+	Filters            []string        `json:"filters,omitempty"`
+	Contexts           []string        `json:"contexts,omitempty"`
+	Transforms         []string        `json:"transforms,omitempty"`
 }
 
 type SetDelta struct {
@@ -162,11 +163,11 @@ type ResultDelta struct {
 }
 
 type InsightDelta struct {
-	FromIterationID string     `json:"fromIterationId"`
-	ToIterationID   string     `json:"toIterationId"`
-	Input           InputDelta `json:"input"`
+	FromIterationID string      `json:"fromIterationId"`
+	ToIterationID   string      `json:"toIterationId"`
+	Input           InputDelta  `json:"input"`
 	Result          ResultDelta `json:"result"`
-	Explanation     []string   `json:"explanation,omitempty"`
+	Explanation     []string    `json:"explanation,omitempty"`
 }
 
 type HypothesisState struct {
@@ -180,13 +181,13 @@ type HypothesisState struct {
 // independent for a VALIDATION transition. This is audit provenance, not a
 // probability or causal-certainty score.
 type ValidationEvidenceProvenance struct {
-	ExpectationID     string    `json:"expectationId"`
-	EvidenceReference string    `json:"evidenceReference"`
-	SourceIterationID string    `json:"sourceIterationId,omitempty"`
-	DatasetReference  string    `json:"datasetReference,omitempty"`
-	IndependenceRationale string `json:"independenceRationale"`
-	Actor             string    `json:"actor,omitempty"`
-	RecordedAt        time.Time `json:"recordedAt"`
+	ExpectationID         string    `json:"expectationId"`
+	EvidenceReference     string    `json:"evidenceReference"`
+	SourceIterationID     string    `json:"sourceIterationId,omitempty"`
+	DatasetReference      string    `json:"datasetReference,omitempty"`
+	IndependenceRationale string    `json:"independenceRationale"`
+	Actor                 string    `json:"actor,omitempty"`
+	RecordedAt            time.Time `json:"recordedAt"`
 }
 
 func (v ValidationEvidenceProvenance) Validate(currentIterationID string, expectations []Expectation) error {
@@ -320,25 +321,26 @@ type ResearchIteration struct {
 	// iteration: those built from this iteration's own insights plus any
 	// frozen expectation derived from a prior iteration. They are never
 	// mutated in place; freezing or deriving always produces a new entry.
-	Expectations         []Expectation       `json:"expectations,omitempty"`
-	ResearchGaps         []ResearchGap       `json:"researchGaps,omitempty"`
-	DataRequirements     []DataRequirement   `json:"dataRequirements,omitempty"`
-	AddedEvidence        []string            `json:"addedEvidence,omitempty"`
-	AddedEvidenceLinks   []AddedEvidenceLink `json:"addedEvidenceLinks,omitempty"`
-	HypothesisChanges    []HypothesisChange  `json:"hypothesisChanges,omitempty"`
+	Expectations         []Expectation                  `json:"expectations,omitempty"`
+	ResearchGaps         []ResearchGap                  `json:"researchGaps,omitempty"`
+	DataRequirements     []DataRequirement              `json:"dataRequirements,omitempty"`
+	AddedEvidence        []string                       `json:"addedEvidence,omitempty"`
+	AddedEvidenceLinks   []AddedEvidenceLink            `json:"addedEvidenceLinks,omitempty"`
+	HypothesisChanges    []HypothesisChange             `json:"hypothesisChanges,omitempty"`
 	ValidationEvidence   []ValidationEvidenceProvenance `json:"validationEvidence,omitempty"`
-	Delta                *InsightDelta `json:"insightDelta,omitempty"`
-	WhatWeCannotConclude []string            `json:"whatWeCannotConclude,omitempty"`
-	Readiness            ReadinessAssessment `json:"readiness"`
-	Stop                 *StopDecision       `json:"stop,omitempty"`
-	HumanOverrides       []HumanOverride     `json:"humanOverrides,omitempty"`
+	Delta                *InsightDelta                  `json:"insightDelta,omitempty"`
+	WhatWeCannotConclude []string                       `json:"whatWeCannotConclude,omitempty"`
+	Readiness            ReadinessAssessment            `json:"readiness"`
+	Stop                 *StopDecision                  `json:"stop,omitempty"`
+	HumanOverrides       []HumanOverride                `json:"humanOverrides,omitempty"`
 	// PromotionGateInput is the evidence a promotion transition was last
 	// checked against (issue #24). It is kept alongside Promotion so a later
 	// explicit transition (e.g. to PUBLISHED) can be re-checked without the
 	// caller having to resupply every fact.
-	PromotionGateInput PromotionGateInput  `json:"promotionGateInput,omitempty"`
-	Promotion          PromotionAssessment `json:"promotion"`
-	CreatedAt          time.Time           `json:"createdAt"`
+	ApprovedArtifact   *ApprovedResearchArtifact `json:"approvedArtifact,omitempty"`
+	PromotionGateInput PromotionGateInput        `json:"promotionGateInput,omitempty"`
+	Promotion          PromotionAssessment       `json:"promotion"`
+	CreatedAt          time.Time                 `json:"createdAt"`
 }
 
 // UnresolvedGapIDs lists gaps that are still open in this iteration.
@@ -496,4 +498,11 @@ func (n HumanNovelty) Valid() bool {
 		return true
 	}
 	return false
+}
+
+// ApprovedResearchArtifact freezes the exact reviewed bytes for all publishing consumers.
+type ApprovedResearchArtifact struct {
+	Reference  string          `json:"reference"`
+	Artifact   json.RawMessage `json:"artifact"`
+	ApprovedAt time.Time       `json:"approvedAt"`
 }
