@@ -70,6 +70,34 @@ func (r *InsightRepository) Get(ctx context.Context, id string) (*domain.Insight
 	return scanInsight(row)
 }
 
+func (r *InsightRepository) UpdateGeneralizations(ctx context.Context, insightID string, values []domain.GeneralizationCandidate) error {
+	insight, err := r.Get(ctx, insightID)
+	if err != nil {
+		return err
+	}
+	contextJSON, err := json.Marshal(causalContext{
+		CompetingHypotheses: insight.CompetingHypotheses,
+		CausalStructure: insight.CausalStructure,
+		Connections: insight.Connections,
+		Mechanisms: insight.Mechanisms,
+		Generalizations: values,
+		MissingEvidence: insight.MissingEvidence,
+		FalsificationCriteria: insight.FalsificationCriteria,
+		NextValidation: insight.NextValidation,
+	})
+	if err != nil {
+		return fmt.Errorf("encode causal context: %w", err)
+	}
+	result, err := r.db.ExecContext(ctx, `UPDATE insights SET causal_context = ? WHERE id = ?`, string(contextJSON), insightID)
+	if err != nil {
+		return err
+	}
+	if affected, err := result.RowsAffected(); err == nil && affected == 0 {
+		return repository.ErrNotFound
+	}
+	return nil
+}
+
 func (r *InsightRepository) ListByProject(ctx context.Context, projectID string) ([]*domain.Insight, error) {
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT `+insightColumns+` FROM insights WHERE project_id = ? ORDER BY confidence DESC`, projectID)
