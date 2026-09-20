@@ -152,7 +152,9 @@ Structured Dataset
 
 Claim / Evidence / Assumption / Method / Counter Evidence / Missing Evidenceへ分解してから評価します。
 
-**現状:** DiscoveryとdeterministicなDataset Analysisの基盤はmainに実装されています。Analysis Modeをfirst-classに統一し、Research Reviewを正式pipeline化する作業は [#18](https://github.com/sibukixxx/insight/issues/18) で継続中です。
+**現状:** 従来のDiscovery型pipelineとdeterministicなDataset Analysis基盤はmainに実装されています。ただし、semanticなAnalysis Modeをfirst-classに統一し、Research Reviewを正式pipeline化する作業は [#18](https://github.com/sibukixxx/insight/issues/18) で継続中です。
+
+**Analysis ModeとExecution Modeは別概念です。** `Discovery / Dataset Analysis / Research Review` は入力をどう読むかというsemantic modeです。一方、現在の `service.ExecutionMode` の `deterministic / model_backed` はLLMが実行に参加したかだけを表します。この命名分離は [#38](https://github.com/sibukixxx/insight/issues/38) で完了済みで、#18では既存execution-modeのwire contractを流用せずsemantic modeを追加します。
 
 ## Analysis ModeとResearch Stageは別物
 
@@ -175,7 +177,7 @@ DISCOVERY
 
 データを見た後に生成した仮説はExploratoryです。同じデータを使って「事前仮説を検証した」ように扱ってはいけません。
 
-現在のmainには `ResearchIteration.Stage` とExpectation provenanceのguardrailが入っています。first-classな `Expectation` entityの永続化・Research Loop配線は [#31](https://github.com/sibukixxx/insight/issues/31) に残っています。
+現在のmainには `ResearchIteration.Stage` に加え、first-classな `Expectation` entity、provenance、freeze-for-validation、`EXPLORATORY → VALIDATION` guard、iteration間carry-forward、Research Artifactへのexportまで実装されています。このExpectation lifecycleは [#31](https://github.com/sibukixxx/insight/issues/31) で完了済みです。
 
 ## 現在mainでできること
 
@@ -190,6 +192,7 @@ DISCOVERY
 - Supporting / Counter / Neutral Evidence
 - Causal / Validation / Identification Status
 - append-onlyな `ResearchRun` / `ResearchIteration`
+- first-class `Expectation` provenance / freeze-for-validation / iteration間lineage
 - ResearchGapの優先順位付け
 - Next Data Requirement
 - Decision Readiness
@@ -198,8 +201,10 @@ DISCOVERY
 - Markdown Research Report
 - versioned JSON Research Artifact
   - `GET /api/research-runs/{runID}/artifact.json`
+  - current `ResearchStage` と first-class `Expectations` をexport
 - deterministic quality guardrail
 - Golden Set / dogfooding基盤
+  - association-only / population mismatch / 実Open Data再現 / new-evidence再分析 / inconclusive / competing-hypothesis cases
 
 Public Report向けPromotion Gateはdomain/service層まで実装されていますが、Report/API/downstreamへの結線は未完です。継続作業は [#24](https://github.com/sibukixxx/insight/issues/24) を参照してください。
 
@@ -231,6 +236,8 @@ Evidence
 ```
 
 停止後も未解決Gapは消しません。
+
+現時点で1つintegration gapがあります。追加Evidenceはまだ自由テキストとして保持されており、取得したEvidenceがどの `DataRequirement.gapId` を解消するためのものかを機械可読に直接linkできません。この対応は [#39](https://github.com/sibukixxx/insight/issues/39) で追跡しています。
 
 停止理由には、仮説の十分な識別、重要な不確実性の残存、取得可能なsourceなし、Evidence競合、人間による停止などがあります。
 

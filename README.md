@@ -139,9 +139,9 @@ The important rule is:
 
 Research Review should decompose artifacts into claims, evidence references, assumptions, methods, counter-evidence, and missing evidence before those claims influence stronger conclusions.
 
-**Current status:** Discovery and the deterministic dataset path are implemented foundations. A unified first-class Analysis Mode / Research Review architecture is still being completed in [#18](https://github.com/sibukixxx/insight/issues/18).
+**Current status:** the original discovery-style pipeline and the deterministic dataset path are implemented foundations. A unified first-class semantic Analysis Mode / Research Review architecture is still being completed in [#18](https://github.com/sibukixxx/insight/issues/18).
 
-**Analysis Mode vs. Execution Mode:** the three modes above (Discovery / Dataset Analysis / Research Review) are the semantic, input-reading concept that #18 is implementing. They are distinct from `service.ExecutionMode` (`deterministic` / `model_backed`) in the current pipeline code, which only states whether a model took part in a run. The two are orthogonal: a Dataset Analysis run can execute deterministically or model-backed. See [#38](https://github.com/sibukixxx/insight/issues/38) for the naming split that keeps these from colliding.
+**Analysis Mode vs. Execution Mode:** the three modes above (Discovery / Dataset Analysis / Research Review) are the semantic, input-reading concept that #18 is implementing. They are distinct from `service.ExecutionMode` (`deterministic` / `model_backed`) in the current pipeline code, which only states whether a model took part in a run. The two are orthogonal: a Dataset Analysis run can execute deterministically or model-backed. The naming split was completed in [#38](https://github.com/sibukixxx/insight/issues/38); #18 must add semantic mode without repurposing the existing execution-mode wire field.
 
 ## Research stage is separate from analysis mode
 
@@ -164,7 +164,7 @@ DISCOVERY
 
 A hypothesis generated after looking at a dataset is exploratory. It must not be presented as if it had been fixed before the data was observed.
 
-Current `main` includes Research Stage and expectation-provenance guardrails. Full persistence and Research Loop wiring for first-class frozen `Expectation` entities remains tracked in [#31](https://github.com/sibukixxx/insight/issues/31).
+Current `main` includes Research Stage plus first-class `Expectation` entities with provenance, explicit freeze-for-validation, guarded `EXPLORATORY → VALIDATION` transitions, cross-iteration carry-forward, and versioned Research Artifact export. That lifecycle was completed in [#31](https://github.com/sibukixxx/insight/issues/31).
 
 ## Current capabilities
 
@@ -181,14 +181,15 @@ Current `main` includes:
 - supporting, counter, and neutral evidence;
 - explicit causal / validation / identification states;
 - append-only `ResearchRun` / `ResearchIteration` history;
+- first-class `Expectation` provenance, freeze-for-validation, and cross-iteration lineage;
 - prioritized research gaps and next-data requirements;
 - decision-readiness and stopping reasons;
 - human override and human handoff;
 - Markdown research reports;
 - versioned JSON Research Artifact export at
-  `GET /api/research-runs/{runID}/artifact.json`;
+  `GET /api/research-runs/{runID}/artifact.json`, including current `ResearchStage` and first-class `Expectations`;
 - deterministic quality guardrails;
-- Golden Set / dogfooding infrastructure.
+- Golden Set / dogfooding infrastructure, including association-only, population-mismatch, real Open Data reproducibility, new-evidence re-analysis, inconclusive, and competing-hypothesis cases.
 
 The publication-promotion domain/service layer also exists, but its report/API/downstream wiring is still incomplete; see [#24](https://github.com/sibukixxx/insight/issues/24).
 
@@ -218,6 +219,8 @@ Evidence
 ```
 
 Only evidence acquisition leaves the OSS boundary. Research history and re-analysis remain inside Insight Lab.
+
+One integration gap remains: added evidence is still recorded as free text, so an acquired item is not yet explicitly linked to the `DataRequirement.gapId` it resolves. That machine-readable linkage is tracked in [#39](https://github.com/sibukixxx/insight/issues/39).
 
 A run may stop because evidence converged, important uncertainty remains unresolved, no feasible source exists, evidence conflicts, or a human chooses to stop. Unresolved gaps remain visible after stopping.
 
