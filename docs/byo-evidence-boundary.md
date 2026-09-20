@@ -76,7 +76,7 @@ Insight Lab exports to a private or downstream layer:
 |---|---|
 | Research Artifact (Markdown report) | implemented (`/api/research-runs/{id}/report.md`), includes the current Research Stage |
 | Research Artifact (versioned JSON) | implemented (`/api/research-runs/{id}/artifact.json`, schema v1, #17) |
-| current Research Stage on the JSON artifact | tracked in the domain (`ResearchIteration.Stage`, #26) and in the Markdown report, but not yet a field on the JSON artifact; closing that gap is tracked in #37 |
+| current Research Stage on the JSON artifact | implemented (`ResearchArtifact.researchStage`, #37) |
 | Claim / Hypothesis states (validation, identification) | implemented in `ResearchIteration.hypothesisStates` |
 | `ResearchGap` | implemented |
 | `DataRequirement` | implemented as a struct and exported on the JSON artifact (#17) |
@@ -108,4 +108,4 @@ Reasoning belongs here. Getting belongs to an adapter, a human, or the private l
 - [project-scope.md](project-scope.md) — public / private and external-data boundaries
 - [research-loop.md](research-loop.md) — append-only iterations and the dogfood path
 - `testdata/golden/README.md` — invariants that keep external artifacts from being promoted to primary evidence
-- Issues #7 (Research Loop), #16 (reproducible external dataset runs, shipped), #17 (artifact export, shipped), #18 (multi-mode analysis, in progress), #21 (this boundary, closed), #23 (decision-ready loop gate, shipped), #37 (Research Stage on the JSON artifact), #39 (requirement linkage by `gapId`)
+- Issues #7 (Research Loop), #16 (reproducible external dataset runs, shipped), #17 (artifact export, shipped), #18 (multi-mode analysis, in progress), #21 (this boundary, closed), #23 (decision-ready loop gate, shipped), #37 (Research Stage on the JSON artifact, shipped), #38 (execution mode vs. semantic analysis mode split, shipped), #39 (requirement linkage by `gapId`)

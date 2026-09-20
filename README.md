@@ -141,6 +141,8 @@ Research Review should decompose artifacts into claims, evidence references, ass
 
 **Current status:** Discovery and the deterministic dataset path are implemented foundations. A unified first-class Analysis Mode / Research Review architecture is still being completed in [#18](https://github.com/sibukixxx/insight/issues/18).
 
+**Analysis Mode vs. Execution Mode:** the three modes above (Discovery / Dataset Analysis / Research Review) are the semantic, input-reading concept that #18 is implementing. They are distinct from `service.ExecutionMode` (`deterministic` / `model_backed`) in the current pipeline code, which only states whether a model took part in a run. The two are orthogonal: a Dataset Analysis run can execute deterministically or model-backed. See [#38](https://github.com/sibukixxx/insight/issues/38) for the naming split that keeps these from colliding.
+
 ## Research stage is separate from analysis mode
 
 Analysis Mode answers:

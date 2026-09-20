@@ -84,7 +84,7 @@ func TestRenderProjectMarkdownShowsRunProvenance(t *testing.T) {
 		Project: &domain.Project{Name: "Dataset run"},
 		Metrics: &service.Metrics{
 			Provenance: service.RunProvenance{
-				Mode: service.AnalysisModeModelBacked, Model: "gpt-x", PromptFingerprint: "abc123",
+				Mode: service.ExecutionModeModelBacked, Model: "gpt-x", PromptFingerprint: "abc123",
 				RuleVersion: "dataset-preanalysis/v1", DatasetHashes: []string{"hash_a", "hash_b"},
 				Datasets: []service.DatasetProvenance{{
 					SourceName: "e-Stat", DatasetID: "000032143614", RetrievalMethod: service.RetrievalDownload,

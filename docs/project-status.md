@@ -61,7 +61,7 @@ Data
 ### External dataset provenance (BYO-Evidence)
 
 - Deterministic dataset pre-analysis for reproducible external-data runs, independent of any model call.
-- `AnalysisMode` distinguishes deterministic-only runs from model-backed ones (`RunProvenance`).
+- `ExecutionMode` distinguishes deterministic-only runs from model-backed ones (`RunProvenance`). It is deliberately not named `AnalysisMode`: that name is reserved for the semantic Discovery / Dataset Analysis / Research Review split #18 is still completing (see #38).
 - Validated acquisition manifest schema (source, retrieval method, retrieval time, dataset id, hashes, caveats); credential-looking fields are rejected.
 - Dataset hash provenance and cross-dataset compatibility warnings (unit / population scope / period granularity / schema version mismatches).
 - See [byo-evidence-boundary.md](byo-evidence-boundary.md) for what Insight Lab does and does not fetch itself.
@@ -73,7 +73,7 @@ Data
 - Decision readiness assessment, explicit stop reasons, and human override / evaluation handoff.
 - `ResearchStage` (`DISCOVERY` / `EXPLORATORY` / `VALIDATION` / `SYNTHESIS`) with guarded transitions, wired into the service, usecase and Markdown report layers.
 - Expectation provenance (`SOURCE_BACKED` vs `MODEL_PROPOSED`) guards against treating a post-hoc explanation as a prior prediction.
-- Versioned, machine-consumable Research Artifact JSON export (`/api/research-runs/{id}/artifact.json`, schema v1). It does not yet carry Research Stage itself (tracked in #37).
+- Versioned, machine-consumable Research Artifact JSON export (`/api/research-runs/{id}/artifact.json`, schema v1), including the latest iteration's Research Stage (#37).
 - Requirement linkage from an acquired evidence item back to the `DataRequirement.gapId` it resolves is not yet implemented; `addedEvidence` remains free text (tracked in #39).
 
 ### Promotion Gate
