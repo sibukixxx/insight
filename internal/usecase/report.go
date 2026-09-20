@@ -323,6 +323,7 @@ func writeResearchLoop(b *strings.Builder, report ProjectReport) {
 		for _, change := range iteration.HypothesisChanges {
 			fmt.Fprintf(b, "- `%s`: **%s** — %s\n", markdownInline(change.HypothesisID), change.Evolution, markdownInline(change.Reason))
 		}
+		writeInsightDelta(b, iteration.Delta)
 		b.WriteByte('\n')
 	}
 	b.WriteString("## Human Evaluation\n\n")
@@ -336,6 +337,27 @@ func writeResearchLoop(b *strings.Builder, report ProjectReport) {
 		}
 	}
 	b.WriteByte('\n')
+}
+
+func writeInsightDelta(b *strings.Builder, delta *domain.InsightDelta) {
+	if delta == nil {
+		return
+	}
+	b.WriteString("**What changed since previous iteration (association only; not causal attribution):**\n\n")
+	for _, change := range delta.InputChanges {
+		if change.Kind == domain.DeltaChanged {
+			fmt.Fprintf(b, "- input %s: `%s` → `%s`\n", markdownInline(change.Category), markdownInline(change.Before), markdownInline(change.After))
+		} else {
+			fmt.Fprintf(b, "- input %s %s: %s\n", markdownInline(change.Category), change.Kind, markdownInline(change.Value))
+		}
+	}
+	for _, change := range delta.Result.HypothesisChanges {
+		fmt.Fprintf(b, "- hypothesis `%s`: %s — %s\n", markdownInline(change.HypothesisID), change.Evolution, markdownInline(change.Reason))
+	}
+	writeStringList(b, "New insight IDs", delta.Result.InsightAdded)
+	writeStringList(b, "Withdrawn insight IDs", delta.Result.InsightRemoved)
+	writeStringList(b, "Resolved gap IDs", delta.Result.GapResolved)
+	writeStringList(b, "New gap IDs", delta.Result.GapCreated)
 }
 
 func writeValidationEvidence(b *strings.Builder, values []domain.ValidationEvidenceProvenance) {
