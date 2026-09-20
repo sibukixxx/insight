@@ -26,6 +26,9 @@ const insightColumns = `id, project_id, analysis_id, title, observation, stated_
 type causalContext struct {
 	CompetingHypotheses   []domain.CompetingHypothesis    `json:"competingHypotheses"`
 	CausalStructure       domain.CandidateCausalStructure `json:"causalStructure"`
+	Connections           []domain.InsightConnection      `json:"connections,omitempty"`
+	Mechanisms            []domain.MechanismCandidate     `json:"mechanisms,omitempty"`
+	Generalizations       []domain.GeneralizationCandidate `json:"generalizations,omitempty"`
 	MissingEvidence       []string                        `json:"missingEvidence"`
 	FalsificationCriteria []string                        `json:"falsificationCriteria"`
 	NextValidation        domain.ValidationNeed           `json:"nextValidation"`
@@ -36,7 +39,16 @@ func (r *InsightRepository) Create(ctx context.Context, insight *domain.Insight)
 	if err != nil {
 		return err
 	}
-	contextJSON, err := json.Marshal(causalContext{insight.CompetingHypotheses, insight.CausalStructure, insight.MissingEvidence, insight.FalsificationCriteria, insight.NextValidation})
+	contextJSON, err := json.Marshal(causalContext{
+		CompetingHypotheses: insight.CompetingHypotheses,
+		CausalStructure: insight.CausalStructure,
+		Connections: insight.Connections,
+		Mechanisms: insight.Mechanisms,
+		Generalizations: insight.Generalizations,
+		MissingEvidence: insight.MissingEvidence,
+		FalsificationCriteria: insight.FalsificationCriteria,
+		NextValidation: insight.NextValidation,
+	})
 	if err != nil {
 		return fmt.Errorf("encode causal context: %w", err)
 	}
@@ -131,7 +143,9 @@ func scanInsight(s scanner) (*domain.Insight, error) {
 		if err := json.Unmarshal([]byte(causalContextJSON.String), &value); err != nil {
 			return nil, fmt.Errorf("decode causal context for %s: %w", i.ID, err)
 		}
-		i.CompetingHypotheses, i.CausalStructure, i.MissingEvidence = value.CompetingHypotheses, value.CausalStructure, value.MissingEvidence
+		i.CompetingHypotheses, i.CausalStructure = value.CompetingHypotheses, value.CausalStructure
+		i.Connections, i.Mechanisms, i.Generalizations = value.Connections, value.Mechanisms, value.Generalizations
+		i.MissingEvidence = value.MissingEvidence
 		i.FalsificationCriteria, i.NextValidation = value.FalsificationCriteria, value.NextValidation
 	}
 	t, err := parseTime(createdAt)
