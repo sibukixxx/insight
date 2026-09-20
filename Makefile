@@ -2,7 +2,7 @@ BINARY  := insight-lab
 PKG     := ./cmd/insight-lab
 BINDIR  := bin
 
-.PHONY: build build-demo build-delivery test vet clean cross-compile cross-compile-demo cross-compile-delivery eval-demo
+.PHONY: build build-demo build-delivery test test-golden vet clean cross-compile cross-compile-demo cross-compile-delivery eval-demo
 
 build: build-delivery
 
@@ -17,6 +17,10 @@ build-demo:
 test:
 	go test ./...
 	go test -tags demo ./...
+
+test-golden:
+	python3 testdata/golden/harness/test_golden_eval.py
+	go test -tags=golden ./internal/goldenset/...
 
 vet:
 	go vet ./...
