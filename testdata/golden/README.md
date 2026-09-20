@@ -1,13 +1,14 @@
 # Golden Set — Shared Eval Contract fixtures (issue #14)
 
-Versioned, Insight-owned domain fixtures for evaluating Public Evidence Reports and Research Runs. Shared schema semantics may later live in TechVit Business; the fixtures and the invariants they encode stay here.
+Versioned, Insight-owned domain fixtures for evaluating Public Evidence Reports and Research Runs. TechVit Business now defines Shared Eval Contract v1 as an exchange format; Insight keeps its domain fixtures and invariants locally and maps each checked case into that shared envelope without taking a runtime dependency.
 
 ## Layout
 
 ```text
 testdata/golden/
   README.md                      this file
-  schema/eval-case.v0.1.schema.json   shape of one case (JSON Schema, documentation + future validator)
+  schema/eval-case.v0.1.schema.json   Insight-owned domain case schema
+  schema/shared-eval-contract.v1.schema.json  mirrored TechVit shared exchange contract
   cases/                         one JSON file per golden case, versioned via "version"
   harness/golden_eval.py         stdlib-only invariant checker + CLI
   harness/test_golden_eval.py    unittest: fixtures stay consistent, every invariant fires when broken
@@ -42,11 +43,13 @@ testdata/golden/
 | `IDENTIFICATION_GAP_VISIBLE` | unresolved identification requires research gaps |
 | `EXTERNAL_ARTIFACT_NOT_PRIMARY` | untraceable external / AI artifacts cannot be validation evidence |
 | `HUMAN_REVIEW` | a review block exists; `PENDING` is a warning, an unknown status fails |
+| `SHARED_EVAL_CONTRACT` | each Insight case losslessly maps to TechVit Shared Eval Contract v1; pending human review maps to `NOT_REVIEWED`, never a fake pass |
 
 ## Run
 
 ```bash
-python3 testdata/golden/harness/test_golden_eval.py          # regression tests
+make test-golden                                           # Python contract + Go Golden regressions
+python3 testdata/golden/harness/test_golden_eval.py          # contract/invariant regression tests
 python3 testdata/golden/harness/golden_eval.py               # table of checks, exit 1 on FAIL
 python3 testdata/golden/harness/golden_eval.py --json
 python3 testdata/golden/harness/golden_eval.py --case GS-02 \
@@ -55,9 +58,9 @@ python3 testdata/golden/harness/golden_eval.py --case GS-02 \
 
 ## What the skeleton does not do yet
 
-- Score a generated report or evidence ledger against `expected` (only the forbidden-claim scan is report-facing).
-- Run the Go pipeline or an LLM. Cases 3 and 5 will need an adapter that feeds a case into the existing CSV import / Research Run path and maps the output back to this contract.
-- Validate with a JSON Schema library; the harness checks the subset it needs so the repository stays dependency-free.
+- Run an LLM. Golden evaluation remains deterministic and provider-independent.
+- Validate with a third-party JSON Schema library; the harness validates the Shared Eval v1 subset it consumes so the repository stays dependency-free.
+- Automatically fill human review. Human outcomes remain external input; `PENDING` maps to Shared Eval `NOT_REVIEWED`.
 
 ## Editing rules
 
