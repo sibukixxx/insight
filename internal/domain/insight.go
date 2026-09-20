@@ -59,6 +59,109 @@ type QualityFlag struct {
 	Detail string          `json:"detail,omitempty"`
 }
 
+
+// InsightReferenceKind identifies what kind of grounded object a connection
+// endpoint points at. References stay provider-neutral so the same semantic
+// model works for interviews, structured datasets and research reviews.
+type InsightReferenceKind string
+
+const (
+	InsightRefObservation InsightReferenceKind = "OBSERVATION"
+	InsightRefFinding     InsightReferenceKind = "FINDING"
+	InsightRefVariable    InsightReferenceKind = "VARIABLE"
+	InsightRefClaim       InsightReferenceKind = "CLAIM"
+	InsightRefContext     InsightReferenceKind = "CONTEXT"
+	InsightRefOther       InsightReferenceKind = "OTHER"
+)
+
+func (k InsightReferenceKind) Valid() bool {
+	switch k {
+	case InsightRefObservation, InsightRefFinding, InsightRefVariable, InsightRefClaim, InsightRefContext, InsightRefOther:
+		return true
+	}
+	return false
+}
+
+type InsightReference struct {
+	Kind  InsightReferenceKind `json:"kind"`
+	ID    string               `json:"id,omitempty"`
+	Label string               `json:"label,omitempty"`
+}
+
+type ConnectionKind string
+
+const (
+	ConnectionAssociation        ConnectionKind = "ASSOCIATION"
+	ConnectionContrast           ConnectionKind = "CONTRAST"
+	ConnectionSequence           ConnectionKind = "SEQUENCE"
+	ConnectionInteraction        ConnectionKind = "INTERACTION"
+	ConnectionConstraint         ConnectionKind = "CONSTRAINT"
+	ConnectionMechanismCandidate ConnectionKind = "MECHANISM_CANDIDATE"
+	ConnectionOther              ConnectionKind = "OTHER"
+)
+
+func (k ConnectionKind) Valid() bool {
+	switch k {
+	case ConnectionAssociation, ConnectionContrast, ConnectionSequence, ConnectionInteraction,
+		ConnectionConstraint, ConnectionMechanismCandidate, ConnectionOther:
+		return true
+	}
+	return false
+}
+
+// InsightConnection is a proposed non-obvious relation between grounded
+// objects. Kind is descriptive only; it never promotes causal status.
+type InsightConnection struct {
+	Sources   []InsightReference `json:"sources,omitempty"`
+	Targets   []InsightReference `json:"targets,omitempty"`
+	Kind      ConnectionKind     `json:"kind,omitempty"`
+	Statement string             `json:"statement,omitempty"`
+	WhyItMatters string          `json:"whyItMatters,omitempty"`
+}
+
+// MechanismStep is one bridge in a candidate explanatory chain. EvidenceRefs
+// point to existing evidence/artifact identifiers; an unsupported step stays
+// explicit instead of being hidden inside persuasive prose.
+type MechanismStep struct {
+	Statement      string   `json:"statement"`
+	EvidenceRefs   []string `json:"evidenceRefs,omitempty"`
+	Assumptions    []string `json:"assumptions,omitempty"`
+	MissingEvidence []string `json:"missingEvidence,omitempty"`
+}
+
+type MechanismCandidate struct {
+	Statement            string          `json:"statement,omitempty"`
+	Steps                []MechanismStep `json:"steps,omitempty"`
+	AlternativeMechanisms []string       `json:"alternativeMechanisms,omitempty"`
+	CounterEvidenceRefs  []string        `json:"counterEvidenceRefs,omitempty"`
+	FalsificationCriteria []string       `json:"falsificationCriteria,omitempty"`
+}
+
+type GeneralizationStatus string
+
+const (
+	GeneralizationCandidate GeneralizationStatus = "CANDIDATE"
+	GeneralizationSupported GeneralizationStatus = "SUPPORTED"
+	GeneralizationRejected  GeneralizationStatus = "REJECTED"
+)
+
+func (s GeneralizationStatus) Valid() bool {
+	return s == "" || s == GeneralizationCandidate || s == GeneralizationSupported || s == GeneralizationRejected
+}
+
+// InsightGeneralization is deliberately a candidate transfer statement, not a
+// model-certified universal law. Human review/additional evidence owns any
+// promotion beyond CANDIDATE.
+type InsightGeneralization struct {
+	SourceContext        string               `json:"sourceContext,omitempty"`
+	Principle            string               `json:"principle,omitempty"`
+	TargetContext        string               `json:"targetContext,omitempty"`
+	ApplicabilityConditions []string          `json:"applicabilityConditions,omitempty"`
+	BoundaryConditions   []string             `json:"boundaryConditions,omitempty"`
+	KnownFailureConditions []string           `json:"knownFailureConditions,omitempty"`
+	Status               GeneralizationStatus `json:"status,omitempty"`
+}
+
 type Insight struct {
 	ID         string
 	ProjectID  string
@@ -81,6 +184,9 @@ type Insight struct {
 	Rationale                 string
 	Interpretation            string
 	AlternativeInterpretation string
+	Connection                InsightConnection
+	Mechanism                 MechanismCandidate
+	Generalization            InsightGeneralization
 	ProductOpportunity        string
 	MonetizationAngle         string
 	Confidence                float64

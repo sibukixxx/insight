@@ -29,6 +29,9 @@ type causalContext struct {
 	MissingEvidence       []string                        `json:"missingEvidence"`
 	FalsificationCriteria []string                        `json:"falsificationCriteria"`
 	NextValidation        domain.ValidationNeed           `json:"nextValidation"`
+	Connection            domain.InsightConnection        `json:"connection,omitempty"`
+	Mechanism             domain.MechanismCandidate       `json:"mechanism,omitempty"`
+	Generalization        domain.InsightGeneralization    `json:"generalization,omitempty"`
 }
 
 func (r *InsightRepository) Create(ctx context.Context, insight *domain.Insight) error {
@@ -36,7 +39,16 @@ func (r *InsightRepository) Create(ctx context.Context, insight *domain.Insight)
 	if err != nil {
 		return err
 	}
-	contextJSON, err := json.Marshal(causalContext{insight.CompetingHypotheses, insight.CausalStructure, insight.MissingEvidence, insight.FalsificationCriteria, insight.NextValidation})
+	contextJSON, err := json.Marshal(causalContext{
+		CompetingHypotheses: insight.CompetingHypotheses,
+		CausalStructure: insight.CausalStructure,
+		MissingEvidence: insight.MissingEvidence,
+		FalsificationCriteria: insight.FalsificationCriteria,
+		NextValidation: insight.NextValidation,
+		Connection: insight.Connection,
+		Mechanism: insight.Mechanism,
+		Generalization: insight.Generalization,
+	})
 	if err != nil {
 		return fmt.Errorf("encode causal context: %w", err)
 	}
@@ -133,6 +145,7 @@ func scanInsight(s scanner) (*domain.Insight, error) {
 		}
 		i.CompetingHypotheses, i.CausalStructure, i.MissingEvidence = value.CompetingHypotheses, value.CausalStructure, value.MissingEvidence
 		i.FalsificationCriteria, i.NextValidation = value.FalsificationCriteria, value.NextValidation
+		i.Connection, i.Mechanism, i.Generalization = value.Connection, value.Mechanism, value.Generalization
 	}
 	t, err := parseTime(createdAt)
 	if err != nil {

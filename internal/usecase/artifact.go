@@ -104,6 +104,9 @@ type ArtifactInsight struct {
 	SurprisingFact            string                       `json:"surprisingFact,omitempty"`
 	Rationale                 string                       `json:"rationale,omitempty"`
 	AlternativeInterpretation string                       `json:"alternativeInterpretation,omitempty"`
+	Connection                domain.InsightConnection     `json:"connection,omitempty"`
+	Mechanism                 domain.MechanismCandidate    `json:"mechanism,omitempty"`
+	Generalization            domain.InsightGeneralization `json:"generalization,omitempty"`
 	HypothesisSetID           string                       `json:"hypothesisSetId,omitempty"`
 	HypothesisRole            domain.HypothesisRole        `json:"hypothesisRole,omitempty"`
 	CausalStatus              domain.CausalStatus          `json:"causalStatus,omitempty"`
@@ -200,6 +203,7 @@ func (a *Application) artifactInsights(ctx context.Context, insightIDs []string)
 			ID: i.ID, Title: i.Title, Observation: i.Observation, StatedNeed: i.StatedNeed, LatentNeed: i.LatentNeed,
 			Expectation: i.Expectation, ExpectationBasis: i.ExpectationBasis, SurprisingFact: i.SurprisingFact,
 			Rationale: i.Rationale, AlternativeInterpretation: i.AlternativeInterpretation,
+			Connection: i.Connection, Mechanism: i.Mechanism, Generalization: i.Generalization,
 			HypothesisSetID: i.HypothesisSetID, HypothesisRole: i.HypothesisRole, CausalStatus: i.CausalStatus,
 			ValidationStatus: i.ValidationStatus, IdentificationStatus: i.IdentificationStatus,
 			CompetingHypotheses: i.CompetingHypotheses, MissingEvidence: i.MissingEvidence,
