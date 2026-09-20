@@ -486,7 +486,7 @@ func writeGeneralizations(b *strings.Builder, values []domain.GeneralizationCand
 	for _, value := range values {
 		status := value.Status
 		if status == "" {
-			status = domain.GeneralizationCandidate
+			status = domain.GeneralizationStatusCandidate
 		}
 		fmt.Fprintf(b, "- `%s` humanReviewed=%t — %s\n", status, value.HumanReviewed, markdownInline(value.Principle))
 		writeStringList(b, "Boundary conditions", value.BoundaryConditions)
