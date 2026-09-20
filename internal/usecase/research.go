@@ -21,6 +21,7 @@ type AppendResearchIterationInput struct {
 	InputReferences    []string
 	AddedEvidence      []string
 	AddedEvidenceLinks []domain.AddedEvidenceLink
+	InputSnapshot      domain.InputSetSnapshot
 }
 
 func (a *Application) CreateResearchRun(ctx context.Context, in CreateResearchRunInput) (*domain.ResearchRun, error) {
@@ -62,6 +63,19 @@ func (a *Application) AppendResearchIteration(ctx context.Context, in AppendRese
 	}
 	now := a.now()
 	iteration := service.BuildResearchIteration(len(run.Iterations)+1, question, in.InputReferences, insights, now)
+	snapshot := in.InputSnapshot
+	if len(snapshot.ArtifactReferences) == 0 {
+		snapshot.ArtifactReferences = append([]string(nil), in.InputReferences...)
+	}
+	if len(snapshot.EvidenceReferences) == 0 {
+		snapshot.EvidenceReferences = append([]string(nil), in.AddedEvidence...)
+		for _, link := range in.AddedEvidenceLinks {
+			if strings.TrimSpace(link.Reference) != "" {
+				snapshot.EvidenceReferences = append(snapshot.EvidenceReferences, link.Reference)
+			}
+		}
+	}
+	iteration.InputSnapshot = snapshot
 	iteration = service.FinalizeResearchIterationWithLinks(*run, iteration, in.AddedEvidence, in.AddedEvidenceLinks, now)
 	if err := a.repos.Research.AppendResearchIteration(ctx, run.ID, iteration); err != nil {
 		return nil, fmt.Errorf("append research iteration: %w", err)
@@ -282,4 +296,18 @@ func (a *Application) SaveHumanEvaluation(ctx context.Context, evaluation *domai
 
 func (a *Application) GetHumanEvaluation(ctx context.Context, runID, iterationID string) (*domain.HumanEvaluation, error) {
 	return a.repos.Research.GetHumanEvaluation(ctx, runID, iterationID)
+}
+
+
+func (a *Application) CompareResearchIterations(ctx context.Context, runID, fromIterationID, toIterationID string) (*domain.InsightDelta, error) {
+	from, err := a.repos.Research.GetResearchIteration(ctx, runID, fromIterationID)
+	if err != nil {
+		return nil, err
+	}
+	to, err := a.repos.Research.GetResearchIteration(ctx, runID, toIterationID)
+	if err != nil {
+		return nil, err
+	}
+	delta := service.CompareResearchIterations(*from, *to)
+	return &delta, nil
 }

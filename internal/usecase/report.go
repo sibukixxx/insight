@@ -336,6 +336,18 @@ func writeResearchLoop(b *strings.Builder, report ProjectReport) {
 		}
 		b.WriteByte('\n')
 	}
+	if latest, ok := run.LatestIteration(); ok && latest.Delta != nil {
+		b.WriteString("## What Changed Since Previous Iteration\n\n")
+		writeStringList(b, "Input variables added", latest.Delta.Input.Variables.Added)
+		writeStringList(b, "Input variables removed", latest.Delta.Input.Variables.Removed)
+		writeStringList(b, "Evidence added", latest.Delta.Input.EvidenceReferences.Added)
+		writeStringList(b, "Evidence removed", latest.Delta.Input.EvidenceReferences.Removed)
+		writeStringList(b, "Insights added", latest.Delta.Result.InsightIDsAdded)
+		writeStringList(b, "Insights removed", latest.Delta.Result.InsightIDsRemoved)
+		writeStringList(b, "Gaps created", latest.Delta.Result.ResearchGapIDsCreated)
+		writeStringList(b, "Gaps resolved", latest.Delta.Result.ResearchGapIDsResolved)
+		writeStringList(b, "Delta interpretation notes", latest.Delta.Explanation)
+	}
 	b.WriteString("## Human Evaluation\n\n")
 	if len(report.HumanEvaluations) == 0 {
 		b.WriteString("No human evaluation has been recorded. The LLM cannot assign novelty.\n\n")

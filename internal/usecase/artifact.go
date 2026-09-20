@@ -80,6 +80,8 @@ type ResearchArtifact struct {
 	WhatWeCannotConclude []string                  `json:"whatWeCannotConclude,omitempty"`
 	AddedEvidence        []string                  `json:"addedEvidence,omitempty"`
 	AddedEvidenceLinks   []domain.AddedEvidenceLink `json:"addedEvidenceLinks,omitempty"`
+	InputSnapshot        domain.InputSetSnapshot   `json:"inputSnapshot,omitempty"`
+	InsightDelta         *domain.InsightDelta      `json:"insightDelta,omitempty"`
 
 	Readiness          domain.ReadinessAssessment `json:"decisionReadiness"`
 	EffectiveReadiness domain.DecisionReadiness   `json:"effectiveDecisionReadiness"`
@@ -156,6 +158,8 @@ func (a *Application) GetResearchArtifact(ctx context.Context, runID string) (*R
 		WhatWeCannotConclude: iteration.WhatWeCannotConclude,
 		AddedEvidence:        iteration.AddedEvidence,
 		AddedEvidenceLinks:   iteration.AddedEvidenceLinks,
+		InputSnapshot:        iteration.InputSnapshot,
+		InsightDelta:         iteration.Delta,
 		Readiness:            iteration.Readiness, EffectiveReadiness: iteration.EffectiveReadiness(),
 		StopDecision: iteration.Stop, HumanOverrides: iteration.HumanOverrides,
 		CreatedAt: iteration.CreatedAt, ExportedAt: a.now(),

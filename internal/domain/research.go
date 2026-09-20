@@ -124,6 +124,50 @@ type AddedEvidenceLink struct {
 	Note      string   `json:"note,omitempty"`
 }
 
+type InputSetSnapshot struct {
+	ArtifactReferences []string `json:"artifactReferences,omitempty"`
+	EvidenceReferences []string `json:"evidenceReferences,omitempty"`
+	Variables          []string `json:"variables,omitempty"`
+	Dimensions         []string `json:"dimensions,omitempty"`
+	Filters            []string `json:"filters,omitempty"`
+	Contexts           []string `json:"contexts,omitempty"`
+	Transforms         []string `json:"transforms,omitempty"`
+}
+
+type SetDelta struct {
+	Added   []string `json:"added,omitempty"`
+	Removed []string `json:"removed,omitempty"`
+}
+
+type InputDelta struct {
+	ArtifactReferences SetDelta `json:"artifactReferences,omitempty"`
+	EvidenceReferences SetDelta `json:"evidenceReferences,omitempty"`
+	Variables          SetDelta `json:"variables,omitempty"`
+	Dimensions         SetDelta `json:"dimensions,omitempty"`
+	Filters            SetDelta `json:"filters,omitempty"`
+	Contexts           SetDelta `json:"contexts,omitempty"`
+	Transforms         SetDelta `json:"transforms,omitempty"`
+}
+
+type ResultDelta struct {
+	InsightIDsAdded            []string           `json:"insightIdsAdded,omitempty"`
+	InsightIDsRemoved          []string           `json:"insightIdsRemoved,omitempty"`
+	ResearchGapIDsCreated      []string           `json:"researchGapIdsCreated,omitempty"`
+	ResearchGapIDsResolved     []string           `json:"researchGapIdsResolved,omitempty"`
+	DataRequirementGapIDsAdded []string           `json:"dataRequirementGapIdsAdded,omitempty"`
+	HypothesisChanges          []HypothesisChange `json:"hypothesisChanges,omitempty"`
+	ConclusionsAdded           []string           `json:"whatWeCannotConcludeAdded,omitempty"`
+	ConclusionsRemoved         []string           `json:"whatWeCannotConcludeRemoved,omitempty"`
+}
+
+type InsightDelta struct {
+	FromIterationID string     `json:"fromIterationId"`
+	ToIterationID   string     `json:"toIterationId"`
+	Input           InputDelta `json:"input"`
+	Result          ResultDelta `json:"result"`
+	Explanation     []string   `json:"explanation,omitempty"`
+}
+
 type HypothesisState struct {
 	HypothesisID         string               `json:"hypothesisId"`
 	ComparisonKey        string               `json:"comparisonKey"`
@@ -263,6 +307,7 @@ type ResearchIteration struct {
 	Stage            ResearchStage     `json:"stage,omitempty"`
 	Question         string            `json:"question"`
 	InputReferences  []string          `json:"inputReferences,omitempty"`
+	InputSnapshot    InputSetSnapshot  `json:"inputSnapshot,omitempty"`
 	ObservationIDs   []string          `json:"observationIds,omitempty"`
 	SurpriseIDs      []string          `json:"surpriseIds,omitempty"`
 	HypothesisSetIDs []string          `json:"hypothesisSetIds,omitempty"`
@@ -279,6 +324,7 @@ type ResearchIteration struct {
 	AddedEvidenceLinks   []AddedEvidenceLink `json:"addedEvidenceLinks,omitempty"`
 	HypothesisChanges    []HypothesisChange  `json:"hypothesisChanges,omitempty"`
 	ValidationEvidence   []ValidationEvidenceProvenance `json:"validationEvidence,omitempty"`
+	Delta                *InsightDelta `json:"insightDelta,omitempty"`
 	WhatWeCannotConclude []string            `json:"whatWeCannotConclude,omitempty"`
 	Readiness            ReadinessAssessment `json:"readiness"`
 	Stop                 *StopDecision       `json:"stop,omitempty"`
