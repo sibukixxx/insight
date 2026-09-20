@@ -1,0 +1,192 @@
+{
+  "caseId": "GS-03",
+  "version": "0.1.0",
+  "title": "Real Open Data reproducibility case: Japan enterprise count 2021 -> 2024 from published Economic Census aggregates",
+  "kind": "open_data",
+  "goldenSetIndex": 3,
+  "dimensions": [
+    "reproducibility",
+    "population / period / unit comparability",
+    "deterministic calculation correctness",
+    "citation / provenance completeness",
+    "publication-readiness honesty"
+  ],
+  "input": {
+    "researchQuestion": "Is the number of companies in Japan really declining between 2021 and 2024?",
+    "stage": "VALIDATION",
+    "datasets": [
+      {
+        "id": "ds-2021-enterprise",
+        "role": "hypothesis_generation",
+        "sourceKind": "primary",
+        "description": "Published enterprise-equivalent count from the 2021 Economic Census for Business Activity. See reports/japan-company-count-2021-2024/normalized.csv (row 1) and README.md for the source PDF.",
+        "populationDefinitionId": "JP_all_industries_excl_public_incl_no_employee_individual",
+        "harmonizationMethod": "observed",
+        "unit": "enterprises",
+        "rows": [
+          {
+            "key": "2021",
+            "value": 3684049
+          }
+        ]
+      },
+      {
+        "id": "ds-2024-published",
+        "role": "hypothesis_generation",
+        "sourceKind": "primary",
+        "description": "Published enterprise-equivalent count from the 2024 Economic Census Basic Survey A (甲調査), which excludes individual proprietorship establishments with no employees. See reports/japan-company-count-2021-2024/normalized.csv (row 2).",
+        "populationDefinitionId": "JP_all_industries_excl_public_excl_no_employee_individual",
+        "harmonizationMethod": "observed",
+        "unit": "enterprises",
+        "rows": [
+          {
+            "key": "2024",
+            "value": 2549827
+          }
+        ]
+      },
+      {
+        "id": "ds-2024-harmonized",
+        "role": "validation",
+        "sourceKind": "primary",
+        "description": "2024 reference table (参考表) that adds the segment excluded from the Basic Survey A back in by carrying forward the 2021 value for individual proprietorships with no employees. Retrieval, sheet, row and checksum are recorded in reports/japan-company-count-2021-2024/ACQUISITION.md.",
+        "populationDefinitionId": "JP_all_industries_excl_public_incl_no_employee_individual",
+        "harmonizationMethod": "carry_forward_2021_no_employee_individual",
+        "unit": "enterprises",
+        "rows": [
+          {
+            "key": "2024",
+            "value": 3352019
+          }
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "verdict": "NOT_COMPARABLE",
+    "expectations": [
+      {
+        "id": "E1",
+        "text": "If the apparent decline is mostly a population-definition change, harmonizing the 2024 population should shrink the gap toward zero or reverse it.",
+        "basis": "MODEL_PROPOSED",
+        "provenance": "POST_HOC",
+        "declaredBeforeDataSeen": false
+      }
+    ],
+    "hypotheses": [
+      {
+        "id": "H1",
+        "role": "PRIMARY",
+        "text": "The number of companies genuinely declined between 2021 and 2024.",
+        "causalStatus": "OBSERVED_ASSOCIATION",
+        "validationStatus": "INSUFFICIENT_EVIDENCE",
+        "identificationStatus": "NOT_IDENTIFIED"
+      },
+      {
+        "id": "H2",
+        "role": "COMPETING",
+        "text": "Most of the apparent -30.8% drop is caused by the 2024 survey excluding individual proprietorships with no employees.",
+        "causalStatus": "OBSERVED_ASSOCIATION",
+        "validationStatus": "PARTIALLY_SUPPORTED",
+        "identificationStatus": "NOT_IDENTIFIED"
+      }
+    ],
+    "evidence": [
+      {
+        "id": "EV1",
+        "type": "counter",
+        "hypothesisIds": [
+          "H1"
+        ],
+        "datasetId": "ds-2024-published",
+        "usage": "generation",
+        "sourceKind": "primary",
+        "traceableToPrimary": true,
+        "summary": "The 2024 Basic Survey A explicitly excludes individual proprietorship establishments with no employees, so the naive 2021-2024 delta is not a like-for-like population comparison."
+      },
+      {
+        "id": "EV2",
+        "type": "support",
+        "hypothesisIds": [
+          "H2"
+        ],
+        "datasetId": "ds-2024-harmonized",
+        "usage": "re_analysis",
+        "sourceKind": "primary",
+        "traceableToPrimary": true,
+        "summary": "On the harmonized population the decline shrinks from -30.8% (-1,134,222) to -9.0% (-332,030)."
+      },
+      {
+        "id": "EV3",
+        "type": "counter",
+        "hypothesisIds": [
+          "H2"
+        ],
+        "datasetId": "ds-2024-harmonized",
+        "usage": "re_analysis",
+        "sourceKind": "primary",
+        "traceableToPrimary": true,
+        "summary": "A residual -9.0% remains after harmonization, so the population-definition change alone does not explain the entire naive gap."
+      }
+    ],
+    "comparisons": [
+      {
+        "id": "CMP-naive",
+        "baselineDatasetId": "ds-2021-enterprise",
+        "baselineRowKey": "2021",
+        "currentDatasetId": "ds-2024-published",
+        "currentRowKey": "2024",
+        "expectedDelta": -1134222,
+        "expectedPctChange": "-30.8",
+        "comparabilityLabel": "NOT_COMPARABLE"
+      },
+      {
+        "id": "CMP-harmonized",
+        "baselineDatasetId": "ds-2021-enterprise",
+        "baselineRowKey": "2021",
+        "currentDatasetId": "ds-2024-harmonized",
+        "currentRowKey": "2024",
+        "expectedDelta": -332030,
+        "expectedPctChange": "-9.0",
+        "comparabilityLabel": "HARMONIZED_REFERENCE"
+      }
+    ],
+    "counterEvidenceSearched": true,
+    "mayClaimExhaustiveValidation": false,
+    "requiresCounterEvidence": true,
+    "requiredLimitations": [
+      "The 2021 and 2024-published enterprise-equivalent populations are not definitionally identical; the -30.8% figure must not be presented as a company decline.",
+      "The harmonized 2024 value carries the 2021 no-employee-individual segment forward; it is a reference value, not an observed 2024 measurement.",
+      "Whether the residual -9.0% reflects a real decline within the surveyed population versus other reporting or threshold changes is not identified."
+    ],
+    "requiredResearchGaps": [
+      {
+        "category": "MEASUREMENT",
+        "need": "An observed 2024 count of individual proprietorships with no employees, instead of a value carried forward from 2021."
+      },
+      {
+        "category": "PRE_PERIOD",
+        "need": "2022 and 2023 enterprise counts under a single consistent population definition."
+      },
+      {
+        "category": "SOURCE_QUALITY",
+        "need": "An explanation for the 64,378 gap between the two published 2024 company-enterprise tables (結果の概要 表II-1 vs 参考表 第2表)."
+      }
+    ],
+    "forbiddenClaims": [
+      "日本の会社は減っている",
+      "31%減少した",
+      "30%減少した",
+      "会社の数が減少したことが確認された",
+      "companies are declining",
+      "confirmed the decline"
+    ]
+  },
+  "humanReview": {
+    "status": "PENDING",
+    "reviewer": null,
+    "reviewedAt": null,
+    "outcome": null,
+    "notes": "Reproduce with: python3 scripts/public_evidence_report.py --input reports/japan-company-count-2021-2024/normalized.csv --out-dir reports/japan-company-count-2021-2024/generated. A passing report must label the naive comparison NOT_COMPARABLE, must not call the harmonized pair COMPARABLE, and must not claim a resolved decline."
+  }
+}
