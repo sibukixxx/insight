@@ -46,13 +46,21 @@ type ResearchArtifact struct {
 	// iteration history the way domain.ResearchRun.CurrentStage does.
 	ResearchStage domain.ResearchStage `json:"researchStage,omitempty"`
 
-	// AnalysisMode, ModelVersion, PromptFingerprint and RuleVersion come from
+	// ExecutionMode, ModelVersion, PromptFingerprint and RuleVersion come from
 	// the latest analysis's RunProvenance, so a no-model (deterministic-only)
 	// run can never be mistaken for a model-backed one.
-	AnalysisMode      service.AnalysisMode `json:"analysisMode,omitempty"`
-	ModelVersion      string               `json:"modelVersion,omitempty"`
-	PromptFingerprint string               `json:"promptFingerprint,omitempty"`
-	RuleVersion       string               `json:"ruleVersion,omitempty"`
+	//
+	// The Go field is named ExecutionMode (Issue #38) because that is what
+	// this value actually is: whether a model executed, not the semantic
+	// input-reading mode (DISCOVERY / DATASET_ANALYSIS / RESEARCH_REVIEW)
+	// Issue #18 will add. The JSON key stays "analysisMode" because it is
+	// already part of the versioned v1 wire contract (Issue #17); renaming
+	// the wire field would be a breaking change. When #18 lands, it must
+	// introduce its own field rather than repurpose this one.
+	ExecutionMode     service.ExecutionMode `json:"analysisMode,omitempty"`
+	ModelVersion      string                `json:"modelVersion,omitempty"`
+	PromptFingerprint string                `json:"promptFingerprint,omitempty"`
+	RuleVersion       string                `json:"ruleVersion,omitempty"`
 
 	InputReferences              []string                              `json:"inputReferences,omitempty"`
 	AcquisitionManifests         []service.DatasetProvenance           `json:"acquisitionManifests,omitempty"`
@@ -148,7 +156,7 @@ func (a *Application) GetResearchArtifact(ctx context.Context, runID string) (*R
 	}
 
 	if prov, ok := a.latestRunProvenance(ctx, run.ProjectID); ok {
-		artifact.AnalysisMode = prov.Mode
+		artifact.ExecutionMode = prov.Mode
 		artifact.ModelVersion = prov.Model
 		artifact.PromptFingerprint = prov.PromptFingerprint
 		artifact.RuleVersion = prov.RuleVersion

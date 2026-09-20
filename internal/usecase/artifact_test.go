@@ -37,7 +37,7 @@ func TestGetResearchArtifactCarriesProvenanceAndLatestIterationLosslessly(t *tes
 
 	app.now = func() time.Time { return second }
 	prov := service.RunProvenance{
-		Mode: service.AnalysisModeModelBacked, Model: "gpt-5", PromptFingerprint: "sha256:abc", RuleVersion: "dataset-preanalysis/v1",
+		Mode: service.ExecutionModeModelBacked, Model: "gpt-5", PromptFingerprint: "sha256:abc", RuleVersion: "dataset-preanalysis/v1",
 		DatasetHashes: []string{"hash-1"},
 		Datasets:      []service.DatasetProvenance{{SourceName: "e-Stat", DatasetID: "0001", RetrievalMethod: service.RetrievalAPI, SchemaID: "estat-v1"}},
 	}
@@ -71,7 +71,7 @@ func TestGetResearchArtifactCarriesProvenanceAndLatestIterationLosslessly(t *tes
 	if artifact.ProjectID != "p1" || artifact.ResearchRunID != run.ID || artifact.IterationID != got.ID || artifact.ResearchQuestion != "did the policy cause it?" {
 		t.Fatalf("artifact must identify the run and iteration it snapshots: %+v", artifact)
 	}
-	if artifact.AnalysisMode != service.AnalysisModeModelBacked || artifact.ModelVersion != "gpt-5" || artifact.PromptFingerprint != "sha256:abc" || artifact.RuleVersion != "dataset-preanalysis/v1" {
+	if artifact.ExecutionMode != service.ExecutionModeModelBacked || artifact.ModelVersion != "gpt-5" || artifact.PromptFingerprint != "sha256:abc" || artifact.RuleVersion != "dataset-preanalysis/v1" {
 		t.Fatalf("artifact must carry model/rule provenance so a no-model run cannot look model-backed: %+v", artifact)
 	}
 	if len(artifact.DatasetHashes) != 1 || artifact.DatasetHashes[0] != "hash-1" {

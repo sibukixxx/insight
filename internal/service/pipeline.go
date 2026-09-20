@@ -33,14 +33,20 @@ type Pipeline struct {
 	Model string
 }
 
-// AnalysisMode states whether a model took part in the run at all. It is
+// ExecutionMode states whether a model took part in the run at all. It is
 // recorded rather than inferred so a "no insights" result cannot be
 // mistaken for "the model found nothing".
-type AnalysisMode string
+//
+// This is deliberately not named AnalysisMode: that name is reserved for the
+// semantic/input concept from Issue #18 (DISCOVERY / DATASET_ANALYSIS /
+// RESEARCH_REVIEW - how an input should be read). ExecutionMode and that
+// semantic mode are orthogonal axes; a run can be, for example, Dataset
+// Analysis executed deterministically. See Issue #38.
+type ExecutionMode string
 
 const (
-	AnalysisModeDeterministic AnalysisMode = "deterministic"
-	AnalysisModeModelBacked   AnalysisMode = "model_backed"
+	ExecutionModeDeterministic ExecutionMode = "deterministic"
+	ExecutionModeModelBacked   ExecutionMode = "model_backed"
 )
 
 // RunProvenance is what a reader needs to reproduce or distrust a run:
@@ -48,7 +54,7 @@ const (
 // which model and prompts. Numbers in Metrics come from counting; nothing
 // here is self-reported by the model.
 type RunProvenance struct {
-	Mode                      AnalysisMode                  `json:"mode"`
+	Mode                      ExecutionMode                 `json:"mode"`
 	Model                     string                        `json:"model,omitempty"`
 	PromptFingerprint         string                        `json:"promptFingerprint,omitempty"` // sha256 over every system prompt used
 	RuleVersion               string                        `json:"ruleVersion"`
@@ -273,7 +279,7 @@ func (p *Pipeline) runDeterministic(ctx context.Context, analysisID, projectID s
 
 func (p *Pipeline) provenance(pre DatasetPreAnalysis) RunProvenance {
 	prov := RunProvenance{
-		Mode: AnalysisModeDeterministic, RuleVersion: pre.RuleVersion,
+		Mode: ExecutionModeDeterministic, RuleVersion: pre.RuleVersion,
 		DatasetHashes:             pre.DatasetHashes,
 		DeterministicObservations: len(pre.Observations),
 		DeterministicComparisons:  len(pre.Comparisons),
@@ -287,7 +293,7 @@ func (p *Pipeline) provenance(pre DatasetPreAnalysis) RunProvenance {
 		})
 	}
 	if p.LLM != nil {
-		prov.Mode = AnalysisModeModelBacked
+		prov.Mode = ExecutionModeModelBacked
 		prov.Model = p.Model
 		prov.PromptFingerprint = promptFingerprint()
 	}
