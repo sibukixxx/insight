@@ -278,6 +278,14 @@ func writeResearchLoop(b *strings.Builder, report ProjectReport) {
 	fmt.Fprintf(b, "%s\n\n", markdownInline(run.Question))
 	b.WriteString("## Research Stage\n\n")
 	fmt.Fprintf(b, "**Current stage:** `%s`\n\n", run.CurrentStage())
+	if len(run.Iterations) > 0 {
+		latest := run.Iterations[len(run.Iterations)-1]
+		fmt.Fprintf(b, "**Input analysis mode:** `%s`\n\n", latest.AnalysisMode)
+		if latest.ArtifactClass != "" {
+			fmt.Fprintf(b, "**Artifact class:** `%s`\n\n", latest.ArtifactClass)
+		}
+		writeResearchReviewClaims(b, latest.Claims)
+	}
 	b.WriteString("## Inputs / Provenance\n\n")
 	if len(run.Iterations) > 0 {
 		writeStringList(b, "Input references", run.Iterations[len(run.Iterations)-1].InputReferences)
@@ -335,6 +343,25 @@ func writeResearchLoop(b *strings.Builder, report ProjectReport) {
 		if evaluation := report.HumanEvaluations[iteration.ID]; evaluation != nil {
 			fmt.Fprintf(b, "- Iteration %d: novelty `%s`, overall usefulness %d/5. %s\n", iteration.Sequence, evaluation.Novelty, evaluation.OverallUsefulness, markdownInline(evaluation.Notes))
 		}
+	}
+	b.WriteByte('\n')
+}
+
+func writeResearchReviewClaims(b *strings.Builder, claims []domain.Claim) {
+	if len(claims) == 0 {
+		return
+	}
+	b.WriteString("## Research Review Claims\n\n")
+	b.WriteString("Claims from reports, memos, or AI artifacts are assertions to review; they are not primary evidence by themselves.\n\n")
+	for _, claim := range claims {
+		fmt.Fprintf(b, "- `%s` %s", claim.Kind, markdownInline(claim.Statement))
+		if claim.SourceReference != "" {
+			fmt.Fprintf(b, " — source: %s", markdownInline(claim.SourceReference))
+		}
+		if len(claim.UnderlyingEvidenceReferences) == 0 {
+			b.WriteString(" — underlying evidence: NOT PROVIDED")
+		}
+		b.WriteByte('\n')
 	}
 	b.WriteByte('\n')
 }
