@@ -74,6 +74,7 @@ func NewRouter(deps Deps) http.Handler {
 		r.Get("/research-runs/{runID}", h.GetResearchRun)
 		r.Route("/research-runs/{runID}", func(r chi.Router) {
 			r.Post("/iterations", h.AppendResearchIteration)
+			r.Get("/compare", h.CompareResearchIterations)
 			r.Get("/iterations/{iterationID}", h.GetResearchIteration)
 			r.Get("/iterations/{iterationID}/evaluation", h.GetHumanEvaluation)
 			r.Put("/iterations/{iterationID}/evaluation", h.SaveHumanEvaluation)
