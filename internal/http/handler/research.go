@@ -24,13 +24,16 @@ func (h *Handler) CreateResearchRun(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Question        string   `json:"question"`
 		InputReferences []string                    `json:"inputReferences"`
-		InputSnapshot   domain.ResearchInputSnapshot `json:"inputSnapshot"`
+		InputSnapshot domain.ResearchInputSnapshot `json:"inputSnapshot"`
+		AnalysisMode  domain.AnalysisMode          `json:"analysisMode"`
+		ArtifactClass domain.ArtifactClass         `json:"artifactClass"`
+		Claims        []domain.Claim               `json:"claims"`
 	}
 	if json.NewDecoder(r.Body).Decode(&req) != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
-	run, err := h.App.CreateResearchRun(r.Context(), usecase.CreateResearchRunInput{ProjectID: chi.URLParam(r, "projectID"), Question: req.Question, InputReferences: req.InputReferences, InputSnapshot: req.InputSnapshot})
+	run, err := h.App.CreateResearchRun(r.Context(), usecase.CreateResearchRunInput{ProjectID: chi.URLParam(r, "projectID"), Question: req.Question, InputReferences: req.InputReferences, InputSnapshot: req.InputSnapshot, AnalysisMode: req.AnalysisMode, ArtifactClass: req.ArtifactClass, Claims: req.Claims})
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
@@ -69,6 +72,9 @@ func (h *Handler) AppendResearchIteration(w http.ResponseWriter, r *http.Request
 		Question          string                       `json:"question"`
 		InputReferences   []string                     `json:"inputReferences"`
 		InputSnapshot     domain.ResearchInputSnapshot `json:"inputSnapshot"`
+		AnalysisMode      domain.AnalysisMode          `json:"analysisMode"`
+		ArtifactClass     domain.ArtifactClass         `json:"artifactClass"`
+		Claims            []domain.Claim               `json:"claims"`
 		AddedEvidence     []string                  `json:"addedEvidence"`
 		EvidenceAdditions []domain.EvidenceAddition `json:"evidenceAdditions"`
 	}
@@ -76,7 +82,7 @@ func (h *Handler) AppendResearchIteration(w http.ResponseWriter, r *http.Request
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
-	it, err := h.App.AppendResearchIteration(r.Context(), usecase.AppendResearchIterationInput{RunID: chi.URLParam(r, "runID"), Question: req.Question, InputReferences: req.InputReferences, AddedEvidence: req.AddedEvidence, EvidenceAdditions: req.EvidenceAdditions, InputSnapshot: req.InputSnapshot})
+	it, err := h.App.AppendResearchIteration(r.Context(), usecase.AppendResearchIterationInput{RunID: chi.URLParam(r, "runID"), Question: req.Question, InputReferences: req.InputReferences, AddedEvidence: req.AddedEvidence, EvidenceAdditions: req.EvidenceAdditions, InputSnapshot: req.InputSnapshot, AnalysisMode: req.AnalysisMode, ArtifactClass: req.ArtifactClass, Claims: req.Claims})
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
