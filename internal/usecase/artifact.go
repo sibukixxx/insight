@@ -45,7 +45,8 @@ type ResearchArtifact struct {
 	// ResearchStage is the latest iteration's own recorded stage (Issue #37),
 	// copied verbatim so a downstream consumer never has to re-derive it from
 	// iteration history the way domain.ResearchRun.CurrentStage does.
-	ResearchStage domain.ResearchStage `json:"researchStage,omitempty"`
+	ResearchStage        domain.ResearchStage `json:"researchStage,omitempty"`
+	SemanticAnalysisMode domain.AnalysisMode  `json:"semanticAnalysisMode,omitempty"`
 
 	// ExecutionMode, ModelVersion, PromptFingerprint and RuleVersion come from
 	// the latest analysis's RunProvenance, so a no-model (deterministic-only)
@@ -81,6 +82,7 @@ type ResearchArtifact struct {
 	AddedEvidence        []string                  `json:"addedEvidence,omitempty"`
 	AddedEvidenceLinks   []domain.AddedEvidenceLink `json:"addedEvidenceLinks,omitempty"`
 	InputSnapshot        domain.InputSetSnapshot   `json:"inputSnapshot,omitempty"`
+	Claims               []domain.ResearchClaim    `json:"claims,omitempty"`
 	InsightDelta         *domain.InsightDelta      `json:"insightDelta,omitempty"`
 
 	Readiness          domain.ReadinessAssessment `json:"decisionReadiness"`
@@ -147,7 +149,7 @@ func (a *Application) GetResearchArtifact(ctx context.Context, runID string) (*R
 		ArtifactSchema: ResearchArtifactSchema, SchemaVersion: ResearchArtifactVersion,
 		ProjectID: run.ProjectID, ResearchRunID: run.ID, IterationID: iteration.ID,
 		IterationSequence: iteration.Sequence, IterationCount: len(run.Iterations),
-		ResearchQuestion: run.Question, ResearchStage: iteration.Stage, InputReferences: iteration.InputReferences,
+		ResearchQuestion: run.Question, ResearchStage: iteration.Stage, SemanticAnalysisMode: iteration.AnalysisMode, InputReferences: iteration.InputReferences,
 		Insights:             insights,
 		ResearchGaps:         iteration.ResearchGaps,
 		NextDataRequirements: iteration.DataRequirements,
@@ -159,6 +161,7 @@ func (a *Application) GetResearchArtifact(ctx context.Context, runID string) (*R
 		AddedEvidence:        iteration.AddedEvidence,
 		AddedEvidenceLinks:   iteration.AddedEvidenceLinks,
 		InputSnapshot:        iteration.InputSnapshot,
+		Claims:               iteration.Claims,
 		InsightDelta:         iteration.Delta,
 		Readiness:            iteration.Readiness, EffectiveReadiness: iteration.EffectiveReadiness(),
 		StopDecision: iteration.Stop, HumanOverrides: iteration.HumanOverrides,
