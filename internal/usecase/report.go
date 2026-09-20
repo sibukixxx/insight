@@ -324,6 +324,13 @@ func writeResearchLoop(b *strings.Builder, report ProjectReport) {
 	b.WriteString("## Iteration History\n\n")
 	for _, iteration := range run.Iterations {
 		fmt.Fprintf(b, "### Iteration %d\n\n- ID: `%s`\n- Added evidence: %s\n", iteration.Sequence, markdownInline(iteration.ID), markdownInline(strings.Join(iteration.AddedEvidence, ", ")))
+		for _, link := range iteration.AddedEvidenceLinks {
+			fmt.Fprintf(b, "- Evidence linkage: %s → gaps [%s]", markdownInline(link.Reference), markdownInline(strings.Join(link.GapIDs, ", ")))
+			if link.Note != "" {
+				fmt.Fprintf(b, " — %s", markdownInline(link.Note))
+			}
+			b.WriteByte('\n')
+		}
 		for _, change := range iteration.HypothesisChanges {
 			fmt.Fprintf(b, "- `%s`: **%s** — %s\n", markdownInline(change.HypothesisID), change.Evolution, markdownInline(change.Reason))
 		}
