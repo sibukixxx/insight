@@ -213,6 +213,74 @@ type HumanOverride struct {
 	RecordedAt time.Time          `json:"recordedAt"`
 }
 
+type ValidationIndependenceRelation string
+
+const (
+	ValidationEvidenceSeparateIteration ValidationIndependenceRelation = "SEPARATE_ITERATION"
+	ValidationEvidencePreObservationSameIteration ValidationIndependenceRelation = "PRE_OBSERVATION_SAME_ITERATION"
+	ValidationEvidenceExternalIndependent ValidationIndependenceRelation = "EXTERNAL_NOT_USED_IN_GENERATION"
+)
+
+// ValidationEvidenceProvenance records the concrete basis for allowing a
+// VALIDATION transition. It replaces an unauditable boolean with a reference
+// to the expectation and the evidence/dataset/artifact that will test it.
+type ValidationEvidenceProvenance struct {
+	ExpectationID       string                         `json:"expectationId"`
+	EvidenceReference   string                         `json:"evidenceReference"`
+	EvidenceIterationID string                         `json:"evidenceIterationId,omitempty"`
+	Relation            ValidationIndependenceRelation `json:"independenceRelation"`
+	Rationale           string                         `json:"rationale"`
+	RecordedBy          AuthorType                     `json:"recordedBy"`
+	RecordedAt          time.Time                      `json:"recordedAt"`
+}
+
+// ValidateAgainst rejects same-pass post-hoc evidence and incomplete audit
+// records. External evidence is allowed only when the human explicitly states
+// why it was not used to generate the expectation.
+func (v ValidationEvidenceProvenance) ValidateAgainst(e Expectation) error {
+	if v.ExpectationID == "" || v.ExpectationID != e.ID {
+		return fmt.Errorf("validation evidence: expectation reference does not match")
+	}
+	if v.EvidenceReference == "" || v.Rationale == "" || v.RecordedAt.IsZero() || !v.RecordedBy.Valid() {
+		return fmt.Errorf("validation evidence: reference, rationale, actor and recordedAt are required")
+	}
+	switch v.Relation {
+	case ValidationEvidenceSeparateIteration:
+		if v.EvidenceIterationID == "" || v.EvidenceIterationID == e.ResearchIterationID || !e.IsIndependentEvidence(v.EvidenceIterationID) {
+			return fmt.Errorf("validation evidence: separate iteration is not independent of expectation %q", e.ID)
+		}
+	case ValidationEvidencePreObservationSameIteration:
+		if v.EvidenceIterationID == "" || v.EvidenceIterationID != e.ResearchIterationID || !e.IsIndependentEvidence(v.EvidenceIterationID) {
+			return fmt.Errorf("validation evidence: same-iteration evidence was not fixed pre-observation")
+		}
+	case ValidationEvidenceExternalIndependent:
+		if v.EvidenceIterationID != "" && !e.IsIndependentEvidence(v.EvidenceIterationID) {
+			return fmt.Errorf("validation evidence: external evidence points to a non-independent iteration")
+		}
+	default:
+		return fmt.Errorf("validation evidence: unknown independence relation %q", v.Relation)
+	}
+	return nil
+}
+
+// EvidenceAddition links acquired/provided evidence to the exact research gap
+// it was intended to address. Reference is provider-neutral and may be a
+// dataset id, artifact id, file hash, document id or other stable reference.
+type EvidenceAddition struct {
+	Reference string    `json:"reference"`
+	GapIDs    []string  `json:"gapIds"`
+	AddedAt   time.Time `json:"addedAt"`
+}
+
+func (e EvidenceAddition) Addresses(gapID string) bool {
+	for _, id := range e.GapIDs {
+		if id == gapID {
+			return true
+		}
+	}
+	return false
+}
+
 // ResearchIteration is append-only research history. Callers create a new
 // value for re-analysis instead of mutating an earlier iteration.
 type ResearchIteration struct {
@@ -234,6 +302,8 @@ type ResearchIteration struct {
 	ResearchGaps         []ResearchGap       `json:"researchGaps,omitempty"`
 	DataRequirements     []DataRequirement   `json:"dataRequirements,omitempty"`
 	AddedEvidence        []string            `json:"addedEvidence,omitempty"`
+	EvidenceAdditions    []EvidenceAddition  `json:"evidenceAdditions,omitempty"`
+	ValidationEvidence   []ValidationEvidenceProvenance `json:"validationEvidence,omitempty"`
 	HypothesisChanges    []HypothesisChange  `json:"hypothesisChanges,omitempty"`
 	WhatWeCannotConclude []string            `json:"whatWeCannotConclude,omitempty"`
 	Readiness            ReadinessAssessment `json:"readiness"`
