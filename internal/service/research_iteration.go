@@ -18,6 +18,14 @@ func BuildResearchIteration(sequence int, question string, inputReferences []str
 	return BuildResearchIterationWithSnapshot(sequence, question, inputReferences, domain.ResearchInputSnapshot{References: append([]string(nil), inputReferences...)}, insights, now)
 }
 
+func BuildResearchIterationWithMode(sequence int, question string, inputReferences []string, snapshot domain.ResearchInputSnapshot, mode domain.AnalysisMode, class domain.ArtifactClass, claims []domain.Claim, insights []*domain.Insight, now time.Time) domain.ResearchIteration {
+	iteration := BuildResearchIterationWithSnapshot(sequence, question, inputReferences, snapshot, insights, now)
+	iteration.AnalysisMode = mode
+	iteration.ArtifactClass = class
+	iteration.Claims = append([]domain.Claim(nil), claims...)
+	return iteration
+}
+
 func BuildResearchIterationWithSnapshot(sequence int, question string, inputReferences []string, snapshot domain.ResearchInputSnapshot, insights []*domain.Insight, now time.Time) domain.ResearchIteration {
 	if len(snapshot.References) == 0 {
 		snapshot.References = append([]string(nil), inputReferences...)
