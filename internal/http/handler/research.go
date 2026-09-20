@@ -67,13 +67,14 @@ func (h *Handler) AppendResearchIteration(w http.ResponseWriter, r *http.Request
 	var req struct {
 		Question        string   `json:"question"`
 		InputReferences []string `json:"inputReferences"`
-		AddedEvidence   []string `json:"addedEvidence"`
+		AddedEvidence     []string                  `json:"addedEvidence"`
+		EvidenceAdditions []domain.EvidenceAddition `json:"evidenceAdditions"`
 	}
 	if json.NewDecoder(r.Body).Decode(&req) != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
-	it, err := h.App.AppendResearchIteration(r.Context(), usecase.AppendResearchIterationInput{RunID: chi.URLParam(r, "runID"), Question: req.Question, InputReferences: req.InputReferences, AddedEvidence: req.AddedEvidence})
+	it, err := h.App.AppendResearchIteration(r.Context(), usecase.AppendResearchIterationInput{RunID: chi.URLParam(r, "runID"), Question: req.Question, InputReferences: req.InputReferences, AddedEvidence: req.AddedEvidence, EvidenceAdditions: req.EvidenceAdditions})
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
