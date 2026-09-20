@@ -33,8 +33,11 @@ type insightDTO struct {
 	CausalStatus              domain.CausalStatus             `json:"causalStatus"`
 	ValidationStatus          domain.ValidationStatus         `json:"validationStatus"`
 	IdentificationStatus      domain.IdentificationStatus     `json:"identificationStatus"`
-	CompetingHypotheses       []domain.CompetingHypothesis    `json:"competingHypotheses"`
-	CausalStructure           domain.CandidateCausalStructure `json:"candidateCausalStructure"`
+	CompetingHypotheses       []domain.CompetingHypothesis     `json:"competingHypotheses"`
+	CausalStructure           domain.CandidateCausalStructure  `json:"candidateCausalStructure"`
+	Connections               []domain.InsightConnection       `json:"connections"`
+	Mechanisms                []domain.MechanismCandidate      `json:"mechanisms"`
+	Generalizations           []domain.GeneralizationCandidate `json:"generalizations"`
 	MissingEvidence           []string                        `json:"missingEvidence"`
 	FalsificationCriteria     []string                        `json:"falsificationCriteria"`
 	NextValidation            domain.ValidationNeed           `json:"nextValidation"`
@@ -64,7 +67,9 @@ func toInsightDTO(i *domain.Insight) insightDTO {
 		HypothesisSetID: i.HypothesisSetID, HypothesisRole: i.HypothesisRole,
 		ExpectationBasis: i.ExpectationBasis, CausalStatus: i.CausalStatus, ValidationStatus: i.ValidationStatus,
 		IdentificationStatus: i.IdentificationStatus, CompetingHypotheses: nonNilHypotheses(i.CompetingHypotheses),
-		CausalStructure: i.CausalStructure, MissingEvidence: nonNilStrings(i.MissingEvidence),
+		CausalStructure: i.CausalStructure, Connections: nonNilConnections(i.Connections),
+		Mechanisms: nonNilMechanisms(i.Mechanisms), Generalizations: nonNilGeneralizations(i.Generalizations),
+		MissingEvidence: nonNilStrings(i.MissingEvidence),
 		FalsificationCriteria: nonNilStrings(i.FalsificationCriteria), NextValidation: i.NextValidation,
 		QualityFlags: flags,
 		CreatedAt:    i.CreatedAt.UTC().Format(time.RFC3339),
@@ -80,6 +85,24 @@ func nonNilStrings(values []string) []string {
 func nonNilHypotheses(values []domain.CompetingHypothesis) []domain.CompetingHypothesis {
 	if values == nil {
 		return []domain.CompetingHypothesis{}
+	}
+	return values
+}
+func nonNilConnections(values []domain.InsightConnection) []domain.InsightConnection {
+	if values == nil {
+		return []domain.InsightConnection{}
+	}
+	return values
+}
+func nonNilMechanisms(values []domain.MechanismCandidate) []domain.MechanismCandidate {
+	if values == nil {
+		return []domain.MechanismCandidate{}
+	}
+	return values
+}
+func nonNilGeneralizations(values []domain.GeneralizationCandidate) []domain.GeneralizationCandidate {
+	if values == nil {
+		return []domain.GeneralizationCandidate{}
 	}
 	return values
 }
