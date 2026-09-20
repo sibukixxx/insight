@@ -154,6 +154,9 @@ func renderProjectMarkdown(report ProjectReport) []byte {
 		writeReportField(&b, "Identification status", string(i.IdentificationStatus))
 		writeReportField(&b, "Validation status", string(i.ValidationStatus))
 		writeStringList(&b, "Competing hypotheses", hypothesisLines(i.CompetingHypotheses))
+		writeInsightConnections(&b, i.Connections)
+		writeMechanisms(&b, i.Mechanisms)
+		writeGeneralizations(&b, i.Generalizations)
 		writeStringList(&b, "Missing evidence", i.MissingEvidence)
 		writeStringList(&b, "Falsification criteria (not observed counter-evidence)", i.FalsificationCriteria)
 		writeCausalStructure(&b, i.CausalStructure)
@@ -444,6 +447,51 @@ func writeStringList(b *strings.Builder, label string, values []string) {
 		fmt.Fprintf(b, "- %s\n", markdownInline(value))
 	}
 	b.WriteByte('\n')
+}
+
+func writeInsightConnections(b *strings.Builder, values []domain.InsightConnection) {
+	if len(values) == 0 {
+		return
+	}
+	b.WriteString("**Non-obvious connections (candidate relationships, not causal proof):**\n\n")
+	for _, value := range values {
+		fmt.Fprintf(b, "- `%s` %s", value.Kind, markdownInline(value.Statement))
+		if value.WhyItMatters != "" {
+			fmt.Fprintf(b, " — %s", markdownInline(value.WhyItMatters))
+		}
+		b.WriteByte('\n')
+	}
+	b.WriteByte('\n')
+}
+
+func writeMechanisms(b *strings.Builder, values []domain.MechanismCandidate) {
+	if len(values) == 0 {
+		return
+	}
+	b.WriteString("**Candidate mechanisms (proposed explanatory bridges, not identified causality):**\n\n")
+	for _, value := range values {
+		fmt.Fprintf(b, "- %s\n", markdownInline(value.Statement))
+		writeStringList(b, "Bridge assumptions", value.BridgeAssumptions)
+		writeStringList(b, "Alternative mechanisms", value.AlternativeMechanisms)
+		writeStringList(b, "Unresolved mechanism gaps", value.UnresolvedGaps)
+		writeStringList(b, "Distinguishing evidence", value.DistinguishingEvidence)
+	}
+}
+
+func writeGeneralizations(b *strings.Builder, values []domain.GeneralizationCandidate) {
+	if len(values) == 0 {
+		return
+	}
+	b.WriteString("**Generalization / transfer candidates:**\n\n")
+	for _, value := range values {
+		status := value.Status
+		if status == "" {
+			status = domain.GeneralizationCandidate
+		}
+		fmt.Fprintf(b, "- `%s` humanReviewed=%t — %s\n", status, value.HumanReviewed, markdownInline(value.Principle))
+		writeStringList(b, "Boundary conditions", value.BoundaryConditions)
+		writeStringList(b, "Known failures / counterexamples", value.KnownFailures)
+	}
 }
 
 func writeCausalStructure(b *strings.Builder, structure domain.CandidateCausalStructure) {
