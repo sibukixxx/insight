@@ -16,10 +16,11 @@ type CreateResearchRunInput struct {
 }
 
 type AppendResearchIterationInput struct {
-	RunID           string
-	Question        string
-	InputReferences []string
-	AddedEvidence   []string
+	RunID              string
+	Question           string
+	InputReferences    []string
+	AddedEvidence      []string
+	AddedEvidenceLinks []domain.AddedEvidenceLink
 }
 
 func (a *Application) CreateResearchRun(ctx context.Context, in CreateResearchRunInput) (*domain.ResearchRun, error) {
@@ -61,7 +62,7 @@ func (a *Application) AppendResearchIteration(ctx context.Context, in AppendRese
 	}
 	now := a.now()
 	iteration := service.BuildResearchIteration(len(run.Iterations)+1, question, in.InputReferences, insights, now)
-	iteration = service.FinalizeResearchIteration(*run, iteration, in.AddedEvidence, now)
+	iteration = service.FinalizeResearchIterationWithLinks(*run, iteration, in.AddedEvidence, in.AddedEvidenceLinks, now)
 	if err := a.repos.Research.AppendResearchIteration(ctx, run.ID, iteration); err != nil {
 		return nil, fmt.Errorf("append research iteration: %w", err)
 	}
