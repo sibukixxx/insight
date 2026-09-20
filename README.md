@@ -191,7 +191,7 @@ Current `main` includes:
 - deterministic quality guardrails;
 - Golden Set / dogfooding infrastructure, including association-only, population-mismatch, real Open Data reproducibility, new-evidence re-analysis, inconclusive, and competing-hypothesis cases.
 
-The publication-promotion domain/service layer also exists, but its report/API/downstream wiring is still incomplete; see [#24](https://github.com/sibukixxx/insight/issues/24).
+The publication-promotion gate (domain/service/usecase/HTTP/report) is also implemented: `PUT /api/research-runs/{runID}/iterations/{iterationID}/promotion-review` and `.../promotion-transition` submit review evidence and move a run's promotion state, and the Markdown report includes a Promotion Status section. The JSON Research Artifact export does not yet surface promotion status; see [#24](https://github.com/sibukixxx/insight/issues/24).
 
 ## Causal claims: intentionally conservative
 

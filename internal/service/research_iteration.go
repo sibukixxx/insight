@@ -18,6 +18,7 @@ func BuildResearchIteration(sequence int, question string, inputReferences []str
 	iteration := domain.ResearchIteration{
 		ID: newID("rit"), Sequence: sequence, Stage: domain.StageExploratory, Question: strings.TrimSpace(question),
 		InputReferences: append([]string(nil), inputReferences...), CreatedAt: now,
+		Promotion: domain.PromotionAssessment{State: domain.PromotionDraft, AssessedAt: now},
 	}
 
 	seenSets := map[string]bool{}

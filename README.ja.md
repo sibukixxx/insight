@@ -206,7 +206,7 @@ DISCOVERY
 - Golden Set / dogfooding基盤
   - association-only / population mismatch / 実Open Data再現 / new-evidence再分析 / inconclusive / competing-hypothesis cases
 
-Public Report向けPromotion Gateはdomain/service層まで実装されていますが、Report/API/downstreamへの結線は未完です。継続作業は [#24](https://github.com/sibukixxx/insight/issues/24) を参照してください。
+Public Report向けPromotion Gateはdomain/service/usecase/HTTP/reportまで実装済みです。`PUT /api/research-runs/{runID}/iterations/{iterationID}/promotion-review` / `.../promotion-transition` でレビュー内容の提出と状態遷移を行え、Markdown reportにもPromotion Statusセクションが出力されます。JSON Research Artifact出力へのpromotion status反映は未着手です。継続作業は [#24](https://github.com/sibukixxx/insight/issues/24) を参照してください。
 
 ## 因果関係について
 

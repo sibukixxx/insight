@@ -44,6 +44,13 @@ func TestBuildResearchIterationStartsInExploratoryStage(t *testing.T) {
 	}
 }
 
+func TestBuildResearchIterationStartsInDraftPromotionState(t *testing.T) {
+	got := BuildResearchIteration(1, "q", nil, nil, time.Now())
+	if got.Promotion.State != domain.PromotionDraft {
+		t.Fatalf("a freshly built iteration must start in DRAFT promotion state, got %s", got.Promotion.State)
+	}
+}
+
 func TestBuildResearchIterationCreatesExpectationEntityFromInsightExpectation(t *testing.T) {
 	now := time.Date(2026, 9, 20, 0, 0, 0, 0, time.UTC)
 	insights := []*domain.Insight{{

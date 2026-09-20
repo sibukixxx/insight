@@ -78,6 +78,8 @@ func NewRouter(deps Deps) http.Handler {
 			r.Get("/iterations/{iterationID}/evaluation", h.GetHumanEvaluation)
 			r.Put("/iterations/{iterationID}/evaluation", h.SaveHumanEvaluation)
 			r.Put("/iterations/{iterationID}/override", h.ApplyResearchHumanOverride)
+			r.Put("/iterations/{iterationID}/promotion-review", h.SubmitPromotionReview)
+			r.Put("/iterations/{iterationID}/promotion-transition", h.TransitionPromotionState)
 			r.Get("/handoff", h.GetHumanHandoff)
 			r.Get("/report.md", h.ExportResearchReport)
 			r.Get("/artifact.json", h.GetResearchArtifact)

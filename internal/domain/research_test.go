@@ -31,6 +31,19 @@ func TestResearchRunCurrentStageReflectsTheLatestIterationOnly(t *testing.T) {
 	}
 }
 
+func TestResearchRunCurrentPromotionStateDefaultsToDraftAndReflectsTheLatestIteration(t *testing.T) {
+	if got := (ResearchRun{}).CurrentPromotionState(); got != PromotionDraft {
+		t.Fatalf("a run with no iterations has not left DRAFT, got %q", got)
+	}
+	run := ResearchRun{Iterations: []ResearchIteration{
+		{ID: "iter-1", Sequence: 1, Promotion: PromotionAssessment{State: PromotionPublicationReady}},
+		{ID: "iter-2", Sequence: 2},
+	}}
+	if got := run.CurrentPromotionState(); got != PromotionDraft {
+		t.Fatalf("current promotion state must come from the latest iteration only, got %q", got)
+	}
+}
+
 func TestResearchGapCanBecomeProviderNeutralDataRequirement(t *testing.T) {
 	gap := ResearchGap{ID: "gap-1", Category: ResearchGapConfounder, Need: "population by municipality and year", WhyItMatters: "population change could explain the observed association", AffectedHypothesisIDs: []string{"h1", "h2"}, Resolvable: true}
 	req := DataRequirement{GapID: gap.ID, Need: gap.Need, Reason: gap.WhyItMatters, AffectedHypothesisIDs: gap.AffectedHypothesisIDs, RequiredDimensions: []string{"municipality", "year"}, RequiredPeriod: "2018-2026", SuggestedSourceCategory: "official statistics"}

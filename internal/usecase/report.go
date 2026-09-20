@@ -300,6 +300,7 @@ func writeResearchLoop(b *strings.Builder, report ProjectReport) {
 	b.WriteString("## Validation / Identification\n\n")
 	b.WriteString("Statuses are shown per hypothesis below. History descriptors do not represent causal probability.\n\n")
 	writeDecisionReadiness(b, run)
+	writePromotionStatus(b, run)
 	b.WriteString("## What We Cannot Conclude\n\n")
 	if len(run.Iterations) > 0 {
 		for _, statement := range run.Iterations[len(run.Iterations)-1].WhatWeCannotConclude {
@@ -359,6 +360,26 @@ func writeDecisionReadiness(b *strings.Builder, run *domain.ResearchRun) {
 		fmt.Fprintf(b, "%s\n\n", markdownInline(latest.Stop.Note))
 	}
 	writeStringList(b, "Unresolved at stop", latest.Stop.UnresolvedGapIDs)
+}
+
+// writePromotionStatus reports how far a research run's latest iteration
+// has been cleared to move toward a public report (issue #24): its current
+// promotion state, the stated contribution, why further promotion is
+// blocked (if it is), and which publication checklist items remain unmet.
+// Research validity and publication attractiveness are never conflated:
+// this section only ever reflects what the gate actually checked.
+func writePromotionStatus(b *strings.Builder, run *domain.ResearchRun) {
+	latest, ok := run.LatestIteration()
+	if !ok {
+		return
+	}
+	b.WriteString("## Promotion Status\n\n")
+	fmt.Fprintf(b, "**State:** `%s`\n\n", run.CurrentPromotionState())
+	if latest.PromotionGateInput.Contribution != "" {
+		fmt.Fprintf(b, "**Contribution:** `%s`\n\n", latest.PromotionGateInput.Contribution)
+	}
+	writeStringList(b, "Blocking reasons", latest.Promotion.Reasons)
+	writeStringList(b, "Unmet publication checklist items", latest.PromotionGateInput.Checklist.UnmetItems())
 }
 
 func writeHypothesisComparisons(b *strings.Builder, details []*InsightDetail) {
