@@ -240,6 +240,92 @@ func TestApplyResearchHumanOverrideRejectsUnknownIteration(t *testing.T) {
 	}
 }
 
+func TestTransitionResearchStageRejectsForwardMoveWithoutFrozenExpectations(t *testing.T) {
+	app, ctx := newResearchTestApp(t)
+	now := time.Date(2026, 9, 19, 0, 0, 0, 0, time.UTC)
+	app.now = func() time.Time { return now }
+	if err := app.repos.Projects.Create(ctx, &domain.Project{ID: "p1", Name: "policy", CreatedAt: now}); err != nil {
+		t.Fatal(err)
+	}
+	seedAnalysis(t, app, ctx, "p1", "a1", now, []*domain.Insight{
+		{ID: "h1", Title: "Policy effect", ValidationStatus: domain.ValidationPlausible, IdentificationStatus: domain.IdentificationNotIdentified},
+	})
+	run, err := app.CreateResearchRun(ctx, CreateResearchRunInput{ProjectID: "p1", Question: "q"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if run.Iterations[0].Stage != domain.StageExploratory {
+		t.Fatalf("a freshly created run must start EXPLORATORY: %+v", run.Iterations[0])
+	}
+
+	_, err = app.TransitionResearchStage(ctx, TransitionResearchStageInput{
+		RunID: run.ID, IterationID: run.Iterations[0].ID, TargetStage: domain.StageValidation, IndependentEvidencePlanned: true,
+	})
+	if !errors.Is(err, domain.ErrStageRequiresFrozenTarget) {
+		t.Fatalf("expected ErrStageRequiresFrozenTarget without any frozen expectation, got %v", err)
+	}
+}
+
+func TestTransitionResearchStageAllowsAnExplicitBackwardMoveAndPersistsIt(t *testing.T) {
+	app, ctx := newResearchTestApp(t)
+	now := time.Date(2026, 9, 19, 0, 0, 0, 0, time.UTC)
+	app.now = func() time.Time { return now }
+	if err := app.repos.Projects.Create(ctx, &domain.Project{ID: "p1", Name: "policy", CreatedAt: now}); err != nil {
+		t.Fatal(err)
+	}
+	seedAnalysis(t, app, ctx, "p1", "a1", now, []*domain.Insight{
+		{ID: "h1", Title: "Policy effect", ValidationStatus: domain.ValidationPlausible, IdentificationStatus: domain.IdentificationNotIdentified},
+	})
+	run, err := app.CreateResearchRun(ctx, CreateResearchRunInput{ProjectID: "p1", Question: "q"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	updated, err := app.TransitionResearchStage(ctx, TransitionResearchStageInput{
+		RunID: run.ID, IterationID: run.Iterations[0].ID, TargetStage: domain.StageDiscovery,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.Stage != domain.StageDiscovery {
+		t.Fatalf("expected the iteration to move back to DISCOVERY, got %s", updated.Stage)
+	}
+
+	persisted, err := app.GetResearchRun(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if persisted.CurrentStage() != domain.StageDiscovery {
+		t.Fatalf("stage transition was not persisted: %+v", persisted.Iterations)
+	}
+}
+
+func TestTransitionResearchStageRejectsAnEarlierIteration(t *testing.T) {
+	app, ctx := newResearchTestApp(t)
+	now := time.Date(2026, 9, 19, 0, 0, 0, 0, time.UTC)
+	app.now = func() time.Time { return now }
+	if err := app.repos.Projects.Create(ctx, &domain.Project{ID: "p1", Name: "policy", CreatedAt: now}); err != nil {
+		t.Fatal(err)
+	}
+	seedAnalysis(t, app, ctx, "p1", "a1", now, []*domain.Insight{
+		{ID: "h1", Title: "Policy effect", ValidationStatus: domain.ValidationPlausible, IdentificationStatus: domain.IdentificationNotIdentified},
+	})
+	run, err := app.CreateResearchRun(ctx, CreateResearchRunInput{ProjectID: "p1", Question: "q"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstIterationID := run.Iterations[0].ID
+	if _, err := app.AppendResearchIteration(ctx, AppendResearchIterationInput{RunID: run.ID}); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := app.TransitionResearchStage(ctx, TransitionResearchStageInput{
+		RunID: run.ID, IterationID: firstIterationID, TargetStage: domain.StageDiscovery,
+	}); err == nil || !strings.Contains(err.Error(), "latest") {
+		t.Fatalf("expected an error naming the latest-iteration rule, got %v", err)
+	}
+}
+
 func TestGetHumanHandoffSummarizesTheLatestIteration(t *testing.T) {
 	app, ctx := newResearchTestApp(t)
 	now := time.Date(2026, 9, 19, 0, 0, 0, 0, time.UTC)

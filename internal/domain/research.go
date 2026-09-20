@@ -218,6 +218,7 @@ type HumanOverride struct {
 type ResearchIteration struct {
 	ID                   string              `json:"id"`
 	Sequence             int                 `json:"sequence"`
+	Stage                ResearchStage       `json:"stage,omitempty"`
 	Question             string              `json:"question"`
 	InputReferences      []string            `json:"inputReferences,omitempty"`
 	ObservationIDs       []string            `json:"observationIds,omitempty"`
@@ -296,6 +297,17 @@ func (r ResearchRun) LatestIteration() (ResearchIteration, bool) {
 		return ResearchIteration{}, false
 	}
 	return r.Iterations[len(r.Iterations)-1], true
+}
+
+// CurrentStage is the research stage of the latest iteration, or "" for a
+// run with no iterations yet. It is never inferred from anything other than
+// the latest iteration's own recorded stage.
+func (r ResearchRun) CurrentStage() ResearchStage {
+	latest, ok := r.LatestIteration()
+	if !ok {
+		return ""
+	}
+	return latest.Stage
 }
 
 // Stopped reports whether the latest iteration carries a stop decision. A new

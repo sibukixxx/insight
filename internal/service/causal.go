@@ -71,13 +71,30 @@ func AssessCausalReadiness(in CausalAssessmentInput) (domain.CausalStatus, domai
 	return domain.CausalHypothesis, validation, domain.IdentificationNotIdentified
 }
 
+// expectationBasis validates a raw provenance string against the full
+// ExpectationBasis vocabulary (issue #22), not just the three legacy values
+// the pipeline used to emit. A value the pipeline did not recognize is never
+// guessed as MODEL_PROPOSED; it is recorded as UNKNOWN so it cannot later
+// support a strong validation claim.
 func expectationBasis(value string) domain.ExpectationBasis {
-	switch domain.ExpectationBasis(value) {
-	case domain.ExpectationSourceBacked, domain.ExpectationModelProposed, domain.ExpectationUnknown:
-		return domain.ExpectationBasis(value)
-	default:
-		return domain.ExpectationModelProposed
+	basis := domain.ExpectationBasis(value)
+	if !basis.Valid() {
+		return domain.ExpectationUnknown
 	}
+	return basis
+}
+
+// InsightFindingKind labels a result produced while a research iteration is
+// in stage using the originating expectation's provenance. Reaching
+// VALIDATION never promotes an individual expectation whose own provenance
+// could not support a strong validation claim (post-hoc, unknown, or
+// legacy): it is still reported as an exploratory finding.
+func InsightFindingKind(stage domain.ResearchStage, basis domain.ExpectationBasis) domain.FindingKind {
+	kind := stage.FindingKind()
+	if kind == domain.FindingValidationResult && !basis.Normalize().PermitsStrongValidationClaim() {
+		return domain.FindingExploratory
+	}
+	return kind
 }
 
 // CandidateControlVariables intentionally excludes colliders and mediators;

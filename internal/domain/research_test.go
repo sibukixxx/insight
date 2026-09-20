@@ -18,6 +18,19 @@ func TestResearchRunAppendIterationPreservesPriorValue(t *testing.T) {
 	}
 }
 
+func TestResearchRunCurrentStageReflectsTheLatestIterationOnly(t *testing.T) {
+	run := ResearchRun{Iterations: []ResearchIteration{
+		{ID: "iter-1", Sequence: 1, Stage: StageValidation},
+		{ID: "iter-2", Sequence: 2, Stage: StageExploratory},
+	}}
+	if got := run.CurrentStage(); got != StageExploratory {
+		t.Fatalf("current stage must come from the latest iteration, got %s", got)
+	}
+	if got := (ResearchRun{}).CurrentStage(); got != "" {
+		t.Fatalf("a run with no iterations has no current stage, got %q", got)
+	}
+}
+
 func TestResearchGapCanBecomeProviderNeutralDataRequirement(t *testing.T) {
 	gap := ResearchGap{ID: "gap-1", Category: ResearchGapConfounder, Need: "population by municipality and year", WhyItMatters: "population change could explain the observed association", AffectedHypothesisIDs: []string{"h1", "h2"}, Resolvable: true}
 	req := DataRequirement{GapID: gap.ID, Need: gap.Need, Reason: gap.WhyItMatters, AffectedHypothesisIDs: gap.AffectedHypothesisIDs, RequiredDimensions: []string{"municipality", "year"}, RequiredPeriod: "2018-2026", SuggestedSourceCategory: "official statistics"}

@@ -37,6 +37,25 @@ func TestBuildResearchIterationPromotesMissingEvidenceWithoutCausalUpgrade(t *te
 	}
 }
 
+func TestBuildResearchIterationStartsInExploratoryStage(t *testing.T) {
+	got := BuildResearchIteration(1, "q", nil, nil, time.Now())
+	if got.Stage != domain.StageExploratory {
+		t.Fatalf("an iteration built from already-generated hypotheses must start in EXPLORATORY, got %s", got.Stage)
+	}
+}
+
+func TestFinalizeResearchIterationCarriesForwardTheRunsCurrentStage(t *testing.T) {
+	now := time.Date(2026, 9, 20, 0, 0, 0, 0, time.UTC)
+	previous := domain.ResearchIteration{ID: "it1", Sequence: 1, Stage: domain.StageValidation}
+	run := domain.ResearchRun{Iterations: []domain.ResearchIteration{previous}}
+	next := BuildResearchIteration(2, "q", nil, nil, now)
+
+	got := FinalizeResearchIteration(run, next, nil, now)
+	if got.Stage != domain.StageValidation {
+		t.Fatalf("finalizing a new iteration must not silently regress the run's stage: got %s, want %s", got.Stage, domain.StageValidation)
+	}
+}
+
 func TestGoldenPolicyDogfoodRemainsNotIdentified(t *testing.T) {
 	var fixture struct {
 		Question               string   `json:"question"`

@@ -125,6 +125,70 @@ func TestRenderProjectMarkdownOmitsRunProvenanceWhenAbsent(t *testing.T) {
 	}
 }
 
+func TestRenderProjectMarkdownShowsExpectationProvenanceAndObservationTiming(t *testing.T) {
+	report := ProjectReport{
+		Project: &domain.Project{Name: "Provenance"},
+		Insights: []*InsightDetail{{Insight: &domain.Insight{
+			Title: "x", LatentNeed: "y", ExpectationBasis: domain.ExpectationModelProposedPostHoc,
+		}}},
+		GeneratedAt: time.Unix(0, 0),
+	}
+
+	got := string(renderProjectMarkdown(report))
+	for _, want := range []string{
+		"**Expectation provenance:** MODEL\\_PROPOSED\\_POST\\_HOC",
+		"**Observed relative to this data:** created after observing this dataset",
+		"**Finding kind:** EXPLORATORY\\_FINDING",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("report does not contain %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestRenderProjectMarkdownShowsCurrentResearchStageAndAllowsAValidationResult(t *testing.T) {
+	it := domain.ResearchIteration{ID: "it1", Sequence: 1, Stage: domain.StageValidation}
+	report := ProjectReport{
+		Project:     &domain.Project{Name: "Stage"},
+		ResearchRun: &domain.ResearchRun{Question: "q", Iterations: []domain.ResearchIteration{it}},
+		Insights: []*InsightDetail{{Insight: &domain.Insight{
+			Title: "x", LatentNeed: "y", ExpectationBasis: domain.ExpectationPrior,
+		}}},
+		GeneratedAt: time.Unix(0, 0),
+	}
+
+	got := string(renderProjectMarkdown(report))
+	for _, want := range []string{
+		"## Research Stage",
+		"**Current stage:** `VALIDATION`",
+		"**Finding kind:** VALIDATION\\_RESULT",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("report does not contain %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestRenderProjectMarkdownNeverPromotesAPostHocInsightToAValidationResult(t *testing.T) {
+	it := domain.ResearchIteration{ID: "it1", Sequence: 1, Stage: domain.StageValidation}
+	report := ProjectReport{
+		Project:     &domain.Project{Name: "Stage"},
+		ResearchRun: &domain.ResearchRun{Question: "q", Iterations: []domain.ResearchIteration{it}},
+		Insights: []*InsightDetail{{Insight: &domain.Insight{
+			Title: "x", LatentNeed: "y", ExpectationBasis: domain.ExpectationModelProposed,
+		}}},
+		GeneratedAt: time.Unix(0, 0),
+	}
+
+	got := string(renderProjectMarkdown(report))
+	if strings.Contains(got, "**Finding kind:** VALIDATION\\_RESULT") {
+		t.Errorf("a post-hoc expectation must never become a validation result just because the run reached VALIDATION stage:\n%s", got)
+	}
+	if !strings.Contains(got, "**Finding kind:** EXPLORATORY\\_FINDING") {
+		t.Errorf("expected an exploratory finding label:\n%s", got)
+	}
+}
+
 func TestResearchReportShowsGapsRequirementsLimitsHistoryAndHumanEvaluation(t *testing.T) {
 	it := domain.ResearchIteration{ID: "it1", Sequence: 1, InputReferences: []string{"synthetic.csv"}, ResearchGaps: []domain.ResearchGap{{Category: domain.ResearchGapComparison, Need: "comparison trend", WhyItMatters: "common trend remains possible"}}, DataRequirements: []domain.DataRequirement{{Need: "comparison outcomes", Reason: "test common trend", RequiredDimensions: []string{"group", "year"}, SuggestedSourceCategory: "comparison dataset"}}, WhatWeCannotConclude: []string{"causal treatment effect is not identified"}}
 	report := ProjectReport{Project: &domain.Project{Name: "Policy"}, ResearchRun: &domain.ResearchRun{Question: "Did policy cause the increase?", Iterations: []domain.ResearchIteration{it}}, HumanEvaluations: map[string]*domain.HumanEvaluation{"it1": {Novelty: domain.NoveltyNew, OverallUsefulness: 4}}, GeneratedAt: time.Unix(0, 0)}

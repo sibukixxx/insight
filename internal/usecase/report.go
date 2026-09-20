@@ -140,6 +140,10 @@ func renderProjectMarkdown(report ProjectReport) []byte {
 		writeReportField(&b, "Stated need", i.StatedNeed)
 		writeReportField(&b, "Expected behavior", i.Expectation)
 		writeReportField(&b, "Expectation basis", string(i.ExpectationBasis))
+		provenance := i.ExpectationBasis.Normalize()
+		writeReportField(&b, "Expectation provenance", string(provenance))
+		writeReportField(&b, "Observed relative to this data", observationTimingLabel(provenance.ObservationTiming()))
+		writeReportField(&b, "Finding kind", string(service.InsightFindingKind(reportStage(report), i.ExpectationBasis)))
 		writeReportField(&b, "Surprising deviation", i.SurprisingFact)
 		writeReportField(&b, "Rationale", i.Rationale)
 		writeReportField(&b, "JTBD", i.JTBD)
@@ -239,6 +243,29 @@ func writeRunProvenance(b *strings.Builder, prov service.RunProvenance) {
 	writeStringList(b, "Pre-analysis notes", prov.Notes)
 }
 
+// reportStage is the stage findings in this report must be labelled against.
+// A report with no attached research run has never left plain exploratory
+// analysis, so it defaults to EXPLORATORY rather than leaving stage unknown.
+func reportStage(report ProjectReport) domain.ResearchStage {
+	if report.ResearchRun != nil {
+		if stage := report.ResearchRun.CurrentStage(); stage != "" {
+			return stage
+		}
+	}
+	return domain.StageExploratory
+}
+
+func observationTimingLabel(timing domain.ObservationTiming) string {
+	switch timing {
+	case domain.TimingPreObservation:
+		return "created before observing this dataset"
+	case domain.TimingPostObservation:
+		return "created after observing this dataset"
+	default:
+		return "unknown"
+	}
+}
+
 func writeResearchLoop(b *strings.Builder, report ProjectReport) {
 	if report.ResearchRun == nil {
 		return
@@ -246,6 +273,8 @@ func writeResearchLoop(b *strings.Builder, report ProjectReport) {
 	run := report.ResearchRun
 	b.WriteString("## Research Question\n\n")
 	fmt.Fprintf(b, "%s\n\n", markdownInline(run.Question))
+	b.WriteString("## Research Stage\n\n")
+	fmt.Fprintf(b, "**Current stage:** `%s`\n\n", run.CurrentStage())
 	b.WriteString("## Inputs / Provenance\n\n")
 	if len(run.Iterations) > 0 {
 		writeStringList(b, "Input references", run.Iterations[len(run.Iterations)-1].InputReferences)

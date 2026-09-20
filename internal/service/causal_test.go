@@ -92,6 +92,56 @@ func TestCompetingHypothesesRemainCandidates(t *testing.T) {
 	}
 }
 
+func TestExpectationBasisAcceptsTheFullProvenanceVocabulary(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  domain.ExpectationBasis
+	}{
+		{"legacy source backed is kept as-is", "SOURCE_BACKED", domain.ExpectationSourceBacked},
+		{"legacy model proposed is kept as-is", "MODEL_PROPOSED", domain.ExpectationModelProposed},
+		{"prior is accepted", "PRIOR", domain.ExpectationPrior},
+		{"literature is accepted", "LITERATURE", domain.ExpectationLiterature},
+		{"domain knowledge is accepted", "DOMAIN_KNOWLEDGE", domain.ExpectationDomainKnowledge},
+		{"model proposed post hoc is accepted", "MODEL_PROPOSED_POST_HOC", domain.ExpectationModelProposedPostHoc},
+		{"human post hoc is accepted", "HUMAN_POST_HOC", domain.ExpectationHumanPostHoc},
+		{"derived from prior run is accepted", "DERIVED_FROM_PRIOR_RUN", domain.ExpectationDerivedFromPriorRun},
+		{"other is accepted", "OTHER", domain.ExpectationOther},
+		{"an unrecognized value falls back to unknown", "not-a-real-value", domain.ExpectationUnknown},
+		{"an empty value falls back to unknown", "", domain.ExpectationUnknown},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := expectationBasis(tt.input); got != tt.want {
+				t.Errorf("expectationBasis(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestInsightFindingKindNeverPromotesAPostHocExpectationToAValidationResult(t *testing.T) {
+	tests := []struct {
+		name  string
+		stage domain.ResearchStage
+		basis domain.ExpectationBasis
+		want  domain.FindingKind
+	}{
+		{"exploratory stage is always an exploratory finding", domain.StageExploratory, domain.ExpectationPrior, domain.FindingExploratory},
+		{"validation stage with pre-observation provenance is a validation result", domain.StageValidation, domain.ExpectationPrior, domain.FindingValidationResult},
+		{"validation stage with model-proposed post-hoc provenance stays exploratory", domain.StageValidation, domain.ExpectationModelProposedPostHoc, domain.FindingExploratory},
+		{"validation stage with legacy model-proposed provenance stays exploratory", domain.StageValidation, domain.ExpectationModelProposed, domain.FindingExploratory},
+		{"validation stage with unknown provenance stays exploratory", domain.StageValidation, domain.ExpectationUnknown, domain.FindingExploratory},
+		{"synthesis stage is unaffected by provenance", domain.StageSynthesis, domain.ExpectationModelProposedPostHoc, domain.FindingSynthesis},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := InsightFindingKind(tt.stage, tt.basis); got != tt.want {
+				t.Errorf("InsightFindingKind(%s, %s) = %s, want %s", tt.stage, tt.basis, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestExpandCompetingHypothesesCreatesIndependentCandidates(t *testing.T) {
 	input := []hypothesisCandidate{{
 		Title: "policy", LatentNeed: "policy effect", SurprisingFact: "designations rose",
