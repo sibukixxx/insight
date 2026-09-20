@@ -79,7 +79,8 @@ Data
 ### Promotion Gate
 
 - Domain and service layer implemented (rules for when a claim is fit to promote into a public report).
-- Not yet wired into the usecase / HTTP / report layers, so it does not yet gate what a published report can contain (tracked in #24).
+- Wired into the usecase (`SubmitPromotionReview`, `TransitionPromotionState`), HTTP (`PUT /api/research-runs/{id}/iterations/{id}/promotion-review`, `.../promotion-transition`), and Markdown report (`## Promotion Status`) layers.
+- The versioned Research Artifact JSON export (`artifact.json`) does not yet surface promotion status (tracked in #24).
 
 ## Known limitations
 
