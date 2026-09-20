@@ -23,13 +23,14 @@ func (h *Handler) ListResearchRuns(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) CreateResearchRun(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Question        string   `json:"question"`
-		InputReferences []string `json:"inputReferences"`
+		InputReferences []string                    `json:"inputReferences"`
+		InputSnapshot   domain.ResearchInputSnapshot `json:"inputSnapshot"`
 	}
 	if json.NewDecoder(r.Body).Decode(&req) != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
-	run, err := h.App.CreateResearchRun(r.Context(), usecase.CreateResearchRunInput{ProjectID: chi.URLParam(r, "projectID"), Question: req.Question, InputReferences: req.InputReferences})
+	run, err := h.App.CreateResearchRun(r.Context(), usecase.CreateResearchRunInput{ProjectID: chi.URLParam(r, "projectID"), Question: req.Question, InputReferences: req.InputReferences, InputSnapshot: req.InputSnapshot})
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
@@ -74,7 +75,7 @@ func (h *Handler) AppendResearchIteration(w http.ResponseWriter, r *http.Request
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
-	it, err := h.App.AppendResearchIteration(r.Context(), usecase.AppendResearchIterationInput{RunID: chi.URLParam(r, "runID"), Question: req.Question, InputReferences: req.InputReferences, AddedEvidence: req.AddedEvidence, EvidenceAdditions: req.EvidenceAdditions})
+	it, err := h.App.AppendResearchIteration(r.Context(), usecase.AppendResearchIterationInput{RunID: chi.URLParam(r, "runID"), Question: req.Question, InputReferences: req.InputReferences, AddedEvidence: req.AddedEvidence, EvidenceAdditions: req.EvidenceAdditions, InputSnapshot: req.InputSnapshot})
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
@@ -132,6 +133,22 @@ func (h *Handler) GetHumanHandoff(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, handoff)
+}
+
+func (h *Handler) CompareResearchIterations(w http.ResponseWriter, r *http.Request) {
+	fromID, toID := r.URL.Query().Get("from"), r.URL.Query().Get("to")
+	if fromID == "" || toID == "" {
+		writeError(w, http.StatusBadRequest, "from and to iteration ids are required")
+		return
+	}
+	delta, err := h.App.CompareResearchIterations(r.Context(), chi.URLParam(r, "runID"), fromID, toID)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if errors.Is(err, usecase.ErrNotFound) { status = http.StatusNotFound }
+		writeError(w, status, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, delta)
 }
 
 func (h *Handler) GetResearchArtifact(w http.ResponseWriter, r *http.Request) {
