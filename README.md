@@ -139,9 +139,9 @@ The important rule is:
 
 Research Review should decompose artifacts into claims, evidence references, assumptions, methods, counter-evidence, and missing evidence before those claims influence stronger conclusions.
 
-**Current status:** the original discovery-style pipeline and the deterministic dataset path are implemented foundations. A unified first-class semantic Analysis Mode / Research Review architecture is still being completed in [#18](https://github.com/sibukixxx/insight/issues/18).
+**Current status:** semantic `AnalysisMode` is first-class on `ResearchIteration`: `DISCOVERY`, `DATASET_ANALYSIS`, and `RESEARCH_REVIEW`. Artifact classification can select a mode deterministically, mixed inputs require an explicit choice, and Research Review stores external assertions as first-class `Claim` values rather than Observations. File-format ingestion remains an adapter concern.
 
-**Analysis Mode vs. Execution Mode:** the three modes above (Discovery / Dataset Analysis / Research Review) are the semantic, input-reading concept that #18 is implementing. They are distinct from `service.ExecutionMode` (`deterministic` / `model_backed`) in the current pipeline code, which only states whether a model took part in a run. The two are orthogonal: a Dataset Analysis run can execute deterministically or model-backed. The naming split was completed in [#38](https://github.com/sibukixxx/insight/issues/38); #18 must add semantic mode without repurposing the existing execution-mode wire field.
+**Analysis Mode vs. Execution Mode:** the three modes above (Discovery / Dataset Analysis / Research Review) are the semantic, input-reading concept implemented by #18. They are distinct from `service.ExecutionMode` (`deterministic` / `model_backed`) in the current pipeline code, which only states whether a model took part in a run. The two are orthogonal: a Dataset Analysis run can execute deterministically or model-backed. The naming split was completed in [#38](https://github.com/sibukixxx/insight/issues/38); #18 must add semantic mode without repurposing the existing execution-mode wire field.
 
 ## Research stage is separate from analysis mode
 
@@ -182,6 +182,11 @@ Current `main` includes:
 - explicit causal / validation / identification states;
 - append-only `ResearchRun` / `ResearchIteration` history;
 - first-class `Expectation` provenance, freeze-for-validation, and cross-iteration lineage;
+- non-obvious `InsightConnection`, candidate `MechanismCandidate`, and human-gated `GeneralizationCandidate` semantics;
+- semantic `AnalysisMode` plus Research Review `Claim` values;
+- structured `EvidenceAddition` linkage from acquired evidence to exact ResearchGap IDs;
+- persisted independent-validation evidence provenance for VALIDATION transitions;
+- iteration-level `ResearchInputSnapshot` and `InsightDelta` comparison;
 - prioritized research gaps and next-data requirements;
 - decision-readiness and stopping reasons;
 - human override and human handoff;
@@ -189,7 +194,7 @@ Current `main` includes:
 - versioned JSON Research Artifact export at
   `GET /api/research-runs/{runID}/artifact.json`, including current `ResearchStage` and first-class `Expectations`;
 - deterministic quality guardrails;
-- Golden Set / dogfooding infrastructure, including association-only, population-mismatch, real Open Data reproducibility, new-evidence re-analysis, inconclusive, and competing-hypothesis cases.
+- Golden Set / dogfooding infrastructure, including association-only, population-mismatch, real Open Data reproducibility, new-evidence re-analysis, inconclusive, competing-hypothesis, non-obvious-connection, evidence-lineage, Insight Delta, Multi-Mode, and Promotion Gate regressions.
 
 The publication-promotion gate (domain/service/usecase/HTTP/report) is also implemented: `PUT /api/research-runs/{runID}/iterations/{iterationID}/promotion-review` and `.../promotion-transition` submit review evidence and move a run's promotion state, and the Markdown report includes a Promotion Status section. The JSON Research Artifact export does not yet surface promotion status; see [#24](https://github.com/sibukixxx/insight/issues/24).
 
