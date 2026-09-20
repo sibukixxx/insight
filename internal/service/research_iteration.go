@@ -118,9 +118,17 @@ func CarryForwardFrozenExpectations(previous domain.ResearchIteration, current d
 // requirement priority, readiness and a system stop decision. The caller
 // still decides whether to persist it; nothing here acquires evidence.
 func FinalizeResearchIteration(run domain.ResearchRun, iteration domain.ResearchIteration, addedEvidence []string, now time.Time) domain.ResearchIteration {
+	return FinalizeResearchIterationWithEvidence(run, iteration, addedEvidence, nil, now)
+}
+
+// FinalizeResearchIterationWithEvidence is the structured variant used by the
+// application boundary. Legacy free-text AddedEvidence is retained for
+// backward compatibility but never resolves a specific ResearchGap by itself.
+func FinalizeResearchIterationWithEvidence(run domain.ResearchRun, iteration domain.ResearchIteration, addedEvidence []string, additions []domain.EvidenceAddition, now time.Time) domain.ResearchIteration {
 	iteration.AddedEvidence = append([]string(nil), addedEvidence...)
+	iteration.EvidenceAdditions = append([]domain.EvidenceAddition(nil), additions...)
 	if previous, ok := run.LatestIteration(); ok {
-		iteration = CarryForwardResearchGaps(previous, iteration, addedEvidence)
+		iteration = CarryForwardResearchGapsWithLinks(previous, iteration, additions)
 		iteration = CarryForwardFrozenExpectations(previous, iteration, now)
 		iteration.HypothesisChanges = CompareHypothesisStates(previous.HypothesisStates, iteration.HypothesisStates)
 		// The run's stage only moves via an explicit transition (see
@@ -135,12 +143,17 @@ func FinalizeResearchIteration(run domain.ResearchRun, iteration domain.Research
 	return iteration
 }
 
-// CarryForwardResearchGaps keeps gap identity stable across iterations and
-// refuses to forget gaps. A gap that disappears from a re-analysis is marked
-// addressed only when the iteration actually carried added evidence;
-// otherwise it is carried forward unresolved, because a model simply not
-// mentioning a gap is not evidence that the gap closed.
+// CarryForwardResearchGaps is kept for source compatibility. Free-text
+// evidence can no longer resolve gaps because it does not identify which
+// DataRequirement it addressed.
 func CarryForwardResearchGaps(previous domain.ResearchIteration, current domain.ResearchIteration, addedEvidence []string) domain.ResearchIteration {
+	return CarryForwardResearchGapsWithLinks(previous, current, nil)
+}
+
+// CarryForwardResearchGapsWithLinks keeps gap identity stable and only marks a
+// disappeared gap addressed when a structured EvidenceAddition explicitly
+// names that gap. Model omission and unrelated evidence never close a gap.
+func CarryForwardResearchGapsWithLinks(previous domain.ResearchIteration, current domain.ResearchIteration, additions []domain.EvidenceAddition) domain.ResearchIteration {
 	out := current
 	out.ResearchGaps = append([]domain.ResearchGap(nil), current.ResearchGaps...)
 	out.DataRequirements = append([]domain.DataRequirement(nil), current.DataRequirements...)
@@ -163,7 +176,7 @@ func CarryForwardResearchGaps(previous domain.ResearchIteration, current domain.
 		carried := prior
 		carried.AffectedHypothesisIDs = append([]string(nil), prior.AffectedHypothesisIDs...)
 		carried.DependsOnGapIDs = nil
-		if !carried.Resolved && len(addedEvidence) > 0 {
+		if !carried.Resolved && evidenceAddressesGap(additions, prior.ID) {
 			carried.Resolved = true
 			carried.AddressedInIterationID = current.ID
 		}
@@ -180,6 +193,15 @@ func CarryForwardResearchGaps(previous domain.ResearchIteration, current domain.
 		}
 	}
 	return out
+}
+
+func evidenceAddressesGap(additions []domain.EvidenceAddition, gapID string) bool {
+	for _, addition := range additions {
+		if addition.Addresses(gapID) {
+			return true
+		}
+	}
+	return false
 }
 
 // PrioritizeResearchIteration explains which additional evidence would best
