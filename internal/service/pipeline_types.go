@@ -213,6 +213,9 @@ type hypothesisCandidate struct {
 	RequiredData             []string                        `json:"requiredData,omitempty"`
 	RequiredComparisons      []string                        `json:"requiredComparisons,omitempty"`
 	CandidateDesigns         []string                        `json:"candidateDesigns,omitempty"`
+	Connections              []domain.InsightConnection      `json:"connections,omitempty"`
+	Mechanisms               []domain.MechanismCandidate     `json:"mechanisms,omitempty"`
+	Generalizations          []domain.GeneralizationCandidate `json:"generalizations,omitempty"`
 	HypothesisSetID          string                          `json:"-"`
 	HypothesisRole           domain.HypothesisRole           `json:"-"`
 	HypothesisSetSize        int                             `json:"-"`
@@ -258,6 +261,32 @@ func hypothesisSchema() llm.Schema {
 							"requiredData":          map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
 							"requiredComparisons":   map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
 							"candidateDesigns":      map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+							"connections": map[string]any{"type": "array", "items": map[string]any{"type": "object", "properties": map[string]any{
+								"id": map[string]any{"type": "string"},
+								"kind": map[string]any{"type": "string", "enum": []string{"ASSOCIATION", "CONTRAST", "SEQUENCE", "INTERACTION", "CONSTRAINT", "MECHANISM_CANDIDATE", "OTHER"}},
+								"statement": map[string]any{"type": "string"},
+								"from": map[string]any{"type": "array", "items": map[string]any{"type": "object", "properties": map[string]any{"kind": map[string]any{"type": "string"}, "id": map[string]any{"type": "string"}, "label": map[string]any{"type": "string"}}, "required": []string{"kind"}}},
+								"to": map[string]any{"type": "array", "items": map[string]any{"type": "object", "properties": map[string]any{"kind": map[string]any{"type": "string"}, "id": map[string]any{"type": "string"}, "label": map[string]any{"type": "string"}}, "required": []string{"kind"}}},
+								"whyItMatters": map[string]any{"type": "string"},
+							}, "required": []string{"kind", "statement"}}},
+							"mechanisms": map[string]any{"type": "array", "items": map[string]any{"type": "object", "properties": map[string]any{
+								"statement": map[string]any{"type": "string"},
+								"bridgeAssumptions": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+								"supportingEvidenceIds": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+								"counterEvidenceIds": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+								"alternativeMechanisms": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+								"unresolvedGaps": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+								"distinguishingEvidence": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+							}, "required": []string{"statement"}}},
+							"generalizations": map[string]any{"type": "array", "items": map[string]any{"type": "object", "properties": map[string]any{
+								"principle": map[string]any{"type": "string"},
+								"sourceContext": map[string]any{"type": "string"},
+								"targetContexts": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+								"boundaryConditions": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+								"knownFailures": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+								"status": map[string]any{"type": "string", "enum": []string{"CANDIDATE", "SUPPORTED", "REJECTED"}},
+								"humanReviewed": map[string]any{"type": "boolean"},
+							}, "required": []string{"principle", "status", "humanReviewed"}}},
 						},
 						"required": []string{"title", "latentNeed", "expectation", "surprisingFact", "rationale", "supportingObservationIds", "basedOnPatternIds"},
 					},
