@@ -28,7 +28,7 @@ class GoldenCasesAreConsistentTest(unittest.TestCase):
     def test_checked_in_cases_load_and_have_unique_ids(self):
         cases = load_cases(CASES_DIR)
         ids = [c["caseId"] for c in cases]
-        self.assertEqual(sorted(ids), ["GS-01", "GS-02", "GS-06", "GS-07"])
+        self.assertEqual(sorted(ids), ["GS-01", "GS-02", "GS-03", "GS-05", "GS-06", "GS-07"])
         self.assertEqual(len(ids), len(set(ids)))
 
     def test_every_checked_in_case_passes_all_invariants(self):

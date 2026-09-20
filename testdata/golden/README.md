@@ -21,9 +21,9 @@ testdata/golden/
 |---:|---|---|---|
 | 1 | `GS-01` synthetic association-only | `ASSOCIATION_ONLY` | two points, one region, post-hoc expectation; must stay at association |
 | 2 | `GS-02` population / definition mismatch | `NOT_COMPARABLE` | naive −30% is a definition change; harmonized pair is `HARMONIZED_REFERENCE`, never `COMPARABLE` |
-| 3 | real Open Data reproducibility | — | **not yet added**; will point at `reports/japan-company-count-2021-2024` |
-| 4 | post-hoc expectation / HARKing guard | — | not yet added |
-| 5 | new-evidence re-analysis | — | not yet added |
+| 3 | `GS-03` real Open Data reproducibility | `NOT_COMPARABLE` | reproduces `reports/japan-company-count-2021-2024`; naive -30.8% is a population-definition change, harmonized pair stays `HARMONIZED_REFERENCE` |
+| 4 | post-hoc expectation / HARKing guard | — | not yet added as a JSON case; covered at the Go domain level by `internal/goldenset/testdata/post_hoc_guard.json` |
+| 5 | `GS-05` new-evidence re-analysis | `COMPETING_UNRESOLVED` | an independently pulled source log re-analyzes and contradicts the initial referral-program hypothesis; the stale conclusion must not stand |
 | 6 | `GS-06` valid inconclusive | `INCONCLUSIVE` | inconclusive is correct; both "worked" and "did nothing" are forbidden |
 | 7 | `GS-07` competing hypotheses / counter-evidence | `COMPETING_UNRESOLVED` | prior met but confounded; all three hypotheses stay open |
 
