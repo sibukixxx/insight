@@ -333,7 +333,7 @@ func TestFreezeResearchExpectationRejectsUnknownExpectationID(t *testing.T) {
 	}
 }
 
-func TestTransitionResearchStageSucceedsWithAFrozenExpectationAndIndependentEvidencePlanned(t *testing.T) {
+func TestTransitionResearchStageSucceedsWithAFrozenExpectationAndIndependentEvidenceProvenance(t *testing.T) {
 	app, ctx := newResearchTestApp(t)
 	now := time.Date(2026, 9, 19, 0, 0, 0, 0, time.UTC)
 	app.now = func() time.Time { return now }
@@ -361,13 +361,21 @@ func TestTransitionResearchStageSucceedsWithAFrozenExpectationAndIndependentEvid
 	}
 
 	updated, err := app.TransitionResearchStage(ctx, TransitionResearchStageInput{
-		RunID: run.ID, IterationID: iterationID, TargetStage: domain.StageValidation, IndependentEvidencePlanned: true,
+		RunID: run.ID, IterationID: iterationID, TargetStage: domain.StageValidation,
+		ValidationEvidence: []domain.ValidationEvidenceProvenance{{
+			ExpectationID: expectationID, EvidenceReference: "comparison.csv",
+			Relation: domain.ValidationEvidenceExternalIndependent,
+			Rationale: "comparison.csv was collected independently and was not used to generate the expectation",
+		}},
 	})
 	if err != nil {
 		t.Fatalf("expected the transition to succeed with a persisted frozen expectation: %v", err)
 	}
 	if updated.Stage != domain.StageValidation {
 		t.Fatalf("expected stage VALIDATION, got %s", updated.Stage)
+	}
+	if len(updated.ValidationEvidence) != 1 || updated.ValidationEvidence[0].EvidenceReference != "comparison.csv" || updated.ValidationEvidence[0].RecordedBy != domain.AuthorHuman {
+		t.Fatalf("validation evidence provenance must be persisted on transition: %+v", updated.ValidationEvidence)
 	}
 
 	persisted, err := app.GetResearchRun(ctx, run.ID)
@@ -376,6 +384,32 @@ func TestTransitionResearchStageSucceedsWithAFrozenExpectationAndIndependentEvid
 	}
 	if persisted.CurrentStage() != domain.StageValidation {
 		t.Fatalf("stage transition must be persisted: %+v", persisted.Iterations)
+	}
+}
+
+func TestTransitionResearchStageRejectsLegacyBooleanWithoutEvidenceProvenance(t *testing.T) {
+	app, ctx := newResearchTestApp(t)
+	now := time.Date(2026, 9, 19, 0, 0, 0, 0, time.UTC)
+	app.now = func() time.Time { return now }
+	if err := app.repos.Projects.Create(ctx, &domain.Project{ID: "p1", Name: "policy", CreatedAt: now}); err != nil {
+		t.Fatal(err)
+	}
+	seedAnalysis(t, app, ctx, "p1", "a1", now, []*domain.Insight{{
+		ID: "h1", Title: "Policy effect", Expectation: "registrations rise",
+		ExpectationBasis: domain.ExpectationPrior, FalsificationCriteria: []string{"registrations do not rise"},
+		ValidationStatus: domain.ValidationPlausible, IdentificationStatus: domain.IdentificationNotIdentified,
+	}})
+	run, err := app.CreateResearchRun(ctx, CreateResearchRunInput{ProjectID: "p1", Question: "q"})
+	if err != nil { t.Fatal(err) }
+	iterationID, expectationID := run.Iterations[0].ID, run.Iterations[0].Expectations[0].ID
+	if _, err := app.FreezeResearchExpectation(ctx, FreezeResearchExpectationInput{RunID: run.ID, IterationID: iterationID, ExpectationID: expectationID}); err != nil {
+		t.Fatal(err)
+	}
+	_, err = app.TransitionResearchStage(ctx, TransitionResearchStageInput{
+		RunID: run.ID, IterationID: iterationID, TargetStage: domain.StageValidation, IndependentEvidencePlanned: true,
+	})
+	if err == nil || !strings.Contains(err.Error(), "concrete independent-evidence provenance") {
+		t.Fatalf("legacy boolean alone must not permit VALIDATION: %v", err)
 	}
 }
 
