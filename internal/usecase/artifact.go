@@ -45,7 +45,10 @@ type ResearchArtifact struct {
 	// ResearchStage is the latest iteration's own recorded stage (Issue #37),
 	// copied verbatim so a downstream consumer never has to re-derive it from
 	// iteration history the way domain.ResearchRun.CurrentStage does.
-	ResearchStage domain.ResearchStage `json:"researchStage,omitempty"`
+	ResearchStage     domain.ResearchStage `json:"researchStage,omitempty"`
+	InputAnalysisMode domain.AnalysisMode  `json:"inputAnalysisMode,omitempty"`
+	ArtifactClass     domain.ArtifactClass `json:"artifactClass,omitempty"`
+	Claims            []domain.Claim       `json:"claims,omitempty"`
 
 	// ExecutionMode, ModelVersion, PromptFingerprint and RuleVersion come from
 	// the latest analysis's RunProvenance, so a no-model (deterministic-only)
@@ -147,7 +150,7 @@ func (a *Application) GetResearchArtifact(ctx context.Context, runID string) (*R
 		ArtifactSchema: ResearchArtifactSchema, SchemaVersion: ResearchArtifactVersion,
 		ProjectID: run.ProjectID, ResearchRunID: run.ID, IterationID: iteration.ID,
 		IterationSequence: iteration.Sequence, IterationCount: len(run.Iterations),
-		ResearchQuestion: run.Question, ResearchStage: iteration.Stage, InputReferences: iteration.InputReferences, InputSnapshot: iteration.InputSnapshot,
+		ResearchQuestion: run.Question, ResearchStage: iteration.Stage, InputAnalysisMode: iteration.AnalysisMode, ArtifactClass: iteration.ArtifactClass, Claims: iteration.Claims, InputReferences: iteration.InputReferences, InputSnapshot: iteration.InputSnapshot,
 		Insights:             insights,
 		ResearchGaps:         iteration.ResearchGaps,
 		NextDataRequirements: iteration.DataRequirements,
