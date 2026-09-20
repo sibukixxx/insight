@@ -44,6 +44,76 @@ func TestBuildResearchIterationStartsInExploratoryStage(t *testing.T) {
 	}
 }
 
+func TestBuildResearchIterationCreatesExpectationEntityFromInsightExpectation(t *testing.T) {
+	now := time.Date(2026, 9, 20, 0, 0, 0, 0, time.UTC)
+	insights := []*domain.Insight{{
+		ID: "hyp-1", Title: "Policy effect", Expectation: "registrations rise after the subsidy starts",
+		ExpectationBasis: domain.ExpectationPrior, FalsificationCriteria: []string{"registrations flat or falling in the treated period"},
+	}}
+
+	got := BuildResearchIteration(1, "did the policy cause it?", nil, insights, now)
+
+	if len(got.Expectations) != 1 {
+		t.Fatalf("expected one expectation entity built from the insight, got %+v", got.Expectations)
+	}
+	exp := got.Expectations[0]
+	if exp.Statement != "registrations rise after the subsidy starts" {
+		t.Fatalf("statement must be carried from the insight: %+v", exp)
+	}
+	if exp.Provenance != domain.ExpectationPrior {
+		t.Fatalf("provenance must be carried from the insight's ExpectationBasis: %+v", exp)
+	}
+	if exp.ResearchIterationID != got.ID {
+		t.Fatalf("expectation must reference the iteration that produced it: %+v", exp)
+	}
+	if exp.ObservedDataAvailableAtCreation {
+		t.Fatal("a PRIOR expectation must not be marked as observed at creation")
+	}
+	if exp.FrozenForValidation {
+		t.Fatal("an expectation built from exploratory output must not start frozen")
+	}
+	if len(exp.FalsificationCriteria) != 1 || exp.FalsificationCriteria[0] != "registrations flat or falling in the treated period" {
+		t.Fatalf("falsification criteria must be carried from the insight: %+v", exp)
+	}
+	if err := exp.Validate(); err != nil {
+		t.Fatalf("built expectation must validate: %v", err)
+	}
+}
+
+func TestBuildResearchIterationMarksPostHocExpectationsAsObservedAtCreationWithoutRewritingProvenance(t *testing.T) {
+	now := time.Date(2026, 9, 20, 0, 0, 0, 0, time.UTC)
+	insights := []*domain.Insight{{
+		ID: "hyp-1", Expectation: "registrations rise only where a startup desk exists",
+		ExpectationBasis: domain.ExpectationModelProposedPostHoc, FalsificationCriteria: []string{"increase also appears where no desk exists"},
+	}}
+
+	got := BuildResearchIteration(1, "q", nil, insights, now)
+
+	if len(got.Expectations) != 1 {
+		t.Fatalf("expected one expectation entity, got %+v", got.Expectations)
+	}
+	exp := got.Expectations[0]
+	if exp.Provenance != domain.ExpectationModelProposedPostHoc {
+		t.Fatal("post-hoc provenance must never be rewritten to PRIOR")
+	}
+	if !exp.ObservedDataAvailableAtCreation {
+		t.Fatal("a post-hoc expectation must be marked as observed at creation")
+	}
+	if err := exp.Validate(); err != nil {
+		t.Fatalf("built expectation must validate: %v", err)
+	}
+}
+
+func TestBuildResearchIterationSkipsInsightsWithoutAnExpectationStatement(t *testing.T) {
+	insights := []*domain.Insight{{ID: "hyp-1", Title: "no expectation recorded"}}
+
+	got := BuildResearchIteration(1, "q", nil, insights, time.Now())
+
+	if len(got.Expectations) != 0 {
+		t.Fatalf("an insight without an expectation statement must not produce an expectation entity: %+v", got.Expectations)
+	}
+}
+
 func TestFinalizeResearchIterationCarriesForwardTheRunsCurrentStage(t *testing.T) {
 	now := time.Date(2026, 9, 20, 0, 0, 0, 0, time.UTC)
 	previous := domain.ResearchIteration{ID: "it1", Sequence: 1, Stage: domain.StageValidation}
@@ -362,6 +432,66 @@ func TestCarryForwardResearchGapsResolvesOnlyWithAddedEvidence(t *testing.T) {
 	}
 	if len(withEvidence.UnresolvedGapIDs()) != 1 {
 		t.Fatalf("comparison gap still open: %v", withEvidence.UnresolvedGapIDs())
+	}
+}
+
+func frozenExpectationFixture(id, iterationID string, createdAt time.Time) domain.Expectation {
+	e := domain.Expectation{
+		ID: id, Statement: "registrations rise after the subsidy starts", Provenance: domain.ExpectationPrior,
+		AuthorType: domain.AuthorHuman, ResearchIterationID: iterationID,
+		FalsificationCriteria: []string{"registrations flat or falling in the treated period"}, CreatedAt: createdAt,
+	}
+	frozen, err := e.Freeze(createdAt)
+	if err != nil {
+		panic(err)
+	}
+	return frozen
+}
+
+func TestCarryForwardFrozenExpectationsCarriesOnlyFrozenOnesAsUnfrozenValidationTargets(t *testing.T) {
+	now := time.Date(2026, 9, 20, 0, 0, 0, 0, time.UTC)
+	frozen := frozenExpectationFixture("exp-frozen", "it-1", now)
+	unfrozen := domain.Expectation{
+		ID: "exp-unfrozen", Statement: "unrelated exploratory expectation", Provenance: domain.ExpectationModelProposedPostHoc,
+		AuthorType: domain.AuthorModel, ResearchIterationID: "it-1", ObservedDataAvailableAtCreation: true, CreatedAt: now,
+	}
+	previous := domain.ResearchIteration{ID: "it-1", Expectations: []domain.Expectation{frozen, unfrozen}}
+	current := domain.ResearchIteration{ID: "it-2"}
+
+	got := CarryForwardFrozenExpectations(previous, current, now.Add(time.Hour))
+
+	if len(got.Expectations) != 1 {
+		t.Fatalf("only the frozen expectation must be carried forward, got %+v", got.Expectations)
+	}
+	carried := got.Expectations[0]
+	if carried.DerivedFromExpectationID != frozen.ID {
+		t.Fatalf("carried expectation must record its lineage: %+v", carried)
+	}
+	if carried.Provenance != domain.ExpectationDerivedFromPriorRun {
+		t.Fatalf("carried expectation must be marked DERIVED_FROM_PRIOR_RUN: %+v", carried)
+	}
+	if carried.ResearchIterationID != "it-2" {
+		t.Fatalf("carried expectation must belong to the new iteration: %+v", carried)
+	}
+	if carried.FrozenForValidation {
+		t.Fatal("carried expectation must start unfrozen so it can be tested against this iteration's evidence")
+	}
+	if !frozen.FrozenForValidation {
+		t.Fatal("the source expectation on the historical iteration must not be mutated")
+	}
+}
+
+func TestFinalizeResearchIterationCarriesFrozenExpectationsIntoTheNextIterationAsValidationTargets(t *testing.T) {
+	now := time.Date(2026, 9, 20, 0, 0, 0, 0, time.UTC)
+	frozen := frozenExpectationFixture("exp-frozen", "it-1", now)
+	previous := domain.ResearchIteration{ID: "it-1", Sequence: 1, Stage: domain.StageValidation, Expectations: []domain.Expectation{frozen}}
+	run := domain.ResearchRun{Iterations: []domain.ResearchIteration{previous}}
+	next := BuildResearchIteration(2, "q", nil, nil, now.Add(time.Hour))
+
+	got := FinalizeResearchIteration(run, next, []string{"independent evidence"}, now.Add(time.Hour))
+
+	if len(got.Expectations) != 1 || got.Expectations[0].DerivedFromExpectationID != frozen.ID {
+		t.Fatalf("finalizing must carry the frozen expectation forward as a validation target: %+v", got.Expectations)
 	}
 }
 
