@@ -399,7 +399,7 @@ func TestAssessDecisionReadinessInconclusiveWhenAddedEvidenceDoesNotMoveHypothes
 	}
 }
 
-func TestCarryForwardResearchGapsResolvesOnlyWithAddedEvidence(t *testing.T) {
+func TestCarryForwardResearchGapsRequiresExplicitGapEvidenceLinkage(t *testing.T) {
 	previous := domain.ResearchIteration{ID: "it-1", ResearchGaps: []domain.ResearchGap{
 		ResearchGapFromMissingEvidence("gap-old-c", domain.ResearchGapComparison, "Comparison trend before treatment", "why", []string{"h1"}),
 		ResearchGapFromMissingEvidence("gap-old-t", domain.ResearchGapTiming, "exact policy timing", "why", []string{"h1"}),
@@ -425,20 +425,24 @@ func TestCarryForwardResearchGapsResolvesOnlyWithAddedEvidence(t *testing.T) {
 	if withoutEvidence.ResearchGaps[1].Resolved || withoutEvidence.ResearchGaps[1].ID != "gap-old-t" {
 		t.Fatalf("timing gap must stay unresolved: %+v", withoutEvidence.ResearchGaps[1])
 	}
-	if len(withoutEvidence.DataRequirements) != 2 {
-		t.Fatalf("carried gap still needs its requirement: %+v", withoutEvidence.DataRequirements)
+
+	legacyText := CarryForwardResearchGaps(previous, current, []string{"policy chronology"})
+	if legacyText.ResearchGaps[1].Resolved {
+		t.Fatalf("free-text evidence must not resolve an unidentified gap: %+v", legacyText.ResearchGaps[1])
 	}
 
-	withEvidence := CarryForwardResearchGaps(previous, current, []string{"policy chronology"})
-	timing := withEvidence.ResearchGaps[1]
+	withLinkedEvidence := CarryForwardResearchGapsWithLinks(previous, current, []domain.EvidenceAddition{{
+		Reference: "policy-chronology.csv", GapIDs: []string{"gap-old-t"}, AddedAt: time.Now(),
+	}})
+	timing := withLinkedEvidence.ResearchGaps[1]
 	if !timing.Resolved || timing.AddressedInIterationID != "it-2" {
-		t.Fatalf("gap absent after added evidence must be marked addressed in this iteration: %+v", timing)
+		t.Fatalf("explicitly linked evidence must mark only its target gap addressed: %+v", timing)
 	}
-	if len(withEvidence.DataRequirements) != 1 {
-		t.Fatalf("resolved gaps need no further requirement: %+v", withEvidence.DataRequirements)
+	if withLinkedEvidence.ResearchGaps[0].Resolved {
+		t.Fatalf("unrelated comparison gap must remain open: %+v", withLinkedEvidence.ResearchGaps[0])
 	}
-	if len(withEvidence.UnresolvedGapIDs()) != 1 {
-		t.Fatalf("comparison gap still open: %v", withEvidence.UnresolvedGapIDs())
+	if len(withLinkedEvidence.DataRequirements) != 1 {
+		t.Fatalf("resolved gaps need no further requirement: %+v", withLinkedEvidence.DataRequirements)
 	}
 }
 
