@@ -95,6 +95,9 @@ func TestGetResearchArtifactCarriesProvenanceAndLatestIterationLosslessly(t *tes
 	if artifact.CreatedAt != got.CreatedAt || artifact.ExportedAt != second {
 		t.Fatalf("artifact must record when the iteration happened and when it was exported: %+v", artifact)
 	}
+	if artifact.ResearchStage != got.Stage {
+		t.Fatalf("artifact must carry the latest iteration's research stage: artifact=%q iteration=%q", artifact.ResearchStage, got.Stage)
+	}
 
 	encoded, err := json.Marshal(artifact)
 	if err != nil {
@@ -104,10 +107,43 @@ func TestGetResearchArtifactCarriesProvenanceAndLatestIterationLosslessly(t *tes
 	if err := json.Unmarshal(encoded, &roundTrip); err != nil {
 		t.Fatal(err)
 	}
-	for _, field := range []string{"artifactSchema", "schemaVersion", "researchRunId", "analysisMode", "decisionReadiness", "insights"} {
+	for _, field := range []string{"artifactSchema", "schemaVersion", "researchRunId", "analysisMode", "decisionReadiness", "insights", "researchStage"} {
 		if _, ok := roundTrip[field]; !ok {
 			t.Errorf("exported JSON is missing field %q for downstream consumption: %s", field, encoded)
 		}
+	}
+}
+
+// TestResearchArtifactStageAgreesWithReportStage guards against the artifact
+// and the markdown report reading the run's stage through two different
+// paths that could silently diverge.
+func TestResearchArtifactStageAgreesWithReportStage(t *testing.T) {
+	app, ctx := newResearchTestApp(t)
+	now := time.Date(2026, 9, 19, 0, 0, 0, 0, time.UTC)
+	app.now = func() time.Time { return now }
+	if err := app.repos.Projects.Create(ctx, &domain.Project{ID: "p1", Name: "policy", CreatedAt: now}); err != nil {
+		t.Fatal(err)
+	}
+	seedAnalysis(t, app, ctx, "p1", "a1", now, []*domain.Insight{
+		{ID: "h1", Title: "Policy effect", SurprisingFact: "designations rose"},
+	})
+	run, err := app.CreateResearchRun(ctx, CreateResearchRunInput{ProjectID: "p1", Question: "did the policy cause it?"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	artifact, err := app.GetResearchArtifact(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	persistedRun, err := app.repos.Research.GetResearchRun(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantStage := reportStage(ProjectReport{ResearchRun: persistedRun})
+	if artifact.ResearchStage != wantStage {
+		t.Fatalf("artifact research stage %q disagrees with report stage %q", artifact.ResearchStage, wantStage)
 	}
 }
 

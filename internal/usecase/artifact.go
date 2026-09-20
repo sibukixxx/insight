@@ -26,10 +26,10 @@ const (
 // either copied verbatim from append-only domain history or derived
 // deterministically from it.
 //
-// Fields the domain does not yet track per iteration - ResearchStage, stage
-// transition history, and Expectation provenance (Issue #22) - are
-// intentionally absent rather than guessed. They can be added additively
-// once that wiring exists, without a schema version bump.
+// Fields the domain does not yet track per iteration - stage transition
+// history and Expectation provenance (Issue #22) - are intentionally absent
+// rather than guessed. They can be added additively once that wiring exists,
+// without a schema version bump.
 type ResearchArtifact struct {
 	ArtifactSchema string `json:"artifactSchema"`
 	SchemaVersion  string `json:"schemaVersion"`
@@ -40,6 +40,11 @@ type ResearchArtifact struct {
 	IterationSequence int    `json:"iterationSequence"`
 	IterationCount    int    `json:"iterationCount"`
 	ResearchQuestion  string `json:"researchQuestion"`
+
+	// ResearchStage is the latest iteration's own recorded stage (Issue #37),
+	// copied verbatim so a downstream consumer never has to re-derive it from
+	// iteration history the way domain.ResearchRun.CurrentStage does.
+	ResearchStage domain.ResearchStage `json:"researchStage,omitempty"`
 
 	// AnalysisMode, ModelVersion, PromptFingerprint and RuleVersion come from
 	// the latest analysis's RunProvenance, so a no-model (deterministic-only)
@@ -125,7 +130,7 @@ func (a *Application) GetResearchArtifact(ctx context.Context, runID string) (*R
 		ArtifactSchema: ResearchArtifactSchema, SchemaVersion: ResearchArtifactVersion,
 		ProjectID: run.ProjectID, ResearchRunID: run.ID, IterationID: iteration.ID,
 		IterationSequence: iteration.Sequence, IterationCount: len(run.Iterations),
-		ResearchQuestion: run.Question, InputReferences: iteration.InputReferences,
+		ResearchQuestion: run.Question, ResearchStage: iteration.Stage, InputReferences: iteration.InputReferences,
 		Insights:             insights,
 		ResearchGaps:         iteration.ResearchGaps,
 		NextDataRequirements: iteration.DataRequirements,
