@@ -386,6 +386,9 @@ func (p *Pipeline) persistInsights(ctx context.Context, analysisID, projectID st
 			HypothesisSetID: d.hypothesis.HypothesisSetID, HypothesisRole: d.hypothesis.HypothesisRole,
 			CompetingHypotheses:   d.hypothesis.AlternativeExplanations,
 			CausalStructure:       d.hypothesis.CandidateCausalStructure,
+			Connections:           d.hypothesis.Connections,
+			Mechanisms:            d.hypothesis.Mechanisms,
+			Generalizations:       sanitizeGeneralizations(d.hypothesis.Generalizations),
 			MissingEvidence:       d.hypothesis.MissingEvidence,
 			FalsificationCriteria: d.hypothesis.FalsificationCriteria,
 			NextValidation:        domain.ValidationNeed{Data: d.hypothesis.RequiredData, Comparison: d.hypothesis.RequiredComparisons, Design: d.hypothesis.CandidateDesigns},
@@ -490,6 +493,19 @@ func (p *Pipeline) persistInsights(ctx context.Context, analysisID, projectID st
 		metrics.QualityFlaggedInsightRate = float64(flagged) / n
 	}
 	return nil
+}
+
+// sanitizeGeneralizations prevents model output from self-certifying transfer.
+// A model can propose the principle and boundaries, but only a later human
+// review may set HumanReviewed and a supported/rejected status.
+func sanitizeGeneralizations(values []domain.GeneralizationCandidate) []domain.GeneralizationCandidate {
+	out := make([]domain.GeneralizationCandidate, 0, len(values))
+	for _, value := range values {
+		value.Status = domain.GeneralizationCandidate
+		value.HumanReviewed = false
+		out = append(out, value)
+	}
+	return out
 }
 
 // --- LLM step calls ---
