@@ -13,6 +13,9 @@ type CreateResearchRunInput struct {
 	ProjectID       string
 	Question        string
 	InputReferences []string
+	AnalysisMode    domain.AnalysisMode
+	InputSnapshot   domain.InputSetSnapshot
+	Claims          []domain.ResearchClaim
 }
 
 type AppendResearchIterationInput struct {
@@ -22,6 +25,8 @@ type AppendResearchIterationInput struct {
 	AddedEvidence      []string
 	AddedEvidenceLinks []domain.AddedEvidenceLink
 	InputSnapshot      domain.InputSetSnapshot
+	AnalysisMode       domain.AnalysisMode
+	Claims             []domain.ResearchClaim
 }
 
 func (a *Application) CreateResearchRun(ctx context.Context, in CreateResearchRunInput) (*domain.ResearchRun, error) {
@@ -39,7 +44,17 @@ func (a *Application) CreateResearchRun(ctx context.Context, in CreateResearchRu
 		return nil, err
 	}
 	now := a.now()
+	mode := in.AnalysisMode.Normalize()
+	if err := domain.ValidateAnalysisModeInput(mode, in.InputSnapshot.Artifacts, in.Claims); err != nil {
+		return nil, err
+	}
 	iteration := service.BuildResearchIteration(1, in.Question, in.InputReferences, insights, now)
+	iteration.AnalysisMode = mode
+	if len(in.InputSnapshot.ArtifactReferences) == 0 {
+		in.InputSnapshot.ArtifactReferences = append([]string(nil), in.InputReferences...)
+	}
+	iteration.InputSnapshot = in.InputSnapshot
+	iteration.Claims = append([]domain.ResearchClaim(nil), in.Claims...)
 	iteration = service.FinalizeResearchIteration(domain.ResearchRun{}, iteration, nil, now)
 	run := &domain.ResearchRun{ID: newID("run"), ProjectID: in.ProjectID, Question: strings.TrimSpace(in.Question), Iterations: []domain.ResearchIteration{iteration}, CreatedAt: now}
 	if err := a.repos.Research.CreateRun(ctx, run); err != nil {
@@ -62,7 +77,19 @@ func (a *Application) AppendResearchIteration(ctx context.Context, in AppendRese
 		question = run.Question
 	}
 	now := a.now()
+	mode := in.AnalysisMode
+	if mode == "" {
+		if latest, ok := run.LatestIteration(); ok && latest.AnalysisMode != "" {
+			mode = latest.AnalysisMode
+		}
+	}
+	mode = mode.Normalize()
+	if err := domain.ValidateAnalysisModeInput(mode, in.InputSnapshot.Artifacts, in.Claims); err != nil {
+		return nil, err
+	}
 	iteration := service.BuildResearchIteration(len(run.Iterations)+1, question, in.InputReferences, insights, now)
+	iteration.AnalysisMode = mode
+	iteration.Claims = append([]domain.ResearchClaim(nil), in.Claims...)
 	snapshot := in.InputSnapshot
 	if len(snapshot.ArtifactReferences) == 0 {
 		snapshot.ArtifactReferences = append([]string(nil), in.InputReferences...)
