@@ -69,12 +69,13 @@ func (h *Handler) AppendResearchIteration(w http.ResponseWriter, r *http.Request
 		InputReferences []string `json:"inputReferences"`
 		AddedEvidence      []string                   `json:"addedEvidence"`
 		AddedEvidenceLinks []domain.AddedEvidenceLink `json:"addedEvidenceLinks"`
+		InputSnapshot      domain.InputSetSnapshot    `json:"inputSnapshot"`
 	}
 	if json.NewDecoder(r.Body).Decode(&req) != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
-	it, err := h.App.AppendResearchIteration(r.Context(), usecase.AppendResearchIterationInput{RunID: chi.URLParam(r, "runID"), Question: req.Question, InputReferences: req.InputReferences, AddedEvidence: req.AddedEvidence, AddedEvidenceLinks: req.AddedEvidenceLinks})
+	it, err := h.App.AppendResearchIteration(r.Context(), usecase.AppendResearchIterationInput{RunID: chi.URLParam(r, "runID"), Question: req.Question, InputReferences: req.InputReferences, AddedEvidence: req.AddedEvidence, AddedEvidenceLinks: req.AddedEvidenceLinks, InputSnapshot: req.InputSnapshot})
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
@@ -213,4 +214,23 @@ func (h *Handler) GetHumanEvaluation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, evaluation)
+}
+
+
+func (h *Handler) CompareResearchIterations(w http.ResponseWriter, r *http.Request) {
+	delta, err := h.App.CompareResearchIterations(
+		r.Context(),
+		chi.URLParam(r, "runID"),
+		chi.URLParam(r, "fromIterationID"),
+		chi.URLParam(r, "toIterationID"),
+	)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if errors.Is(err, usecase.ErrNotFound) {
+			status = http.StatusNotFound
+		}
+		writeError(w, status, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, delta)
 }
