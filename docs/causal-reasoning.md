@@ -104,9 +104,9 @@ Invariants enforced by the domain model:
 
 External systems remain adapters outside the domain:
 
-`ja-company-base → CSV/JSONL adapter → Insight document ingestion`
+`external source → adapter → normalized CSV/Document input → Insight ingestion`
 
-Insight Lab does not depend on `ja-company-base` and does not contain NTA-specific fields. CSV is currently supported; JSONL adapter work remains a later phase.
+Insight Lab does not depend on source-specific exporter repositories or registry-specific schemas. CSV is currently supported; JSONL adapter work remains a later phase.
 
 ## Synthetic policy scenario
 
