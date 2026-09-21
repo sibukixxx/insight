@@ -8,7 +8,7 @@ Versioned, Insight-owned domain fixtures for evaluating Public Evidence Reports 
 testdata/golden/
   README.md                      this file
   schema/eval-case.v0.1.schema.json   Insight-owned domain case schema
-  schema/shared-eval-contract.v1.schema.json  mirrored TechVit shared exchange contract
+  schema/shared-eval-contract.v1.schema.json  mirrored shared exchange contract
   cases/                         one JSON file per golden case, versioned via "version"
   harness/golden_eval.py         stdlib-only invariant checker + CLI
   harness/test_golden_eval.py    unittest: fixtures stay consistent, every invariant fires when broken
@@ -43,7 +43,7 @@ testdata/golden/
 | `IDENTIFICATION_GAP_VISIBLE` | unresolved identification requires research gaps |
 | `EXTERNAL_ARTIFACT_NOT_PRIMARY` | untraceable external / AI artifacts cannot be validation evidence |
 | `HUMAN_REVIEW` | a review block exists; `PENDING` is a warning, an unknown status fails |
-| `SHARED_EVAL_CONTRACT` | each Insight case losslessly maps to TechVit Shared Eval Contract v1; pending human review maps to `NOT_REVIEWED`, never a fake pass |
+| `SHARED_EVAL_CONTRACT` | each Insight case losslessly maps to Shared Eval Contract v1; pending human review maps to `NOT_REVIEWED`, never a fake pass |
 
 ## Run
 
