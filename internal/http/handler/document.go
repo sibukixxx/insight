@@ -142,7 +142,7 @@ func (h *Handler) ImportDocumentsCSV(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, result)
 }
 
-// ImportAnalysisCSV accepts the ja-company-base AnalysisRecord CSV contract
+// ImportAnalysisCSV accepts the external-registry-export AnalysisRecord CSV contract
 // and deterministically aggregates it into dataset Documents. It accepts
 // the same optional "manifest" multipart field as ImportDocumentsCSV.
 func (h *Handler) ImportAnalysisCSV(w http.ResponseWriter, r *http.Request) {
