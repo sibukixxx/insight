@@ -14,7 +14,7 @@ Insight Lab is an open-source, local-first **evidence reasoning engine**.
 It is designed for research where the input already exists in some form:
 
 - customer interviews, reviews, support logs, sales notes, surveys, and other raw evidence;
-- structured data after normalization into Dataset Documents or a supported adapter contract, including operational metrics, public-data exports, and `ja-company-base` output;
+- structured data after normalization into Dataset Documents or a supported adapter contract, including operational metrics, public-data exports, and external adapter output;
 - existing research or analysis artifacts such as internal studies, consulting reports, market research, or AI-generated analysis.
 
 Insight Lab is not intended to be a general-purpose research chatbot. It does not autonomously search the web, authenticate to external data services, or acquire missing evidence on its own.
@@ -53,7 +53,7 @@ The table below describes the **input boundaries that current `main` actually ac
 | Interviews, reviews, support tickets, sales notes, survey free text, job postings, social posts | Create Documents through UI/API, or import Document CSV | Grounded Observations, patterns/mismatches, primary/competing hypotheses, supporting/counter/neutral evidence, ResearchGaps | Required for semantic analysis |
 | Multiple text evidence items | Fixed 4-column Document CSV | Each row becomes a Document and enters the same evidence-reasoning pipeline | Required for semantic analysis |
 | Pre-aggregated numeric series | API Documents with `source=dataset` | Grounded `record_count` observations, period comparison, delta, rate of change, baseline delta, share of series total | Not required for deterministic part |
-| `ja-company-base` corporate-event export | Dedicated Analysis CSV import | Deterministic grouping by month × event type × geography × provider/version, then Dataset Analysis | Aggregation does not require it; hypotheses do |
+| corporate-event registry export | Dedicated Analysis CSV import | Deterministic grouping by month × event type × geography × provider/version, then Dataset Analysis | Aggregation does not require it; hypotheses do |
 | External research, internal analysis, consulting material, AI analysis | Convert content to text Documents, or submit structured Claims through the ResearchRun API | Keeps Claims separate from Observations and reviews evidence, counter-evidence, assumptions, and gaps | Usually required |
 | Acquisition Manifest | Optional JSON attached to CSV import | Preserves source/dataset/retrieval/unit/population/schema/hash provenance and emits compatibility warnings | Not required |
 | Additional evidence | Append a new ResearchIteration | Links evidence to `DataRequirement.gapId`, records validation provenance, computes Insight Delta | Depends on content |
@@ -103,13 +103,13 @@ Current pre-analysis uses metadata such as:
 ```json
 {
   "source": "dataset",
-  "title": "2026-01 Nishitokyo inquiries",
-  "content": "Dataset observation: 2026-01 Nishitokyo inquiries = 120.",
+  "title": "2026-01 Example City inquiries",
+  "content": "Dataset observation: 2026-01 Example City inquiries = 120.",
   "metadata": {
     "record_count": "120",
     "period": "2026-01",
     "event_type": "inquiry",
-    "location": "Nishitokyo",
+    "location": "Example City",
     "source_provider": "internal-export",
     "source_version": "v1"
   }
@@ -125,9 +125,9 @@ A numeric `record_count` can be materialized into a grounded Observation determi
 
 When acquisition manifests declare `unit` or `populationScope`, incompatible populations or units are not silently treated as the same comparable series.
 
-### ja-company-base Analysis CSV
+### Corporate-event Analysis CSV
 
-The currently implemented dedicated raw-tabular adapter is the `ja-company-base` Analysis CSV importer. It requires at least:
+The currently implemented dedicated raw-tabular adapter is the corporate-event Analysis CSV importer. It requires at least:
 
 ```text
 corporate_number
@@ -237,7 +237,7 @@ For structured data:
 - output from supported CSV adapters;
 - operational metrics normalized into Dataset Documents;
 - e-Stat or municipality Open Data normalized by an external adapter;
-- `ja-company-base` Analysis CSV.
+- corporate-event Analysis CSV.
 
 Typical flow:
 
@@ -406,7 +406,7 @@ Insight Lab
 
 The deterministic pre-analysis path can complete without an LLM when the imported dataset supports it. Model-backed hypothesis or narrative generation requires a configured provider.
 
-For a reproducible example, see [ja-company-base dogfooding](docs/dogfooding-ja-company.md).
+For a reproducible example, see [corporate-event CSV dogfooding](docs/dogfooding-corporate-events.md).
 
 ### Export a machine-readable Research Artifact
 
@@ -503,6 +503,6 @@ Issues and pull requests are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING
 
 ## License
 
-Copyright 2026 Yuichi Takada.
+Copyright 2026 Insight Lab contributors.
 
 Licensed under the [Apache License 2.0](LICENSE). Third-party dependencies retain their own licenses; see `go.mod` and `go.sum`.
