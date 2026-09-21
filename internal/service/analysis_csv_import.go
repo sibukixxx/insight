@@ -39,7 +39,7 @@ type analysisGroup struct {
 }
 
 // ImportAnalysisCSV is a boundary adapter for the CSV contract exported by
-// ja-company-base. It has no Go dependency on that repository and persists
+// external-registry-export. It has no Go dependency on that repository and persists
 // only generic dataset Documents. Every document is a deterministic count of
 // input rows, never an inferred count of startups or business commencements.
 func ImportAnalysisCSV(ctx context.Context, documents repository.DocumentRepository, projectID string, input io.Reader) (*AnalysisImportResult, error) {
@@ -142,7 +142,7 @@ func ImportAnalysisCSVWithManifest(ctx context.Context, documents repository.Doc
 			Title:   fmt.Sprintf("%s %s %s (%d records)", group.period, location, group.eventType, group.count),
 			Content: content,
 			Metadata: provenanceMetadata(map[string]string{
-				"adapter": "ja-company-analysis-csv", "period": group.period, "event_type": group.eventType,
+				"adapter": "corporate-event-analysis-csv", "period": group.period, "event_type": group.eventType,
 				"prefecture_name": group.prefecture, "city_name": group.city, "record_count": fmt.Sprint(group.count),
 				"source_provider": group.sourceProvider, "source_version": group.sourceVersion, "source_fetched_at": group.sourceFetchedAt,
 			}, result.FileHash, manifest),
