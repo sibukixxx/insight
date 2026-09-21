@@ -6,7 +6,7 @@ Security fixes are provided for the latest release and the current `main` branch
 
 Do not report vulnerabilities in a public issue.
 
-Use [GitHub Security Advisories](https://github.com/sibukixxx/insight/security/advisories/new) (preferred), or email takada@techvit.me. Include the affected version or commit, reproduction steps or a proof of concept, and the expected impact when possible.
+Use GitHub Security Advisories for this repository. Include the affected version or commit, reproduction steps or a proof of concept, and the expected impact when possible.
 
 We aim to acknowledge reports within 48 hours and will share progress while investigating. Please do not disclose details before a fix is released.
 
