@@ -86,5 +86,4 @@ which is listed as a next step in the report.
 
 - Prefecture and municipality rows of the same sheet (follow-up in #12).
 - 参考表「事業所の活動状態に関する集計」(存続・新設・廃業), useful as flow evidence.
-- Any `ja-company-base` registry export (requires `HOUJIN_APP_ID`; out of scope for
-  this report and, per the BYO-Evidence boundary, an adapter responsibility).
+- Any registry-level export; it is out of scope for this report and, per the BYO-Evidence boundary, remains an external adapter/acquisition responsibility.
