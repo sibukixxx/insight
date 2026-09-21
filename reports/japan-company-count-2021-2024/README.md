@@ -20,7 +20,7 @@ report.md
   └─ sns-summary.md
 ```
 
-The published counts are third-party official statistics. TechVit's primary analysis is the deterministic difference/rate/decomposition calculation, the comparability check, competing-explanation framing, and the evidence ledger. It must not be described as TechVit measuring the original counts.
+The published counts are third-party official statistics. This report's primary analysis is the deterministic difference/rate/decomposition calculation, the comparability check, competing-explanation framing, and the evidence ledger. It must not be described as Insight Lab measuring the original counts.
 
 ## Comparability labels
 
@@ -63,13 +63,13 @@ The generator uses only the Python standard library. It does not require an LLM 
 
 ## Authentication boundary
 
-This report does **not** require `HOUJIN_APP_ID`; it uses Statistics Bureau aggregate publications only. The existing `ja-company-base` integration remains the next registry-data path:
+This report uses public aggregate statistics only. Registry-level follow-up, if used, must cross the generic external-acquisition boundary:
 
 ```text
-HOUJIN_APP_ID → ja-company-export → AnalysisRecord CSV → Insight Lab dataset import
+external registry/exporter → normalized corporate-event CSV → Insight Lab dataset import
 ```
 
-Do not commit the AppID. Also do not interpret `ASSIGNED` as incorporation/startup or `CLOSED` as bankruptcy without an explicit validated mapping. Fetching e-Stat or registry data is an adapter/acquisition responsibility outside Insight Lab's core (see `docs/byo-evidence-boundary.md`).
+Do not place acquisition credentials in Insight metadata or source control. Also do not interpret `ASSIGNED` as incorporation/startup or `CLOSED` as bankruptcy without an explicit validated mapping. Fetching external statistics or registry data remains an adapter/acquisition responsibility outside Insight Lab's core (see `docs/byo-evidence-boundary.md`).
 
 ## Why the result is still inconclusive
 
