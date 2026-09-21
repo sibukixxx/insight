@@ -315,7 +315,7 @@ def _shared_human_review(case: dict[str, Any]) -> dict[str, Any]:
 
 
 def to_shared_eval_contract(case: dict[str, Any], checks: list[Check] | None = None) -> dict[str, Any]:
-    """Map an Insight-owned golden case into TechVit Shared Eval Contract v1.
+    """Map an Insight-owned golden case into Shared Eval Contract v1.
 
     This is an exchange-format adapter only; Insight keeps its domain fixtures and
     semantic checks local and does not take a runtime dependency on TechVit Business.
