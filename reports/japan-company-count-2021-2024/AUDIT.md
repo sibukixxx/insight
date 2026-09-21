@@ -18,7 +18,7 @@ Audited against `main` on 2026-09-18 before P0 implementation.
 - append-only research runs, research gaps and data requirements
 - CSV import and `dataset` source type
 - Markdown research report export
-- ja-company analysis CSV adapter
+- corporate-event analysis CSV adapter
 
 ### REUSABLE
 
@@ -26,7 +26,7 @@ Audited against `main` on 2026-09-18 before P0 implementation.
 - `SourceDataset`
 - Research Question → Observation → Expectation → Surprise → competing hypotheses → Evidence/Counter Evidence → gaps/validation flow
 - CSV as the provider-neutral external-data boundary
-- Existing `ja-company-base` analysis CSV contract
+- Generic corporate-event analysis CSV contract
 
 ### MISSING FOR THIS P0
 
@@ -55,7 +55,7 @@ Audited against `main` on 2026-09-18 before P0 implementation.
 - CSV / JSONL `AnalysisWriter`
 - `ja-company-export` CLI
 - source provider/version/fetched-at metadata
-- AppID secret boundary via `HOUJIN_APP_ID`
+- external-acquisition credential boundary
 
 ### REUSABLE
 
