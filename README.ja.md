@@ -11,7 +11,7 @@ Insight Labは、**Bring Your Own Evidence（BYO Evidence）型のEvidence Reaso
 対象となる入力は、すでに何らかの形で存在している情報です。
 
 - 顧客インタビュー、レビュー、問い合わせ、商談ログ、アンケートなどの一次情報
-- CSV、BI出力、業務データ、オープンデータ、`ja-company-base` 出力などの構造化データ
+- 業務データ、BI出力、オープンデータ、`ja-company-base` 出力などをDataset Documentまたは対応adapter contractへ正規化した構造化データ
 - 社内調査、外部調査会社レポート、コンサル資料、市場調査、AI分析などの既存Research Artifact
 
 Insight Labは一般的な「質問すればWebを探して答えるAIリサーチチャット」ではありません。
@@ -215,7 +215,7 @@ Insight Lab
 
 ## Analysis Mode
 
-今後の基本設計では、入力ファイル形式ではなく**情報の意味論・成熟度**によって分析方法を切り替えます。
+現在の基本設計では、入力ファイル形式ではなく**情報の意味論・成熟度**によって分析方法を切り替えます。
 
 ### 1. Discovery
 
