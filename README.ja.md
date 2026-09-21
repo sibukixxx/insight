@@ -11,7 +11,7 @@ Insight Labは、**Bring Your Own Evidence（BYO Evidence）型のEvidence Reaso
 対象となる入力は、すでに何らかの形で存在している情報です。
 
 - 顧客インタビュー、レビュー、問い合わせ、商談ログ、アンケートなどの一次情報
-- 業務データ、BI出力、オープンデータ、`ja-company-base` 出力などをDataset Documentまたは対応adapter contractへ正規化した構造化データ
+- 業務データ、BI出力、オープンデータ、外部adapter出力などをDataset Documentまたは対応adapter contractへ正規化した構造化データ
 - 社内調査、外部調査会社レポート、コンサル資料、市場調査、AI分析などの既存Research Artifact
 
 Insight Labは一般的な「質問すればWebを探して答えるAIリサーチチャット」ではありません。
@@ -50,7 +50,7 @@ Evidenceが不足している場合は、もっともらしい結論を作るの
 | インタビュー、レビュー、問い合わせ、商談ログ、アンケート自由記述、求人文、SNS投稿 | UI/APIでDocument作成、またはDocument CSV | groundingされたObservation、Pattern/Mismatch、Primary/Competing Hypotheses、Supporting/Counter/Neutral Evidence、ResearchGap | 意味分析には必要 |
 | 複数のテキストEvidence | 固定4列Document CSV | 各行をDocumentとして同じEvidence Reasoning pipelineへ投入 | 意味分析には必要 |
 | 集計済みの数値系列 | APIで `source=dataset` のDocumentとして登録 | `record_count` のgrounded Observation、期間比較、delta、rate of change、baseline差、series内share | deterministic部分は不要 |
-| `ja-company-base` の企業イベントCSV | 専用Analysis CSV import | 月 × event type × 地域 × provider/versionに決定論的集計し、その後Dataset Analysis | 集計は不要、仮説生成等には必要 |
+| 企業イベントregistry CSV | 専用Analysis CSV import | 月 × event type × 地域 × provider/versionに決定論的集計し、その後Dataset Analysis | 集計は不要、仮説生成等には必要 |
 | 外部調査、社内分析、コンサル資料、AI分析の内容 | 内容をText Documentへ変換、またはResearchRun APIでClaimとして投入 | ClaimとObservationを分離し、根拠・反証・不足Evidenceをレビュー | 通常必要 |
 | Acquisition Manifest | CSV import時の付随JSON | source / dataset ID / retrieval time / unit / population / schema / hash等のprovenance保持と互換性warning | 不要 |
 | 追加Evidence | ResearchRunの新しいiterationとして投入 | `DataRequirement.gapId` とのlink、ValidationEvidence provenance、Insight Delta | 内容により必要 |
@@ -100,13 +100,13 @@ id,source,title,content
 ```json
 {
   "source": "dataset",
-  "title": "2026-01 Nishitokyo inquiries",
-  "content": "Dataset observation: 2026-01 Nishitokyo inquiries = 120.",
+  "title": "2026-01 Example City inquiries",
+  "content": "Dataset observation: 2026-01 Example City inquiries = 120.",
   "metadata": {
     "record_count": "120",
     "period": "2026-01",
     "event_type": "inquiry",
-    "location": "Nishitokyo",
+    "location": "Example City",
     "source_provider": "internal-export",
     "source_version": "v1"
   }
@@ -122,9 +122,9 @@ id,source,title,content
 
 Acquisition Manifestに `unit` や `populationScope` がある場合、異なる母集団・単位を無条件に同じseriesとして差し引かないようにします。
 
-### ja-company-base Analysis CSV
+### Corporate-event Analysis CSV
 
-現在、raw tabular data向けに実装済みの専用adapterは `ja-company-base` のAnalysis CSVです。最低限、次の列を要求します。
+現在、raw tabular data向けに実装済みの専用adapterはcorporate-event Analysis CSVです。最低限、次の列を要求します。
 
 ```text
 corporate_number
@@ -249,7 +249,7 @@ Raw Evidence
 - supported CSV adapter output
 - operational metrics normalized into Dataset Documents
 - e-Stat / 自治体Open Dataを外部adapterで正規化したもの
-- `ja-company-base` Analysis CSV
+- corporate-event Analysis CSV
 
 ```text
 Structured Dataset
@@ -422,7 +422,7 @@ DatasetによってはLLMなしでdeterministic pre-analysisまで完走でき�
 
 Hypothesis生成やnarrativeなどのmodel-backed処理を行う場合のみProvider設定が必要です。
 
-実例は [ja-company-base dogfooding](docs/dogfooding-ja-company.md) を参照してください。
+実例は [corporate-event CSV dogfooding](docs/dogfooding-corporate-events.md) を参照してください。
 
 ### Research Artifactをexportする
 
@@ -515,6 +515,6 @@ API KeyなどのSecretをリポジトリへcommitしないでください。
 
 ## License
 
-Copyright 2026 Yuichi Takada.
+Copyright 2026 Insight Lab contributors.
 
 [Apache License 2.0](LICENSE) で公開しています。依存ライブラリにはそれぞれのライセンスが適用されます。
