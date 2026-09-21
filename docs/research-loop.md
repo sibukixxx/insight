@@ -53,4 +53,4 @@ curl -sS http://127.0.0.1:8787/api/research-runs/RUN_ID/report.md
 
 A mechanically valid run is not automatically useful. The human records whether it revealed something new. Useful dogfooding should contain a grounded surprise, meaningful competing hypotheses, actual counter-evidence where available, specific missing evidence, actionable next data, and an honest identification boundary.
 
-The core deliberately does not fetch e-Stat, RESAS, ja-company-base, web search, or customer data. Those remain adapter responsibilities. The full boundary and the export / re-import contract are in [byo-evidence-boundary.md](byo-evidence-boundary.md).
+The core deliberately does not fetch external statistical APIs, registries, web search, SaaS systems, or customer data. Those remain adapter responsibilities. The full boundary and the export / re-import contract are in [byo-evidence-boundary.md](byo-evidence-boundary.md).
