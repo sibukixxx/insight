@@ -152,9 +152,9 @@ Structured Dataset
 
 Claim / Evidence / Assumption / Method / Counter Evidence / Missing Evidenceへ分解してから評価します。
 
-**現状:** 従来のDiscovery型pipelineとdeterministicなDataset Analysis基盤はmainに実装されています。ただし、semanticなAnalysis Modeをfirst-classに統一し、Research Reviewを正式pipeline化する作業は [#18](https://github.com/sibukixxx/insight/issues/18) で継続中です。
+**現状:** `DISCOVERY` / `DATASET_ANALYSIS` / `RESEARCH_REVIEW` のfirst-classなsemantic Analysis Modeはmainに実装済みです。Research Reviewでは外部資料のClaimをClaimとして保持し、Observationや一次Evidenceへ暗黙に格上げしません。各Modeは同じEvidence Reasoning Coreへ収束し、source固有の取得処理は引き続きInsight外です。
 
-**Analysis ModeとExecution Modeは別概念です。** `Discovery / Dataset Analysis / Research Review` は入力をどう読むかというsemantic modeです。一方、現在の `service.ExecutionMode` の `deterministic / model_backed` はLLMが実行に参加したかだけを表します。この命名分離は [#38](https://github.com/sibukixxx/insight/issues/38) で完了済みで、#18では既存execution-modeのwire contractを流用せずsemantic modeを追加します。
+**Analysis ModeとExecution Modeは別概念です。** Analysis Modeは入力をどう読むかを表し、`service.ExecutionMode` の `deterministic / model_backed` はLLMが実行に参加したかだけを表します。両者は独立して記録されます。Research Artifact v1の既存JSON key `analysisMode` は互換性のためExecution Modeとして維持し、semantic modeは別fieldとしてexportします。
 
 ## Analysis ModeとResearch Stageは別物
 
@@ -192,21 +192,27 @@ DISCOVERY
 - Supporting / Counter / Neutral Evidence
 - Causal / Validation / Identification Status
 - append-onlyな `ResearchRun` / `ResearchIteration`
+- semantic Analysis Mode（`DISCOVERY` / `DATASET_ANALYSIS` / `RESEARCH_REVIEW`）とResearch Claim
 - first-class `Expectation` provenance / freeze-for-validation / iteration間lineage
+- independent validation Evidence provenance
 - ResearchGapの優先順位付け
 - Next Data Requirement
+- `DataRequirement.gapId` と追加Evidenceの明示link
+- Insight Semantics v2（Connection / Mechanism Candidate / Generalization・boundary condition）
+- iteration input snapshotとInsight Delta
 - Decision Readiness
 - Stop Reason
 - Human Override / Human Handoff
 - Markdown Research Report
 - versioned JSON Research Artifact
   - `GET /api/research-runs/{runID}/artifact.json`
-  - current `ResearchStage` と first-class `Expectations` をexport
+  - Research Stage / semantic mode / Expectations / Claims / validation evidence / gap linkage / Insight Delta / Promotionをexport
+- human review済みのapproved artifact snapshot
 - deterministic quality guardrail
-- Golden Set / dogfooding基盤
-  - association-only / population mismatch / 実Open Data再現 / new-evidence再分析 / inconclusive / competing-hypothesis cases
+- Shared Eval / Golden evaluation基盤
+  - association-only / population mismatch / 実Open Data再現 / new-evidence再分析 / inconclusive / competing-hypothesis / promotion / human-review cases
 
-Public Report向けPromotion Gateはdomain/service/usecase/HTTP/reportまで実装済みです。`PUT /api/research-runs/{runID}/iterations/{iterationID}/promotion-review` / `.../promotion-transition` でレビュー内容の提出と状態遷移を行え、Markdown reportにもPromotion Statusセクションが出力されます。JSON Research Artifact出力へのpromotion status反映は未着手です。継続作業は [#24](https://github.com/sibukixxx/insight/issues/24) を参照してください。
+Public Report向けPromotion workflowはdomain/service/usecase/HTTP/reportまで実装済みです。`PUBLICATION_READY`にはHuman Reviewが必須で、自動公開は行いません。`approved-artifact.json` は後続状態から再生成せず、承認時に保存したreview済みsnapshotを返します。
 
 ## 因果関係について
 
@@ -237,7 +243,7 @@ Evidence
 
 停止後も未解決Gapは消しません。
 
-現時点で1つintegration gapがあります。追加Evidenceはまだ自由テキストとして保持されており、取得したEvidenceがどの `DataRequirement.gapId` を解消するためのものかを機械可読に直接linkできません。この対応は [#39](https://github.com/sibukixxx/insight/issues/39) で追跡しています。
+追加Evidenceは、どの `DataRequirement.gapId` に対応するものかを明示的にlinkできます。この対応関係はappend-onlyなiteration historyとResearch Artifactへ保持されるため、後から「どの不足Evidenceを埋めるために取得したものか」を追跡できます。
 
 停止理由には、仮説の十分な識別、重要な不確実性の残存、取得可能なsourceなし、Evidence競合、人間による停止などがあります。
 
@@ -296,14 +302,17 @@ curl -o artifact.json \
 
 Downstream systemは `report.md` をparseせず、このversioned artifactを機械連携契約として利用します。
 
-## UI / 大量ファイル
+## 現在のロードマップ
 
-現在のUIは、小規模なinteractive analysisを中心にしています。
+現在は以前の大規模feature拡張より、次の方向を優先します。
 
-数百〜数千ファイル、巨大CSV/JSONL、非同期ingestion、partial failure、retry、artifact inventory、bounded-memory processingを扱うMode-Aware Project Workspaceは [#20](https://github.com/sibukixxx/insight/issues/20) で設計・実装予定です。
+1. **実データdogfooding / Public Evidence Report** — 実Open DataをResearch Loopへ通し、少なくとも1つのResearchGapを追加Evidenceで追跡し、validation provenance / Insight Delta / Promotion reviewまで実行します。Evidenceが公開基準を満たす場合はapproved artifactから公開レポートを作ります。[#60](https://github.com/sibukixxx/insight/issues/60)
+2. **Stable Public Engine Contract** — 将来のGo SDK / Node.js SDKが `internal/*` に依存せず使える、狭くversionedな公開境界を定義します。[#59](https://github.com/sibukixxx/insight/issues/59)
+3. **Failure-driven expansion** — dogfoodingや実consumerでgenericなcontract / semantics / correctness / performance gapが観測された場合だけcore機能を追加します。
 
-Analysis Jobが非同期であることと、**大量ファイルIngestion自体が非同期化済みであることは別**なので、現状を混同しないでください。
+現在の小規模interactive UIはこのフェーズには十分です。大量・巨大ファイル向けWorkspaceはactive roadmapには置かず、実workloadで必要性が確認された場合に、streaming / bounded-memory ingestion等のengine concernとUI / orchestration concernへ分割して再設計します。
 
+Go SDK / Node.js SDK自体は**まだ存在しません**。まずInsight本体をresearch semanticsとmachine-readable contractのsource of truthとして整理し、その公開境界を固定してから別repositoryとしてSDKを作ります。
 ## Build / Test / Evaluation
 
 ```bash

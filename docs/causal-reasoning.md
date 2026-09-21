@@ -10,43 +10,59 @@ Insight Lab is an evidence-grounded research and diagnostic engine. It preserves
 
 It does not estimate causal effects, discover a true DAG, or produce assessments, recommendations, architectures, estimates, proposals, or commercial decisions. Those commercial decisions belong outside this OSS repository.
 
-## Main audit (2026-09-13, updated 2026-09-20)
+## Main audit (2026-09-13, updated 2026-09-21)
 
 ### EXISTING
 
 - Exact-quote Observation extraction and application-side grounding.
 - Repetition and deviation Pattern types; deviation stores expectation and surprising behavior.
-- Abductive hypothesis generation with a visible rationale.
+- Abductive hypothesis generation with visible rationale.
+- Structured primary / competing hypotheses grouped by `HypothesisSetID`.
 - Supporting, counter, and neutral Evidence types; `CounterSearched` coverage tracking.
-- Application-side confidence based on evidence strength, coverage, source diversity, frequency, and a counter-evidence penalty.
-- Grounding and quality checks, Markdown report export, demo fixtures, tests, Makefile, and GitHub Actions.
-- CSV ingestion through the generic Document boundary and `make eval-demo`.
-- Research Stage (`DISCOVERY` / `EXPLORATORY` / `VALIDATION` / `SYNTHESIS`) gating what a finding may be labeled, wired through the domain, service, usecase, and report layers.
-- First-class `Expectation` entities with a nine-value provenance vocabulary, freeze-for-validation, and cross-iteration derivation, wired into the Research Loop (`BuildResearchIteration`, `AppendResearchIteration`, `TransitionResearchStage`) and the versioned Research Artifact export.
+- Falsification criteria and structured missing evidence / `ResearchGap` / `DataRequirement`.
+- Explicit causal status, validation status, and identification status.
+- Minimal candidate causal structures with Variable / Relation / Role semantics.
+- Deterministic guardrails preventing LLM prose, evidence counts, or confidence from promoting a claim into `CAUSALLY_SUPPORTED`.
+- Application-side confidence as evidence-quality / coverage signal, not causal probability.
+- Research Stage (`DISCOVERY` / `EXPLORATORY` / `VALIDATION` / `SYNTHESIS`).
+- First-class Expectations with provenance, freeze-for-validation, and cross-iteration derivation.
+- Persisted independent-validation evidence provenance.
+- Semantic Analysis Mode (`DISCOVERY` / `DATASET_ANALYSIS` / `RESEARCH_REVIEW`) and imported Research Claims.
+- Explicit gap → added-evidence linkage and append-only re-analysis.
+- Connection / candidate Mechanism / Generalization semantics.
+- Input snapshots and Insight Delta across research iterations.
+- Versioned Research Artifact export, Promotion review, and persisted approved-artifact snapshots.
+- Shared Eval / Golden regressions for the major research-integrity invariants.
 
-### PARTIALLY_IMPLEMENTED
+### PARTIALLY IMPLEMENTED
 
-- Alternative interpretation existed as prose, but multiple structured competing hypotheses did not.
-- Counter-evidence existed, but falsification criteria and missing evidence were not represented separately.
-- The learning note described causal concepts, but runtime semantics did not represent status, identification, or a candidate graph.
+- The engine can represent and audit candidate mechanisms, but it does not execute a causal identification design or statistical causal estimator.
+- Structured data support has deterministic CSV-oriented foundations; not every large or mixed artifact format has a stable ingestion contract.
+- Semantic Analysis Mode is first-class, while source-specific acquisition / format adapters remain intentionally outside or downstream from the core.
 
-### MISSING
+### MISSING / NOT IMPLEMENTED
 
-- Causal status, validation status, and identification status.
-- Minimal Variable/Relation/Role candidate causal structure.
-- Structured missing evidence and next-validation requirements.
-- A deterministic guardrail preventing LLM output or a high confidence score from promoting a claim to `CAUSALLY_SUPPORTED`.
+These are not current capabilities and must not be inferred from the richer semantics above:
 
-### CONFLICTING
+- causal effect estimation;
+- automatic causal discovery or a true discovered DAG;
+- automatic control-variable selection;
+- autonomous external evidence acquisition;
+- a generic bulk-ingestion platform for huge/mixed file collections;
+- a released Go SDK or Node.js SDK.
 
-- The old report label `Confidence` could be read as causal probability. It is now explicitly labeled as an evidence-quality score.
-- Existing product/monetization fields predate this foundation. They remain for backward compatibility, but causal validation never depends on them.
+### CONFLICTING / LEGACY COMPATIBILITY
 
-### OUT_OF_SCOPE
+- The old report label `Confidence` can be misread as causal probability; current documentation and semantics define it only as evidence-quality / coverage.
+- Legacy Expectation provenance values `SOURCE_BACKED` and `MODEL_PROPOSED` remain readable, but they are normalized conservatively and never upgraded into prior evidence.
+- Research Artifact v1 retains its historical JSON `analysisMode` key for execution mode compatibility; semantic Analysis Mode is a separate field.
+
+### OUT OF SCOPE
 
 - Statistical estimators, automatic causal discovery, automatic control selection, and a DAG editor.
-- Article generation and TechVit commercial decision logic.
-
+- Evidence acquisition credentials/connectors in the OSS core.
+- Customer-specific commercial recommendations, pricing, proposals, or architecture decisions.
+- Media-specific narrative generation.
 ## Semantics and guardrails
 
 An Observation contains only a fact directly verifiable in input. “Policy introduction was followed by more corporate-number designations” may be an observation. “The policy increased startups” is a hypothesis.

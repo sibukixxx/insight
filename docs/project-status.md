@@ -1,28 +1,33 @@
 # Project Status
 
-_Last reviewed: 2026-09-20_
+_Last reviewed: 2026-09-21_
 
-This document describes the current project state. It is intentionally more conservative than roadmap or design documents.
+This document describes the current `main` branch. It is intentionally more conservative than planning or design documents.
 
 ## Current stage
 
-Insight Lab has moved beyond a simple “find patterns and summarize them” pipeline.
-
-The implemented reasoning path now covers:
+Insight Lab is an open-source, local-first evidence reasoning engine. The implemented research path now covers:
 
 ```text
-Data
-→ Observation
-→ Expectation
-→ Expectation mismatch / surprising fact
+Provided Evidence
+→ deterministic validation / pre-analysis where applicable
+→ Observation / Claim
+→ Expectation + provenance
+→ Mismatch / surprise
 → Primary + competing hypotheses
-→ Independent evidence / counter-evidence evaluation
-→ Missing evidence / falsification criteria
-→ Candidate causal structure
-→ Validation status
-→ Identification status
-→ Auditable report
+→ Connection / candidate mechanism
+→ Supporting / counter / neutral evidence
+→ ResearchGap / DataRequirement
+→ additional evidence linked to the gap
+→ new ResearchIteration
+→ validation evidence provenance
+→ Insight Delta
+→ decision / publication readiness
+→ human review
+→ approved research artifact
 ```
+
+The engine still does **not** estimate causal effects or autonomously acquire missing external evidence.
 
 ## Implemented foundation
 
@@ -30,114 +35,154 @@ Data
 
 - Source-backed observations and quote grounding.
 - Pattern and deviation/trace representation.
-- Separation between directly observed facts and generated explanations.
+- Separation between directly observed facts, imported claims, and generated explanations.
+- Research Review inputs can retain external claims as claims rather than silently upgrading them into observations or primary evidence.
 
-### Hypothesis reasoning
+### Semantic Analysis Mode
+
+First-class semantic `AnalysisMode` is implemented:
+
+- `DISCOVERY`
+- `DATASET_ANALYSIS`
+- `RESEARCH_REVIEW`
+
+This is separate from `service.ExecutionMode` (`deterministic` / `model_backed`), which only records whether a model participated in execution.
+
+### Hypothesis and Insight reasoning
 
 - Abductive hypothesis generation.
-- Structured competing hypotheses.
-- `HypothesisSetID` and `PRIMARY` / `COMPETING` roles.
+- Structured competing hypotheses with `HypothesisSetID` and `PRIMARY` / `COMPETING` roles.
 - Independent evidence and counter-evidence processing for candidates in the same hypothesis set.
-- Deterministic warning when too few competing explanations are independently evaluated.
+- Generic Insight Semantics v2:
+  - non-obvious `Connection`;
+  - candidate `Mechanism` with unsupported bridges kept explicit;
+  - `Generalization` / transfer candidates with boundary and failure conditions.
+- Narrative coherence alone cannot promote a mechanism into a validated causal claim.
+
+### Research Stage and Expectation lifecycle
+
+- `ResearchStage`: `DISCOVERY` / `EXPLORATORY` / `VALIDATION` / `SYNTHESIS`.
+- First-class `Expectation` entities.
+- Current provenance vocabulary: `PRIOR`, `LITERATURE`, `DOMAIN_KNOWLEDGE`, `MODEL_PROPOSED_POST_HOC`, `HUMAN_POST_HOC`, `DERIVED_FROM_PRIOR_RUN`, `OTHER`, `UNKNOWN`.
+- Legacy `SOURCE_BACKED` / `MODEL_PROPOSED` values remain readable and are normalized conservatively.
+- Explicit freeze-for-validation and cross-iteration lineage.
+- Guarded `EXPLORATORY → VALIDATION` transitions.
+- Persisted `ValidationEvidenceProvenance` records which frozen expectation and independent evidence justified validation.
 
 ### Causal guardrails
 
 - Explicit causal, validation, and identification status.
 - Candidate causal structures and variable roles.
 - Separation of falsification criteria from actual counter-evidence.
-- Model-proposed expectations are not automatically evidence.
-- Application confidence is not interpreted as causal probability.
-- The current pipeline does not automatically emit `CAUSALLY_SUPPORTED`.
+- Application confidence is not causal probability.
+- The current pipeline never promotes an observational association into a proven causal effect merely because a model wrote a persuasive explanation or evidence counts are high.
 
-### Product mechanics
+### External dataset provenance
 
-- Local-first SQLite persistence.
-- Text and CSV ingestion.
-- OpenAI-compatible model configuration.
-- Markdown report export.
-- Production and fictional-demo builds.
-- Repeatable `make eval-demo` workflow.
+- Deterministic dataset pre-analysis can run without an LLM.
+- Validated acquisition manifests record source, retrieval method/time, dataset identifiers, hashes and caveats.
+- Dataset compatibility warnings cover unit, population scope, period granularity, and schema mismatches.
+- Numeric source-of-truth calculations remain deterministic where supported.
 
-### External dataset provenance (BYO-Evidence)
+### Research Loop and Insight Delta
 
-- Deterministic dataset pre-analysis for reproducible external-data runs, independent of any model call.
-- `ExecutionMode` distinguishes deterministic-only runs from model-backed ones (`RunProvenance`). It is deliberately not named `AnalysisMode`: that name is reserved for the semantic Discovery / Dataset Analysis / Research Review split #18 is still completing (see #38).
-- Validated acquisition manifest schema (source, retrieval method, retrieval time, dataset id, hashes, caveats); credential-looking fields are rejected.
-- Dataset hash provenance and cross-dataset compatibility warnings (unit / population scope / period granularity / schema version mismatches).
-- See [byo-evidence-boundary.md](byo-evidence-boundary.md) for what Insight Lab does and does not fetch itself.
+- Append-only `ResearchRun` / `ResearchIteration` history.
+- Structured `ResearchGap` / provider-neutral `DataRequirement`.
+- Explicit `DataRequirement.gapId` → `AddedEvidenceLink` linkage.
+- Added evidence can create a new iteration without overwriting history.
+- `InputSetSnapshot` and `InsightDelta` describe input/result differences across iterations.
+- Existing `HypothesisChange` semantics are reused rather than duplicated.
+- A change after adding a variable/evidence item is not treated as proof that the added item caused the interpretation change.
 
-### Research Loop, Stage and artifact export
+### Research Artifact and publication workflow
 
-- Append-only `ResearchRun` / `ResearchIteration` history; prior iterations are never overwritten.
-- `ResearchGap` / `DataRequirement`, including gap dependencies and discriminating-power priority ordering.
-- Decision readiness assessment, explicit stop reasons, and human override / evaluation handoff.
-- `ResearchStage` (`DISCOVERY` / `EXPLORATORY` / `VALIDATION` / `SYNTHESIS`) with guarded transitions, wired into the service, usecase and Markdown report layers.
-- Expectation provenance (`SOURCE_BACKED` vs `MODEL_PROPOSED`) guards against treating a post-hoc explanation as a prior prediction.
-- Versioned, machine-consumable Research Artifact JSON export (`/api/research-runs/{id}/artifact.json`, schema v1), including the latest iteration's Research Stage (#37).
-- Requirement linkage from an acquired evidence item back to the `DataRequirement.gapId` it resolves is not yet implemented; `addedEvidence` remains free text (tracked in #39).
+The versioned JSON Research Artifact is the machine-readable handoff contract used by downstream systems instead of Markdown parsing.
 
-### Promotion Gate
+Current artifact content includes, where available:
 
-- Domain and service layer implemented (rules for when a claim is fit to promote into a public report).
-- Wired into the usecase (`SubmitPromotionReview`, `TransitionPromotionState`), HTTP (`PUT /api/research-runs/{id}/iterations/{id}/promotion-review`, `.../promotion-transition`), and Markdown report (`## Promotion Status`) layers.
-- Research Artifact JSON exports promotion status, blocking reasons, and the reviewed checklist. The project’s **Research publications** screen supports human review, explicit publication recording, and rejection. Review stops at `PUBLICATION_READY`; it never publishes automatically.
-- `approved-artifact.json` returns the exact persisted approval snapshot with its SHA-256 reference. Later analyses and publication recording cannot change those bytes. See [publication workflow](publication-workflow.md).
+- Research Stage and semantic Analysis Mode;
+- execution/model/rule provenance;
+- acquisition manifests and dataset hashes;
+- Insights with Connection / Mechanism / Generalization;
+- Research Claims;
+- Expectations and hypothesis history;
+- validation evidence provenance;
+- ResearchGap / DataRequirement;
+- added-evidence linkage;
+- input snapshot / Insight Delta;
+- what-we-cannot-conclude;
+- readiness / stop decision / human evaluation;
+- promotion assessment and reviewed checklist.
+
+The publication workflow is implemented through domain/service/usecase/HTTP/report layers. Human review is required before `PUBLICATION_READY`. `approved-artifact.json` returns the exact persisted approved snapshot; later analyses do not rewrite those approved bytes.
+
+The exact public-vs-internal SDK field boundary is **not yet frozen** and is being audited in #59.
+
+### Evaluation
+
+- Shared Eval Contract v1 integration.
+- Golden regressions cover association-only, definition/population mismatch, post-hoc expectation guards, real Open Data reproducibility, new-evidence re-analysis, valid inconclusive cases, competing hypotheses/counter-evidence, Promotion Gate behavior, and human review outcomes.
+- Real Open Data deterministic pipeline coverage exists in the evaluation suite.
 
 ## Known limitations
 
 - Insight Lab does not estimate causal effects.
-- `NOT_IDENTIFIED` is expected for causal questions that only contain observational association without an appropriate identification design.
-- Suggested DiD/RDD/IV/natural-experiment approaches are recommendations for validation, not analyses that have been executed.
-- External structured-data sources require adapters; the core does not contain source-specific schemas.
-- CSV ingestion exists; a generic JSONL adapter is not yet part of the documented stable path.
-- LLM quality remains model- and data-dependent, so generated hypotheses require human review.
+- `NOT_IDENTIFIED` and `INSUFFICIENT_EVIDENCE` are valid research outcomes.
+- External evidence acquisition remains outside the OSS core.
+- CSV ingestion exists; a generic stable JSONL ingestion path is not yet a documented public contract.
+- Model-backed interpretation remains model- and data-dependent and requires human review.
+- The current UI is optimized for small interactive projects, not bulk asynchronous ingestion.
+- Go and Node.js SDK repositories do not exist yet.
 
-## Current development priority: dogfooding before expansion
+## Current development priorities
 
-The next milestone is not another large causal feature. It is repeatable evaluation on real or carefully curated public-data cases.
+### 1. Real-data dogfooding / Public Evidence Report
 
-The initial target is a small Golden Dogfooding set with different causal difficulty levels, for example:
+Issue #60 runs a real public-data case through the full loop:
 
-1. temperature and heat-related emergency transports;
-2. municipal startup support and company-formation/designation activity;
-3. inbound tourism and local economic outcomes.
+```text
+Open Data
+→ deterministic pre-analysis
+→ ResearchIteration
+→ ResearchGap
+→ external acquisition
+→ AddedEvidenceLink
+→ new iteration
+→ ValidationEvidence
+→ Insight Delta
+→ Promotion review
+→ approved artifact or valid rejection
+→ Public Evidence Report
+```
 
-Each case should define expected behavior before running the model, including:
+The purpose is to find actual semantic/contract failures before expanding the engine.
 
-- observations the system must detect;
-- causal claims it must not make;
-- important alternative explanations;
-- expected missing evidence;
-- expected identification state;
-- human usefulness of the resulting next-validation steps.
+### 2. Stable Public Engine contract
 
-The purpose is to discover systematic failure modes. Implementation work should then target observed failures rather than speculative features.
+Issue #59 defines the narrow boundary future Go and Node.js SDK repositories may depend on:
+
+- language-neutral input contracts;
+- stable Research Artifact output;
+- public vs internal fields;
+- HTTP / CLI / embedded boundaries;
+- error and versioning contracts.
+
+`internal/*` remains implementation detail unless a deliberately reviewed public façade says otherwise.
+
+### 3. Failure-driven expansion
+
+New core features should be justified by dogfooding or a real consumer. Provider-specific acceleration, giant ingestion UI, and media-specific narrative handoffs are not active core priorities.
 
 ## Success criteria for the next phase
 
-A useful result does not require proving causality.
+A useful next phase means:
 
-The system should reliably help a reviewer move from:
-
-```text
-interesting correlation
-```
-
-toward:
-
-```text
-grounded observation
-+ competing explanations
-+ counter-evidence
-+ missing evidence
-+ explicit identification limits
-+ concrete next validation step
-```
-
-A correct `NOT_IDENTIFIED` or `INSUFFICIENT_EVIDENCE` result is considered successful when the available data cannot support a stronger conclusion.
+- at least one real public-data Research Loop is completed end-to-end;
+- the engine exposes missing evidence and identification limits honestly;
+- the approved/rejected publication decision is auditable;
+- #59 is informed by actual consumer operations rather than speculative SDK abstractions;
+- new implementation work targets observed failures.
 
 ## Not a promise of future features
 
-This status document describes direction, not a commitment to implement statistical estimators, automatic causal discovery, commercial decision logic, or domain-specific integrations.
-
-Future work should be driven by dogfooding evidence and contributor demand.
+This status document describes direction, not a commitment to statistical estimators, autonomous evidence acquisition, causal discovery, bulk-ingestion infrastructure, media-specific generation, or commercial decision logic.
