@@ -1,6 +1,6 @@
 # Golden Set — Shared Eval Contract fixtures (issue #14)
 
-Versioned, Insight-owned domain fixtures for evaluating Public Evidence Reports and Research Runs. TechVit Business now defines Shared Eval Contract v1 as an exchange format; Insight keeps its domain fixtures and invariants locally and maps each checked case into that shared envelope without taking a runtime dependency.
+Versioned, Insight-owned domain fixtures for evaluating Public Evidence Reports and Research Runs. Shared Eval Contract v1 is used as a neutral exchange format; Insight keeps its domain fixtures and invariants locally and maps each checked case into that shared envelope without taking a runtime dependency.
 
 ## Layout
 
