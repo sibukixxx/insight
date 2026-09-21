@@ -7,7 +7,7 @@ Issues and pull requests are welcome. Insight Lab is intentionally conservative 
 You need Go 1.25 or later. CGO is not required.
 
 ```bash
-git clone https://github.com/sibukixxx/insight.git
+git clone <repository-url>
 cd insight
 make build-demo
 ./bin/insight-lab-demo --demo
