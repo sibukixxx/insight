@@ -704,7 +704,7 @@ def render_note(comparisons: dict[str, Comparison]) -> str:
 
 次は2024年の雇用者なし個人経営を含む参考表を取り込み、同じ定義へ近づけて検証する。結論が変わるなら、それ自体が重要な結果になる。
 
-※元の件数は総務省統計局の公表値。差分・変化率と比較可能性の整理がTechVitによる一次分析。
+※元の件数は総務省統計局の公表値。差分・変化率と比較可能性の整理がこのレポートによる一次分析。
 """
     excluded_segment = harmonized.current.value - naive.current.value
     excluded_share = pct_share(excluded_segment, naive.delta)
@@ -729,7 +729,7 @@ def render_note(comparisons: dict[str, Comparison]) -> str:
 
 次は同じ参考表の都道府県別と、事業所の存続・新設・廃業の集計を取り込む。
 
-※元の件数は総務省統計局の公表値。参考表の数値は参考値。差分・変化率・寄与分解と比較可能性の判定がTechVitによる一次分析。
+※元の件数は総務省統計局の公表値。参考表の数値は参考値。差分・変化率・寄与分解と比較可能性の判定がこのレポートによる一次分析。
 """
 
 
