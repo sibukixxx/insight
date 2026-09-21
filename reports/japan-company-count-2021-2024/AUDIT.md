@@ -44,7 +44,7 @@ Audited against `main` on 2026-09-18 before P0 implementation.
 - LLM prompt/pipeline behavior unrelated to the P0 public report
 - Existing confidence meaning
 
-## ja-company-base
+## External corporate-registry adapter
 
 ### EXISTING
 
@@ -53,7 +53,7 @@ Audited against `main` on 2026-09-18 before P0 implementation.
 - `AnalysisRecord` projection
 - `ASSIGNED` / `UPDATED` / `CHANGED` / `CLOSED` event classification
 - CSV / JSONL `AnalysisWriter`
-- `ja-company-export` CLI
+- external exporter CLI
 - source provider/version/fetched-at metadata
 - external-acquisition credential boundary
 
@@ -64,12 +64,12 @@ Audited against `main` on 2026-09-18 before P0 implementation.
 
 ### MISSING / EXTERNAL BOUNDARY
 
-- A real NTA export cannot be produced in this execution environment without the user's `HOUJIN_APP_ID` (or a separately downloaded official bulk file).
+- A registry-level export may require credentials or a separately downloaded official bulk file in the external acquisition layer.
 - That limitation is not a reason to block P0 because an authentication-free official aggregate source is available for the first report.
 
 ### DO NOT TOUCH
 
-- AppID handling and logging rules
+- external credential handling and logging rules
 - event semantics
 - public API client contract
 
