@@ -14,7 +14,7 @@ Insight Lab is an open-source, local-first **evidence reasoning engine**.
 It is designed for research where the input already exists in some form:
 
 - customer interviews, reviews, support logs, sales notes, surveys, and other raw evidence;
-- structured datasets such as CSV exports, BI data, operational metrics, public-data exports, and `ja-company-base` output;
+- structured data after normalization into Dataset Documents or a supported adapter contract, including operational metrics, public-data exports, and `ja-company-base` output;
 - existing research or analysis artifacts such as internal studies, consulting reports, market research, or AI-generated analysis.
 
 Insight Lab is not intended to be a general-purpose research chatbot. It does not autonomously search the web, authenticate to external data services, or acquire missing evidence on its own.
