@@ -123,7 +123,7 @@ func (a *Application) ImportDocumentsCSV(ctx context.Context, projectID string, 
 	return service.ImportCSVWithManifest(ctx, a.repos.Documents, projectID, r, m)
 }
 
-// ImportAnalysisCSV imports the ja-company-base AnalysisRecord CSV contract.
+// ImportAnalysisCSV imports the external-registry-export AnalysisRecord CSV contract.
 // manifest is the optional acquisition manifest, as with ImportDocumentsCSV.
 func (a *Application) ImportAnalysisCSV(ctx context.Context, projectID string, r io.Reader, manifest io.Reader) (*service.AnalysisImportResult, error) {
 	if err := a.RequireProject(ctx, projectID); err != nil {
