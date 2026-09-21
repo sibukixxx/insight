@@ -264,10 +264,10 @@ func newTestPipelineWith(t *testing.T, client llm.Client, docs []*domain.Documen
 
 func TestPipelineRunWithoutLLMCompletesDeterministicPreAnalysis(t *testing.T) {
 	manifest := validManifest()
-	manifest.FileHash = "hash_ja"
+	manifest.FileHash = "hash_dataset"
 	docs := append(interviewTestDocuments("proj_1"),
-		datasetDoc("doc_jan", "2026-01", "西東京市", "ASSIGNED", "2", manifest.DocumentMetadata(nil)),
-		datasetDoc("doc_feb", "2026-02", "西東京市", "ASSIGNED", "5", manifest.DocumentMetadata(nil)),
+		datasetDoc("doc_jan", "2026-01", "サンプル市", "ASSIGNED", "2", manifest.DocumentMetadata(nil)),
+		datasetDoc("doc_feb", "2026-02", "サンプル市", "ASSIGNED", "5", manifest.DocumentMetadata(nil)),
 	)
 	pipeline, db, project := newTestPipelineWith(t, nil, docs)
 	ctx := context.Background()
@@ -287,10 +287,10 @@ func TestPipelineRunWithoutLLMCompletesDeterministicPreAnalysis(t *testing.T) {
 	if prov.RuleVersion != datasetPreAnalysisRuleVersion || prov.DeterministicObservations != 2 || prov.DeterministicComparisons != 1 {
 		t.Errorf("deterministic provenance wrong: %+v", prov)
 	}
-	if len(prov.DatasetHashes) != 1 || prov.DatasetHashes[0] != "hash_ja" {
-		t.Errorf("DatasetHashes = %v, want [hash_ja]", prov.DatasetHashes)
+	if len(prov.DatasetHashes) != 1 || prov.DatasetHashes[0] != "hash_dataset" {
+		t.Errorf("DatasetHashes = %v, want [hash_dataset]", prov.DatasetHashes)
 	}
-	if len(prov.Datasets) != 1 || prov.Datasets[0].SourceName != "e-Stat" || prov.Datasets[0].RecipeRef != manifest.RecipeRef || prov.Datasets[0].FileHash != "hash_ja" {
+	if len(prov.Datasets) != 1 || prov.Datasets[0].SourceName != "e-Stat" || prov.Datasets[0].RecipeRef != manifest.RecipeRef || prov.Datasets[0].FileHash != "hash_dataset" {
 		t.Errorf("Datasets provenance = %+v, want the manifest's source/recipe/hash", prov.Datasets)
 	}
 	if metrics.TotalObservationCandidates != 2 || metrics.GroundedObservations != 2 || metrics.UnsupportedClaimRate != 0 {
@@ -338,8 +338,8 @@ func TestPipelineRunWithoutLLMFailsWhenNothingCanBeAnalyzedDeterministically(t *
 func TestPipelineRunModelBackedKeepsDatasetNumbersOutOfTheModel(t *testing.T) {
 	fake := newFakeLLM()
 	docs := append(interviewTestDocuments("proj_1"),
-		datasetDoc("doc_jan", "2026-01", "西東京市", "ASSIGNED", "2", map[string]string{MetadataDatasetHash: "hash_ja"}),
-		datasetDoc("doc_feb", "2026-02", "西東京市", "ASSIGNED", "5", map[string]string{MetadataDatasetHash: "hash_ja"}),
+		datasetDoc("doc_jan", "2026-01", "サンプル市", "ASSIGNED", "2", map[string]string{MetadataDatasetHash: "hash_dataset"}),
+		datasetDoc("doc_feb", "2026-02", "サンプル市", "ASSIGNED", "5", map[string]string{MetadataDatasetHash: "hash_dataset"}),
 	)
 	pipeline, db, project := newTestPipelineWith(t, fake, docs)
 	ctx := context.Background()
