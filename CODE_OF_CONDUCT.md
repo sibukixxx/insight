@@ -20,7 +20,7 @@ Harassment, sexualized language or attention, insults, personal or political att
 
 This Code applies in all project community spaces and when an individual officially represents the project in public.
 
-Report violations to the maintainer, Yuichi Takada, at takada@techvit.me. Reports will be reviewed promptly and fairly. Maintainers may remove or edit contributions and temporarily or permanently restrict participation when appropriate.
+Report violations privately to the repository maintainers through GitHub. Reports will be reviewed promptly and fairly. Maintainers may remove or edit contributions and temporarily or permanently restrict participation when appropriate.
 
 ## Attribution
 

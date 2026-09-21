@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/sibukixxx/insight/testdata/golden/schema/eval-case.v0.1.schema.json",
+  "$id": "https://example.invalid/insight-lab/contracts/eval-case.v0.1.schema.json",
   "title": "Insight Lab Golden Case (Shared Eval Contract v0.1)",
-  "description": "Shape of one golden case. Shared semantics may later move to TechVit Business; Insight-owned fixtures and invariants stay in this repository. The harness in ../harness validates the subset of this schema it needs with the standard library only.",
+  "description": "Shape of one golden case. Shared semantics may be consumed by downstream systems; Insight-owned fixtures and invariants stay in this repository. The harness in ../harness validates the subset of this schema it needs with the standard library only.",
   "type": "object",
   "required": ["caseId", "version", "title", "kind", "goldenSetIndex", "dimensions", "input", "expected", "humanReview"],
   "properties": {

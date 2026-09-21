@@ -1,10 +1,10 @@
-# ja-company-base Dogfooding
+# Corporate-event CSV Dogfooding
 
 This workflow tests the boundary:
 
-`ja-company-base AnalysisRecord CSV → deterministic aggregate Dataset Documents → Insight pipeline`
+`external corporate-event CSV → deterministic aggregate Dataset Documents → Insight pipeline`
 
-Insight Lab does not import or depend on the `ja-company-base` Go module. The integration contract is CSV only.
+Insight Lab does not depend on any source-specific exporter repository. The integration contract is a normalized corporate-event CSV.
 
 ## What the adapter does
 
@@ -35,7 +35,7 @@ Both import endpoints accept an optional `manifest` multipart field: a JSON [acq
 
 ```bash
 curl -F file=@companies.csv \
-  -F manifest='{"sourceName":"ja-company-base","datasetId":"export-2026-01","retrievalMethod":"user_provided","retrievedAt":"2026-03-01T00:00:00Z","schemaId":"ja-company-analysis-csv","unit":"administrative records"}' \
+  -F manifest='{"sourceName":"external-registry-export","datasetId":"export-2026-01","retrievalMethod":"user_provided","retrievedAt":"2026-03-01T00:00:00Z","schemaId":"corporate-event-analysis-csv","unit":"administrative records"}' \
   http://127.0.0.1:8787/api/projects/PROJECT_ID/documents/import/analysis
 ```
 
@@ -43,17 +43,12 @@ Datasets in the same project whose manifests declare a different unit, populatio
 
 ## Reproducible run
 
-### 1. Export administrative records
+### 1. Prepare administrative-event records
 
-From `ja-company-base`:
+Use any external exporter or adapter that produces the required CSV contract. For example:
 
 ```bash
-HOUJIN_APP_ID=... go run ./cmd/ja-company-export \
-  -from 2026-01-01 \
-  -to 2026-06-30 \
-  -prefecture 13 \
-  -format csv \
-  -output companies.csv
+external-exporter --from 2026-01-01 --to 2026-06-30 --format csv --output companies.csv
 ```
 
 Use multiple months. A one-day or one-month export cannot establish a temporal mismatch.
@@ -64,7 +59,7 @@ Use multiple months. A one-day or one-month export cannot establish a temporal m
 INSIGHT_LAB_API_KEY=... go run ./cmd/insight-lab
 ```
 
-`INSIGHT_LAB_API_KEY` is only required for hypothesis generation and report narrative; the deterministic pre-analysis below runs without it. Create a project in the browser, then use **Import ja-company analysis CSV**. The equivalent HTTP request is:
+`INSIGHT_LAB_API_KEY` is only required for hypothesis generation and report narrative; the deterministic pre-analysis below runs without it. Create a project in the browser, then use **Import analysis CSV**. The equivalent HTTP request is:
 
 ```bash
 curl -F file=@companies.csv \
@@ -104,8 +99,8 @@ Without an LLM configured, the report's `## Run provenance` section instead show
 
 ## Current operational limits
 
-- Real export requires the user's `HOUJIN_APP_ID`.
+- Real exports may require credentials in the external acquisition layer; those credentials never belong in Insight Lab metadata or source control.
 - Deterministic pre-analysis (counts, period comparisons, provenance) needs no LLM key at all. Hypothesis generation, evidence retrieval and report narrative still require `INSIGHT_LAB_API_KEY`.
 - The first dogfood uses CSV. JSONL is deliberately deferred.
 - The adapter trusts `event_type` classification supplied by the exporter and preserves its provider/version for audit. It does not reinterpret source events.
-- The acquisition manifest is supplied by whoever exports the file; Insight Lab does not fetch e-Stat, RESAS, or ja-company-base itself and cannot verify a manifest's claims beyond rejecting embedded credentials and internal contradictions.
+- The acquisition manifest is supplied by whoever exports the file; Insight Lab does not fetch external statistical APIs or registries itself and cannot verify a manifest's claims beyond rejecting embedded credentials and internal contradictions.

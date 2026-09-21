@@ -24,9 +24,9 @@ The boundary is not "stop when evidence is missing". Insight Lab must be able to
 Insight Lab itself never fetches missing evidence from an external service. Out of scope for the OSS core:
 
 - autonomous web-search orchestration;
-- automatic search of or authenticated retrieval from e-Stat, RESAS, the National Tax Agency registry, or similar sources;
+- automatic search of or authenticated retrieval from external statistical APIs, registries, or similar sources;
 - managed SaaS / Drive / CRM connectors;
-- customer-specific credential management (for example `HOUJIN_APP_ID` handling belongs to `ja-company-base`, not here);
+- customer-specific credential management;
 - continuous external monitoring;
 - an autonomous "research agent" that loops fetch → analyze without a human or a private layer in between;
 - commercial recommendation, pricing or proposal generation (already out of scope in [project-scope.md](project-scope.md)).

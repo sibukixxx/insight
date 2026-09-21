@@ -315,10 +315,10 @@ def _shared_human_review(case: dict[str, Any]) -> dict[str, Any]:
 
 
 def to_shared_eval_contract(case: dict[str, Any], checks: list[Check] | None = None) -> dict[str, Any]:
-    """Map an Insight-owned golden case into TechVit Shared Eval Contract v1.
+    """Map an Insight-owned golden case into Shared Eval Contract v1.
 
     This is an exchange-format adapter only; Insight keeps its domain fixtures and
-    semantic checks local and does not take a runtime dependency on TechVit Business.
+    semantic checks local and does not take a runtime dependency on downstream applications.
     """
     if checks is None:
         checks = []
@@ -383,7 +383,7 @@ def check_shared_eval_contract(envelope: dict[str, Any], case_id: str) -> Check:
         case_id,
         "SHARED_EVAL_CONTRACT",
         "FAIL" if problems else "PASS",
-        "; ".join(problems) or "maps to TechVit Shared Eval Contract v1",
+        "; ".join(problems) or "maps to Shared Eval Contract v1",
     )
 
 

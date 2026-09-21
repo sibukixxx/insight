@@ -146,9 +146,9 @@ func TestImportDocumentsCSVHTTPWithoutManifestStillRecordsFileHash(t *testing.T)
 
 func TestImportAnalysisCSVHTTPWithManifestAttachesProvenanceToAggregates(t *testing.T) {
 	router := newImportTestRouter(t)
-	manifest := `{"sourceName":"ja-company-base","datasetId":"export-2026-01","retrievalMethod":"user_provided","retrievedAt":"2026-03-01T00:00:00Z","schemaId":"ja-company-analysis-csv","unit":"administrative records"}`
+	manifest := `{"sourceName":"external-registry-export","datasetId":"export-2026-01","retrievalMethod":"user_provided","retrievedAt":"2026-03-01T00:00:00Z","schemaId":"corporate-event-analysis-csv","unit":"administrative records"}`
 	csvData := "corporate_number,name,kind,prefecture_code,prefecture_name,city_code,city_name,assignment_date,update_date,change_date,close_date,close_cause,event_type,source_provider,source_version,source_fetched_at\n" +
-		"1000000000001,A,株式会社,13,東京都,229,西東京市,2026-01-02,,,,,ASSIGNED,houjin_bangou,v4,2026-03-01T00:00:00Z\n"
+		"1000000000001,A,株式会社,13,サンプル都,229,サンプル市,2026-01-02,,,,,ASSIGNED,sample_registry,v4,2026-03-01T00:00:00Z\n"
 	body, contentType := multipartUpload(t, map[string]string{"manifest": manifest}, "file", "records.csv", csvData)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/projects/p1/documents/import/analysis", body)
@@ -165,7 +165,7 @@ func TestImportAnalysisCSVHTTPWithManifestAttachesProvenanceToAggregates(t *test
 	}
 	meta, _ := docs[0]["metadata"].(map[string]any)
 	manifestJSON, _ := meta["acquisition_manifest"].(string)
-	if meta == nil || !strings.Contains(manifestJSON, "ja-company-base") {
+	if meta == nil || !strings.Contains(manifestJSON, "external-registry-export") {
 		t.Fatalf("manifest not attached to aggregate: %v", docs[0])
 	}
 }

@@ -13,9 +13,9 @@ const analysisCSVHeader = "corporate_number,name,kind,prefecture_code,prefecture
 func TestImportAnalysisCSVAggregatesAdministrativeRecordsWithoutCausalMeaning(t *testing.T) {
 	documents, project := newTestDocumentRepo(t)
 	input := analysisCSVHeader +
-		"1000000000001,A,株式会社,13,東京都,229,西東京市,2026-01-02,,,,,ASSIGNED,houjin_bangou,v4,2026-03-01T00:00:00Z\n" +
-		"1000000000002,B,株式会社,13,東京都,229,西東京市,2026-01-10,,,,,ASSIGNED,houjin_bangou,v4,2026-03-01T00:00:00Z\n" +
-		"1000000000003,C,株式会社,13,東京都,229,西東京市,2026-01-01,2026-02-03,,,,UPDATED,houjin_bangou,v4,2026-03-01T00:00:00Z\n"
+		"1000000000001,A,株式会社,13,サンプル都,229,サンプル市,2026-01-02,,,,,ASSIGNED,sample_registry,v4,2026-03-01T00:00:00Z\n" +
+		"1000000000002,B,株式会社,13,サンプル都,229,サンプル市,2026-01-10,,,,,ASSIGNED,sample_registry,v4,2026-03-01T00:00:00Z\n" +
+		"1000000000003,C,株式会社,13,サンプル都,229,サンプル市,2026-01-01,2026-02-03,,,,UPDATED,sample_registry,v4,2026-03-01T00:00:00Z\n"
 
 	result, err := ImportAnalysisCSV(context.Background(), documents, project.ID, strings.NewReader(input))
 	if err != nil {
@@ -55,11 +55,11 @@ func TestImportAnalysisCSVAggregatesAdministrativeRecordsWithoutCausalMeaning(t 
 func TestImportAnalysisCSVWithManifestRecordsHashAndManifestOnAggregates(t *testing.T) {
 	documents, project := newTestDocumentRepo(t)
 	input := analysisCSVHeader +
-		"1000000000001,A,株式会社,13,東京都,229,西東京市,2026-01-02,,,,,ASSIGNED,houjin_bangou,v4,2026-03-01T00:00:00Z\n" +
-		"1000000000002,B,株式会社,13,東京都,229,西東京市,2026-02-10,,,,,ASSIGNED,houjin_bangou,v4,2026-03-01T00:00:00Z\n"
+		"1000000000001,A,株式会社,13,サンプル都,229,サンプル市,2026-01-02,,,,,ASSIGNED,sample_registry,v4,2026-03-01T00:00:00Z\n" +
+		"1000000000002,B,株式会社,13,サンプル都,229,サンプル市,2026-02-10,,,,,ASSIGNED,sample_registry,v4,2026-03-01T00:00:00Z\n"
 	manifest := validManifest()
-	manifest.SourceName = "ja-company-base"
-	manifest.SchemaID = "ja-company-analysis-csv"
+	manifest.SourceName = "external-registry-export"
+	manifest.SchemaID = "corporate-event-analysis-csv"
 	manifest.Unit = "administrative records"
 
 	result, err := ImportAnalysisCSVWithManifest(context.Background(), documents, project.ID, strings.NewReader(input), &manifest)
@@ -91,7 +91,7 @@ func TestImportAnalysisCSVRejectsMissingContractColumn(t *testing.T) {
 
 func TestImportAnalysisCSVSkipsUnknownEventWithoutUsableDate(t *testing.T) {
 	documents, project := newTestDocumentRepo(t)
-	input := analysisCSVHeader + "1000000000001,A,株式会社,13,東京都,229,西東京市,,,,,,,UNKNOWN,houjin_bangou,v4,2026-03-01T00:00:00Z\n"
+	input := analysisCSVHeader + "1000000000001,A,株式会社,13,サンプル都,229,サンプル市,,,,,,,UNKNOWN,sample_registry,v4,2026-03-01T00:00:00Z\n"
 	result, err := ImportAnalysisCSV(context.Background(), documents, project.ID, strings.NewReader(input))
 	if err != nil {
 		t.Fatal(err)
