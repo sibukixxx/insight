@@ -484,7 +484,7 @@ def render_report(comparisons: dict[str, Comparison], ledger: list[ClaimLedgerEn
 
 現時点では、**「日本の会社は減っている」とは結論できない**。公表された「企業等数」は2021年から2024年で {naive_change} と大きく減って見えるが、2024年調査は雇用者のいない個人経営の事業所を対象外としており、母集団が同一ではない。母集団定義を揃えた2024年参考表（雇用者のいない個人経営を含む）では {harmonized_change} となり、減少幅は約3分の1に縮まる。ただしこの参考値は、対象外となった個人経営の部分を2021年値で補ったものであり、2024年の実測ではない。会社企業数は結果の概要 表II-1では {company_change} と増加、参考表では {_fmt_change(company_reference) if company_reference else "（参考表値なし）"} と減少で、引く表によって方向が変わる。したがって、言えるのは「31%減という見かけの数字は母集団差の産物であり、定義を揃えた参考値では約9%減にとどまるが、それも実測ではない」までである。
 
-> **TechVit一次分析の範囲**: 下表の元の件数は総務省統計局の公表値であり、TechVit独自調査値ではない。TechVitの一次分析は、正規化、差分・変化率・寄与分解の決定的計算、母集団定義の比較可能性判定、Evidence / Counter Evidence整理である。
+> **Insight Labによる分析の範囲**: 下表の元の件数は総務省統計局の公表値であり、Insight Lab独自取得値ではない。このレポートの一次分析は、正規化、差分・変化率・寄与分解の決定的計算、母集団定義の比較可能性判定、Evidence / Counter Evidence整理である。
 
 ## 使用データ
 
@@ -552,7 +552,7 @@ def render_report(comparisons: dict[str, Comparison], ledger: list[ClaimLedgerEn
 1. 同じ参考表の都道府県・市区町村別の企業等数を正規化し、全国集計だけでは見えない地域差を確認する。
 2. 参考表「事業所の活動状態に関する集計」（存続・新設・廃業）を取り込み、ストック差ではなくフローとして変化を分解する。
 3. 会社企業数の表間差の原因を、集計事項一覧と各表の注記から特定する。
-4. `ja-company-base` を使い、国税庁法人番号データのASSIGNED / CHANGED / CLOSED等を**設立・廃業と同一視せず**イベント系列として集計する。
+4. 外部registry adapterを使い、corporate-event dataのASSIGNED / CHANGED / CLOSED等を**設立・廃業と同一視せず**イベント系列として集計する。
 5. 複数年・複数データソースで同じ方向が確認できてから、企業新陳代謝に関するResearch Questionへ進む。
 
 ## Methodology
@@ -595,7 +595,7 @@ def _render_report_p0(naive: Comparison, company: Comparison, naive_change: str,
 
 現時点では、**「日本の会社は減っている」とは結論できない**。公表された「企業等数」は2021年から2024年で {naive_change} と大きく減って見えるが、2024年調査は雇用者のいない個人経営の事業所を対象外としており、母集団が同一ではない。一方、会社企業の公表値は {company_change} と逆方向である。したがって、まず定義・対象範囲を揃えた比較が必要であり、単純なトップライン差を実体的な会社減少と読むことはできない。
 
-> **TechVit一次分析の範囲**: 下表の元の件数は総務省統計局の公表値であり、TechVit独自調査値ではない。TechVitの一次分析は、正規化、差分・変化率の決定的計算、母集団定義の比較、Evidence / Counter Evidence整理である。
+> **Insight Labによる分析の範囲**: 下表の元の件数は総務省統計局の公表値であり、Insight Lab独自取得値ではない。このレポートの一次分析は、正規化、差分・変化率の決定的計算、母集団定義の比較、Evidence / Counter Evidence整理である。
 
 ## 使用データ
 
@@ -652,7 +652,7 @@ def _render_report_p0(naive: Comparison, company: Comparison, naive_change: str,
 
 1. 2024年の「雇用者のいない個人経営の事業所を含む」参考表を取り込み、2021年と同一に近い母集団へ揃える。
 2. 都道府県・市区町村別に同一指標を比較し、全国集計だけでは見えない地域差を確認する。
-3. `ja-company-base` を使い、国税庁法人番号データのASSIGNED / CHANGED / CLOSED等を**設立・廃業と同一視せず**イベント系列として集計する。
+3. 外部registry adapterを使い、corporate-event dataのASSIGNED / CHANGED / CLOSED等を**設立・廃業と同一視せず**イベント系列として集計する。
 4. 複数年・複数データソースで同じ方向が確認できてから、企業新陳代謝に関するResearch Questionへ進む。
 
 ## Methodology
