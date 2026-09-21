@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://techvit.example/contracts/shared-eval-contract.v1.schema.json",
-  "title": "TechVit Shared Eval Contract v1",
+  "$id": "https://example.invalid/insight-lab/contracts/shared-eval-contract.v1.schema.json",
+  "title": "Shared Eval Contract v1",
   "type": "object",
   "required": ["schemaVersion", "caseId", "input", "expected", "outcome"],
   "properties": {
