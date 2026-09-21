@@ -16,7 +16,7 @@ func validManifest() AcquisitionManifest {
 		RetrievalMethod: RetrievalDownload,
 		RetrievedAt:     time.Date(2026, 9, 1, 9, 0, 0, 0, time.UTC),
 		QueryParameters: map[string]string{"area": "13229", "year": "2021"},
-		Geography:       "西東京市",
+		Geography:       "サンプル市",
 		Period:          "2021",
 		Unit:            "enterprises",
 		PopulationScope: "all private enterprises (economic census)",
