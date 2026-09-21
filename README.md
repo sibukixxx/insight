@@ -139,9 +139,9 @@ The important rule is:
 
 Research Review should decompose artifacts into claims, evidence references, assumptions, methods, counter-evidence, and missing evidence before those claims influence stronger conclusions.
 
-**Current status:** the original discovery-style pipeline and the deterministic dataset path are implemented foundations. A unified first-class semantic Analysis Mode / Research Review architecture is still being completed in [#18](https://github.com/sibukixxx/insight/issues/18).
+**Current status:** first-class semantic Analysis Mode is implemented for `DISCOVERY`, `DATASET_ANALYSIS`, and `RESEARCH_REVIEW`. Research Review preserves imported claims as claims rather than silently upgrading them into observations or primary evidence. All modes converge on the same evidence-reasoning core; source-specific acquisition remains outside Insight Lab.
 
-**Analysis Mode vs. Execution Mode:** the three modes above (Discovery / Dataset Analysis / Research Review) are the semantic, input-reading concept that #18 is implementing. They are distinct from `service.ExecutionMode` (`deterministic` / `model_backed`) in the current pipeline code, which only states whether a model took part in a run. The two are orthogonal: a Dataset Analysis run can execute deterministically or model-backed. The naming split was completed in [#38](https://github.com/sibukixxx/insight/issues/38); #18 must add semantic mode without repurposing the existing execution-mode wire field.
+**Analysis Mode vs. Execution Mode:** Analysis Mode describes how an input should be interpreted. `service.ExecutionMode` (`deterministic` / `model_backed`) only records whether a model participated in the run. The two concepts are orthogonal and are exported separately. The legacy Research Artifact v1 JSON key `analysisMode` remains the execution-mode field for compatibility, while semantic mode is exported separately.
 
 ## Research stage is separate from analysis mode
 
@@ -181,17 +181,23 @@ Current `main` includes:
 - supporting, counter, and neutral evidence;
 - explicit causal / validation / identification states;
 - append-only `ResearchRun` / `ResearchIteration` history;
+- semantic Analysis Mode (`DISCOVERY` / `DATASET_ANALYSIS` / `RESEARCH_REVIEW`) and imported Research Claims;
 - first-class `Expectation` provenance, freeze-for-validation, and cross-iteration lineage;
+- persisted independent-validation evidence provenance;
 - prioritized research gaps and next-data requirements;
+- explicit `DataRequirement.gapId` → added-evidence linkage;
+- generic Insight Semantics v2: Connection, candidate Mechanism, and Generalization / boundary conditions;
+- iteration input snapshots and Insight Delta showing what changed between research iterations;
 - decision-readiness and stopping reasons;
 - human override and human handoff;
 - Markdown research reports;
 - versioned JSON Research Artifact export at
-  `GET /api/research-runs/{runID}/artifact.json`, including current `ResearchStage` and first-class `Expectations`;
+  `GET /api/research-runs/{runID}/artifact.json`, including Research Stage, semantic mode, Expectations, Claims, validation evidence, gap linkage, Insight Delta, and promotion state;
+- persisted approved-artifact snapshots for reviewed publication-ready output;
 - deterministic quality guardrails;
-- Golden Set / dogfooding infrastructure, including association-only, population-mismatch, real Open Data reproducibility, new-evidence re-analysis, inconclusive, and competing-hypothesis cases.
+- Shared Eval / Golden evaluation infrastructure, including association-only, population-mismatch, real Open Data reproducibility, new-evidence re-analysis, inconclusive, competing-hypothesis, promotion, and human-review cases.
 
-The publication-promotion gate (domain/service/usecase/HTTP/report) is also implemented: `PUT /api/research-runs/{runID}/iterations/{iterationID}/promotion-review` and `.../promotion-transition` submit review evidence and move a run's promotion state, and the Markdown report includes a Promotion Status section. The JSON Research Artifact export does not yet surface promotion status; see [#24](https://github.com/sibukixxx/insight/issues/24).
+The publication-promotion workflow is implemented through domain/service/usecase/HTTP/report layers. Human review is required before `PUBLICATION_READY`; publication is never automatic. `approved-artifact.json` returns the persisted reviewed snapshot rather than regenerating the artifact from later state.
 
 ## Causal claims: intentionally conservative
 
@@ -220,7 +226,7 @@ Evidence
 
 Only evidence acquisition leaves the OSS boundary. Research history and re-analysis remain inside Insight Lab.
 
-One integration gap remains: added evidence is still recorded as free text, so an acquired item is not yet explicitly linked to the `DataRequirement.gapId` it resolves. That machine-readable linkage is tracked in [#39](https://github.com/sibukixxx/insight/issues/39).
+Additional evidence can be linked explicitly to the `DataRequirement.gapId` it addresses. The linkage is preserved in append-only iteration history and the Research Artifact, so a later reader can see which missing-evidence requirement an acquired item was intended to resolve.
 
 A run may stop because evidence converged, important uncertainty remains unresolved, no feasible source exists, evidence conflicts, or a human chooses to stop. Unresolved gaps remain visible after stopping.
 
@@ -279,14 +285,17 @@ curl -o artifact.json \
 
 Downstream systems should consume this versioned artifact rather than parse `report.md`.
 
-## UI and ingestion roadmap
+## Current roadmap
 
-The current UI remains suitable for small interactive projects.
+The current phase is deliberately narrower than the earlier feature-expansion roadmap:
 
-A mode-aware Project Workspace for hundreds or thousands of files, very large CSV/JSONL inputs, asynchronous ingestion, partial failures, retry, artifact inventory, and bounded-memory processing is tracked in [#20](https://github.com/sibukixxx/insight/issues/20).
+1. **Real-data dogfooding / Public Evidence Reports** — run real public evidence through the complete Research Loop, follow at least one `ResearchGap` with additional evidence, exercise validation provenance / Insight Delta / Promotion review, and publish from an approved artifact where the evidence supports publication. See [#60](https://github.com/sibukixxx/insight/issues/60).
+2. **Stable Public Engine contract** — define the narrow, versioned boundary that future Go and Node.js SDK repositories can depend on without exposing `internal/*` implementation details. See [#59](https://github.com/sibukixxx/insight/issues/59).
+3. **Failure-driven expansion** — add core features only when dogfooding or a real consumer exposes a generic contract, research-semantics, correctness, or performance gap.
 
-Do not assume that bulk asynchronous ingestion is already implemented merely because analysis jobs themselves run asynchronously.
+The current small interactive UI remains sufficient for this phase. A large bulk-ingestion workspace is not an active roadmap item; if real workloads demonstrate that need, split the work into measured engine concerns such as streaming / bounded-memory ingestion and downstream UI/orchestration concerns.
 
+The Go and Node.js SDKs do **not** exist yet. Insight Lab remains the source of truth for research semantics and machine-readable contracts; #59 stabilizes that boundary before separate SDK repositories are created.
 ## Build, test, and evaluate
 
 ```bash
