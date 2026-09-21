@@ -14,7 +14,7 @@ Insight Lab is an open-source, local-first **evidence reasoning engine**.
 It is designed for research where the input already exists in some form:
 
 - customer interviews, reviews, support logs, sales notes, surveys, and other raw evidence;
-- structured datasets such as CSV exports, BI data, operational metrics, public-data exports, and `ja-company-base` output;
+- structured data after normalization into Dataset Documents or a supported adapter contract, including operational metrics, public-data exports, and `ja-company-base` output;
 - existing research or analysis artifacts such as internal studies, consulting reports, market research, or AI-generated analysis.
 
 Insight Lab is not intended to be a general-purpose research chatbot. It does not autonomously search the web, authenticate to external data services, or acquire missing evidence on its own.
@@ -42,6 +42,137 @@ Decision readiness / human handoff
 ```
 
 When evidence is insufficient, Insight Lab should say what is missing rather than manufacture certainty.
+
+
+## What you can feed Insight Lab today
+
+The table below describes the **input boundaries that current `main` actually accepts**. It does not mean that any CSV, spreadsheet, PDF, or arbitrary table can be uploaded and analyzed directly. External data should be normalized into one of these boundaries first.
+
+| Input | How it is accepted today | What Insight analyzes | LLM |
+| --- | --- | --- | --- |
+| Interviews, reviews, support tickets, sales notes, survey free text, job postings, social posts | Create Documents through UI/API, or import Document CSV | Grounded Observations, patterns/mismatches, primary/competing hypotheses, supporting/counter/neutral evidence, ResearchGaps | Required for semantic analysis |
+| Multiple text evidence items | Fixed 4-column Document CSV | Each row becomes a Document and enters the same evidence-reasoning pipeline | Required for semantic analysis |
+| Pre-aggregated numeric series | API Documents with `source=dataset` | Grounded `record_count` observations, period comparison, delta, rate of change, baseline delta, share of series total | Not required for deterministic part |
+| `ja-company-base` corporate-event export | Dedicated Analysis CSV import | Deterministic grouping by month × event type × geography × provider/version, then Dataset Analysis | Aggregation does not require it; hypotheses do |
+| External research, internal analysis, consulting material, AI analysis | Convert content to text Documents, or submit structured Claims through the ResearchRun API | Keeps Claims separate from Observations and reviews evidence, counter-evidence, assumptions, and gaps | Usually required |
+| Acquisition Manifest | Optional JSON attached to CSV import | Preserves source/dataset/retrieval/unit/population/schema/hash provenance and emits compatibility warnings | Not required |
+| Additional evidence | Append a new ResearchIteration | Links evidence to `DataRequirement.gapId`, records validation provenance, computes Insight Delta | Depends on content |
+
+### Document input
+
+Documents created through the UI/API currently accept these `source` values:
+
+```text
+interview
+review
+support
+sales
+survey
+job_posting
+social_post
+dataset
+```
+
+The basic shape is `source / title / content / metadata`. For text evidence, Insight grounds quotable Observations in `content`, then reasons about mismatches, hypotheses, evidence, counter-evidence, and missing evidence.
+
+### Document CSV
+
+The generic CSV importer accepts a **UTF-8 fixed four-column shape**. A UTF-8 BOM, commonly added by Excel, is stripped automatically.
+
+```csv
+id,source,title,content
+1,interview,Interview 01,"Onboarding was easy, but monthly reconciliation is painful"
+2,support,Ticket 42,"We manually align columns after exporting CSV"
+3,survey,Survey response,"Reporting takes two hours every week"
+```
+
+- The first four columns must be `id,source,title,content`.
+- `source` must be one of the eight values above.
+- `content` is required.
+- `id` is preserved for traceability; Insight generates its own internal Document ID.
+- Extra columns are not currently interpreted as analysis variables by the generic importer.
+
+So this is **not** a generic “upload any tabular CSV and automatically analyze every column” feature.
+
+### Dataset Documents
+
+To use deterministic numeric pre-analysis with your own data, aggregate/normalize it outside Insight and create Documents with `source=dataset`.
+
+Current pre-analysis uses metadata such as:
+
+```json
+{
+  "source": "dataset",
+  "title": "2026-01 Nishitokyo inquiries",
+  "content": "Dataset observation: 2026-01 Nishitokyo inquiries = 120.",
+  "metadata": {
+    "record_count": "120",
+    "period": "2026-01",
+    "event_type": "inquiry",
+    "location": "Nishitokyo",
+    "source_provider": "internal-export",
+    "source_version": "v1"
+  }
+}
+```
+
+A numeric `record_count` can be materialized into a grounded Observation deterministically. If the same series has at least two `period` values, Insight can calculate without an LLM:
+
+- consecutive-period delta;
+- rate of change;
+- delta from the first baseline period;
+- share of the series total.
+
+When acquisition manifests declare `unit` or `populationScope`, incompatible populations or units are not silently treated as the same comparable series.
+
+### ja-company-base Analysis CSV
+
+The currently implemented dedicated raw-tabular adapter is the `ja-company-base` Analysis CSV importer. It requires at least:
+
+```text
+corporate_number
+event_type
+prefecture_name
+city_name
+assignment_date
+update_date
+change_date
+close_date
+source_provider
+source_version
+source_fetched_at
+```
+
+For `ASSIGNED / UPDATED / CHANGED / CLOSED`, the adapter chooses the corresponding event date and deterministically groups rows by month × event type × geography × provider/version.
+
+Those values are **administrative record counts**. Insight does not silently relabel them as startup counts, business commencements, or policy effects.
+
+### Research Review inputs
+
+For already-interpreted material, the important boundary is semantic rather than file-format-specific.
+
+If an external report says:
+
+> “Campaign A caused inquiries to increase.”
+
+Insight does not promote that sentence into a primary Observation. Supply the report as text, or submit structured `claims` and `inputReferences` through the ResearchRun API, then inspect the underlying evidence, assumptions, counter-evidence, and ResearchGaps.
+
+### Inputs not directly supported today
+
+Current `main` does not provide a stable direct-file ingestion path for:
+
+- arbitrary-schema CSV as generic tabular analytics;
+- generic JSON / JSONL file import;
+- XLSX / Excel workbooks;
+- PDF / DOCX;
+- Parquet;
+- direct SQL database connections;
+- web crawling / URL scraping;
+- Google Drive / CRM / SaaS connectors;
+- image, audio, or video files themselves.
+
+Convert these outside Insight into **Text Documents, Document CSV, Dataset Documents, or a domain-adapter output** before ingestion.
+
 
 ## Product boundary: BYO Evidence
 
@@ -102,10 +233,11 @@ Raw Evidence
 
 For structured data:
 
-- CSV / BI exports;
-- operational metrics;
-- e-Stat or municipality exports;
-- `ja-company-base` analysis exports.
+- normalized Dataset Documents;
+- output from supported CSV adapters;
+- operational metrics normalized into Dataset Documents;
+- e-Stat or municipality Open Data normalized by an external adapter;
+- `ja-company-base` Analysis CSV.
 
 Typical flow:
 

@@ -11,7 +11,7 @@ Insight Labは、**Bring Your Own Evidence（BYO Evidence）型のEvidence Reaso
 対象となる入力は、すでに何らかの形で存在している情報です。
 
 - 顧客インタビュー、レビュー、問い合わせ、商談ログ、アンケートなどの一次情報
-- CSV、BI出力、業務データ、オープンデータ、`ja-company-base` 出力などの構造化データ
+- 業務データ、BI出力、オープンデータ、`ja-company-base` 出力などをDataset Documentまたは対応adapter contractへ正規化した構造化データ
 - 社内調査、外部調査会社レポート、コンサル資料、市場調査、AI分析などの既存Research Artifact
 
 Insight Labは一般的な「質問すればWebを探して答えるAIリサーチチャット」ではありません。
@@ -39,6 +39,137 @@ Decision Readiness / Human Handoff
 ```
 
 Evidenceが不足している場合は、もっともらしい結論を作るのではなく、**何が不足しているかを構造化して返す**ことを重視します。
+
+
+## 何を入力でき、何を分析できるか
+
+以下は **current mainで実際に受け付ける入力境界** です。「CSVなら何でも読める」「PDFやExcelをそのまま解析できる」という意味ではありません。外部データは、下記のDocument / Dataset境界へ正規化してから渡します。
+
+| 入力 | 現在の受け付け方 | Insightが行う分析 | LLM |
+| --- | --- | --- | --- |
+| インタビュー、レビュー、問い合わせ、商談ログ、アンケート自由記述、求人文、SNS投稿 | UI/APIでDocument作成、またはDocument CSV | groundingされたObservation、Pattern/Mismatch、Primary/Competing Hypotheses、Supporting/Counter/Neutral Evidence、ResearchGap | 意味分析には必要 |
+| 複数のテキストEvidence | 固定4列Document CSV | 各行をDocumentとして同じEvidence Reasoning pipelineへ投入 | 意味分析には必要 |
+| 集計済みの数値系列 | APIで `source=dataset` のDocumentとして登録 | `record_count` のgrounded Observation、期間比較、delta、rate of change、baseline差、series内share | deterministic部分は不要 |
+| `ja-company-base` の企業イベントCSV | 専用Analysis CSV import | 月 × event type × 地域 × provider/versionに決定論的集計し、その後Dataset Analysis | 集計は不要、仮説生成等には必要 |
+| 外部調査、社内分析、コンサル資料、AI分析の内容 | 内容をText Documentへ変換、またはResearchRun APIでClaimとして投入 | ClaimとObservationを分離し、根拠・反証・不足Evidenceをレビュー | 通常必要 |
+| Acquisition Manifest | CSV import時の付随JSON | source / dataset ID / retrieval time / unit / population / schema / hash等のprovenance保持と互換性warning | 不要 |
+| 追加Evidence | ResearchRunの新しいiterationとして投入 | `DataRequirement.gapId` とのlink、ValidationEvidence provenance、Insight Delta | 内容により必要 |
+
+### Document入力
+
+API/UIから1件ずつ投入するDocumentは、現在次の `source` を受け付けます。
+
+```text
+interview
+review
+support
+sales
+survey
+job_posting
+social_post
+dataset
+```
+
+Documentの基本形は `source / title / content / metadata` です。Text系Documentでは `content` から引用可能なObservationをgroundingし、そこからMismatch・仮説・Evidence/Counter Evidenceへ進みます。
+
+### Document CSV
+
+汎用CSV importは **UTF-8の固定4列** です。Excel由来のUTF-8 BOMは除去されます。
+
+```csv
+id,source,title,content
+1,interview,Interview 01,"導入は簡単だったが、毎月の集計が面倒"
+2,support,Ticket 42,"CSV出力後に手作業で列を合わせている"
+3,survey,Survey response,"レポート作成に毎週2時間かかる"
+```
+
+- 先頭4列は `id,source,title,content` である必要があります。
+- `source` は上記8種類のいずれかです。
+- `content` は必須です。
+- `id` はtraceability用で、Insight内部IDとしては使いません。
+- 追加列があっても現在の汎用importでは分析列として扱いません。
+
+したがって、**任意の表形式CSVをアップロードしただけで全列を自動統計分析する機能ではありません。**
+
+### Dataset Document
+
+任意の数値データをInsightのdeterministic pre-analysisへ渡す場合は、外部で集計・正規化して `source=dataset` のDocumentへします。
+
+現在のpre-analysisで重要なmetadataは次です。
+
+```json
+{
+  "source": "dataset",
+  "title": "2026-01 Nishitokyo inquiries",
+  "content": "Dataset observation: 2026-01 Nishitokyo inquiries = 120.",
+  "metadata": {
+    "record_count": "120",
+    "period": "2026-01",
+    "event_type": "inquiry",
+    "location": "Nishitokyo",
+    "source_provider": "internal-export",
+    "source_version": "v1"
+  }
+}
+```
+
+`record_count` が数値ならgrounded Observationを決定論的に作れます。さらに同じseriesで `period` が2期間以上あれば、次をLLMなしで計算します。
+
+- 前期間からの差分
+- rate of change
+- baselineからの差分
+- series totalに対するshare
+
+Acquisition Manifestに `unit` や `populationScope` がある場合、異なる母集団・単位を無条件に同じseriesとして差し引かないようにします。
+
+### ja-company-base Analysis CSV
+
+現在、raw tabular data向けに実装済みの専用adapterは `ja-company-base` のAnalysis CSVです。最低限、次の列を要求します。
+
+```text
+corporate_number
+event_type
+prefecture_name
+city_name
+assignment_date
+update_date
+change_date
+close_date
+source_provider
+source_version
+source_fetched_at
+```
+
+`ASSIGNED / UPDATED / CHANGED / CLOSED` ごとの対応日付を使い、月 × event type × 地域 × provider/versionで件数を集計します。
+
+この件数は**行政レコード件数**であり、「創業数」「開業数」「政策効果」へ自動変換しません。
+
+### Research Review入力
+
+すでに解釈済みの資料は、ファイル形式そのものではなく **Claimとしてどう扱うか** が重要です。
+
+たとえば外部レポートに、
+
+> 「施策Aによって問い合わせが増加した」
+
+と書いてあっても、Insightはそれを一次Observationへ昇格しません。Text Documentとして内容を渡すか、ResearchRun APIの `claims` と `inputReferences` へ構造化し、Underlying Evidence・Assumption・Counter Evidence・ResearchGapを確認します。
+
+### 現在直接は食べないもの
+
+current mainでは、以下をそのままファイル投入するstable pathはありません。
+
+- 任意schemaのCSVをそのままtabular analyticsすること
+- JSON / JSONLの汎用file import
+- XLSX / Excel workbook
+- PDF / DOCX
+- Parquet
+- SQL databaseへの直接接続
+- Web URLのcrawl / scraping
+- Google Drive / CRM / SaaS connector
+- 画像・音声・動画そのもの
+
+これらはInsight外で **Text / Document CSV / Dataset Document / domain adapter output** へ変換してから投入します。
+
 
 ## OSS境界 — Bring Your Own Evidence
 
@@ -84,7 +215,7 @@ Insight Lab
 
 ## Analysis Mode
 
-今後の基本設計では、入力ファイル形式ではなく**情報の意味論・成熟度**によって分析方法を切り替えます。
+現在の基本設計では、入力ファイル形式ではなく**情報の意味論・成熟度**によって分析方法を切り替えます。
 
 ### 1. Discovery
 
@@ -114,11 +245,11 @@ Raw Evidence
 
 対象例:
 
-- CSV / BI export
-- operational metrics
-- e-Stat export
-- 自治体Open Data
-- ja-company-base export
+- normalized Dataset Documents
+- supported CSV adapter output
+- operational metrics normalized into Dataset Documents
+- e-Stat / 自治体Open Dataを外部adapterで正規化したもの
+- `ja-company-base` Analysis CSV
 
 ```text
 Structured Dataset
