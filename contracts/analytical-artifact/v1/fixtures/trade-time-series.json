@@ -1,0 +1,31 @@
+{
+  "artifactSchema": "insight-lab.analytical-artifact",
+  "schemaVersion": "1",
+  "id": "trade-jp-eu-2022-2024",
+  "artifactHash": {"algorithm": "sha256", "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+  "producer": "example-trade-analysis",
+  "producerVersion": "1.0.0",
+  "generatedAt": "2026-09-22T03:30:00Z",
+  "datasets": [
+    {"id": "trade", "uri": "file:trade.csv", "version": "2024-final", "hash": {"algorithm": "sha256", "value": "1111111111111111111111111111111111111111111111111111111111111111"}},
+    {"id": "fx", "uri": "file:fx.csv", "version": "2024-final", "hash": {"algorithm": "sha256", "value": "2222222222222222222222222222222222222222222222222222222222222222"}}
+  ],
+  "spec": {"kind": "sql", "reference": "queries/export_value_by_year.sql", "hash": {"algorithm": "sha256", "value": "3333333333333333333333333333333333333333333333333333333333333333"}},
+  "parameters": {"origin": "JP", "destination": "EU"},
+  "dimensions": ["year", "origin", "destination"],
+  "filters": {"hsChapter": "09"},
+  "period": {"start": "2022", "end": "2024", "basis": "calendar-year"},
+  "population": {"description": "Recorded Japan-to-EU commodity exports", "unit": "customs declarations"},
+  "metrics": [{"id": "export_value", "name": "Export value", "description": "Annual customs value", "unit": "JPY", "aggregation": "sum"}],
+  "results": [
+    {"metricId": "export_value", "dimensions": {"year": "2022"}, "period": {"start": "2022", "end": "2022"}, "value": 100},
+    {"metricId": "export_value", "dimensions": {"year": "2023"}, "period": {"start": "2023", "end": "2023"}, "value": 115},
+    {"metricId": "export_value", "dimensions": {"year": "2024"}, "period": {"start": "2024", "end": "2024"}, "value": 121, "qualityFlags": [{"code": "PROVISIONAL", "message": "Latest year is provisional"}]}
+  ],
+  "qualityFlags": [{"code": "NOMINAL_VALUE", "message": "Not adjusted for inflation or exchange-rate effects"}],
+  "computation": {"engine": "external-sql-runner", "engineVersion": "2.1.0", "deterministic": true, "timezone": "UTC"},
+  "provenance": [
+    {"datasetId": "trade", "source": "https://example.invalid/trade", "retrievedAt": "2026-09-20T00:00:00Z", "license": "example", "transformationRefs": ["normalize-trade-v1"]},
+    {"datasetId": "fx", "source": "https://example.invalid/fx", "retrievedAt": "2026-09-20T00:00:00Z", "license": "example"}
+  ]
+}
