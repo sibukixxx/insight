@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/sibukixxx/insight/contracts/analytical-artifact/v1/schema.json",
+  "title": "Insight Analytical Artifact v1",
+  "type": "object",
+  "required": ["artifactSchema", "schemaVersion", "id", "artifactHash", "producer", "producerVersion", "generatedAt", "datasets", "spec", "period", "population", "metrics", "results", "computation", "provenance"],
+  "properties": {
+    "artifactSchema": {"const": "insight-lab.analytical-artifact"},
+    "schemaVersion": {"const": "1"},
+    "id": {"type": "string", "minLength": 1},
+    "artifactHash": {"$ref": "#/$defs/hash"},
+    "producer": {"type": "string", "minLength": 1},
+    "producerVersion": {"type": "string", "minLength": 1},
+    "generatedAt": {"type": "string", "format": "date-time"},
+    "datasets": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/dataset"}},
+    "spec": {"$ref": "#/$defs/spec"},
+    "parameters": {"type": "object"},
+    "dimensions": {"type": "array", "items": {"type": "string"}},
+    "filters": {"type": "object"},
+    "period": {"$ref": "#/$defs/period"},
+    "population": {"$ref": "#/$defs/population"},
+    "metrics": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/metric"}},
+    "results": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/result"}},
+    "qualityFlags": {"type": "array", "items": {"$ref": "#/$defs/quality"}},
+    "computation": {"$ref": "#/$defs/computation"},
+    "provenance": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/provenance"}}
+  },
+  "$defs": {
+    "hash": {
+      "type": "object",
+      "required": ["algorithm", "value"],
+      "properties": {"algorithm": {"const": "sha256"}, "value": {"type": "string", "pattern": "^[A-Fa-f0-9]{64}$"}},
+      "additionalProperties": false
+    },
+    "dataset": {
+      "type": "object",
+      "required": ["id", "version", "hash"],
+      "properties": {"id": {"type": "string", "minLength": 1}, "uri": {"type": "string"}, "version": {"type": "string", "minLength": 1}, "hash": {"$ref": "#/$defs/hash"}},
+      "additionalProperties": false
+    },
+    "spec": {
+      "type": "object",
+      "required": ["kind", "reference", "hash"],
+      "properties": {"kind": {"type": "string", "minLength": 1}, "reference": {"type": "string", "minLength": 1}, "hash": {"$ref": "#/$defs/hash"}},
+      "additionalProperties": false
+    },
+    "period": {
+      "type": "object",
+      "required": ["start", "end"],
+      "properties": {"start": {"type": "string", "minLength": 1}, "end": {"type": "string", "minLength": 1}, "basis": {"type": "string"}},
+      "additionalProperties": false
+    },
+    "population": {
+      "type": "object",
+      "required": ["description"],
+      "properties": {"description": {"type": "string", "minLength": 1}, "unit": {"type": "string"}},
+      "additionalProperties": false
+    },
+    "metric": {
+      "type": "object",
+      "required": ["id", "name", "unit"],
+      "properties": {"id": {"type": "string", "minLength": 1}, "name": {"type": "string", "minLength": 1}, "description": {"type": "string"}, "unit": {"type": "string", "minLength": 1}, "aggregation": {"type": "string"}},
+      "additionalProperties": false
+    },
+    "quality": {
+      "type": "object",
+      "required": ["code"],
+      "properties": {"code": {"type": "string", "minLength": 1}, "message": {"type": "string"}},
+      "additionalProperties": false
+    },
+    "result": {
+      "type": "object",
+      "required": ["metricId", "period"],
+      "properties": {
+        "metricId": {"type": "string", "minLength": 1},
+        "dimensions": {"type": "object", "additionalProperties": {"type": "string"}},
+        "period": {"$ref": "#/$defs/period"},
+        "value": {"type": ["number", "string", "boolean", "null"]},
+        "missing": {"type": "boolean"},
+        "qualityFlags": {"type": "array", "items": {"$ref": "#/$defs/quality"}}
+      },
+      "additionalProperties": false
+    },
+    "computation": {
+      "type": "object",
+      "required": ["engine", "engineVersion", "deterministic"],
+      "properties": {"engine": {"type": "string", "minLength": 1}, "engineVersion": {"type": "string", "minLength": 1}, "deterministic": {"const": true}, "timezone": {"type": "string"}},
+      "additionalProperties": false
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["datasetId", "source", "retrievedAt"],
+      "properties": {"datasetId": {"type": "string", "minLength": 1}, "source": {"type": "string", "minLength": 1}, "retrievedAt": {"type": "string", "format": "date-time"}, "license": {"type": "string"}, "transformationRefs": {"type": "array", "items": {"type": "string"}}},
+      "additionalProperties": false
+    }
+  }
+}
