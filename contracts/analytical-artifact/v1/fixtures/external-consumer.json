@@ -1,0 +1,26 @@
+{
+  "artifactSchema": "insight-lab.analytical-artifact",
+  "schemaVersion": "1",
+  "id": "consumer-metric-2026-09",
+  "artifactHash": {"algorithm": "sha256", "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaab"},
+  "producer": "generic-deterministic-export",
+  "producerVersion": "1.0.0",
+  "generatedAt": "2026-09-22T04:00:00Z",
+  "externalSubject": {"namespace": "consumer.example", "id": "opaque-123"},
+  "datasets": [
+    {"id": "consumer-input", "version": "2026-09", "hash": {"algorithm": "sha256", "value": "1111111111111111111111111111111111111111111111111111111111111112"}}
+  ],
+  "spec": {"kind": "declarative", "reference": "specs/monthly-metric-v1.json", "hash": {"algorithm": "sha256", "value": "3333333333333333333333333333333333333333333333333333333333333334"}},
+  "dimensions": ["window"],
+  "period": {"start": "2026-08", "end": "2026-09", "basis": "calendar-month"},
+  "population": {"description": "Producer-defined eligible records", "unit": "records"},
+  "metrics": [{"id": "generic_rate", "name": "Generic rate", "unit": "percent", "aggregation": "ratio"}],
+  "results": [
+    {"metricId": "generic_rate", "dimensions": {"window": "2026-08"}, "period": {"start": "2026-08", "end": "2026-08"}, "value": 12.5},
+    {"metricId": "generic_rate", "dimensions": {"window": "2026-09"}, "period": {"start": "2026-09", "end": "2026-09"}, "missing": true, "qualityFlags": [{"code": "SOURCE_UNAVAILABLE"}]}
+  ],
+  "computation": {"engine": "generic-runner", "engineVersion": "1.0.0", "deterministic": true},
+  "provenance": [
+    {"datasetId": "consumer-input", "source": "urn:example:consumer-input", "retrievedAt": "2026-09-22T03:50:00Z"}
+  ]
+}

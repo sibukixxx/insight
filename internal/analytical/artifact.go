@@ -45,6 +45,13 @@ type SpecRef struct {
 	Hash      Hash   `json:"hash"`
 }
 
+// ExternalSubjectRef is an opaque producer-owned identity. Insight never
+// interprets Namespace or ID as domain state or an instruction to act.
+type ExternalSubjectRef struct {
+	Namespace string `json:"namespace"`
+	ID        string `json:"id"`
+}
+
 type Period struct {
 	Start string `json:"start"`
 	End   string `json:"end"`
@@ -94,13 +101,14 @@ type SourceProvenance struct {
 }
 
 type Artifact struct {
-	ArtifactSchema  string    `json:"artifactSchema"`
-	SchemaVersion   string    `json:"schemaVersion"`
-	ID              string    `json:"id"`
-	ArtifactHash    Hash      `json:"artifactHash"`
-	Producer        string    `json:"producer"`
-	ProducerVersion string    `json:"producerVersion"`
-	GeneratedAt     time.Time `json:"generatedAt"`
+	ArtifactSchema  string              `json:"artifactSchema"`
+	SchemaVersion   string              `json:"schemaVersion"`
+	ID              string              `json:"id"`
+	ArtifactHash    Hash                `json:"artifactHash"`
+	Producer        string              `json:"producer"`
+	ProducerVersion string              `json:"producerVersion"`
+	GeneratedAt     time.Time           `json:"generatedAt"`
+	ExternalSubject *ExternalSubjectRef `json:"externalSubject,omitempty"`
 
 	Datasets    []DatasetRef       `json:"datasets"`
 	Spec        SpecRef            `json:"spec"`
@@ -149,6 +157,9 @@ func (a Artifact) Validate() error {
 	}
 	if blank(a.ID) || blank(a.Producer) || blank(a.ProducerVersion) || a.GeneratedAt.IsZero() {
 		return fail("id, producer, producerVersion and generatedAt are required")
+	}
+	if a.ExternalSubject != nil && (blank(a.ExternalSubject.Namespace) || blank(a.ExternalSubject.ID)) {
+		return fail("externalSubject requires namespace and id")
 	}
 	if err := validateHash("artifactHash", a.ArtifactHash); err != nil {
 		return fail("%v", err)
