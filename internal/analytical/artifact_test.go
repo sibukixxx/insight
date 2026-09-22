@@ -26,6 +26,17 @@ func TestImportFixtureAndUnknownFieldTolerance(t *testing.T) {
 	if _, err := Import(data); err != nil { t.Fatalf("additive field should be tolerated: %v", err) }
 }
 
+func TestExportImportRoundTrip(t *testing.T) {
+	a := fixture(t)
+	data, err := Export(a)
+	if err != nil { t.Fatal(err) }
+	roundTripped, err := Import(data)
+	if err != nil { t.Fatal(err) }
+	if roundTripped.ID != a.ID || roundTripped.ReproducibilityKey() != a.ReproducibilityKey() {
+		t.Fatal("round trip changed contract identity")
+	}
+}
+
 func TestValidateRejectsMissingProvenance(t *testing.T) {
 	a := fixture(t)
 	a.Provenance = nil

@@ -195,6 +195,12 @@ func (a Artifact) Validate() error {
 // CheckDuplicate defines idempotency: the same id and artifact hash is a
 // duplicate no-op; reusing an id with different content is a conflict.
 func CheckDuplicate(existing, incoming Artifact) (bool, error) {
+	if err := existing.Validate(); err != nil {
+		return false, err
+	}
+	if err := incoming.Validate(); err != nil {
+		return false, err
+	}
 	if existing.ID != incoming.ID { return false, nil }
 	if equalHash(existing.ArtifactHash, incoming.ArtifactHash) { return true, nil }
 	return false, fmt.Errorf("%w: id %q has different artifactHash", ErrIdentityConflict, incoming.ID)
@@ -215,7 +221,7 @@ func (a Artifact) ReproducibilityKey() string {
 }
 
 func validateHash(name string, h Hash) error {
-	if strings.ToLower(strings.TrimSpace(h.Algorithm)) != "sha256" { return fmt.Errorf("%s.algorithm must be sha256", name) }
+	if strings.TrimSpace(h.Algorithm) != "sha256" { return fmt.Errorf("%s.algorithm must be sha256", name) }
 	v := strings.TrimSpace(h.Value)
 	if len(v) != 64 { return fmt.Errorf("%s.value must contain 64 hexadecimal characters", name) }
 	if _, err := hex.DecodeString(v); err != nil { return fmt.Errorf("%s.value must be hexadecimal", name) }
