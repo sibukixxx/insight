@@ -171,7 +171,7 @@ Current `main` does not provide a stable direct-file ingestion path for:
 - Google Drive / CRM / SaaS connectors;
 - image, audio, or video files themselves.
 
-Convert these outside Insight into **Text Documents, Document CSV, Dataset Documents, or a domain-adapter output** before ingestion.
+Convert these outside Insight into **Text Documents, Document CSV, Dataset Documents, or a domain-adapter output** before ingestion. Large CSV files can also be referenced as `RAW_ARTIFACT` input sources over the public contract and prepared deterministically (see [Architecture map](docs/architecture.md#input-path)).
 
 
 ## Product boundary: BYO Evidence
@@ -439,17 +439,15 @@ curl -o artifact.json \
 
 Downstream systems should consume this versioned artifact rather than parse `report.md`.
 
-## Current roadmap
+## Architecture and current roadmap
 
-The current phase is deliberately narrower than the earlier feature-expansion roadmap:
+See the canonical [Architecture map](docs/architecture.md): consumers → optional standalone SDK → Public Engine Contract → Insight OSS, with LIGHT / STANDARD / HEAVY / AUTO execution profiles on one engine.
 
-1. **Real-data dogfooding / Public Evidence Reports** — run real public evidence through the complete Research Loop, follow at least one `ResearchGap` with additional evidence, exercise validation provenance / Insight Delta / Promotion review, and publish from an approved artifact where the evidence supports publication. See [#60](https://github.com/sibukixxx/insight/issues/60).
-2. **Stable Public Engine contract** — define the narrow, versioned boundary that future Go and Node.js SDK repositories can depend on without exposing `internal/*` implementation details. See [#59](https://github.com/sibukixxx/insight/issues/59).
-3. **Failure-driven expansion** — add core features only when dogfooding or a real consumer exposes a generic contract, research-semantics, correctness, or performance gap.
+- **Public Engine Contract v1** is served at `/api/public/v1` ([contract](docs/public-engine-contract.md), #59). It covers subjects, evidence (documents, Analytical Artifacts, raw artifact references), analyses with execution profiles, run listing and comparison (#83), research runs, re-evaluation (#74), longitudinal timelines (#71), temporal operations (#73), scenarios (#66) and data triage (#92).
+- **SDKs** live in standalone repositories — [`insight-sdk-go`](https://github.com/sibukixxx/insight-sdk-go) and [`insight-sdk-js`](https://github.com/sibukixxx/insight-sdk-js) — extracted from the PR #87 v0 work (#94). They are optional.
+- **Scalable input/execution** (#89–#93): InputSource / RawArtifact references verified by the engine, a deterministic AUTO planner, and a provider-neutral Heavy Runtime port with a local reference implementation. Large input never means loading everything into memory.
+- **Failure-driven expansion** continues: new core features need a real consumer or dogfooding failure behind them.
 
-The current small interactive UI remains sufficient for this phase. A large bulk-ingestion workspace is not an active roadmap item; if real workloads demonstrate that need, split the work into measured engine concerns such as streaming / bounded-memory ingestion and downstream UI/orchestration concerns.
-
-The Go and Node.js SDKs do **not** exist yet. Insight Lab remains the source of truth for research semantics and machine-readable contracts; #59 stabilizes that boundary before separate SDK repositories are created.
 ## Build, test, and evaluate
 
 ```bash

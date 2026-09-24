@@ -116,7 +116,7 @@ Current artifact content includes, where available:
 
 The publication workflow is implemented through domain/service/usecase/HTTP/report layers. Human review is required before `PUBLICATION_READY`. `approved-artifact.json` returns the exact persisted approved snapshot; later analyses do not rewrite those approved bytes.
 
-The exact public-vs-internal SDK field boundary is **not yet frozen** and is being audited in #59.
+The public boundary is Public Engine Contract v1 (`contracts/public-engine/v1`, `/api/public/v1`); see [architecture.md](architecture.md).
 
 ### Evaluation
 
@@ -131,9 +131,9 @@ The exact public-vs-internal SDK field boundary is **not yet frozen** and is bei
 - External evidence acquisition remains outside the OSS core.
 - CSV ingestion exists; a generic stable JSONL ingestion path is not yet a documented public contract.
 - Model-backed interpretation remains model- and data-dependent and requires human review.
-- The current UI is optimized for small interactive projects, not bulk asynchronous ingestion.
-- Results are scoped to one analysis run (latest completed by default, selectable by `analysisId`). Each run records execution and input snapshots with fingerprints; run-to-run comparison is not implemented yet.
-- Go and Node.js SDK repositories do not exist yet.
+- The current UI is optimized for small interactive projects. Large inputs go through raw artifact references and execution profiles over the public contract, not through the UI.
+- Results are scoped to one analysis run (latest completed by default, selectable by `analysisId`). Each run records execution and input snapshots with fingerprints; run-to-run comparison (#83) attributes differences to input or execution changes without judging a winner.
+- Go and TypeScript SDKs live in standalone repositories (`insight-sdk-go`, `insight-sdk-js`); they are optional clients of the public contract.
 
 ## Current development priorities
 
@@ -160,7 +160,7 @@ The purpose is to find actual semantic/contract failures before expanding the en
 
 ### 2. Stable Public Engine contract
 
-Issue #59 defines the narrow boundary future Go and Node.js SDK repositories may depend on:
+Issue #59 defines the narrow boundary the standalone Go and TypeScript SDK repositories depend on (now Public Engine Contract v1):
 
 - language-neutral input contracts;
 - stable Research Artifact output;
@@ -181,7 +181,7 @@ A useful next phase means:
 - at least one real public-data Research Loop is completed end-to-end;
 - the engine exposes missing evidence and identification limits honestly;
 - the approved/rejected publication decision is auditable;
-- #59 is informed by actual consumer operations rather than speculative SDK abstractions;
+- the public contract keeps being driven by actual consumer operations rather than speculative SDK abstractions;
 - new implementation work targets observed failures.
 
 ## Not a promise of future features

@@ -455,17 +455,15 @@ curl -o artifact.json \
 
 Downstream systemは `report.md` をparseせず、このversioned artifactを機械連携契約として利用します。
 
-## 現在のロードマップ
+## アーキテクチャと現在のロードマップ
 
-現在は以前の大規模feature拡張より、次の方向を優先します。
+正典は [Architecture map](docs/architecture.md) です。consumer → 任意の standalone SDK → Public Engine Contract → Insight OSS という一本の経路で、同じ engine が LIGHT / STANDARD / HEAVY / AUTO の実行プロファイルを持ちます。
 
-1. **実データdogfooding / Public Evidence Report** — 実Open DataをResearch Loopへ通し、少なくとも1つのResearchGapを追加Evidenceで追跡し、validation provenance / Insight Delta / Promotion reviewまで実行します。Evidenceが公開基準を満たす場合はapproved artifactから公開レポートを作ります。[#60](https://github.com/sibukixxx/insight/issues/60)
-2. **Stable Public Engine Contract** — 将来のGo SDK / Node.js SDKが `internal/*` に依存せず使える、狭くversionedな公開境界を定義します。[#59](https://github.com/sibukixxx/insight/issues/59)
-3. **Failure-driven expansion** — dogfoodingや実consumerでgenericなcontract / semantics / correctness / performance gapが観測された場合だけcore機能を追加します。
+- **Public Engine Contract v1** は `/api/public/v1` で提供します（[契約](docs/public-engine-contract.md)、#59）。subject、evidence（文書・Analytical Artifact・raw artifact 参照）、実行プロファイル付き analysis、Run 一覧と比較（#83）、research run、再評価（#74）、longitudinal timeline（#71）、時系列演算（#73）、scenario（#66）、data triage（#92）を含みます。
+- **SDK** は独立リポジトリ [`insight-sdk-go`](https://github.com/sibukixxx/insight-sdk-go) / [`insight-sdk-js`](https://github.com/sibukixxx/insight-sdk-js) にあり、PR #87 の v0 実装を抽出したものです（#94）。利用は任意です。
+- **スケーラブルな入力・実行**（#89〜#93）：engine が自ら検証する InputSource / RawArtifact 参照、決定的な AUTO プランナー、provider-neutral な Heavy Runtime ポートとローカル参照実装。巨大入力を全量メモリに載せることはしません。
+- **Failure-driven expansion** は継続します。core 機能の追加には実 consumer か dogfooding で観測された失敗が必要です。
 
-現在の小規模interactive UIはこのフェーズには十分です。大量・巨大ファイル向けWorkspaceはactive roadmapには置かず、実workloadで必要性が確認された場合に、streaming / bounded-memory ingestion等のengine concernとUI / orchestration concernへ分割して再設計します。
-
-Go SDK / Node.js SDK自体は**まだ存在しません**。まずInsight本体をresearch semanticsとmachine-readable contractのsource of truthとして整理し、その公開境界を固定してから別repositoryとしてSDKを作ります。
 ## Build / Test / Evaluation
 
 ```bash
