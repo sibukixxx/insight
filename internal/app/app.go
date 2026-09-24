@@ -9,6 +9,7 @@ import (
 	"insight-lab/internal/buildinfo"
 	httpapi "insight-lab/internal/http"
 	"insight-lab/internal/http/handler"
+	"insight-lab/internal/publicengine"
 	"insight-lab/internal/repository/sqlite"
 	"insight-lab/internal/sampledata"
 	"insight-lab/internal/service"
@@ -65,6 +66,7 @@ func Run(ctx context.Context, cfg *Config) error {
 		App:  application,
 		Demo: demoLoader, Settings: settings, JobManager: jobManager,
 		NewLLMClient: service.DefaultLLMClientFactory,
+		PublicEngine: publicengine.New(application, sqlite.NewPublicRepository(db), documents, jobManager, buildinfo.Get()),
 		Build: handler.BuildInfo{
 			DemoBuild:  sampledata.Embedded,
 			ClientName: cfg.ClientName,

@@ -12,7 +12,9 @@ import (
 
 	"insight-lab/internal/http/handler"
 	appmw "insight-lab/internal/http/middleware"
+	"insight-lab/internal/http/public"
 	"insight-lab/internal/llm"
+	"insight-lab/internal/publicengine"
 	"insight-lab/internal/service"
 	"insight-lab/internal/usecase"
 	"insight-lab/internal/web"
@@ -25,6 +27,9 @@ type Deps struct {
 	Settings     *service.SettingsStore
 	JobManager   *service.JobManager
 	NewLLMClient func(service.Settings) llm.Client
+	// PublicEngine serves the Public Engine Contract under /api/public/v1.
+	// It is not mounted when nil.
+	PublicEngine *publicengine.Engine
 
 	Build handler.BuildInfo
 }
@@ -42,6 +47,9 @@ func NewRouter(deps Deps) http.Handler {
 	}
 
 	r.Route("/api", func(r chi.Router) {
+		if deps.PublicEngine != nil {
+			r.Mount("/public/v1", public.Router(deps.PublicEngine))
+		}
 		r.Get("/health", h.Health)
 		r.Post("/demo", h.CreateDemoProject)
 
