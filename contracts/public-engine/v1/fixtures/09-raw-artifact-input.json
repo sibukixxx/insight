@@ -1,0 +1,324 @@
+{
+  "fixture": "09-raw-artifact-input",
+  "contractVersion": "1",
+  "covers": "#59 conformance 3 (raw/ref input path) / #90: a referenced raw artifact is verified by the engine, never trusted by claim, prepared deterministically and analyzed only as prepared evidence. Requires an engine configured with an input root that contains fixtures/data.",
+  "engine": "deterministic",
+  "steps": [
+    {
+      "op": "createSubject",
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-subject-raw",
+        "subject": {
+          "namespace": "conformance",
+          "id": "raw-${uniq}"
+        }
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "raw": "subjectId"
+      }
+    },
+    {
+      "op": "addEvidence",
+      "params": {
+        "subjectId": "${raw}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-raw",
+        "inputSources": [
+          {
+            "externalRef": "raw-1",
+            "kind": "RAW_ARTIFACT",
+            "title": "raw sample",
+            "rawArtifact": {
+              "uri": "file:raw-sample.csv",
+              "mediaType": "text/csv",
+              "name": "raw-sample.csv",
+              "sha256": "d072590d19771e9941b5848895664887cb78a11fe34d4d95e5ccebddc008f5b5"
+            },
+            "preparation": {
+              "kind": "csv-aggregate/v1",
+              "metrics": [
+                {
+                  "id": "amount_sum",
+                  "name": "Amount",
+                  "column": "amount",
+                  "aggregation": "sum",
+                  "unit": "units"
+                }
+              ],
+              "dimensionColumns": [
+                "region"
+              ],
+              "periodColumn": "year",
+              "population": {
+                "description": "sample rows"
+              }
+            }
+          }
+        ]
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "inputSources[0].status",
+          "equals": "CREATED"
+        },
+        {
+          "path": "inputSources[0].sha256",
+          "equals": "d072590d19771e9941b5848895664887cb78a11fe34d4d95e5ccebddc008f5b5"
+        },
+        {
+          "path": "inputSources[0].sizeBytes",
+          "equals": 94
+        },
+        {
+          "path": "inputSources[0].verifiedBy",
+          "equals": "engine"
+        },
+        {
+          "path": "inputSources[0].preparation",
+          "equals": "PENDING"
+        },
+        {
+          "path": "inputSources[0].preparedArtifactId",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "op": "addEvidence",
+      "params": {
+        "subjectId": "${raw}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-raw-again",
+        "inputSources": [
+          {
+            "externalRef": "raw-1",
+            "kind": "RAW_ARTIFACT",
+            "title": "raw sample",
+            "rawArtifact": {
+              "uri": "file:raw-sample.csv",
+              "mediaType": "text/csv",
+              "name": "raw-sample.csv",
+              "sha256": "d072590d19771e9941b5848895664887cb78a11fe34d4d95e5ccebddc008f5b5"
+            },
+            "preparation": {
+              "kind": "csv-aggregate/v1",
+              "metrics": [
+                {
+                  "id": "amount_sum",
+                  "name": "Amount",
+                  "column": "amount",
+                  "aggregation": "sum",
+                  "unit": "units"
+                }
+              ],
+              "dimensionColumns": [
+                "region"
+              ],
+              "periodColumn": "year",
+              "population": {
+                "description": "sample rows"
+              }
+            }
+          }
+        ]
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "inputSources[0].status",
+          "equals": "UNCHANGED"
+        }
+      ]
+    },
+    {
+      "op": "addEvidence",
+      "params": {
+        "subjectId": "${raw}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-raw-false-claim",
+        "inputSources": [
+          {
+            "externalRef": "raw-2",
+            "kind": "RAW_ARTIFACT",
+            "title": "raw sample",
+            "rawArtifact": {
+              "uri": "file:raw-sample.csv",
+              "mediaType": "text/csv",
+              "name": "raw-sample.csv",
+              "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+            },
+            "preparation": {
+              "kind": "csv-aggregate/v1",
+              "metrics": [
+                {
+                  "id": "amount_sum",
+                  "name": "Amount",
+                  "column": "amount",
+                  "aggregation": "sum",
+                  "unit": "units"
+                }
+              ],
+              "dimensionColumns": [
+                "region"
+              ],
+              "periodColumn": "year",
+              "population": {
+                "description": "sample rows"
+              }
+            }
+          }
+        ]
+      },
+      "expect": {
+        "errorCode": "INPUT_VERIFICATION_FAILED",
+        "httpStatus": 400
+      }
+    },
+    {
+      "op": "addEvidence",
+      "params": {
+        "subjectId": "${raw}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-raw-escape",
+        "inputSources": [
+          {
+            "externalRef": "raw-3",
+            "kind": "RAW_ARTIFACT",
+            "title": "raw sample",
+            "rawArtifact": {
+              "uri": "file:../schema.json",
+              "mediaType": "text/csv",
+              "name": "raw-sample.csv",
+              "sha256": "d072590d19771e9941b5848895664887cb78a11fe34d4d95e5ccebddc008f5b5"
+            },
+            "preparation": {
+              "kind": "csv-aggregate/v1",
+              "metrics": [
+                {
+                  "id": "amount_sum",
+                  "name": "Amount",
+                  "column": "amount",
+                  "aggregation": "sum",
+                  "unit": "units"
+                }
+              ],
+              "dimensionColumns": [
+                "region"
+              ],
+              "periodColumn": "year",
+              "population": {
+                "description": "sample rows"
+              }
+            }
+          }
+        ]
+      },
+      "expect": {
+        "errorCode": "INPUT_SOURCE_UNAVAILABLE",
+        "httpStatus": 422
+      }
+    },
+    {
+      "op": "startAnalysis",
+      "params": {
+        "subjectId": "${raw}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-light",
+        "semanticAnalysisMode": "DATASET_ANALYSIS",
+        "executionProfile": "LIGHT"
+      },
+      "expect": {
+        "errorCode": "EXECUTION_PROFILE_UNAVAILABLE",
+        "httpStatus": 422
+      }
+    },
+    {
+      "op": "startAnalysis",
+      "params": {
+        "subjectId": "${raw}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-auto",
+        "semanticAnalysisMode": "DATASET_ANALYSIS"
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "analysisId": "analysisId"
+      }
+    },
+    {
+      "op": "waitForAnalysis",
+      "params": {
+        "subjectId": "${raw}",
+        "analysisId": "${analysisId}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "status",
+          "equals": "completed"
+        },
+        {
+          "path": "executionProfile.requested",
+          "equals": "AUTO"
+        },
+        {
+          "path": "executionProfile.resolved",
+          "equals": "STANDARD"
+        },
+        {
+          "path": "executionProfile.reason",
+          "exists": true
+        },
+        {
+          "path": "executionProfile.strategyVersion",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "op": "getAnalysisResults",
+      "params": {
+        "subjectId": "${raw}",
+        "analysisId": "${analysisId}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "observations",
+          "minLength": 5
+        },
+        {
+          "path": "observations[1].quote",
+          "equals": "Amount = missing units for 2024..2024 (region=north)"
+        }
+      ]
+    }
+  ]
+}

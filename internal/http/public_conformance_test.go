@@ -12,7 +12,9 @@ import (
 	"time"
 
 	"insight-lab/internal/buildinfo"
+	"insight-lab/internal/execution"
 	httpapi "insight-lab/internal/http"
+	"insight-lab/internal/input"
 	"insight-lab/internal/llm"
 	"insight-lab/internal/publicengine"
 	"insight-lab/internal/publicengine/conformance"
@@ -46,7 +48,10 @@ func newPublicServer(t *testing.T, modelBacked bool) *httptest.Server {
 	ctx, cancel := context.WithCancel(context.Background())
 	jobs.Start(ctx, 2)
 	app := usecase.New(usecase.Repositories{Projects: projects, Documents: documents, Observations: observations, Patterns: patterns, Analyses: analyses, Insights: insights, Evidence: evidence, Research: sqlite.NewResearchRepository(db)})
-	engine := publicengine.New(app, sqlite.NewPublicRepository(db), documents, jobs, conformanceBuild)
+	// Raw artifact fixtures read fixtures/data; HEAVY uses the local adapter.
+	prep := &service.Preparation{Resolver: input.Resolvers{"file": input.FileResolver{Root: fixtureDir + "/data"}}, Heavy: execution.NewLocalRuntime(t.TempDir(), 2), Partitions: 3}
+	jobs.ConfigureExecution(prep)
+	engine := publicengine.New(app, sqlite.NewPublicRepository(db), documents, jobs, conformanceBuild, publicengine.WithInputResolver(prep.Resolver, 0))
 	server := httptest.NewServer(httpapi.NewRouter(httpapi.Deps{App: app, JobManager: jobs, PublicEngine: engine}))
 	t.Cleanup(func() {
 		server.Close()
@@ -64,8 +69,8 @@ func TestPublicContractConformance(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(fixtures) < 7 {
-		t.Fatalf("expected the seven #59 conformance fixtures, found %d", len(fixtures))
+	if len(fixtures) < 9 {
+		t.Fatalf("expected the nine #59 conformance fixtures, found %d", len(fixtures))
 	}
 	servers := map[string]*httptest.Server{"deterministic": newPublicServer(t, false), "model_backed": newPublicServer(t, true)}
 
