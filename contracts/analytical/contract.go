@@ -52,3 +52,18 @@ func CompareObservations(previous,current Observation) ObservationDelta {
 func CompareObservationSeries(observations []Observation) []ObservationDelta {
  return internal.CompareObservationSeries(observations)
 }
+
+// Temporal Analytics Pack (#73): declarative operations over temporal results
+// that return a derived, neutral Analytical Artifact.
+const (
+	OperationSchema  = internal.OperationSchema
+	OperationVersion = internal.OperationVersion
+)
+
+var ErrInvalidOperation = internal.ErrInvalidOperation
+
+type OperationSpec = internal.OperationSpec
+
+func ApplyTemporalOperation(source Artifact, spec OperationSpec) (Artifact, error) {
+	return internal.ApplyTemporalOperation(source, spec)
+}

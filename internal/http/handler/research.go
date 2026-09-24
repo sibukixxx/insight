@@ -22,17 +22,18 @@ func (h *Handler) ListResearchRuns(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) CreateResearchRun(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Question        string                  `json:"question"`
-		InputReferences []string                `json:"inputReferences"`
-		AnalysisMode    domain.AnalysisMode     `json:"semanticAnalysisMode"`
-		InputSnapshot   domain.InputSetSnapshot `json:"inputSnapshot"`
-		Claims          []domain.ResearchClaim  `json:"claims"`
+		Question        string                    `json:"question"`
+		InputReferences []string                  `json:"inputReferences"`
+		AnalysisMode    domain.AnalysisMode       `json:"semanticAnalysisMode"`
+		InputSnapshot   domain.InputSetSnapshot   `json:"inputSnapshot"`
+		Claims          []domain.ResearchClaim    `json:"claims"`
+		Window          *domain.ObservationWindow `json:"observationWindow"`
 	}
 	if json.NewDecoder(r.Body).Decode(&req) != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
-	run, err := h.App.CreateResearchRun(r.Context(), usecase.CreateResearchRunInput{ProjectID: chi.URLParam(r, "projectID"), Question: req.Question, InputReferences: req.InputReferences, AnalysisMode: req.AnalysisMode, InputSnapshot: req.InputSnapshot, Claims: req.Claims})
+	run, err := h.App.CreateResearchRun(r.Context(), usecase.CreateResearchRunInput{ProjectID: chi.URLParam(r, "projectID"), Question: req.Question, InputReferences: req.InputReferences, AnalysisMode: req.AnalysisMode, InputSnapshot: req.InputSnapshot, Claims: req.Claims, ObservationWindow: req.Window})
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
@@ -75,12 +76,13 @@ func (h *Handler) AppendResearchIteration(w http.ResponseWriter, r *http.Request
 		InputSnapshot      domain.InputSetSnapshot    `json:"inputSnapshot"`
 		AnalysisMode       domain.AnalysisMode        `json:"semanticAnalysisMode"`
 		Claims             []domain.ResearchClaim     `json:"claims"`
+		Window             *domain.ObservationWindow  `json:"observationWindow"`
 	}
 	if json.NewDecoder(r.Body).Decode(&req) != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
-	it, err := h.App.AppendResearchIteration(r.Context(), usecase.AppendResearchIterationInput{RunID: chi.URLParam(r, "runID"), Question: req.Question, InputReferences: req.InputReferences, AddedEvidence: req.AddedEvidence, AddedEvidenceLinks: req.AddedEvidenceLinks, InputSnapshot: req.InputSnapshot, AnalysisMode: req.AnalysisMode, Claims: req.Claims})
+	it, err := h.App.AppendResearchIteration(r.Context(), usecase.AppendResearchIterationInput{RunID: chi.URLParam(r, "runID"), Question: req.Question, InputReferences: req.InputReferences, AddedEvidence: req.AddedEvidence, AddedEvidenceLinks: req.AddedEvidenceLinks, InputSnapshot: req.InputSnapshot, AnalysisMode: req.AnalysisMode, Claims: req.Claims, ObservationWindow: req.Window})
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
@@ -250,4 +252,18 @@ func (h *Handler) GetApprovedResearchArtifact(w http.ResponseWriter, r *http.Req
 		return
 	}
 	writeJSON(w, http.StatusOK, artifact)
+}
+
+// GetResearchTimeline returns the longitudinal read model of a run (#71).
+func (h *Handler) GetResearchTimeline(w http.ResponseWriter, r *http.Request) {
+	timeline, err := h.App.GetResearchTimeline(r.Context(), chi.URLParam(r, "runID"))
+	if err != nil {
+		status := http.StatusInternalServerError
+		if errors.Is(err, usecase.ErrNotFound) {
+			status = http.StatusNotFound
+		}
+		writeError(w, status, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, timeline)
 }

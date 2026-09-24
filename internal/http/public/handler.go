@@ -36,6 +36,8 @@ func Router(engine *publicengine.Engine) http.Handler {
 	r.Post("/research-runs/{researchRunID}/scenario-sets", h.createScenarioSet)
 	r.Post("/research-runs/{researchRunID}/scenario-sets/scaffold", h.scaffoldScenarioSet)
 	r.Post("/research-runs/{researchRunID}/scenario-sets/{scenarioSetID}/evaluations", h.evaluateScenarios)
+	r.Get("/research-runs/{researchRunID}/timeline", h.getResearchTimeline)
+	r.Post("/temporal-operations", h.applyTemporalOperation)
 	r.NotFound(func(w http.ResponseWriter, _ *http.Request) {
 		writeError(w, &publicengine.Error{Code: publicengine.CodeNotFound, Message: "no such public operation"})
 	})
@@ -146,6 +148,19 @@ func (h *handler) evaluateScenarios(w http.ResponseWriter, r *http.Request) {
 	var req publicengine.EvaluateScenariosRequest
 	if decode(w, r, &req) {
 		writeResult(w)(h.engine.EvaluateScenarios(r.Context(), chi.URLParam(r, "researchRunID"), chi.URLParam(r, "scenarioSetID"), req))
+	}
+}
+
+func (h *handler) getResearchTimeline(w http.ResponseWriter, r *http.Request) {
+	timeline, err := h.engine.GetResearchTimeline(r.Context(), chi.URLParam(r, "researchRunID"))
+	writeValue(w, timeline, err)
+}
+
+func (h *handler) applyTemporalOperation(w http.ResponseWriter, r *http.Request) {
+	var req publicengine.TemporalOperationRequest
+	if decode(w, r, &req) {
+		result, err := h.engine.ApplyTemporalOperation(req)
+		writeValue(w, result, err)
 	}
 }
 

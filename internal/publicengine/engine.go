@@ -432,7 +432,7 @@ func (e *Engine) CreateResearchRun(ctx context.Context, subjectID string, req Cr
 		}
 		run, err := e.app.CreateResearchRun(ctx, usecase.CreateResearchRunInput{
 			ProjectID: subject.ProjectID, AnalysisID: req.AnalysisID, Question: question,
-			InputReferences: req.InputReferences, AnalysisMode: mode,
+			InputReferences: req.InputReferences, AnalysisMode: mode, ObservationWindow: req.ObservationWindow,
 		})
 		if err != nil {
 			return 0, nil, err
@@ -465,7 +465,7 @@ func (e *Engine) AppendIteration(ctx context.Context, researchRunID string, req 
 		}
 		if _, err := e.app.AppendResearchIteration(ctx, usecase.AppendResearchIterationInput{
 			RunID: run.ID, AnalysisID: req.AnalysisID, Question: strings.TrimSpace(req.Question),
-			AddedEvidence: references, AddedEvidenceLinks: links,
+			AddedEvidence: references, AddedEvidenceLinks: links, ObservationWindow: req.ObservationWindow,
 		}); err != nil {
 			return 0, nil, err
 		}
@@ -626,4 +626,27 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+// GetResearchTimeline returns the longitudinal read model (#71) of a public
+// research run.
+func (e *Engine) GetResearchTimeline(ctx context.Context, researchRunID string) (ResearchTimeline, error) {
+	run, err := e.publicResearchRun(ctx, researchRunID)
+	if err != nil {
+		return ResearchTimeline{}, err
+	}
+	t, err := e.app.GetResearchTimeline(ctx, run.ID)
+	if err != nil {
+		return ResearchTimeline{}, err
+	}
+	out := ResearchTimeline{
+		ContractVersion: ContractVersion, SubjectID: run.ProjectID, ResearchRunID: t.ResearchRunID, Question: t.Question,
+		Iterations: t.Iterations, EvidenceEvents: t.EvidenceEvents, ObservationDeltas: t.ObservationDeltas,
+		HypothesisEvents: t.HypothesisEvents, InsightVersions: t.InsightVersions, InstrumentChanges: t.InstrumentChanges,
+		Limitations: t.Limitations,
+	}
+	if t.AsOf != nil {
+		out.AsOf = formatTime(*t.AsOf)
+	}
+	return out, nil
 }

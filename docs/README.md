@@ -11,6 +11,8 @@ This directory contains three different kinds of documentation. Keeping them sep
 | [Project status](project-status.md) | What is implemented now, current limitations, and the next validation phase |
 | [Causal reasoning semantics](causal-reasoning.md) | Runtime contract for causal claims, statuses, evidence, and guardrails |
 | [Scenario analysis](scenario-analysis.md) | Multi-scenario prospective analysis: branches, assumptions, frozen expectations, append-only evaluation (#66) |
+| [Temporal evidence and analytics pack](temporal-evidence.md) | Temporal Analytical Artifacts, Observation Delta (#70) and declarative temporal operations (#73) |
+| [Longitudinal research](longitudinal-research.md) | Re-observing one question over time, as-of windows and the timeline read model (#71, #68) |
 | [Evaluation](evaluation/README.md) | How to run and inspect repeatable model-backed evaluation |
 | [Data Triage](data-triage.md) | Deterministic Dataset Profile and auditable, versioned Selection Plans that choose what deterministic processing looks at (#92) |
 

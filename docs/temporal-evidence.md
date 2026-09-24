@@ -87,6 +87,41 @@ changes, source changes, validity, magnitude, direction, warnings and limitation
 - Change, anomaly and correlation are not causal effects. No automatic insight,
   causal status or promotion transition occurs.
 
+## Temporal Analytics Pack (#73)
+
+Declarative, versioned operations turn temporal results into a **derived**
+Analytical Artifact. Spec: `contracts/analytical-artifact/v1/temporal-operation.schema.json`
+(`insight-lab.temporal-operation` v1). Go: `analytical.ApplyTemporalOperation`
+in `insight-lab/contracts/analytical`. HTTP: stateless
+`POST /api/public/v1/temporal-operations` (nothing is stored).
+
+Operations: `yoy`, `mom`, `qoq`, `period_over_period`, `cagr`, `rolling_mean`,
+`rolling_delta`, `share`, `unit_price`, `indexed_baseline`, `lagged_comparison`,
+`before_after`, `cohort_comparison`, `control_comparison`, `anomaly_candidate`,
+`change_point_candidate`.
+
+- Output results are `origin: derived`, carry a versioned metric per operation
+  component, and keep the source geography and value basis (ratios become
+  `not_applicable`).
+- The derivation is a pure function of (source artifact, spec): it inherits the
+  source `generatedAt`, its ID derives from the source hash and spec hash, and
+  `spec.hash` is the SHA-256 of the spec. An external producer (for example a
+  DuckDB job) implementing the same spec yields the same reproducibility key.
+- Provenance keeps the source datasets and appends `artifact:<source id>` and
+  `temporal-operation:<op>@1:sha256:<spec hash>` transformation references.
+- Unreported windows inside a series become explicit gaps. Missing and gap
+  inputs produce missing outputs with a quality flag; unknown never becomes 0.
+- A selection that matches more than one series is rejected rather than merged.
+- Each operation adds `LIMITATION` quality flags. Anomaly and change-point
+  results are candidates. Lag correlation is association only. No output uses
+  causal wording; a test scans every operation's JSON for it.
+
+Derived artifacts enter research like any Analytical Artifact: submit them with
+`addEvidence`, and they become neutral Observation candidates.
+
+See [longitudinal-research.md](longitudinal-research.md) for how temporal
+evidence feeds repeated research iterations and the timeline.
+
 ## Acceptance checks
 
 `make test` covers the synthetic Japan→EU 2022–2024 fixture (100, 115, 121),
@@ -97,3 +132,8 @@ SQLite persistence. `make vet` covers both normal and demo builds.
 Fixture: contracts/analytical-artifact/v1/fixtures/temporal-japan-eu.json.
 Its example.invalid sources and placeholder hashes are synthetic contract data,
 not verified trade statistics. There is no UI or application-specific behavior.
+
+Synthetic trade+FX fixture for the pack:
+contracts/analytical-artifact/v1/fixtures/trade-fx-temporal.json (monthly,
+with a missing window, an unreported window and a spike; not real statistics).
+Conformance: contracts/public-engine/v1/fixtures/12-temporal-operation-pack.json.

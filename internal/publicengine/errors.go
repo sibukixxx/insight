@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"insight-lab/internal/domain"
 	"insight-lab/internal/usecase"
 )
 
@@ -62,6 +63,8 @@ func AsError(err error) *Error {
 	case errors.Is(err, usecase.ErrScenarioInvalid):
 		// Validation messages name the violated guardrail and carry no
 		// internal detail.
+		return newError(CodeInvalidRequest, "%s", err.Error())
+	case errors.Is(err, domain.ErrInvalidObservationWindow):
 		return newError(CodeInvalidRequest, "%s", err.Error())
 	case errors.Is(err, usecase.ErrNotFound):
 		return newError(CodeNotFound, "resource not found")

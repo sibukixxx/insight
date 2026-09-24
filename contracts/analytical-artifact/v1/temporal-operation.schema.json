@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/sibukixxx/insight/contracts/analytical-artifact/v1/temporal-operation.schema.json",
+  "title": "Insight Temporal Operation v1",
+  "description": "Declarative, versioned temporal analytical operation (#73). Applying it to a temporal Analytical Artifact yields a derived Analytical Artifact whose spec.hash is the SHA-256 of this spec's canonical JSON. Operations describe how values moved; they never assert why. An external producer (for example DuckDB) may implement the same operations and emit the same derived artifact shape.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "operationSchema",
+    "schemaVersion",
+    "operation",
+    "metricId"
+  ],
+  "properties": {
+    "operationSchema": {
+      "const": "insight-lab.temporal-operation"
+    },
+    "schemaVersion": {
+      "const": "1"
+    },
+    "operation": {
+      "enum": [
+        "yoy",
+        "mom",
+        "qoq",
+        "period_over_period",
+        "cagr",
+        "rolling_mean",
+        "rolling_delta",
+        "share",
+        "unit_price",
+        "indexed_baseline",
+        "lagged_comparison",
+        "before_after",
+        "cohort_comparison",
+        "control_comparison",
+        "anomaly_candidate",
+        "change_point_candidate"
+      ]
+    },
+    "metricId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "series": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "referenceMetricId": {
+      "type": "string"
+    },
+    "referenceSeries": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "cohortDimension": {
+      "type": "string"
+    },
+    "lag": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "period_over_period lag in windows"
+    },
+    "maxLag": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "window": {
+      "type": "integer",
+      "minimum": 2
+    },
+    "baselinePeriod": {
+      "type": "string"
+    },
+    "breakPeriod": {
+      "type": "string"
+    },
+    "threshold": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "description": "anomaly |robust z| threshold, default 3.5"
+    },
+    "minSegment": {
+      "type": "integer",
+      "minimum": 2,
+      "description": "change point minimum segment length, default 3"
+    }
+  },
+  "x-semantics": {
+    "yoy": "lag 1 on calendar-year, 12 on calendar-month; (current-earlier)/abs(earlier)",
+    "mom": "calendar-month lag 1",
+    "qoq": "calendar-month lag 3",
+    "cagr": "(last/first)^(1/years)-1 over first and last recorded windows; non-positive endpoints are missing",
+    "rolling_mean": "mean of the last window values; any missing window makes the result missing",
+    "rolling_delta": "current minus the value window steps earlier",
+    "share": "metric / reference metric, same window",
+    "unit_price": "metric / reference metric, unit metric/reference",
+    "indexed_baseline": "value / baselinePeriod value * 100",
+    "lagged_comparison": "Pearson coefficient of series[t] and reference[t-lag] for lag in [-maxLag, maxLag]; at least 3 pairs",
+    "before_after": "means before and from breakPeriod and their difference",
+    "cohort_comparison": "each cohortDimension series indexed to its own first recorded window = 100",
+    "control_comparison": "change of the selected series minus change of the reference series around breakPeriod",
+    "anomaly_candidate": "0.6745*(x-median)/MAD; flagged above threshold; needs 5 recorded windows",
+    "change_point_candidate": "best single mean-shift split by SSE; score = 1 - SSE_split/SSE_total"
+  },
+  "x-missing": "Missing results and unreported windows stay missing (never zero) and propagate as missing with a quality flag."
+}

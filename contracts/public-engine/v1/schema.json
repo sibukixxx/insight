@@ -28,7 +28,9 @@
     "getScenarios": {"method": "GET", "path": "/api/public/v1/research-runs/{researchRunId}/scenarios", "response": "ScenarioAnalysis", "status": 200},
     "createScenarioSet": {"method": "POST", "path": "/api/public/v1/research-runs/{researchRunId}/scenario-sets", "request": "CreateScenarioSetRequest", "response": "ScenarioSetResult", "status": 201},
     "scaffoldScenarioSet": {"method": "POST", "path": "/api/public/v1/research-runs/{researchRunId}/scenario-sets/scaffold", "request": "ScaffoldScenarioSetRequest", "response": "ScenarioSetResult", "status": 201},
-    "evaluateScenarios": {"method": "POST", "path": "/api/public/v1/research-runs/{researchRunId}/scenario-sets/{scenarioSetId}/evaluations", "request": "EvaluateScenariosRequest", "response": "ScenarioEvaluationResult", "status": 201}
+    "evaluateScenarios": {"method": "POST", "path": "/api/public/v1/research-runs/{researchRunId}/scenario-sets/{scenarioSetId}/evaluations", "request": "EvaluateScenariosRequest", "response": "ScenarioEvaluationResult", "status": 201},
+    "getResearchTimeline": {"method": "GET", "path": "/api/public/v1/research-runs/{researchRunId}/timeline", "response": "ResearchTimeline", "status": 200},
+    "applyTemporalOperation": {"method": "POST", "path": "/api/public/v1/temporal-operations", "request": "TemporalOperationRequest", "response": "TemporalOperationResult", "status": 200}
   },
   "x-errorCodes": {
     "INVALID_REQUEST": 400,
@@ -251,7 +253,20 @@
         "question": {"type": "string", "minLength": 1, "maxLength": 2000},
         "analysisId": {"type": "string", "minLength": 1},
         "inputReferences": {"type": "array", "items": {"type": "string"}},
-        "semanticAnalysisMode": {"type": "string", "enum": ["DISCOVERY", "DATASET_ANALYSIS", "RESEARCH_REVIEW"]}
+        "semanticAnalysisMode": {"type": "string", "enum": ["DISCOVERY", "DATASET_ANALYSIS", "RESEARCH_REVIEW"]},
+        "observationWindow": {"$ref": "#/$defs/ObservationWindow"}
+      }
+    },
+    "ObservationWindow": {
+      "type": "object",
+      "description": "As-of boundary of a longitudinal iteration (#71). A later iteration may not use an earlier asOf than one already recorded.",
+      "required": ["asOf"],
+      "properties": {
+        "asOf": {"type": "string", "format": "date-time"},
+        "start": {"type": "string"},
+        "end": {"type": "string"},
+        "basis": {"type": "string"},
+        "note": {"type": "string"}
       }
     },
     "AddedEvidenceLink": {
@@ -272,7 +287,8 @@
         "idempotencyKey": {"$ref": "#/$defs/IdempotencyKey"},
         "analysisId": {"type": "string", "minLength": 1},
         "question": {"type": "string", "maxLength": 2000},
-        "addedEvidence": {"type": "array", "items": {"$ref": "#/$defs/AddedEvidenceLink"}}
+        "addedEvidence": {"type": "array", "items": {"$ref": "#/$defs/AddedEvidenceLink"}},
+        "observationWindow": {"$ref": "#/$defs/ObservationWindow"}
       }
     },
     "ResearchResult": {
@@ -501,6 +517,121 @@
         "result": {"$ref": "#/$defs/ResearchResult"}
       }
     },
+    "ResearchTimeline": {
+      "type": "object",
+      "description": "Longitudinal read model of a research run (#71). Evidence/world changes and instrument (engine/model/prompt/rules) changes are separate arrays and are never merged. Derived from immutable iterations; historical entries never change when iterations are appended.",
+      "required": ["contractVersion", "subjectId", "researchRunId", "question", "iterations", "evidenceEvents", "observationDeltas", "hypothesisEvents", "insightVersions", "instrumentChanges", "limitations"],
+      "properties": {
+        "contractVersion": {"$ref": "#/$defs/ContractVersion"},
+        "subjectId": {"type": "string"},
+        "researchRunId": {"type": "string"},
+        "question": {"type": "string"},
+        "asOf": {"type": "string", "format": "date-time"},
+        "iterations": {"type": "array", "items": {"$ref": "#/$defs/TimelineIteration"}},
+        "evidenceEvents": {"type": "array", "items": {"$ref": "#/$defs/EvidenceEvent"}},
+        "observationDeltas": {"type": "array", "items": {"$ref": "#/$defs/TimelineObservationDelta"}},
+        "hypothesisEvents": {"type": "array", "items": {"$ref": "#/$defs/HypothesisEvent"}},
+        "insightVersions": {"type": "array", "items": {"$ref": "#/$defs/InsightVersion"}},
+        "instrumentChanges": {"type": "array", "items": {"$ref": "#/$defs/InstrumentChange"}},
+        "limitations": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "TimelineIteration": {
+      "type": "object",
+      "required": ["iterationId", "sequence", "question", "readiness", "stopped", "recordedAt"],
+      "properties": {
+        "iterationId": {"type": "string"},
+        "sequence": {"type": "integer"},
+        "previousIterationId": {"type": "string"},
+        "analysisId": {"type": "string"},
+        "observationWindow": {"$ref": "#/$defs/ObservationWindow"},
+        "question": {"type": "string"},
+        "readiness": {"type": "string"},
+        "stopped": {"type": "boolean"},
+        "unresolvedGapIds": {"type": "array", "items": {"type": "string"}},
+        "whatWeCannotConclude": {"type": "array", "items": {"type": "string"}},
+        "carriedUncertainty": {"type": "array", "items": {"type": "string"}},
+        "resolvedUncertainty": {"type": "array", "items": {"type": "string"}},
+        "recordedAt": {"type": "string", "format": "date-time"}
+      }
+    },
+    "EvidenceEvent": {
+      "type": "object",
+      "required": ["iterationId", "sequence", "kind", "reference"],
+      "properties": {
+        "iterationId": {"type": "string"},
+        "sequence": {"type": "integer"},
+        "kind": {"type": "string", "enum": ["ADDED", "REMOVED", "CONTENT_CHANGED", "DEFINITION_CHANGED"]},
+        "reference": {"type": "string"},
+        "gapIds": {"type": "array", "items": {"type": "string"}},
+        "detail": {"type": "string"}
+      }
+    },
+    "TimelineObservationDelta": {
+      "type": "object",
+      "required": ["fromIterationId", "toIterationId", "seriesKey", "delta"],
+      "properties": {
+        "fromIterationId": {"type": "string"},
+        "toIterationId": {"type": "string"},
+        "seriesKey": {"type": "string"},
+        "delta": {"type": "object", "description": "Deterministic #70 Observation Delta, verbatim. Descriptive, never causal."}
+      }
+    },
+    "HypothesisEvent": {
+      "type": "object",
+      "required": ["iterationId", "sequence", "hypothesisId", "evolution", "reason", "attribution", "invalidatesPriorInterpretation"],
+      "properties": {
+        "iterationId": {"type": "string"},
+        "sequence": {"type": "integer"},
+        "hypothesisId": {"type": "string"},
+        "evolution": {"type": "string", "enum": ["CREATED", "UNCHANGED", "STRENGTHENED", "WEAKENED", "CONTRADICTED"]},
+        "reason": {"type": "string"},
+        "evidenceRefs": {"type": "array", "items": {"type": "string"}},
+        "attribution": {"$ref": "#/$defs/ChangeAttribution"},
+        "invalidatesPriorInterpretation": {"type": "boolean"}
+      }
+    },
+    "InsightVersion": {
+      "type": "object",
+      "required": ["iterationId", "sequence", "attribution"],
+      "properties": {
+        "iterationId": {"type": "string"},
+        "sequence": {"type": "integer"},
+        "insightIds": {"type": "array", "items": {"type": "string"}},
+        "explanation": {"type": "array", "items": {"type": "string"}},
+        "attribution": {"$ref": "#/$defs/ChangeAttribution"}
+      }
+    },
+    "InstrumentChange": {
+      "type": "object",
+      "description": "Execution fingerprint of consecutive iterations' analyses. UNKNOWN means not recorded, never SAME.",
+      "required": ["fromIterationId", "toIterationId", "execution"],
+      "properties": {
+        "fromIterationId": {"type": "string"},
+        "toIterationId": {"type": "string"},
+        "execution": {"type": "string", "enum": ["CHANGED", "UNKNOWN"]},
+        "changedFields": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "TemporalOperationRequest": {
+      "type": "object",
+      "description": "Stateless #73 temporal operation. Nothing is stored; the derived artifact is neutral evidence that may later be submitted with addEvidence.",
+      "required": ["contractVersion", "artifact", "operation"],
+      "properties": {
+        "contractVersion": {"$ref": "#/$defs/ContractVersion"},
+        "artifact": {"type": "object", "description": "insight-lab.analytical-artifact v1 with temporal results."},
+        "operation": {"type": "object", "description": "insight-lab.temporal-operation v1 spec; see contracts/analytical-artifact/v1/temporal-operation.schema.json."}
+      }
+    },
+    "TemporalOperationResult": {
+      "type": "object",
+      "required": ["contractVersion", "artifact"],
+      "properties": {
+        "contractVersion": {"$ref": "#/$defs/ContractVersion"},
+        "artifact": {"type": "object", "description": "Derived insight-lab.analytical-artifact v1 (origin=derived, deterministic, provenance references the source artifact)."}
+      }
+    },
+    "ChangeAttribution": {"type": "string", "enum": ["EVIDENCE_DELTA", "INSTRUMENT_CHANGE", "EVIDENCE_AND_INSTRUMENT", "UNATTRIBUTED"]},
     "ErrorBody": {
       "type": "object",
       "required": ["code", "message"],

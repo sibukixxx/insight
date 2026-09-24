@@ -19,6 +19,8 @@ type CreateResearchRunInput struct {
 	AnalysisMode    domain.AnalysisMode
 	InputSnapshot   domain.InputSetSnapshot
 	Claims          []domain.ResearchClaim
+	// ObservationWindow is the optional as-of boundary (#71).
+	ObservationWindow *domain.ObservationWindow
 }
 
 type AppendResearchIterationInput struct {
@@ -33,6 +35,7 @@ type AppendResearchIterationInput struct {
 	InputSnapshot      domain.InputSetSnapshot
 	AnalysisMode       domain.AnalysisMode
 	Claims             []domain.ResearchClaim
+	ObservationWindow  *domain.ObservationWindow
 }
 
 func (a *Application) CreateResearchRun(ctx context.Context, in CreateResearchRunInput) (*domain.ResearchRun, error) {
@@ -54,9 +57,13 @@ func (a *Application) CreateResearchRun(ctx context.Context, in CreateResearchRu
 	if err := domain.ValidateAnalysisModeInput(mode, in.InputSnapshot.Artifacts, in.Claims); err != nil {
 		return nil, err
 	}
+	if err := domain.ValidateNextWindow(domain.ResearchRun{}, in.ObservationWindow); err != nil {
+		return nil, err
+	}
 	iteration := service.BuildResearchIteration(1, in.Question, in.InputReferences, insights, now)
 	iteration.AnalysisMode = mode
 	iteration.AnalysisID = analysisID
+	iteration.ObservationWindow = in.ObservationWindow
 	if len(in.InputSnapshot.ArtifactReferences) == 0 {
 		in.InputSnapshot.ArtifactReferences = append([]string(nil), in.InputReferences...)
 	}
@@ -107,9 +114,16 @@ func (a *Application) buildAppendedIteration(ctx context.Context, run *domain.Re
 	if err := domain.ValidateAnalysisModeInput(mode, in.InputSnapshot.Artifacts, in.Claims); err != nil {
 		return domain.ResearchIteration{}, err
 	}
+	if err := domain.ValidateNextWindow(*run, in.ObservationWindow); err != nil {
+		return domain.ResearchIteration{}, err
+	}
 	iteration := service.BuildResearchIteration(len(run.Iterations)+1, question, in.InputReferences, insights, now)
 	iteration.AnalysisMode = mode
 	iteration.AnalysisID = analysisID
+	iteration.ObservationWindow = in.ObservationWindow
+	if latest, ok := run.LatestIteration(); ok {
+		iteration.PreviousIterationID = latest.ID
+	}
 	iteration.Claims = append([]domain.ResearchClaim(nil), in.Claims...)
 	snapshot := in.InputSnapshot
 	if len(snapshot.ArtifactReferences) == 0 {
@@ -367,4 +381,34 @@ func (a *Application) CompareResearchIterations(ctx context.Context, runID, from
 	}
 	delta := service.CompareResearchIterations(*from, *to)
 	return &delta, nil
+}
+
+// GetResearchTimeline builds the longitudinal read model (#71) from the
+// stored iterations and the analyses they are bound to. Iterations recorded
+// before direct analysis binding simply contribute no observation deltas.
+func (a *Application) GetResearchTimeline(ctx context.Context, runID string) (*domain.LongitudinalTimeline, error) {
+	run, err := a.repos.Research.GetResearchRun(ctx, runID)
+	if err != nil {
+		return nil, err
+	}
+	src := service.TimelineSources{Analyses: map[string]*domain.Analysis{}, Observations: map[string][]*domain.Observation{}}
+	for _, it := range run.Iterations {
+		if it.AnalysisID == "" {
+			continue
+		}
+		if _, done := src.Analyses[it.AnalysisID]; done {
+			continue
+		}
+		analysis, err := a.repos.Analyses.Get(ctx, it.AnalysisID)
+		if err != nil {
+			return nil, fmt.Errorf("load analysis %s: %w", it.AnalysisID, err)
+		}
+		observations, err := a.repos.Observations.ListByAnalysis(ctx, it.AnalysisID)
+		if err != nil {
+			return nil, fmt.Errorf("load observations of %s: %w", it.AnalysisID, err)
+		}
+		src.Analyses[it.AnalysisID], src.Observations[it.AnalysisID] = analysis, observations
+	}
+	timeline := service.BuildLongitudinalTimeline(*run, src)
+	return &timeline, nil
 }

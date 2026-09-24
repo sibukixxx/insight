@@ -1,0 +1,365 @@
+{
+  "fixture": "12-longitudinal-timeline",
+  "contractVersion": "1",
+  "covers": "#71 longitudinal research: the same Japan to EU export question re-observed over three as-of windows; append-only iterations, retroactive as-of rejected, evidence and instrument changes in separate timeline lanes",
+  "engine": "model_backed",
+  "steps": [
+    {
+      "op": "createSubject",
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-subject",
+        "subject": {
+          "namespace": "public-data",
+          "id": "jp-eu-exports-${uniq}"
+        }
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "subjectId": "subjectId"
+      }
+    },
+    {
+      "op": "addEvidence",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-evidence-2022",
+        "documents": [
+          {
+            "externalRef": "jp-eu-2022",
+            "source": "dataset",
+            "content": "Japan to EU export value was 100 in 2022."
+          }
+        ]
+      },
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "op": "startAnalysis",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-analysis-2022"
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "analysisId": "analysisId"
+      }
+    },
+    {
+      "op": "waitForAnalysis",
+      "params": {
+        "subjectId": "${subjectId}",
+        "analysisId": "${analysisId}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "status",
+          "equals": "completed"
+        },
+        {
+          "path": "executionFingerprint",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "op": "createResearchRun",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-research",
+        "question": "Is Japan to EU export value still growing?",
+        "analysisId": "${analysisId}",
+        "inputReferences": [
+          "jp-eu-2022"
+        ],
+        "observationWindow": {
+          "asOf": "2022-12-31T23:59:59Z",
+          "start": "2022",
+          "end": "2022",
+          "basis": "calendar-year"
+        }
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "researchRunId": "researchRunId"
+      }
+    },
+    {
+      "op": "addEvidence",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-evidence-2023",
+        "documents": [
+          {
+            "externalRef": "jp-eu-2023",
+            "source": "dataset",
+            "content": "Japan to EU export value was 115 in 2023, up from 100."
+          }
+        ]
+      },
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "op": "startAnalysis",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-analysis-2023"
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "analysisId": "analysisId"
+      }
+    },
+    {
+      "op": "waitForAnalysis",
+      "params": {
+        "subjectId": "${subjectId}",
+        "analysisId": "${analysisId}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "status",
+          "equals": "completed"
+        },
+        {
+          "path": "executionFingerprint",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "op": "appendIteration",
+      "params": {
+        "researchRunId": "${researchRunId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-iteration-2023",
+        "analysisId": "${analysisId}",
+        "addedEvidence": [
+          {
+            "reference": "jp-eu-2023",
+            "note": "2023 re-observation"
+          }
+        ],
+        "observationWindow": {
+          "asOf": "2023-12-31T23:59:59Z",
+          "start": "2022",
+          "end": "2023",
+          "basis": "calendar-year"
+        }
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "iterationSequence",
+          "equals": 2
+        }
+      ]
+    },
+    {
+      "op": "addEvidence",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-evidence-2024",
+        "documents": [
+          {
+            "externalRef": "jp-eu-2024",
+            "source": "dataset",
+            "content": "Japan to EU export value was 121 in 2024, up from 115; growth slowed."
+          }
+        ]
+      },
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "op": "startAnalysis",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-analysis-2024"
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "analysisId": "analysisId"
+      }
+    },
+    {
+      "op": "waitForAnalysis",
+      "params": {
+        "subjectId": "${subjectId}",
+        "analysisId": "${analysisId}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "status",
+          "equals": "completed"
+        },
+        {
+          "path": "executionFingerprint",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "op": "appendIteration",
+      "params": {
+        "researchRunId": "${researchRunId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-iteration-2024",
+        "analysisId": "${analysisId}",
+        "addedEvidence": [
+          {
+            "reference": "jp-eu-2024",
+            "note": "2024 re-observation"
+          }
+        ],
+        "observationWindow": {
+          "asOf": "2024-12-31T23:59:59Z",
+          "start": "2022",
+          "end": "2024",
+          "basis": "calendar-year"
+        }
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "iterationSequence",
+          "equals": 3
+        }
+      ]
+    },
+    {
+      "op": "appendIteration",
+      "params": {
+        "researchRunId": "${researchRunId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-iteration-retroactive",
+        "analysisId": "${analysisId}",
+        "observationWindow": {
+          "asOf": "2023-06-30T00:00:00Z"
+        }
+      },
+      "expect": {
+        "errorCode": "INVALID_REQUEST",
+        "httpStatus": 400
+      }
+    },
+    {
+      "op": "getResearchTimeline",
+      "params": {
+        "researchRunId": "${researchRunId}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "contractVersion",
+          "equals": "1"
+        },
+        {
+          "path": "researchRunId",
+          "equals": "${researchRunId}"
+        },
+        {
+          "path": "iterations",
+          "minLength": 3
+        },
+        {
+          "path": "iterations[0].observationWindow.asOf",
+          "equals": "2022-12-31T23:59:59Z"
+        },
+        {
+          "path": "iterations[2].observationWindow.asOf",
+          "equals": "2024-12-31T23:59:59Z"
+        },
+        {
+          "path": "iterations[2].previousIterationId",
+          "exists": true
+        },
+        {
+          "path": "asOf",
+          "exists": true
+        },
+        {
+          "path": "evidenceEvents",
+          "minLength": 3
+        },
+        {
+          "path": "evidenceEvents[0].kind",
+          "equals": "ADDED"
+        },
+        {
+          "path": "evidenceEvents[2].reference",
+          "equals": "jp-eu-2024"
+        },
+        {
+          "path": "insightVersions",
+          "minLength": 3
+        },
+        {
+          "path": "instrumentChanges",
+          "exists": true
+        },
+        {
+          "path": "limitations",
+          "minLength": 2
+        }
+      ]
+    }
+  ]
+}

@@ -5,7 +5,11 @@
 // subject's namespace or type. Transport lives in internal/http/public.
 package publicengine
 
-import "encoding/json"
+import (
+	"encoding/json"
+
+	"insight-lab/internal/domain"
+)
 
 const (
 	ContractSchema  = "insight-lab.public-engine"
@@ -154,12 +158,13 @@ type AnalysisResults struct {
 }
 
 type CreateResearchRunRequest struct {
-	ContractVersion      string   `json:"contractVersion"`
-	IdempotencyKey       string   `json:"idempotencyKey"`
-	Question             string   `json:"question"`
-	AnalysisID           string   `json:"analysisId"`
-	InputReferences      []string `json:"inputReferences,omitempty"`
-	SemanticAnalysisMode string   `json:"semanticAnalysisMode,omitempty"`
+	ContractVersion      string             `json:"contractVersion"`
+	IdempotencyKey       string             `json:"idempotencyKey"`
+	Question             string             `json:"question"`
+	AnalysisID           string             `json:"analysisId"`
+	InputReferences      []string           `json:"inputReferences,omitempty"`
+	SemanticAnalysisMode string             `json:"semanticAnalysisMode,omitempty"`
+	ObservationWindow    *ObservationWindow `json:"observationWindow,omitempty"`
 }
 
 type AddedEvidenceLink struct {
@@ -169,11 +174,12 @@ type AddedEvidenceLink struct {
 }
 
 type AppendIterationRequest struct {
-	ContractVersion string              `json:"contractVersion"`
-	IdempotencyKey  string              `json:"idempotencyKey"`
-	AnalysisID      string              `json:"analysisId"`
-	Question        string              `json:"question,omitempty"`
-	AddedEvidence   []AddedEvidenceLink `json:"addedEvidence,omitempty"`
+	ContractVersion   string              `json:"contractVersion"`
+	IdempotencyKey    string              `json:"idempotencyKey"`
+	AnalysisID        string              `json:"analysisId"`
+	Question          string              `json:"question,omitempty"`
+	AddedEvidence     []AddedEvidenceLink `json:"addedEvidence,omitempty"`
+	ObservationWindow *ObservationWindow  `json:"observationWindow,omitempty"`
 }
 
 type ResearchResult struct {
@@ -184,6 +190,46 @@ type ResearchResult struct {
 	IterationSequence int             `json:"iterationSequence"`
 	Analysis          AnalysisRun     `json:"analysis"`
 	Artifact          json.RawMessage `json:"artifact"`
+}
+
+// Longitudinal timeline (#71). Nested entries reuse the domain read model;
+// drift_test.go keeps their JSON fields identical to the schema.
+type (
+	ObservationWindow        = domain.ObservationWindow
+	TimelineIteration        = domain.TimelineIteration
+	EvidenceEvent            = domain.EvidenceEvent
+	TimelineObservationDelta = domain.TimelineObservationDelta
+	HypothesisEvent          = domain.HypothesisEvent
+	InsightVersion           = domain.InsightVersion
+	InstrumentChange         = domain.InstrumentChange
+)
+
+type ResearchTimeline struct {
+	ContractVersion   string                     `json:"contractVersion"`
+	SubjectID         string                     `json:"subjectId"`
+	ResearchRunID     string                     `json:"researchRunId"`
+	Question          string                     `json:"question"`
+	AsOf              string                     `json:"asOf,omitempty"`
+	Iterations        []TimelineIteration        `json:"iterations"`
+	EvidenceEvents    []EvidenceEvent            `json:"evidenceEvents"`
+	ObservationDeltas []TimelineObservationDelta `json:"observationDeltas"`
+	HypothesisEvents  []HypothesisEvent          `json:"hypothesisEvents"`
+	InsightVersions   []InsightVersion           `json:"insightVersions"`
+	InstrumentChanges []InstrumentChange         `json:"instrumentChanges"`
+	Limitations       []string                   `json:"limitations"`
+}
+
+// Temporal Analytics Pack (#73). Stateless and deterministic: the same
+// artifact and operation always return the same derived artifact.
+type TemporalOperationRequest struct {
+	ContractVersion string          `json:"contractVersion"`
+	Artifact        json.RawMessage `json:"artifact"`
+	Operation       json.RawMessage `json:"operation"`
+}
+
+type TemporalOperationResult struct {
+	ContractVersion string          `json:"contractVersion"`
+	Artifact        json.RawMessage `json:"artifact"`
 }
 
 type ErrorBody struct {
