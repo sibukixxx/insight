@@ -580,11 +580,19 @@ func validateMetadata(metadata map[string]string, document bool) error {
 		if len(value) > maxMetadataValueLength {
 			return newError(CodeInvalidRequest, "metadata value for %q exceeds %d characters", key, maxMetadataValueLength)
 		}
-		if document && (strings.HasPrefix(key, "public_") || strings.HasPrefix(key, "analytical_")) {
-			return newError(CodeInvalidRequest, "metadata key %q is reserved", key)
+		if document && reservedDocumentKey(key) {
+			return newError(CodeInvalidRequest, "metadata key %q is reserved for provenance the engine records itself", key)
 		}
 	}
 	return nil
+}
+
+// reservedDocumentKey reports keys the engine writes as measured provenance.
+// A consumer must not be able to claim a file hash or an acquisition manifest
+// that the engine would then report as if it had verified it.
+func reservedDocumentKey(key string) bool {
+	return strings.HasPrefix(key, "public_") || strings.HasPrefix(key, "analytical_") ||
+		key == service.MetadataDatasetHash || key == service.MetadataAcquisitionManifest
 }
 
 func semanticMode(value string) (domain.AnalysisMode, error) {
