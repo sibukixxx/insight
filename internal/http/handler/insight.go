@@ -14,6 +14,7 @@ import (
 type insightDTO struct {
 	ID                        string                          `json:"id"`
 	ProjectID                 string                          `json:"projectId"`
+	AnalysisID                *string                         `json:"analysisId"`
 	Title                     string                          `json:"title"`
 	Observation               string                          `json:"observation"`
 	StatedNeed                string                          `json:"statedNeed"`
@@ -59,7 +60,7 @@ func toInsightDTO(i *domain.Insight) insightDTO {
 		flags = append(flags, qualityFlagDTO{Code: string(f.Code), Detail: f.Detail})
 	}
 	return insightDTO{
-		ID: i.ID, ProjectID: i.ProjectID, Title: i.Title, Observation: i.Observation,
+		ID: i.ID, ProjectID: i.ProjectID, AnalysisID: i.AnalysisID, Title: i.Title, Observation: i.Observation,
 		StatedNeed: i.StatedNeed, LatentNeed: i.LatentNeed, JTBD: i.JTBD,
 		Expectation: i.Expectation, SurprisingFact: i.SurprisingFact, Rationale: i.Rationale,
 		Interpretation: i.Interpretation, AlternativeInterpretation: i.AlternativeInterpretation,
@@ -116,9 +117,9 @@ func (h *Handler) ListInsights(w http.ResponseWriter, r *http.Request) {
 	if !h.requireProject(w, r, projectID) {
 		return
 	}
-	list, err := h.App.ListInsights(r.Context(), projectID)
+	list, err := h.App.ListInsights(r.Context(), projectID, analysisIDParam(r))
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		writeRunScopeError(w, err)
 		return
 	}
 	out := make([]insightDTO, 0, len(list))

@@ -14,7 +14,10 @@ type PatternRepository interface {
 	// grounded would reintroduce exactly the hallucination risk grounding
 	// exists to prevent.
 	CreateBatch(ctx context.Context, patterns []*domain.Pattern) error
+	// ListByProject mixes every analysis run of the project. Result views
+	// must use ListByAnalysis so runs never blend together.
 	ListByProject(ctx context.Context, projectID string) ([]*domain.Pattern, error)
+	ListByAnalysis(ctx context.Context, analysisID string) ([]*domain.Pattern, error)
 	// LinkInsight records which patterns fed into an insight's hypothesis,
 	// making the reasoning chain (Observation -> Pattern -> Insight)
 	// traceable end to end.

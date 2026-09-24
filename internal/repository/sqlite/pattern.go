@@ -56,10 +56,21 @@ func (r *PatternRepository) CreateBatch(ctx context.Context, patterns []*domain.
 // patterns first so the "what surprised us" layer is read before the
 // "what repeated" layer, then oldest first within each kind.
 func (r *PatternRepository) ListByProject(ctx context.Context, projectID string) ([]*domain.Pattern, error) {
-	rows, err := r.db.QueryContext(ctx,
-		`SELECT `+patternColumns+`
+	return r.list(ctx, `SELECT `+patternColumns+`
 		 FROM patterns WHERE project_id = ?
 		 ORDER BY CASE kind WHEN 'deviation' THEN 0 ELSE 1 END, created_at ASC`, projectID)
+}
+
+// ListByAnalysis returns the patterns one analysis run produced, in the
+// same order as ListByProject.
+func (r *PatternRepository) ListByAnalysis(ctx context.Context, analysisID string) ([]*domain.Pattern, error) {
+	return r.list(ctx, `SELECT `+patternColumns+`
+		 FROM patterns WHERE analysis_id = ?
+		 ORDER BY CASE kind WHEN 'deviation' THEN 0 ELSE 1 END, created_at ASC`, analysisID)
+}
+
+func (r *PatternRepository) list(ctx context.Context, query string, arg string) ([]*domain.Pattern, error) {
+	rows, err := r.db.QueryContext(ctx, query, arg)
 	if err != nil {
 		return nil, err
 	}

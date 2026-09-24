@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -154,13 +155,6 @@ func (a *Application) ListAnalyses(ctx context.Context, projectID string) ([]*do
 	return a.repos.Analyses.ListByProject(ctx, projectID)
 }
 
-func (a *Application) LatestAnalysis(ctx context.Context, projectID string) (*domain.Analysis, error) {
-	if err := a.RequireProject(ctx, projectID); err != nil {
-		return nil, err
-	}
-	return a.repos.Analyses.LatestByProject(ctx, projectID)
-}
-
 type InsightDetail struct {
 	Insight  *domain.Insight
 	Evidence []*domain.Evidence
@@ -172,11 +166,17 @@ type PatternDetail struct {
 	Observations []*domain.Observation
 }
 
-func (a *Application) ListInsights(ctx context.Context, projectID string) ([]*domain.Insight, error) {
-	if err := a.RequireProject(ctx, projectID); err != nil {
+// ListInsights returns the insights of one analysis run (see
+// ResolveAnalysis). A project with no completed run has no insights to show.
+func (a *Application) ListInsights(ctx context.Context, projectID, analysisID string) ([]*domain.Insight, error) {
+	analysis, err := a.ResolveAnalysis(ctx, projectID, analysisID)
+	if errors.Is(err, ErrNoCompletedAnalysis) {
+		return []*domain.Insight{}, nil
+	}
+	if err != nil {
 		return nil, err
 	}
-	return a.repos.Insights.ListByProject(ctx, projectID)
+	return a.repos.Insights.ListByAnalysis(ctx, analysis.ID)
 }
 
 func (a *Application) GetInsight(ctx context.Context, id string) (*InsightDetail, error) {
@@ -206,11 +206,16 @@ func (a *Application) GetInsightEvidence(ctx context.Context, id string) ([]*dom
 	return a.repos.Evidence.ListByInsight(ctx, id)
 }
 
-func (a *Application) ListPatterns(ctx context.Context, projectID string) ([]PatternDetail, error) {
-	if err := a.RequireProject(ctx, projectID); err != nil {
+// ListPatterns returns the patterns of one analysis run (see ResolveAnalysis).
+func (a *Application) ListPatterns(ctx context.Context, projectID, analysisID string) ([]PatternDetail, error) {
+	analysis, err := a.ResolveAnalysis(ctx, projectID, analysisID)
+	if errors.Is(err, ErrNoCompletedAnalysis) {
+		return []PatternDetail{}, nil
+	}
+	if err != nil {
 		return nil, err
 	}
-	patterns, err := a.repos.Patterns.ListByProject(ctx, projectID)
+	patterns, err := a.repos.Patterns.ListByAnalysis(ctx, analysis.ID)
 	if err != nil {
 		return nil, err
 	}

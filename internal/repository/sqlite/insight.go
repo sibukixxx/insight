@@ -71,8 +71,15 @@ func (r *InsightRepository) Get(ctx context.Context, id string) (*domain.Insight
 }
 
 func (r *InsightRepository) ListByProject(ctx context.Context, projectID string) ([]*domain.Insight, error) {
-	rows, err := r.db.QueryContext(ctx,
-		`SELECT `+insightColumns+` FROM insights WHERE project_id = ? ORDER BY confidence DESC`, projectID)
+	return r.list(ctx, `SELECT `+insightColumns+` FROM insights WHERE project_id = ? ORDER BY confidence DESC`, projectID)
+}
+
+func (r *InsightRepository) ListByAnalysis(ctx context.Context, analysisID string) ([]*domain.Insight, error) {
+	return r.list(ctx, `SELECT `+insightColumns+` FROM insights WHERE analysis_id = ? ORDER BY confidence DESC`, analysisID)
+}
+
+func (r *InsightRepository) list(ctx context.Context, query string, arg string) ([]*domain.Insight, error) {
+	rows, err := r.db.QueryContext(ctx, query, arg)
 	if err != nil {
 		return nil, err
 	}

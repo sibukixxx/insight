@@ -68,6 +68,14 @@ func (r *AnalysisRepository) LatestByProject(ctx context.Context, projectID stri
 	return scanAnalysis(row)
 }
 
+func (r *AnalysisRepository) LatestCompletedByProject(ctx context.Context, projectID string) (*domain.Analysis, error) {
+	row := r.db.QueryRowContext(ctx,
+		`SELECT id, project_id, status, current_step, progress, error, metrics, started_at, finished_at, created_at
+		 FROM analyses WHERE project_id = ? AND status = 'completed'
+		 ORDER BY finished_at DESC, created_at DESC LIMIT 1`, projectID)
+	return scanAnalysis(row)
+}
+
 func (r *AnalysisRepository) FailInterrupted(ctx context.Context) (int, error) {
 	res, err := r.db.ExecContext(ctx,
 		`UPDATE analyses SET status = 'failed', error = 'interrupted', finished_at = ?

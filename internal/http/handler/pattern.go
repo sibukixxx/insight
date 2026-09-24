@@ -26,6 +26,7 @@ type patternObservationDTO struct {
 // the reader can judge the gap themselves.
 type patternDTO struct {
 	ID            string                  `json:"id"`
+	AnalysisID    string                  `json:"analysisId,omitempty"`
 	Kind          string                  `json:"kind"`
 	Title         string                  `json:"title"`
 	Description   string                  `json:"description,omitempty"`
@@ -44,7 +45,7 @@ func toPatternDTOs(patterns []usecase.PatternDetail) []patternDTO {
 	for _, detail := range patterns {
 		p := detail.Pattern
 		dto := patternDTO{
-			ID: p.ID, Kind: string(p.Kind), Title: p.Title, Description: p.Description,
+			ID: p.ID, AnalysisID: p.AnalysisID, Kind: string(p.Kind), Title: p.Title, Description: p.Description,
 			Expectation: p.Expectation, DeviationType: string(p.DeviationType),
 			CreatedAt: p.CreatedAt.UTC().Format(time.RFC3339),
 		}
@@ -64,9 +65,9 @@ func (h *Handler) ListPatterns(w http.ResponseWriter, r *http.Request) {
 	if !h.requireProject(w, r, projectID) {
 		return
 	}
-	patterns, err := h.App.ListPatterns(r.Context(), projectID)
+	patterns, err := h.App.ListPatterns(r.Context(), projectID, analysisIDParam(r))
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		writeRunScopeError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, toPatternDTOs(patterns))

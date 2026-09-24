@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -22,6 +23,9 @@ type analysisDTO struct {
 	StartedAt   *string `json:"startedAt,omitempty"`
 	FinishedAt  *string `json:"finishedAt,omitempty"`
 	CreatedAt   string  `json:"createdAt"`
+	// Metrics is the recorded evaluation summary, including run provenance.
+	// Only a completed run carries it.
+	Metrics json.RawMessage `json:"metrics,omitempty"`
 }
 
 func toAnalysisDTO(a *domain.Analysis) analysisDTO {
@@ -37,6 +41,9 @@ func toAnalysisDTO(a *domain.Analysis) analysisDTO {
 	if a.FinishedAt != nil {
 		s := a.FinishedAt.UTC().Format(time.RFC3339)
 		dto.FinishedAt = &s
+	}
+	if a.Status == domain.AnalysisCompleted && json.Valid([]byte(a.Metrics)) {
+		dto.Metrics = json.RawMessage(a.Metrics)
 	}
 	return dto
 }
