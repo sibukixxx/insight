@@ -5,6 +5,18 @@
   "engine": "deterministic",
   "steps": [
     {
+      "op": "getEngine",
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "modelBacked",
+          "equals": false
+        }
+      ]
+    },
+    {
       "op": "createSubject",
       "request": {
         "contractVersion": "1",

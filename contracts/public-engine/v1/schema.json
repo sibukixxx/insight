@@ -105,7 +105,8 @@
         "analyticalArtifact": {"$ref": "#/$defs/SchemaRef"},
         "executionProfiles": {"type": "array", "items": {"$ref": "#/$defs/ExecutionProfileInfo"}},
         "inputSourceKinds": {"type": "array", "items": {"type": "string", "enum": ["INLINE_DOCUMENT", "ANALYTICAL_ARTIFACT", "RAW_ARTIFACT"]}},
-        "modelRouting": {"$ref": "#/$defs/ModelRouting"}
+        "modelRouting": {"$ref": "#/$defs/ModelRouting"},
+        "modelBacked": {"type": "boolean", "description": "True when analyses use a configured model and can form hypotheses. False means deterministic only: research runs are refused with ANALYSIS_HAS_NO_HYPOTHESES."}
       }
     },
     "ModelRouting": {

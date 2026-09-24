@@ -17,6 +17,10 @@
         {
           "path": "modelRouting.allowedModels[0]",
           "equals": "scripted-model-large"
+        },
+        {
+          "path": "modelBacked",
+          "equals": true
         }
       ]
     },

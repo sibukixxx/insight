@@ -22,3 +22,10 @@ func (e *Engine) modelRouting() *ModelRouting {
 	}
 	return &ModelRouting{Stages: service.ModelStages(), AllowedModels: allowed}
 }
+
+// WithModelBacked reports, from live settings, whether analyses on this
+// engine are model-backed (a model endpoint is configured). Deterministic
+// analyses never form hypotheses, so research runs over them are refused.
+func WithModelBacked(configured func() bool) Option {
+	return func(e *Engine) { e.modelBacked = configured }
+}

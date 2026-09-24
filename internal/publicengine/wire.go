@@ -52,6 +52,10 @@ type EngineInfo struct {
 	InputSourceKinds  []string               `json:"inputSourceKinds,omitempty"`
 	// ModelRouting advertises per-run model bindings (#65 extension point).
 	ModelRouting *ModelRouting `json:"modelRouting,omitempty"`
+	// ModelBacked is true when analyses use a configured model and can form
+	// hypotheses; false means deterministic only (research runs are refused
+	// with ANALYSIS_HAS_NO_HYPOTHESES).
+	ModelBacked bool `json:"modelBacked"`
 }
 
 type ExecutionProfileInfo struct {

@@ -61,6 +61,7 @@ type Engine struct {
 	resolver      input.Resolver
 	maxRawBytes   int64
 	allowedModels []string
+	modelBacked   func() bool
 
 	// mu serializes mutating operations so an idempotency replay check and
 	// an identity check can never interleave with the write they guard.
@@ -86,6 +87,7 @@ func (e *Engine) Engine() EngineInfo {
 		ExecutionProfiles:         profileInfos(e.capabilities()),
 		InputSourceKinds:          input.Kinds(),
 		ModelRouting:              e.modelRouting(),
+		ModelBacked:               e.modelBacked != nil && e.modelBacked(),
 	}
 }
 
