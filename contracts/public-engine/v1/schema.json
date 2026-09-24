@@ -558,7 +558,25 @@
         "hypothesisEvents": {"type": "array", "items": {"$ref": "#/$defs/HypothesisEvent"}},
         "insightVersions": {"type": "array", "items": {"$ref": "#/$defs/InsightVersion"}},
         "instrumentChanges": {"type": "array", "items": {"$ref": "#/$defs/InstrumentChange"}},
+        "scenarioEvents": {"type": "array", "items": {"$ref": "#/$defs/TimelineScenarioEvent"}, "description": "Future lane: scenario (#66) evaluations against later observations, in evaluation order. Separate from evidence and instrument lanes."},
         "limitations": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "TimelineScenarioEvent": {
+      "type": "object",
+      "description": "One append-only scenario evaluation summarized for the timeline. Ranks nothing and never names a most likely future.",
+      "required": ["evaluationId", "scenarioSetId", "setVersion", "evaluatedAt"],
+      "properties": {
+        "evaluationId": {"type": "string"},
+        "scenarioSetId": {"type": "string"},
+        "setVersion": {"type": "integer"},
+        "iterationId": {"type": "string"},
+        "evaluatedAt": {"type": "string", "format": "date-time"},
+        "strengthened": {"type": "array", "items": {"$ref": "#/$defs/ScenarioStatusChange"}},
+        "weakened": {"type": "array", "items": {"$ref": "#/$defs/ScenarioStatusChange"}},
+        "contradicted": {"type": "array", "items": {"$ref": "#/$defs/ScenarioStatusChange"}},
+        "falsificationsFired": {"type": "array", "items": {"$ref": "#/$defs/FiredFalsification"}},
+        "assumptionsInvalidated": {"type": "array", "items": {"type": "string"}}
       }
     },
     "TimelineIteration": {

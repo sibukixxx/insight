@@ -19,7 +19,25 @@ type LongitudinalTimeline struct {
 	HypothesisEvents  []HypothesisEvent          `json:"hypothesisEvents"`
 	InsightVersions   []InsightVersion           `json:"insightVersions"`
 	InstrumentChanges []InstrumentChange         `json:"instrumentChanges"`
-	Limitations       []string                   `json:"limitations"`
+	// ScenarioEvents is the future lane: scenario (#66) evaluations against
+	// later observations. Kept separate from evidence and instrument lanes.
+	ScenarioEvents []TimelineScenarioEvent `json:"scenarioEvents,omitempty"`
+	Limitations    []string                `json:"limitations"`
+}
+
+// TimelineScenarioEvent summarizes one append-only scenario evaluation. It
+// ranks nothing; status movements and fired falsifications are the engine's.
+type TimelineScenarioEvent struct {
+	EvaluationID           string                 `json:"evaluationId"`
+	ScenarioSetID          string                 `json:"scenarioSetId"`
+	SetVersion             int                    `json:"setVersion"`
+	IterationID            string                 `json:"iterationId,omitempty"`
+	EvaluatedAt            time.Time              `json:"evaluatedAt"`
+	Strengthened           []ScenarioStatusChange `json:"strengthened,omitempty"`
+	Weakened               []ScenarioStatusChange `json:"weakened,omitempty"`
+	Contradicted           []ScenarioStatusChange `json:"contradicted,omitempty"`
+	FalsificationsFired    []FiredFalsification   `json:"falsificationsFired,omitempty"`
+	AssumptionsInvalidated []string               `json:"assumptionsInvalidated,omitempty"`
 }
 
 // TimelineIteration is the frozen interpretation recorded at one iteration.

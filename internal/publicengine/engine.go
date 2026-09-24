@@ -674,7 +674,7 @@ func (e *Engine) GetResearchTimeline(ctx context.Context, researchRunID string) 
 		ContractVersion: ContractVersion, SubjectID: run.ProjectID, ResearchRunID: t.ResearchRunID, Question: t.Question,
 		Iterations: t.Iterations, EvidenceEvents: t.EvidenceEvents, ObservationDeltas: t.ObservationDeltas,
 		HypothesisEvents: t.HypothesisEvents, InsightVersions: t.InsightVersions, InstrumentChanges: t.InstrumentChanges,
-		Limitations: t.Limitations,
+		ScenarioEvents: t.ScenarioEvents, Limitations: t.Limitations,
 	}
 	if t.AsOf != nil {
 		out.AsOf = formatTime(*t.AsOf)

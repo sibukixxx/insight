@@ -32,7 +32,7 @@ var wireTypes = map[string]any{
 	"EvidenceChanges": EvidenceChanges{}, "ReEvaluationRecord": ReEvaluationRecord{}, "ReEvaluationResult": ReEvaluationResult{},
 	"ObservationWindow": ObservationWindow{}, "ResearchTimeline": ResearchTimeline{}, "TimelineIteration": TimelineIteration{},
 	"EvidenceEvent": EvidenceEvent{}, "TimelineObservationDelta": TimelineObservationDelta{}, "HypothesisEvent": HypothesisEvent{},
-	"InsightVersion": InsightVersion{}, "InstrumentChange": InstrumentChange{},
+	"InsightVersion": InsightVersion{}, "InstrumentChange": InstrumentChange{}, "TimelineScenarioEvent": TimelineScenarioEvent{},
 	"TemporalOperationRequest": TemporalOperationRequest{}, "TemporalOperationResult": TemporalOperationResult{},
 	"ExecutionProfileInfo": ExecutionProfileInfo{}, "ExecutionProfileResolution": ExecutionProfileResolution{},
 	"RawArtifactRef": RawArtifactRef{}, "InputSource": InputSource{}, "InputSourceReceipt": InputSourceReceipt{},
