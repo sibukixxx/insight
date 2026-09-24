@@ -1,0 +1,228 @@
+{
+  "fixture": "07-idempotent-requests",
+  "contractVersion": "1",
+  "covers": "#59 conformance 7: retries with the same idempotency key replay the first result; reusing a key or an identity with different content is rejected",
+  "engine": "deterministic",
+  "steps": [
+    {
+      "op": "createSubject",
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-subject",
+        "subject": {
+          "namespace": "any",
+          "id": "idem-${uniq}"
+        },
+        "title": "First"
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "subjectId": "subjectId"
+      }
+    },
+    {
+      "op": "createSubject",
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-subject",
+        "subject": {
+          "namespace": "any",
+          "id": "idem-${uniq}"
+        },
+        "title": "First"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "subjectId",
+          "equals": "${subjectId}"
+        }
+      ]
+    },
+    {
+      "op": "createSubject",
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-subject",
+        "subject": {
+          "namespace": "any",
+          "id": "idem-${uniq}"
+        },
+        "title": "Changed"
+      },
+      "expect": {
+        "errorCode": "IDEMPOTENCY_CONFLICT",
+        "httpStatus": 409
+      }
+    },
+    {
+      "op": "createSubject",
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-subject-retry-new-key",
+        "subject": {
+          "namespace": "any",
+          "id": "idem-${uniq}"
+        },
+        "title": "First"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "subjectId",
+          "equals": "${subjectId}"
+        }
+      ]
+    },
+    {
+      "op": "createSubject",
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-subject-changed-new-key",
+        "subject": {
+          "namespace": "any",
+          "id": "idem-${uniq}"
+        },
+        "title": "Changed"
+      },
+      "expect": {
+        "errorCode": "IDENTITY_CONFLICT",
+        "httpStatus": 409
+      }
+    },
+    {
+      "op": "addEvidence",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-doc",
+        "documents": [
+          {
+            "externalRef": "doc-1",
+            "source": "dataset",
+            "content": "Dataset observation: 2026-01 Example City inquiries = 120.",
+            "metadata": {
+              "record_count": "120",
+              "period": "2026-01",
+              "event_type": "inquiry",
+              "location": "Example City"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "documents[0].status",
+          "equals": "CREATED"
+        }
+      ]
+    },
+    {
+      "op": "addEvidence",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-doc-edit",
+        "documents": [
+          {
+            "externalRef": "doc-1",
+            "source": "dataset",
+            "content": "Dataset observation: 2026-01 Example City inquiries = 999."
+          }
+        ]
+      },
+      "expect": {
+        "errorCode": "IDENTITY_CONFLICT",
+        "httpStatus": 409
+      }
+    },
+    {
+      "op": "startAnalysis",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-analysis"
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "analysisId": "analysisId"
+      }
+    },
+    {
+      "op": "startAnalysis",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-analysis"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "analysisId",
+          "equals": "${analysisId}"
+        }
+      ]
+    },
+    {
+      "op": "waitForAnalysis",
+      "params": {
+        "subjectId": "${subjectId}",
+        "analysisId": "${analysisId}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "status",
+          "equals": "completed"
+        },
+        {
+          "path": "engine.version",
+          "exists": true
+        },
+        {
+          "path": "executionFingerprint",
+          "exists": true
+        },
+        {
+          "path": "inputFingerprint",
+          "exists": true
+        },
+        {
+          "path": "provenance.execution",
+          "exists": true
+        },
+        {
+          "path": "provenance.input",
+          "exists": true
+        },
+        {
+          "path": "executionMode",
+          "equals": "deterministic"
+        }
+      ]
+    }
+  ]
+}

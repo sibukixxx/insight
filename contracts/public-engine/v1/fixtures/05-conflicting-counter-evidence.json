@@ -1,0 +1,127 @@
+{
+  "fixture": "05-conflicting-counter-evidence",
+  "contractVersion": "1",
+  "covers": "#59 conformance 5: counter-evidence is returned next to supporting evidence instead of being hidden",
+  "engine": "model_backed",
+  "steps": [
+    {
+      "op": "createSubject",
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-subject",
+        "subject": {
+          "namespace": "support-desk",
+          "id": "queue-${uniq}"
+        }
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "subjectId": "subjectId"
+      }
+    },
+    {
+      "op": "addEvidence",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-evidence",
+        "documents": [
+          {
+            "externalRef": "ticket-1",
+            "source": "support",
+            "content": "The customer exported the report twice to double-check the totals."
+          },
+          {
+            "externalRef": "ticket-2",
+            "source": "support",
+            "content": "This customer contradicts that pattern and trusted the first export."
+          }
+        ]
+      },
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "op": "startAnalysis",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-analysis"
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "analysisId": "analysisId"
+      }
+    },
+    {
+      "op": "waitForAnalysis",
+      "params": {
+        "subjectId": "${subjectId}",
+        "analysisId": "${analysisId}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "status",
+          "equals": "completed"
+        },
+        {
+          "path": "engine.version",
+          "exists": true
+        },
+        {
+          "path": "executionFingerprint",
+          "exists": true
+        },
+        {
+          "path": "inputFingerprint",
+          "exists": true
+        },
+        {
+          "path": "provenance.execution",
+          "exists": true
+        },
+        {
+          "path": "provenance.input",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "op": "createResearchRun",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-research",
+        "question": "Why do customers re-check exports?",
+        "analysisId": "${analysisId}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "artifact.insights[0].supportingEvidence",
+          "minLength": 1
+        },
+        {
+          "path": "artifact.insights[0].counterEvidence",
+          "minLength": 1
+        }
+      ]
+    }
+  ]
+}

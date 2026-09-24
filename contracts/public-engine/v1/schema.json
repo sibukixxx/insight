@@ -1,0 +1,293 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/sibukixxx/insight/contracts/public-engine/v1/schema.json",
+  "title": "Insight Lab Public Engine Contract v1",
+  "description": "Language-neutral, domain-neutral request and result messages exchanged over HTTP/JSON under /api/public/v1. This file is the single source of truth: the server, the Go SDK and the TypeScript SDK are checked against its $defs. A subject namespace or type is opaque metadata and never changes engine behavior.",
+  "x-contractSchema": "insight-lab.public-engine",
+  "x-contractVersion": "1",
+  "x-operations": {
+    "getEngine": {"method": "GET", "path": "/api/public/v1/engine", "response": "EngineInfo", "status": 200},
+    "createSubject": {"method": "POST", "path": "/api/public/v1/subjects", "request": "CreateSubjectRequest", "response": "Subject", "status": 201},
+    "addEvidence": {"method": "POST", "path": "/api/public/v1/subjects/{subjectId}/evidence", "request": "AddEvidenceRequest", "response": "EvidenceReceipt", "status": 200},
+    "startAnalysis": {"method": "POST", "path": "/api/public/v1/subjects/{subjectId}/analyses", "request": "StartAnalysisRequest", "response": "AnalysisRun", "status": 202},
+    "getAnalysis": {"method": "GET", "path": "/api/public/v1/subjects/{subjectId}/analyses/{analysisId}", "response": "AnalysisRun", "status": 200},
+    "getAnalysisResults": {"method": "GET", "path": "/api/public/v1/subjects/{subjectId}/analyses/{analysisId}/results", "response": "AnalysisResults", "status": 200},
+    "createResearchRun": {"method": "POST", "path": "/api/public/v1/subjects/{subjectId}/research-runs", "request": "CreateResearchRunRequest", "response": "ResearchResult", "status": 201},
+    "appendIteration": {"method": "POST", "path": "/api/public/v1/research-runs/{researchRunId}/iterations", "request": "AppendIterationRequest", "response": "ResearchResult", "status": 201},
+    "getResearchRun": {"method": "GET", "path": "/api/public/v1/research-runs/{researchRunId}", "response": "ResearchResult", "status": 200}
+  },
+  "x-errorCodes": {
+    "INVALID_REQUEST": 400,
+    "UNSUPPORTED_CONTRACT_VERSION": 400,
+    "NOT_FOUND": 404,
+    "IDEMPOTENCY_CONFLICT": 409,
+    "IDENTITY_CONFLICT": 409,
+    "ANALYSIS_NOT_COMPLETED": 409,
+    "ANALYSIS_HAS_NO_HYPOTHESES": 409,
+    "MIXED_ANALYSIS_RUNS": 409,
+    "INTERNAL": 500
+  },
+  "x-limits": {
+    "maxRequestBytes": 16777216,
+    "maxMetadataEntries": 32,
+    "maxMetadataKeyLength": 64,
+    "maxMetadataValueLength": 1024,
+    "maxDocumentsPerRequest": 500,
+    "maxDocumentContentLength": 200000,
+    "maxArtifactsPerRequest": 50,
+    "maxQuestionLength": 2000
+  },
+  "$defs": {
+    "ContractVersion": {"type": "string", "const": "1"},
+    "IdempotencyKey": {"type": "string", "minLength": 1, "maxLength": 128},
+    "Metadata": {
+      "type": "object",
+      "description": "Bounded opaque string metadata. Keys match ^[A-Za-z0-9._:-]{1,64}$. Keys starting with public_ or analytical_ are reserved.",
+      "maxProperties": 32,
+      "additionalProperties": {"type": "string", "maxLength": 1024}
+    },
+    "SubjectRef": {
+      "type": "object",
+      "description": "Opaque external subject. Insight stores and echoes it but never interprets or branches on it.",
+      "required": ["namespace", "id"],
+      "properties": {
+        "namespace": {"type": "string", "minLength": 1, "maxLength": 128},
+        "id": {"type": "string", "minLength": 1, "maxLength": 128},
+        "type": {"type": "string", "maxLength": 128}
+      }
+    },
+    "EngineBuild": {
+      "type": "object",
+      "required": ["version", "commit", "dirty"],
+      "properties": {
+        "version": {"type": "string", "description": "Release version, or UNKNOWN."},
+        "commit": {"type": "string", "description": "Git commit, or UNKNOWN."},
+        "dirty": {"type": "string", "enum": ["true", "false", "UNKNOWN"]}
+      }
+    },
+    "SchemaRef": {
+      "type": "object",
+      "required": ["schema", "version"],
+      "properties": {"schema": {"type": "string"}, "version": {"type": "string"}}
+    },
+    "EngineInfo": {
+      "type": "object",
+      "required": ["contractSchema", "contractVersion", "supportedContractVersions", "engine", "researchArtifact", "analyticalArtifact"],
+      "properties": {
+        "contractSchema": {"type": "string", "const": "insight-lab.public-engine"},
+        "contractVersion": {"$ref": "#/$defs/ContractVersion"},
+        "supportedContractVersions": {"type": "array", "items": {"type": "string"}},
+        "engine": {"$ref": "#/$defs/EngineBuild"},
+        "researchArtifact": {"$ref": "#/$defs/SchemaRef"},
+        "analyticalArtifact": {"$ref": "#/$defs/SchemaRef"}
+      }
+    },
+    "CreateSubjectRequest": {
+      "type": "object",
+      "required": ["contractVersion", "idempotencyKey", "subject"],
+      "properties": {
+        "contractVersion": {"$ref": "#/$defs/ContractVersion"},
+        "idempotencyKey": {"$ref": "#/$defs/IdempotencyKey"},
+        "subject": {"$ref": "#/$defs/SubjectRef"},
+        "title": {"type": "string", "maxLength": 256},
+        "metadata": {"$ref": "#/$defs/Metadata"}
+      }
+    },
+    "Subject": {
+      "type": "object",
+      "required": ["contractVersion", "subjectId", "subject", "title", "createdAt"],
+      "properties": {
+        "contractVersion": {"$ref": "#/$defs/ContractVersion"},
+        "subjectId": {"type": "string"},
+        "subject": {"$ref": "#/$defs/SubjectRef"},
+        "title": {"type": "string"},
+        "metadata": {"$ref": "#/$defs/Metadata"},
+        "createdAt": {"type": "string", "format": "date-time"}
+      }
+    },
+    "EvidenceDocument": {
+      "type": "object",
+      "required": ["externalRef", "source", "content"],
+      "properties": {
+        "externalRef": {"type": "string", "minLength": 1, "maxLength": 256, "description": "Caller's stable reference, unique within a subject."},
+        "source": {"type": "string", "enum": ["interview", "review", "support", "sales", "survey", "job_posting", "social_post", "dataset"]},
+        "title": {"type": "string", "maxLength": 512},
+        "content": {"type": "string", "minLength": 1, "maxLength": 200000},
+        "metadata": {"$ref": "#/$defs/Metadata"}
+      }
+    },
+    "AddEvidenceRequest": {
+      "type": "object",
+      "required": ["contractVersion", "idempotencyKey"],
+      "description": "At least one document or analytical artifact is required. Artifacts follow contracts/analytical-artifact/v1/schema.json.",
+      "properties": {
+        "contractVersion": {"$ref": "#/$defs/ContractVersion"},
+        "idempotencyKey": {"$ref": "#/$defs/IdempotencyKey"},
+        "documents": {"type": "array", "maxItems": 500, "items": {"$ref": "#/$defs/EvidenceDocument"}},
+        "analyticalArtifacts": {"type": "array", "maxItems": 50, "items": {"type": "object"}}
+      }
+    },
+    "EvidenceItemReceipt": {
+      "type": "object",
+      "required": ["documentId", "status"],
+      "properties": {
+        "externalRef": {"type": "string"},
+        "artifactId": {"type": "string"},
+        "reproducibilityKey": {"type": "string"},
+        "documentId": {"type": "string"},
+        "status": {"type": "string", "enum": ["CREATED", "UNCHANGED"]}
+      }
+    },
+    "EvidenceReceipt": {
+      "type": "object",
+      "required": ["contractVersion", "subjectId", "documents", "analyticalArtifacts"],
+      "properties": {
+        "contractVersion": {"$ref": "#/$defs/ContractVersion"},
+        "subjectId": {"type": "string"},
+        "documents": {"type": "array", "items": {"$ref": "#/$defs/EvidenceItemReceipt"}},
+        "analyticalArtifacts": {"type": "array", "items": {"$ref": "#/$defs/EvidenceItemReceipt"}}
+      }
+    },
+    "StartAnalysisRequest": {
+      "type": "object",
+      "required": ["contractVersion", "idempotencyKey"],
+      "properties": {
+        "contractVersion": {"$ref": "#/$defs/ContractVersion"},
+        "idempotencyKey": {"$ref": "#/$defs/IdempotencyKey"},
+        "label": {"type": "string", "maxLength": 256},
+        "note": {"type": "string", "maxLength": 2000},
+        "semanticAnalysisMode": {"type": "string", "enum": ["DISCOVERY", "DATASET_ANALYSIS", "RESEARCH_REVIEW"]}
+      }
+    },
+    "AnalysisProvenance": {
+      "type": "object",
+      "description": "The run's execution and input snapshots, verbatim. A snapshot the run never recorded is omitted, never sent empty.",
+      "properties": {
+        "execution": {"type": "object"},
+        "input": {"type": "object"}
+      }
+    },
+    "AnalysisRun": {
+      "type": "object",
+      "required": ["contractVersion", "subjectId", "analysisId", "status", "createdAt"],
+      "properties": {
+        "contractVersion": {"$ref": "#/$defs/ContractVersion"},
+        "subjectId": {"type": "string"},
+        "analysisId": {"type": "string"},
+        "status": {"type": "string", "enum": ["queued", "running", "completed", "failed"]},
+        "error": {"type": "string"},
+        "label": {"type": "string"},
+        "note": {"type": "string"},
+        "semanticAnalysisMode": {"type": "string"},
+        "executionMode": {"type": "string", "enum": ["deterministic", "model_backed"]},
+        "engine": {"$ref": "#/$defs/EngineBuild"},
+        "executionFingerprint": {"type": "string"},
+        "inputFingerprint": {"type": "string"},
+        "provenance": {"$ref": "#/$defs/AnalysisProvenance"},
+        "createdAt": {"type": "string", "format": "date-time"},
+        "startedAt": {"type": "string", "format": "date-time"},
+        "finishedAt": {"type": "string", "format": "date-time"}
+      }
+    },
+    "Observation": {
+      "type": "object",
+      "required": ["observationId", "documentId", "quote", "startOffset", "endOffset", "behavior"],
+      "properties": {
+        "observationId": {"type": "string"},
+        "documentId": {"type": "string"},
+        "externalRef": {"type": "string"},
+        "quote": {"type": "string", "description": "Exact text of the source document between startOffset and endOffset (rune offsets)."},
+        "startOffset": {"type": "integer"},
+        "endOffset": {"type": "integer"},
+        "behavior": {"type": "string"},
+        "topic": {"type": "string"}
+      }
+    },
+    "Finding": {
+      "type": "object",
+      "required": ["findingId", "kind", "title", "observationIds"],
+      "properties": {
+        "findingId": {"type": "string"},
+        "kind": {"type": "string", "enum": ["repetition", "deviation"]},
+        "title": {"type": "string"},
+        "description": {"type": "string"},
+        "expectation": {"type": "string"},
+        "observationIds": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "AnalysisResults": {
+      "type": "object",
+      "required": ["contractVersion", "subjectId", "analysisId", "observations", "findings"],
+      "properties": {
+        "contractVersion": {"$ref": "#/$defs/ContractVersion"},
+        "subjectId": {"type": "string"},
+        "analysisId": {"type": "string"},
+        "observations": {"type": "array", "items": {"$ref": "#/$defs/Observation"}},
+        "findings": {"type": "array", "items": {"$ref": "#/$defs/Finding"}},
+        "metrics": {"type": "object", "description": "The run's recorded evaluation metrics, verbatim."}
+      }
+    },
+    "CreateResearchRunRequest": {
+      "type": "object",
+      "required": ["contractVersion", "idempotencyKey", "question", "analysisId"],
+      "properties": {
+        "contractVersion": {"$ref": "#/$defs/ContractVersion"},
+        "idempotencyKey": {"$ref": "#/$defs/IdempotencyKey"},
+        "question": {"type": "string", "minLength": 1, "maxLength": 2000},
+        "analysisId": {"type": "string", "minLength": 1},
+        "inputReferences": {"type": "array", "items": {"type": "string"}},
+        "semanticAnalysisMode": {"type": "string", "enum": ["DISCOVERY", "DATASET_ANALYSIS", "RESEARCH_REVIEW"]}
+      }
+    },
+    "AddedEvidenceLink": {
+      "type": "object",
+      "required": ["reference"],
+      "properties": {
+        "reference": {"type": "string", "minLength": 1},
+        "gapIds": {"type": "array", "items": {"type": "string"}},
+        "note": {"type": "string"}
+      }
+    },
+    "AppendIterationRequest": {
+      "type": "object",
+      "required": ["contractVersion", "idempotencyKey", "analysisId"],
+      "description": "Appends a new iteration evaluated on a completed analysis run. Earlier iterations are never modified.",
+      "properties": {
+        "contractVersion": {"$ref": "#/$defs/ContractVersion"},
+        "idempotencyKey": {"$ref": "#/$defs/IdempotencyKey"},
+        "analysisId": {"type": "string", "minLength": 1},
+        "question": {"type": "string", "maxLength": 2000},
+        "addedEvidence": {"type": "array", "items": {"$ref": "#/$defs/AddedEvidenceLink"}}
+      }
+    },
+    "ResearchResult": {
+      "type": "object",
+      "required": ["contractVersion", "subjectId", "researchRunId", "iterationId", "iterationSequence", "analysis", "artifact"],
+      "properties": {
+        "contractVersion": {"$ref": "#/$defs/ContractVersion"},
+        "subjectId": {"type": "string"},
+        "researchRunId": {"type": "string"},
+        "iterationId": {"type": "string"},
+        "iterationSequence": {"type": "integer"},
+        "analysis": {"$ref": "#/$defs/AnalysisRun"},
+        "artifact": {"type": "object", "description": "The insight-lab.research-artifact v1 export of the latest iteration, verbatim. Its legacy analysisMode key means execution mode."}
+      }
+    },
+    "ErrorBody": {
+      "type": "object",
+      "required": ["code", "message"],
+      "properties": {
+        "code": {"type": "string", "enum": ["INVALID_REQUEST", "UNSUPPORTED_CONTRACT_VERSION", "NOT_FOUND", "IDEMPOTENCY_CONFLICT", "IDENTITY_CONFLICT", "ANALYSIS_NOT_COMPLETED", "ANALYSIS_HAS_NO_HYPOTHESES", "MIXED_ANALYSIS_RUNS", "INTERNAL"]},
+        "message": {"type": "string"}
+      }
+    },
+    "ErrorResponse": {
+      "type": "object",
+      "required": ["contractVersion", "error"],
+      "properties": {
+        "contractVersion": {"$ref": "#/$defs/ContractVersion"},
+        "error": {"$ref": "#/$defs/ErrorBody"}
+      }
+    }
+  }
+}
