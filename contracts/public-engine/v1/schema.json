@@ -25,6 +25,9 @@
     "ANALYSIS_NOT_COMPLETED": 409,
     "ANALYSIS_HAS_NO_HYPOTHESES": 409,
     "MIXED_ANALYSIS_RUNS": 409,
+    "EXECUTION_PROFILE_UNAVAILABLE": 422,
+    "INPUT_SOURCE_UNAVAILABLE": 422,
+    "INPUT_VERIFICATION_FAILED": 400,
     "INTERNAL": 500
   },
   "x-limits": {
@@ -35,7 +38,9 @@
     "maxDocumentsPerRequest": 500,
     "maxDocumentContentLength": 200000,
     "maxArtifactsPerRequest": 50,
-    "maxQuestionLength": 2000
+    "maxQuestionLength": 2000,
+    "maxInputSourcesPerRequest": 50,
+    "maxRawArtifactBytesDefault": 17179869184
   },
   "$defs": {
     "ContractVersion": {"type": "string", "const": "1"},
@@ -79,7 +84,9 @@
         "supportedContractVersions": {"type": "array", "items": {"type": "string"}},
         "engine": {"$ref": "#/$defs/EngineBuild"},
         "researchArtifact": {"$ref": "#/$defs/SchemaRef"},
-        "analyticalArtifact": {"$ref": "#/$defs/SchemaRef"}
+        "analyticalArtifact": {"$ref": "#/$defs/SchemaRef"},
+        "executionProfiles": {"type": "array", "items": {"$ref": "#/$defs/ExecutionProfileInfo"}},
+        "inputSourceKinds": {"type": "array", "items": {"type": "string", "enum": ["INLINE_DOCUMENT", "ANALYTICAL_ARTIFACT", "RAW_ARTIFACT"]}}
       }
     },
     "CreateSubjectRequest": {
@@ -119,12 +126,13 @@
     "AddEvidenceRequest": {
       "type": "object",
       "required": ["contractVersion", "idempotencyKey"],
-      "description": "At least one document or analytical artifact is required. Artifacts follow contracts/analytical-artifact/v1/schema.json.",
+      "description": "At least one document, analytical artifact or input source is required. Artifacts follow contracts/analytical-artifact/v1/schema.json.",
       "properties": {
         "contractVersion": {"$ref": "#/$defs/ContractVersion"},
         "idempotencyKey": {"$ref": "#/$defs/IdempotencyKey"},
         "documents": {"type": "array", "maxItems": 500, "items": {"$ref": "#/$defs/EvidenceDocument"}},
-        "analyticalArtifacts": {"type": "array", "maxItems": 50, "items": {"type": "object"}}
+        "analyticalArtifacts": {"type": "array", "maxItems": 50, "items": {"type": "object"}},
+        "inputSources": {"type": "array", "maxItems": 50, "items": {"$ref": "#/$defs/InputSource"}}
       }
     },
     "EvidenceItemReceipt": {
@@ -145,7 +153,8 @@
         "contractVersion": {"$ref": "#/$defs/ContractVersion"},
         "subjectId": {"type": "string"},
         "documents": {"type": "array", "items": {"$ref": "#/$defs/EvidenceItemReceipt"}},
-        "analyticalArtifacts": {"type": "array", "items": {"$ref": "#/$defs/EvidenceItemReceipt"}}
+        "analyticalArtifacts": {"type": "array", "items": {"$ref": "#/$defs/EvidenceItemReceipt"}},
+        "inputSources": {"type": "array", "items": {"$ref": "#/$defs/InputSourceReceipt"}}
       }
     },
     "StartAnalysisRequest": {
@@ -156,7 +165,8 @@
         "idempotencyKey": {"$ref": "#/$defs/IdempotencyKey"},
         "label": {"type": "string", "maxLength": 256},
         "note": {"type": "string", "maxLength": 2000},
-        "semanticAnalysisMode": {"type": "string", "enum": ["DISCOVERY", "DATASET_ANALYSIS", "RESEARCH_REVIEW"]}
+        "semanticAnalysisMode": {"type": "string", "enum": ["DISCOVERY", "DATASET_ANALYSIS", "RESEARCH_REVIEW"]},
+        "executionProfile": {"$ref": "#/$defs/ExecutionProfile"}
       }
     },
     "AnalysisProvenance": {
@@ -180,6 +190,7 @@
         "note": {"type": "string"},
         "semanticAnalysisMode": {"type": "string"},
         "executionMode": {"type": "string", "enum": ["deterministic", "model_backed"]},
+        "executionProfile": {"$ref": "#/$defs/ExecutionProfileResolution"},
         "engine": {"$ref": "#/$defs/EngineBuild"},
         "executionFingerprint": {"type": "string"},
         "inputFingerprint": {"type": "string"},
@@ -273,11 +284,77 @@
         "artifact": {"type": "object", "description": "The insight-lab.research-artifact v1 export of the latest iteration, verbatim. Its legacy analysisMode key means execution mode."}
       }
     },
+    "ExecutionProfile": {"type": "string", "enum": ["LIGHT", "STANDARD", "HEAVY", "AUTO"], "description": "Resource/runtime strategy (#91). Separate from semanticAnalysisMode, research stage and executionMode; it never changes hypothesis, validation or readiness semantics. Omitted means AUTO."},
+    "ExecutionProfileInfo": {"type": "object", "required": ["profile", "available", "description"], "properties": {"profile": {"$ref": "#/$defs/ExecutionProfile"}, "available": {"type": "boolean"}, "description": {"type": "string"}}},
+    "ExecutionProfileResolution": {
+      "type": "object",
+      "description": "Which profile a run used and why. AUTO resolves deterministically from input shape; an unavailable profile fails with EXECUTION_PROFILE_UNAVAILABLE instead of downgrading. Recorded in provenance.execution, not in the execution fingerprint.",
+      "required": ["requested", "resolved", "reason", "strategyVersion"],
+      "properties": {
+        "requested": {"$ref": "#/$defs/ExecutionProfile"},
+        "resolved": {"type": "string", "enum": ["LIGHT", "STANDARD", "HEAVY"]},
+        "reason": {"type": "string"},
+        "strategyVersion": {"type": "string"}
+      }
+    },
+    "RawArtifactRef": {
+      "type": "object",
+      "description": "Reference to raw bytes held outside the engine. sha256 and sizeBytes are claims: the engine streams the bytes, measures them itself and rejects a mismatch with INPUT_VERIFICATION_FAILED. Supported URI schemes depend on the resolvers the engine is configured with (Core ships file:<relative path> under a configured root).",
+      "required": ["uri", "mediaType"],
+      "properties": {
+        "uri": {"type": "string", "minLength": 1, "maxLength": 2048},
+        "mediaType": {"type": "string", "minLength": 1},
+        "name": {"type": "string"},
+        "version": {"type": "string"},
+        "sizeBytes": {"type": "integer", "minimum": 0},
+        "sha256": {"type": "string", "pattern": "^[A-Fa-f0-9]{64}$"}
+      }
+    },
+    "PreparationSpec": {
+      "type": "object",
+      "description": "Declarative deterministic preparation of a raw CSV into an Analytical Artifact. Unknown fields are rejected. Sums are exact, so partitioned (HEAVY) and single-pass (STANDARD) preparation produce the same artifact.",
+      "required": ["kind", "metrics", "population"],
+      "properties": {
+        "kind": {"type": "string", "const": "csv-aggregate/v1"},
+        "metrics": {"type": "array", "minItems": 1, "items": {"type": "object", "required": ["id", "name", "aggregation", "unit"], "properties": {"id": {"type": "string"}, "name": {"type": "string"}, "column": {"type": "string"}, "aggregation": {"type": "string", "enum": ["sum", "mean", "count", "min", "max"]}, "unit": {"type": "string"}}}},
+        "dimensionColumns": {"type": "array", "items": {"type": "string"}},
+        "periodColumn": {"type": "string"},
+        "period": {"type": "object", "required": ["start", "end"], "properties": {"start": {"type": "string"}, "end": {"type": "string"}, "basis": {"type": "string"}}},
+        "population": {"type": "object", "required": ["description"], "properties": {"description": {"type": "string"}, "unit": {"type": "string"}}}
+      }
+    },
+    "InputSource": {
+      "type": "object",
+      "description": "Additive input variant (#90). kind RAW_ARTIFACT registers an engine-verified reference. With preparation, the bytes are prepared into an Analytical Artifact when an analysis runs on STANDARD or HEAVY; without it the reference is recorded for provenance only and never analyzed as text.",
+      "required": ["externalRef", "kind", "rawArtifact"],
+      "properties": {
+        "externalRef": {"type": "string", "minLength": 1, "maxLength": 256},
+        "kind": {"type": "string", "enum": ["RAW_ARTIFACT"]},
+        "title": {"type": "string", "maxLength": 512},
+        "rawArtifact": {"$ref": "#/$defs/RawArtifactRef"},
+        "preparation": {"$ref": "#/$defs/PreparationSpec"},
+        "metadata": {"$ref": "#/$defs/Metadata"}
+      }
+    },
+    "InputSourceReceipt": {
+      "type": "object",
+      "required": ["externalRef", "documentId", "status", "sha256", "sizeBytes", "verifiedBy", "preparation"],
+      "properties": {
+        "externalRef": {"type": "string"},
+        "documentId": {"type": "string"},
+        "status": {"type": "string", "enum": ["CREATED", "UNCHANGED"]},
+        "sha256": {"type": "string"},
+        "sizeBytes": {"type": "integer"},
+        "verifiedBy": {"type": "string", "const": "engine"},
+        "preparation": {"type": "string", "enum": ["PENDING", "NOT_REQUESTED"]},
+        "preparedArtifactId": {"type": "string"}
+      }
+    },
     "ErrorBody": {
       "type": "object",
       "required": ["code", "message"],
       "properties": {
-        "code": {"type": "string", "enum": ["INVALID_REQUEST", "UNSUPPORTED_CONTRACT_VERSION", "NOT_FOUND", "IDEMPOTENCY_CONFLICT", "IDENTITY_CONFLICT", "ANALYSIS_NOT_COMPLETED", "ANALYSIS_HAS_NO_HYPOTHESES", "MIXED_ANALYSIS_RUNS", "INTERNAL"]},
+        "code": {"type": "string", "enum": ["INVALID_REQUEST", "UNSUPPORTED_CONTRACT_VERSION", "NOT_FOUND", "IDEMPOTENCY_CONFLICT", "IDENTITY_CONFLICT", "ANALYSIS_NOT_COMPLETED", "ANALYSIS_HAS_NO_HYPOTHESES", "MIXED_ANALYSIS_RUNS", "EXECUTION_PROFILE_UNAVAILABLE", "INPUT_SOURCE_UNAVAILABLE", "INPUT_VERIFICATION_FAILED", "INTERNAL"]},
         "message": {"type": "string"}
       }
     },

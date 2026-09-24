@@ -18,6 +18,12 @@ type Config struct {
 	Model      string
 	BaseURL    string
 	ClientName string
+	// InputRoot enables raw artifact references (file:<relative path>) under
+	// this directory. Empty disables raw references.
+	InputRoot string
+	// HeavyDir enables the HEAVY profile with the local Heavy Execution
+	// Adapter persisting job state in this directory. Empty disables HEAVY.
+	HeavyDir string
 }
 
 func ParseConfig(args []string) (*Config, error) {
@@ -30,6 +36,8 @@ func ParseConfig(args []string) (*Config, error) {
 	apiKey := fs.String("api-key", os.Getenv("INSIGHT_LAB_API_KEY"), "LLM API key")
 	model := fs.String("model", "", "LLM model name")
 	baseURL := fs.String("base-url", "", "OpenAI-compatible base URL")
+	inputRoot := fs.String("input-root", os.Getenv("INSIGHT_LAB_INPUT_ROOT"), "directory that file: raw artifact references may read (empty disables raw references)")
+	heavyDir := fs.String("heavy-dir", os.Getenv("INSIGHT_LAB_HEAVY_DIR"), "directory for local HEAVY job state (empty disables the HEAVY profile)")
 	clientName := fs.String("client", os.Getenv("INSIGHT_LAB_CLIENT_NAME"), "client name shown in the delivery build's confidentiality banner")
 
 	if err := fs.Parse(args); err != nil {
@@ -58,6 +66,8 @@ func ParseConfig(args []string) (*Config, error) {
 		Model:      *model,
 		BaseURL:    *baseURL,
 		ClientName: *clientName,
+		InputRoot:  *inputRoot,
+		HeavyDir:   *heavyDir,
 	}, nil
 }
 

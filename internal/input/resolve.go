@@ -64,7 +64,8 @@ func (f FileResolver) Open(_ context.Context, uri string) (io.ReadCloser, error)
 	}
 	file, err := os.Open(filepath.Join(f.Root, clean))
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrUnavailable, err)
+		// The host path is not echoed: callers must not learn the layout.
+		return nil, fmt.Errorf("%w: cannot open %q", ErrUnavailable, uri)
 	}
 	return file, nil
 }
