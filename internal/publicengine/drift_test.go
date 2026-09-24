@@ -23,6 +23,7 @@ var wireTypes = map[string]any{
 	"ObservationWindow": ObservationWindow{}, "ResearchTimeline": ResearchTimeline{}, "TimelineIteration": TimelineIteration{},
 	"EvidenceEvent": EvidenceEvent{}, "TimelineObservationDelta": TimelineObservationDelta{}, "HypothesisEvent": HypothesisEvent{},
 	"InsightVersion": InsightVersion{}, "InstrumentChange": InstrumentChange{},
+	"TemporalOperationRequest": TemporalOperationRequest{}, "TemporalOperationResult": TemporalOperationResult{},
 }
 
 type schemaDoc struct {

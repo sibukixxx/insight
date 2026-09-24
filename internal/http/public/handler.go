@@ -28,6 +28,7 @@ func Router(engine *publicengine.Engine) http.Handler {
 	r.Post("/research-runs/{researchRunID}/iterations", h.appendIteration)
 	r.Get("/research-runs/{researchRunID}", h.getResearchRun)
 	r.Get("/research-runs/{researchRunID}/timeline", h.getResearchTimeline)
+	r.Post("/temporal-operations", h.applyTemporalOperation)
 	r.NotFound(func(w http.ResponseWriter, _ *http.Request) {
 		writeError(w, &publicengine.Error{Code: publicengine.CodeNotFound, Message: "no such public operation"})
 	})
@@ -96,6 +97,14 @@ func (h *handler) getResearchRun(w http.ResponseWriter, r *http.Request) {
 func (h *handler) getResearchTimeline(w http.ResponseWriter, r *http.Request) {
 	timeline, err := h.engine.GetResearchTimeline(r.Context(), chi.URLParam(r, "researchRunID"))
 	writeValue(w, timeline, err)
+}
+
+func (h *handler) applyTemporalOperation(w http.ResponseWriter, r *http.Request) {
+	var req publicengine.TemporalOperationRequest
+	if decode(w, r, &req) {
+		result, err := h.engine.ApplyTemporalOperation(req)
+		writeValue(w, result, err)
+	}
 }
 
 // decode reads a bounded JSON body. Unknown fields are tolerated so newer

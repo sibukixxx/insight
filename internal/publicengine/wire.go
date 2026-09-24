@@ -219,6 +219,19 @@ type ResearchTimeline struct {
 	Limitations       []string                   `json:"limitations"`
 }
 
+// Temporal Analytics Pack (#73). Stateless and deterministic: the same
+// artifact and operation always return the same derived artifact.
+type TemporalOperationRequest struct {
+	ContractVersion string          `json:"contractVersion"`
+	Artifact        json.RawMessage `json:"artifact"`
+	Operation       json.RawMessage `json:"operation"`
+}
+
+type TemporalOperationResult struct {
+	ContractVersion string          `json:"contractVersion"`
+	Artifact        json.RawMessage `json:"artifact"`
+}
+
 type ErrorBody struct {
 	Code    string `json:"code"`
 	Message string `json:"message"`

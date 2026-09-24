@@ -15,7 +15,8 @@
     "createResearchRun": {"method": "POST", "path": "/api/public/v1/subjects/{subjectId}/research-runs", "request": "CreateResearchRunRequest", "response": "ResearchResult", "status": 201},
     "appendIteration": {"method": "POST", "path": "/api/public/v1/research-runs/{researchRunId}/iterations", "request": "AppendIterationRequest", "response": "ResearchResult", "status": 201},
     "getResearchRun": {"method": "GET", "path": "/api/public/v1/research-runs/{researchRunId}", "response": "ResearchResult", "status": 200},
-    "getResearchTimeline": {"method": "GET", "path": "/api/public/v1/research-runs/{researchRunId}/timeline", "response": "ResearchTimeline", "status": 200}
+    "getResearchTimeline": {"method": "GET", "path": "/api/public/v1/research-runs/{researchRunId}/timeline", "response": "ResearchTimeline", "status": 200},
+    "applyTemporalOperation": {"method": "POST", "path": "/api/public/v1/temporal-operations", "request": "TemporalOperationRequest", "response": "TemporalOperationResult", "status": 200}
   },
   "x-errorCodes": {
     "INVALID_REQUEST": 400,
@@ -382,6 +383,24 @@
         "toIterationId": {"type": "string"},
         "execution": {"type": "string", "enum": ["CHANGED", "UNKNOWN"]},
         "changedFields": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "TemporalOperationRequest": {
+      "type": "object",
+      "description": "Stateless #73 temporal operation. Nothing is stored; the derived artifact is neutral evidence that may later be submitted with addEvidence.",
+      "required": ["contractVersion", "artifact", "operation"],
+      "properties": {
+        "contractVersion": {"$ref": "#/$defs/ContractVersion"},
+        "artifact": {"type": "object", "description": "insight-lab.analytical-artifact v1 with temporal results."},
+        "operation": {"type": "object", "description": "insight-lab.temporal-operation v1 spec; see contracts/analytical-artifact/v1/temporal-operation.schema.json."}
+      }
+    },
+    "TemporalOperationResult": {
+      "type": "object",
+      "required": ["contractVersion", "artifact"],
+      "properties": {
+        "contractVersion": {"$ref": "#/$defs/ContractVersion"},
+        "artifact": {"type": "object", "description": "Derived insight-lab.analytical-artifact v1 (origin=derived, deterministic, provenance references the source artifact)."}
       }
     },
     "ChangeAttribution": {"type": "string", "enum": ["EVIDENCE_DELTA", "INSTRUMENT_CHANGE", "EVIDENCE_AND_INSTRUMENT", "UNATTRIBUTED"]},
