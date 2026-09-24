@@ -291,7 +291,8 @@ func ToCandidates(artifact Artifact) ([]Candidate, error) {
 		id := fmt.Sprintf("%s:%s:%d", artifact.ID, result.MetricID, i)
 		quote := resultStatement(metric, result)
 		observationID := id
-  temporal := temporalProjection(artifact, metric, result, i)
+  temporal, err := temporalProjection(artifact, metric, result, i)
+  if err != nil { return nil, err }
 		out = append(out, Candidate{
 			ArtifactID: artifact.ID, ResultIndex: i,
 			Evidence:    domain.Evidence{Temporal: temporal, ID: id, DocumentID: artifact.ID, ObservationID: &observationID, Quote: quote, Type: domain.EvidenceNeutral},

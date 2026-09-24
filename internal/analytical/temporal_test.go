@@ -164,3 +164,9 @@ func TestTemporalDirectionAndCalendarMonths(t *testing.T) {
  obs[1].Temporal.Result.Value=json.RawMessage("1e400")
  if d:=CompareObservations(obs[0],obs[1]);d.Valid {t.Fatal("overflow accepted")}
 }
+
+func TestTemporalSnapshotRejectsUnserializableProvenance(t *testing.T) {
+ a:=temporalFixture(t)
+ a.Parameters["invalid"]=make(chan int)
+ if _,err:=ToCandidatesForAnalysis(a,"analysis");err==nil {t.Fatal("snapshot silently discarded provenance")}
+}

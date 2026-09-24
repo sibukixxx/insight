@@ -39,8 +39,8 @@ type ObservationDelta struct {
  Limitations []string `json:"limitations"`
 }
 
-func temporalProjection(a Artifact, m MetricDefinition, r Result, index int) *TemporalEvidence {
- if r.Temporal == nil { return nil }
+func temporalProjection(a Artifact, m MetricDefinition, r Result, index int) (*TemporalEvidence, error) {
+ if r.Temporal == nil { return nil, nil }
  if r.Period.Basis == "" { r.Period.Basis = a.Period.Basis }
  p := TemporalEvidence{
   ArtifactID:a.ID, ArtifactHash:a.ArtifactHash, ResultIndex:index,
@@ -49,10 +49,11 @@ func temporalProjection(a Artifact, m MetricDefinition, r Result, index int) *Te
   Quality:a.Quality, GeneratedAt:a.GeneratedAt,
  }
  // Snapshots must not change if a caller later modifies the source artifact.
- data, _ := json.Marshal(p)
+ data, err := json.Marshal(p)
+ if err != nil { return nil, fmt.Errorf("snapshot temporal evidence: %w", err) }
  var snapshot TemporalEvidence
- _ = json.Unmarshal(data, &snapshot)
- return &snapshot
+ if err := json.Unmarshal(data, &snapshot); err != nil { return nil, err }
+ return &snapshot, nil
 }
 
 // periodBounds accepts complete inclusive calendar windows. Unknown bases are
@@ -101,7 +102,7 @@ func validateTemporalResult(r Result, metrics []MetricDefinition, enclosing Peri
 }
 
 func number(r Result) (float64,bool) {
- if r.Missing || len(r.Value)==0 || bytes.Equal(bytes.TrimSpace(r.Value),[]byte("null")) { return 0,false }
+ if r.Missing || !json.Valid(r.Value) || len(r.Value)==0 || bytes.Equal(bytes.TrimSpace(r.Value),[]byte("null")) { return 0,false }
  var v any
  d:=json.NewDecoder(bytes.NewReader(r.Value)); d.UseNumber()
  if d.Decode(&v)!=nil { return 0,false }
@@ -242,6 +243,9 @@ func ToCandidatesForAnalysis(artifact Artifact, analysisID string) ([]Candidate,
 }
 
 func validateTemporalProvenance(p *TemporalEvidence) error {
+ if blank(p.Population.Description)||blank(p.Metric.ID)||blank(p.Metric.Name)||blank(p.Metric.Unit) {
+  return fmt.Errorf("population and metric definitions are required")
+ }
  if blank(p.ArtifactID)||p.ResultIndex<0||p.GeneratedAt.IsZero() { return fmt.Errorf("artifact identity, result index and generation time are required") }
  if err:=validateHash("artifactHash",p.ArtifactHash);err!=nil { return err }
  if blank(p.Spec.Kind)||blank(p.Spec.Reference) { return fmt.Errorf("query/spec reference is required") }
