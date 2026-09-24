@@ -112,6 +112,11 @@ func (a *Application) AppendResearchIteration(ctx context.Context, in AppendRese
 	}
 	iteration.InputSnapshot = snapshot
 	iteration = service.FinalizeResearchIterationWithLinks(*run, iteration, in.AddedEvidence, in.AddedEvidenceLinks, now)
+	if previous, ok := run.LatestIteration(); ok && iteration.Delta != nil {
+		if note := a.instrumentNote(ctx, previous.AnalysisID, iteration.AnalysisID); note != "" {
+			iteration.Delta.Explanation = append(iteration.Delta.Explanation, note)
+		}
+	}
 	if err := a.repos.Research.AppendResearchIteration(ctx, run.ID, iteration); err != nil {
 		return nil, fmt.Errorf("append research iteration: %w", err)
 	}

@@ -70,6 +70,8 @@ func NewRouter(deps Deps) http.Handler {
 				r.Post("/documents/import/analysis", h.ImportAnalysisCSV)
 				r.Post("/analysis", h.CreateAnalysis)
 				r.Get("/analyses", h.ListAnalyses)
+				r.Get("/analyses/compare", h.CompareProjectAnalyses)
+				r.Get("/metrics-history", h.MetricsHistory)
 				r.Get("/insights", h.ListInsights)
 				r.Get("/patterns", h.ListPatterns)
 				r.Get("/evaluation", h.GetEvaluation)
@@ -99,6 +101,7 @@ func NewRouter(deps Deps) http.Handler {
 
 		r.Get("/analysis/{analysisID}", h.GetAnalysis)
 		r.Get("/analysis/{analysisID}/events", h.AnalysisEvents)
+		r.Get("/analysis/{analysisID}/compare/{otherID}", h.CompareAnalyses)
 
 		r.Get("/insights/{insightID}", h.GetInsight)
 		r.Get("/insights/{insightID}/evidence", h.GetInsightEvidence)
