@@ -1,0 +1,380 @@
+{
+  "fixture": "14-data-triage",
+  "contractVersion": "1",
+  "covers": "#92 AI-assisted Data Triage: deterministic profile, every column placed once, re-triage from a ResearchGap as a new parented version with recorded moves, reversible human-only exclusion, model triage refused when no model is configured",
+  "engine": "deterministic",
+  "steps": [
+    {
+      "op": "createSubject",
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-subject",
+        "subject": {
+          "namespace": "any",
+          "id": "triage-${uniq}"
+        },
+        "title": "Triage"
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "subjectId": "subjectId"
+      }
+    },
+    {
+      "op": "createDatasetProfile",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-profile",
+        "dataset": {
+          "id": "trade",
+          "version": "2023"
+        },
+        "csv": "year,region,exports,imports,firm_id,notes\n2022,EU,100,40,f1,\n2022,US,80,30,f2,late\n2023,EU,,45,f3,\n2023,US,90,NA,f4,\n"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "rowCount",
+          "equals": 4
+        },
+        {
+          "path": "columns[0].name",
+          "equals": "year"
+        },
+        {
+          "path": "columns[2].nullCount",
+          "equals": 1
+        },
+        {
+          "path": "profilerVersion",
+          "equals": "insight.dataset-profile/1"
+        },
+        {
+          "path": "profileFingerprint",
+          "exists": true
+        }
+      ],
+      "save": {
+        "profileId": "profileId",
+        "contentSha256": "contentSha256"
+      }
+    },
+    {
+      "op": "createDatasetProfile",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-profile-bad-hash",
+        "dataset": {
+          "id": "trade",
+          "version": "2023",
+          "sha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "csv": "year,region,exports,imports,firm_id,notes\n2022,EU,100,40,f1,\n2022,US,80,30,f2,late\n2023,EU,,45,f3,\n2023,US,90,NA,f4,\n"
+      },
+      "expect": {
+        "errorCode": "INVALID_REQUEST",
+        "httpStatus": 400
+      }
+    },
+    {
+      "op": "triage",
+      "params": {
+        "subjectId": "${subjectId}",
+        "profileId": "${profileId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-triage-1",
+        "question": "Why did exports to the EU rise?"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "version",
+          "equals": 1
+        },
+        {
+          "path": "proposer.kind",
+          "equals": "DETERMINISTIC"
+        },
+        {
+          "path": "decisions",
+          "minLength": 6
+        },
+        {
+          "path": "decisions[3].name",
+          "equals": "imports"
+        },
+        {
+          "path": "decisions[3].bucket",
+          "equals": "DEFER"
+        },
+        {
+          "path": "decisions[2].bucket",
+          "equals": "INCLUDE"
+        },
+        {
+          "path": "processingBoundary",
+          "exists": true
+        },
+        {
+          "path": "parentPlanId",
+          "exists": false
+        }
+      ],
+      "save": {
+        "plan1": "planId"
+      }
+    },
+    {
+      "op": "triage",
+      "params": {
+        "subjectId": "${subjectId}",
+        "profileId": "${profileId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-triage-1",
+        "question": "Why did exports to the EU rise?"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "planId",
+          "equals": "${plan1}"
+        }
+      ]
+    },
+    {
+      "op": "triage",
+      "params": {
+        "subjectId": "${subjectId}",
+        "profileId": "${profileId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-triage-2",
+        "question": "Why did exports to the EU rise?",
+        "gaps": [
+          {
+            "gapId": "gap-imports",
+            "need": "import volumes over the same period"
+          }
+        ]
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "version",
+          "equals": 2
+        },
+        {
+          "path": "parentPlanId",
+          "equals": "${plan1}"
+        },
+        {
+          "path": "decisions[3].bucket",
+          "equals": "INCLUDE"
+        },
+        {
+          "path": "decisions[3].linkedGapIds[0]",
+          "equals": "gap-imports"
+        },
+        {
+          "path": "moves[0].name",
+          "equals": "imports"
+        },
+        {
+          "path": "moves[0].fromBucket",
+          "equals": "DEFER"
+        },
+        {
+          "path": "moves[0].toBucket",
+          "equals": "INCLUDE"
+        }
+      ],
+      "save": {
+        "plan2": "planId"
+      }
+    },
+    {
+      "op": "reviseSelectionPlan",
+      "params": {
+        "planId": "${plan2}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-revise-1",
+        "actor": "analyst",
+        "moves": [
+          {
+            "name": "notes",
+            "toBucket": "EXCLUDE",
+            "rationale": "free text is out of scope for this question"
+          }
+        ]
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "version",
+          "equals": 3
+        },
+        {
+          "path": "parentPlanId",
+          "equals": "${plan2}"
+        },
+        {
+          "path": "proposer.kind",
+          "equals": "HUMAN"
+        },
+        {
+          "path": "proposer.actor",
+          "equals": "analyst"
+        },
+        {
+          "path": "decisions[5].bucket",
+          "equals": "EXCLUDE"
+        },
+        {
+          "path": "moves[0].fromBucket",
+          "equals": "INCLUDE"
+        }
+      ],
+      "save": {
+        "plan3": "planId"
+      }
+    },
+    {
+      "op": "reviseSelectionPlan",
+      "params": {
+        "planId": "${plan3}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-revise-2",
+        "actor": "analyst",
+        "moves": [
+          {
+            "name": "notes",
+            "toBucket": "INCLUDE",
+            "rationale": "restored after review"
+          }
+        ]
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "version",
+          "equals": 4
+        },
+        {
+          "path": "decisions[5].bucket",
+          "equals": "INCLUDE"
+        },
+        {
+          "path": "moves[0].fromBucket",
+          "equals": "EXCLUDE"
+        }
+      ]
+    },
+    {
+      "op": "reviseSelectionPlan",
+      "params": {
+        "planId": "${plan3}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-revise-unknown",
+        "actor": "analyst",
+        "moves": [
+          {
+            "name": "made_up",
+            "toBucket": "INCLUDE",
+            "rationale": "x"
+          }
+        ]
+      },
+      "expect": {
+        "errorCode": "INVALID_REQUEST",
+        "httpStatus": 400
+      }
+    },
+    {
+      "op": "triage",
+      "params": {
+        "subjectId": "${subjectId}",
+        "profileId": "${profileId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-triage-model",
+        "question": "Why did exports to the EU rise?",
+        "triager": "MODEL"
+      },
+      "expect": {
+        "errorCode": "INVALID_REQUEST",
+        "httpStatus": 400
+      }
+    },
+    {
+      "op": "getSelectionPlan",
+      "params": {
+        "planId": "${plan1}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "decisions[3].bucket",
+          "equals": "DEFER"
+        }
+      ]
+    },
+    {
+      "op": "listSelectionPlans",
+      "params": {
+        "subjectId": "${subjectId}",
+        "profileId": "${profileId}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "plans",
+          "minLength": 4
+        },
+        {
+          "path": "plans[0].version",
+          "equals": 1
+        },
+        {
+          "path": "plans[3].version",
+          "equals": 4
+        }
+      ]
+    }
+  ]
+}
