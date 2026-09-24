@@ -176,3 +176,16 @@ func TestScaffoldScenarioSetDraftsOneBranchPerSurvivingHypothesisAndSkipsUntesta
 		t.Fatalf("scaffold must validate: %v", err)
 	}
 }
+
+func TestEvaluateScenariosTreatsObservationOutsideWindowAsInconclusive(t *testing.T) {
+	s := loadJapanEU(t)
+	ev, err := EvaluateScenarios(s, nil, NewObservationInput{Observations: []IndicatorObservation{
+		{ExpectationID: "S1-E1", Outcome: OutcomeContradicts, EvidenceRef: "comext:2028-01", ObservedAt: at("2028-01-15T00:00:00Z")},
+	}}, "ev1", "", at("2028-02-01T00:00:00Z"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ev.States[0].Status != ScenarioInconclusive || len(ev.Delta.FalsificationsFired) != 0 {
+		t.Fatalf("out-of-window observation decided a scenario: %+v / %+v", ev.States[0], ev.Delta)
+	}
+}

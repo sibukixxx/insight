@@ -1,0 +1,589 @@
+{
+  "fixture": "13-scenarios",
+  "contractVersion": "1",
+  "covers": "#66: one baseline branches into >=3 scenarios; horizon required; no invented probability; append-only set versions; a later observation contradicts one branch; a pre-baseline observation cannot confirm; scenario-specific DataRequirements; export in the Research Artifact",
+  "engine": "model_backed",
+  "steps": [
+    {
+      "op": "createSubject",
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-subject",
+        "subject": {
+          "namespace": "public-data",
+          "id": "scenario-${uniq}"
+        }
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "subjectId": "subjectId"
+      }
+    },
+    {
+      "op": "addEvidence",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-evidence",
+        "documents": [
+          {
+            "externalRef": "baseline-doc",
+            "source": "dataset",
+            "content": "Export quantity to the partner region rose from 100 to 120 after the currency weakened."
+          }
+        ]
+      },
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "op": "startAnalysis",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-analysis"
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "analysisId": "analysisId"
+      }
+    },
+    {
+      "op": "waitForAnalysis",
+      "params": {
+        "subjectId": "${subjectId}",
+        "analysisId": "${analysisId}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "status",
+          "equals": "completed"
+        }
+      ]
+    },
+    {
+      "op": "createResearchRun",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-research",
+        "question": "Which export futures remain open?",
+        "analysisId": "${analysisId}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "researchRunId": "researchRunId",
+        "iterationId": "iterationId"
+      },
+      "assert": [
+        {
+          "path": "artifact.scenarioAnalysis",
+          "exists": false
+        }
+      ]
+    },
+    {
+      "op": "getScenarios",
+      "params": {
+        "researchRunId": "${researchRunId}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "sets",
+          "equals": []
+        },
+        {
+          "path": "currentSet",
+          "exists": false
+        }
+      ]
+    },
+    {
+      "op": "scaffoldScenarioSet",
+      "params": {
+        "researchRunId": "${researchRunId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-scaffold-nohorizon",
+        "baseline": {
+          "asOf": "2026-06-30T00:00:00Z",
+          "description": "Observed baseline"
+        },
+        "horizon": {
+          "label": "",
+          "end": "0001-01-01T00:00:00Z"
+        }
+      },
+      "expect": {
+        "errorCode": "INVALID_REQUEST",
+        "httpStatus": 400
+      }
+    },
+    {
+      "op": "scaffoldScenarioSet",
+      "params": {
+        "researchRunId": "${researchRunId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-scaffold",
+        "iterationId": "${iterationId}",
+        "baseline": {
+          "asOf": "2026-06-30T00:00:00Z",
+          "description": "Observed baseline"
+        },
+        "horizon": {
+          "label": "to 2100",
+          "end": "2100-12-31T00:00:00Z"
+        }
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "scenarioSet.version",
+          "equals": 1
+        },
+        {
+          "path": "scenarioSet.origin",
+          "equals": "DETERMINISTIC_SCAFFOLD"
+        },
+        {
+          "path": "scenarioSet.nonExhaustive",
+          "equals": true
+        },
+        {
+          "path": "scenarioSet.scenarios",
+          "minLength": 1
+        },
+        {
+          "path": "scenarioSet.scenarios[0].probability",
+          "exists": false
+        },
+        {
+          "path": "scenarioSet.scenarios[0].expectations[0].provenance",
+          "equals": "DERIVED_FROM_PRIOR_RUN"
+        }
+      ]
+    },
+    {
+      "op": "createScenarioSet",
+      "params": {
+        "researchRunId": "${researchRunId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-invented-probability",
+        "scenarioSet": {
+          "question": "Which future branches remain consistent with later evidence?",
+          "baseline": {
+            "asOf": "2026-06-30T00:00:00Z",
+            "description": "Observed baseline",
+            "evidenceRefs": [
+              "baseline-doc"
+            ]
+          },
+          "nonExhaustive": true,
+          "sharedEvidenceRefs": [
+            "baseline-doc"
+          ],
+          "scenarios": [
+            {
+              "id": "S1",
+              "title": "Price advantage converts into higher quantity",
+              "horizon": {
+                "label": "to 2100",
+                "end": "2100-12-31T00:00:00Z"
+              },
+              "assumptions": [
+                {
+                  "id": "S1-A1",
+                  "statement": "Exporters pass the price gain through",
+                  "kind": "EXOGENOUS_ASSUMPTION",
+                  "sourceRefs": [
+                    "assumption-note"
+                  ],
+                  "asOf": "2026-06-30T00:00:00Z"
+                }
+              ],
+              "expectations": [
+                {
+                  "id": "S1-E1",
+                  "indicator": "import quantity",
+                  "statement": "import quantity moves as the scenario describes",
+                  "direction": "INCREASE",
+                  "observationWindow": {
+                    "start": "2026-07-01T00:00:00Z",
+                    "end": "2100-12-31T00:00:00Z"
+                  },
+                  "falsificationCondition": "import quantity flat or falling",
+                  "provenance": "DERIVED_FROM_PRIOR_RUN",
+                  "observedDataAvailableAtCreation": false
+                }
+              ],
+              "probability": {
+                "value": 0.8,
+                "basis": "",
+                "sourceRefs": []
+              }
+            },
+            {
+              "id": "S2",
+              "title": "Price advantage absorbed by logistics cost",
+              "horizon": {
+                "label": "to 2100",
+                "end": "2100-12-31T00:00:00Z"
+              },
+              "assumptions": [
+                {
+                  "id": "S2-A1",
+                  "statement": "Freight stays elevated",
+                  "kind": "EXOGENOUS_ASSUMPTION",
+                  "sourceRefs": [
+                    "assumption-note"
+                  ],
+                  "asOf": "2026-06-30T00:00:00Z"
+                }
+              ],
+              "expectations": [
+                {
+                  "id": "S2-E1",
+                  "indicator": "landed price index",
+                  "statement": "landed price index moves as the scenario describes",
+                  "direction": "INCREASE",
+                  "observationWindow": {
+                    "start": "2026-07-01T00:00:00Z",
+                    "end": "2100-12-31T00:00:00Z"
+                  },
+                  "falsificationCondition": "landed price falls by the full price move",
+                  "provenance": "DERIVED_FROM_PRIOR_RUN",
+                  "observedDataAvailableAtCreation": false
+                }
+              ]
+            },
+            {
+              "id": "S3",
+              "title": "Demand rises for unrelated category reasons",
+              "horizon": {
+                "label": "to 2100",
+                "end": "2100-12-31T00:00:00Z"
+              },
+              "assumptions": [
+                {
+                  "id": "S3-A1",
+                  "statement": "A category-specific driver exists",
+                  "kind": "EXOGENOUS_ASSUMPTION",
+                  "sourceRefs": [
+                    "assumption-note"
+                  ],
+                  "asOf": "2026-06-30T00:00:00Z"
+                }
+              ],
+              "expectations": [
+                {
+                  "id": "S3-E1",
+                  "indicator": "imports from all origins",
+                  "statement": "imports from all origins moves as the scenario describes",
+                  "direction": "INCREASE",
+                  "observationWindow": {
+                    "start": "2026-07-01T00:00:00Z",
+                    "end": "2100-12-31T00:00:00Z"
+                  },
+                  "falsificationCondition": "only one origin rises",
+                  "provenance": "DERIVED_FROM_PRIOR_RUN",
+                  "observedDataAvailableAtCreation": false
+                }
+              ]
+            }
+          ],
+          "relations": [
+            {
+              "scenarioIds": [
+                "S1",
+                "S2"
+              ],
+              "kind": "MUTUALLY_EXCLUSIVE"
+            }
+          ],
+          "origin": "HUMAN"
+        }
+      },
+      "expect": {
+        "errorCode": "INVALID_REQUEST",
+        "httpStatus": 400
+      }
+    },
+    {
+      "op": "createScenarioSet",
+      "params": {
+        "researchRunId": "${researchRunId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-curated",
+        "scenarioSet": {
+          "question": "Which future branches remain consistent with later evidence?",
+          "baseline": {
+            "asOf": "2026-06-30T00:00:00Z",
+            "description": "Observed baseline",
+            "evidenceRefs": [
+              "baseline-doc"
+            ]
+          },
+          "nonExhaustive": true,
+          "sharedEvidenceRefs": [
+            "baseline-doc"
+          ],
+          "scenarios": [
+            {
+              "id": "S1",
+              "title": "Price advantage converts into higher quantity",
+              "horizon": {
+                "label": "to 2100",
+                "end": "2100-12-31T00:00:00Z"
+              },
+              "assumptions": [
+                {
+                  "id": "S1-A1",
+                  "statement": "Exporters pass the price gain through",
+                  "kind": "EXOGENOUS_ASSUMPTION",
+                  "sourceRefs": [
+                    "assumption-note"
+                  ],
+                  "asOf": "2026-06-30T00:00:00Z"
+                }
+              ],
+              "expectations": [
+                {
+                  "id": "S1-E1",
+                  "indicator": "import quantity",
+                  "statement": "import quantity moves as the scenario describes",
+                  "direction": "INCREASE",
+                  "observationWindow": {
+                    "start": "2026-07-01T00:00:00Z",
+                    "end": "2100-12-31T00:00:00Z"
+                  },
+                  "falsificationCondition": "import quantity flat or falling",
+                  "provenance": "DERIVED_FROM_PRIOR_RUN",
+                  "observedDataAvailableAtCreation": false
+                }
+              ]
+            },
+            {
+              "id": "S2",
+              "title": "Price advantage absorbed by logistics cost",
+              "horizon": {
+                "label": "to 2100",
+                "end": "2100-12-31T00:00:00Z"
+              },
+              "assumptions": [
+                {
+                  "id": "S2-A1",
+                  "statement": "Freight stays elevated",
+                  "kind": "EXOGENOUS_ASSUMPTION",
+                  "sourceRefs": [
+                    "assumption-note"
+                  ],
+                  "asOf": "2026-06-30T00:00:00Z"
+                }
+              ],
+              "expectations": [
+                {
+                  "id": "S2-E1",
+                  "indicator": "landed price index",
+                  "statement": "landed price index moves as the scenario describes",
+                  "direction": "INCREASE",
+                  "observationWindow": {
+                    "start": "2026-07-01T00:00:00Z",
+                    "end": "2100-12-31T00:00:00Z"
+                  },
+                  "falsificationCondition": "landed price falls by the full price move",
+                  "provenance": "DERIVED_FROM_PRIOR_RUN",
+                  "observedDataAvailableAtCreation": false
+                }
+              ]
+            },
+            {
+              "id": "S3",
+              "title": "Demand rises for unrelated category reasons",
+              "horizon": {
+                "label": "to 2100",
+                "end": "2100-12-31T00:00:00Z"
+              },
+              "assumptions": [
+                {
+                  "id": "S3-A1",
+                  "statement": "A category-specific driver exists",
+                  "kind": "EXOGENOUS_ASSUMPTION",
+                  "sourceRefs": [
+                    "assumption-note"
+                  ],
+                  "asOf": "2026-06-30T00:00:00Z"
+                }
+              ],
+              "expectations": [
+                {
+                  "id": "S3-E1",
+                  "indicator": "imports from all origins",
+                  "statement": "imports from all origins moves as the scenario describes",
+                  "direction": "INCREASE",
+                  "observationWindow": {
+                    "start": "2026-07-01T00:00:00Z",
+                    "end": "2100-12-31T00:00:00Z"
+                  },
+                  "falsificationCondition": "only one origin rises",
+                  "provenance": "DERIVED_FROM_PRIOR_RUN",
+                  "observedDataAvailableAtCreation": false
+                }
+              ]
+            }
+          ],
+          "relations": [
+            {
+              "scenarioIds": [
+                "S1",
+                "S2"
+              ],
+              "kind": "MUTUALLY_EXCLUSIVE"
+            }
+          ],
+          "origin": "HUMAN"
+        }
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "scenarioSetId": "scenarioSet.id"
+      },
+      "assert": [
+        {
+          "path": "scenarioSet.version",
+          "equals": 2
+        },
+        {
+          "path": "scenarioSet.scenarios",
+          "minLength": 3
+        }
+      ]
+    },
+    {
+      "op": "evaluateScenarios",
+      "params": {
+        "researchRunId": "${researchRunId}",
+        "scenarioSetId": "${scenarioSetId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-evaluate",
+        "iterationId": "${iterationId}",
+        "observations": [
+          {
+            "expectationId": "S1-E1",
+            "outcome": "CONTRADICTS",
+            "evidenceRef": "later-quantity-doc",
+            "observedAt": "2099-06-01T00:00:00Z"
+          },
+          {
+            "expectationId": "S2-E1",
+            "outcome": "CONSISTENT",
+            "evidenceRef": "old-price-doc",
+            "observedAt": "2020-01-01T00:00:00Z"
+          }
+        ]
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "evaluation.states[0].status",
+          "equals": "CONTRADICTED"
+        },
+        {
+          "path": "evaluation.states[1].status",
+          "equals": "INCONCLUSIVE"
+        },
+        {
+          "path": "evaluation.states[2].status",
+          "equals": "UNTESTED"
+        },
+        {
+          "path": "evaluation.delta.falsificationsFired",
+          "minLength": 1
+        },
+        {
+          "path": "evaluation.dataRequirements",
+          "minLength": 2
+        }
+      ]
+    },
+    {
+      "op": "getScenarios",
+      "params": {
+        "researchRunId": "${researchRunId}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "currentSet.version",
+          "equals": 2
+        },
+        {
+          "path": "sets",
+          "minLength": 2
+        },
+        {
+          "path": "evaluations",
+          "minLength": 1
+        },
+        {
+          "path": "currentEvaluation.states[0].status",
+          "equals": "CONTRADICTED"
+        }
+      ]
+    },
+    {
+      "op": "getResearchRun",
+      "params": {
+        "researchRunId": "${researchRunId}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "artifact.scenarioAnalysis.currentSet.version",
+          "equals": 2
+        },
+        {
+          "path": "artifact.scenarioAnalysis.sets",
+          "minLength": 2
+        }
+      ]
+    }
+  ]
+}

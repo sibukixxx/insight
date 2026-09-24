@@ -44,7 +44,7 @@ func EvaluateScenarios(set ScenarioSet, prev *ScenarioEvaluation, in NewObservat
 		state, fired := scenarioState(set, sc, observations, invalidated, now)
 		eval.States = append(eval.States, state)
 		allFired = append(allFired, fired...)
-		eval.DataRequirements = append(eval.DataRequirements, scenarioRequirements(sc, observations, set.CreatedAt)...)
+		eval.DataRequirements = append(eval.DataRequirements, scenarioRequirements(set, sc, observations)...)
 	}
 	eval.Delta = buildScenarioDelta(prev, eval, in, allFired)
 	return eval, nil
@@ -63,9 +63,9 @@ func scenarioState(set ScenarioSet, sc Scenario, obs []IndicatorObservation, inv
 		if !ok {
 			continue
 		}
-		if !o.ObservedAt.After(set.CreatedAt) && (o.Outcome == OutcomeConsistent || o.Outcome == OutcomeContradicts) {
+		if reason := untestableReason(set, e, o); reason != "" {
 			inconclusive++
-			state.Reasons = append(state.Reasons, fmt.Sprintf("%s: observation %s predates the scenario set and cannot test it", e.ID, o.EvidenceRef))
+			state.Reasons = append(state.Reasons, fmt.Sprintf("%s: observation %s %s", e.ID, o.EvidenceRef, reason))
 			continue
 		}
 		switch o.Outcome {
@@ -104,10 +104,14 @@ func scenarioState(set ScenarioSet, sc Scenario, obs []IndicatorObservation, inv
 
 // scenarioRequirements turns every expectation still lacking a decisive
 // observation into a scenario-specific DataRequirement.
-func scenarioRequirements(sc Scenario, obs []IndicatorObservation, frozenAt time.Time) []DataRequirement {
+func scenarioRequirements(set ScenarioSet, sc Scenario, obs []IndicatorObservation) []DataRequirement {
+	byID := map[string]ScenarioExpectation{}
+	for _, e := range sc.Expectations {
+		byID[e.ID] = e
+	}
 	decided := map[string]bool{}
 	for _, o := range obs {
-		if (o.Outcome == OutcomeConsistent || o.Outcome == OutcomeContradicts) && o.ObservedAt.After(frozenAt) {
+		if e, ok := byID[o.ExpectationID]; ok && untestableReason(set, e, o) == "" && (o.Outcome == OutcomeConsistent || o.Outcome == OutcomeContradicts) {
 			decided[o.ExpectationID] = true
 		}
 	}
@@ -129,3 +133,19 @@ func scenarioRequirements(sc Scenario, obs []IndicatorObservation, frozenAt time
 
 // ExpectationKey is the identity used to match observations.
 func (e ScenarioExpectation) ExpectationKey() string { return e.ID }
+
+// untestableReason explains why a decisive observation cannot test an
+// expectation: it predates the frozen set (post-hoc) or falls outside the
+// expectation's observation window. Empty means it can test it.
+func untestableReason(set ScenarioSet, e ScenarioExpectation, o IndicatorObservation) string {
+	if o.Outcome != OutcomeConsistent && o.Outcome != OutcomeContradicts {
+		return ""
+	}
+	if !o.ObservedAt.After(set.CreatedAt) {
+		return "predates the scenario set and cannot test it"
+	}
+	if o.ObservedAt.Before(e.ObservationWindow.Start) || o.ObservedAt.After(e.ObservationWindow.End) {
+		return "falls outside the observation window " + fmtWindow(e.ObservationWindow)
+	}
+	return ""
+}

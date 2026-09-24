@@ -22,6 +22,12 @@ var wireTypes = map[string]any{
 	"ErrorBody": ErrorBody{}, "ErrorResponse": ErrorResponse{},
 }
 
+func init() {
+	for name, value := range scenarioWireTypes {
+		wireTypes[name] = value
+	}
+}
+
 type schemaDoc struct {
 	Defs       map[string]schemaDef `json:"$defs"`
 	ErrorCodes map[string]int       `json:"x-errorCodes"`
