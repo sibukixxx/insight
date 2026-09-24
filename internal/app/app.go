@@ -60,6 +60,7 @@ func Run(ctx context.Context, cfg *Config) error {
 	application := usecase.New(usecase.Repositories{
 		Projects: projects, Documents: documents, Observations: observations, Patterns: patterns,
 		Analyses: analyses, Insights: insights, Evidence: evidence, Research: research,
+		Scenarios: sqlite.NewScenarioRepository(db),
 	})
 
 	router := httpapi.NewRouter(httpapi.Deps{

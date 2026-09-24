@@ -41,7 +41,7 @@ func (h *Handler) CreateResearchRun(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetResearchRun(w http.ResponseWriter, r *http.Request) {
-	run, err := h.App.GetResearchRun(r.Context(), chi.URLParam(r, "runID"))
+	run, err := h.App.GetResearchRunView(r.Context(), chi.URLParam(r, "runID"))
 	if err != nil {
 		status := http.StatusInternalServerError
 		if errors.Is(err, usecase.ErrNotFound) {

@@ -31,6 +31,9 @@ type Repositories struct {
 	Insights     repository.InsightRepository
 	Evidence     repository.EvidenceRepository
 	Research     repository.ResearchRepository
+	// Scenarios is optional; scenario use cases report
+	// ErrScenarioStorageUnavailable when it is nil.
+	Scenarios repository.ScenarioRepository
 }
 
 // Application implements synchronous user-facing use cases. Transport layers
