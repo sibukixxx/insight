@@ -132,6 +132,7 @@ The exact public-vs-internal SDK field boundary is **not yet frozen** and is bei
 - CSV ingestion exists; a generic stable JSONL ingestion path is not yet a documented public contract.
 - Model-backed interpretation remains model- and data-dependent and requires human review.
 - The current UI is optimized for small interactive projects, not bulk asynchronous ingestion.
+- Results are scoped to one analysis run (latest completed by default, selectable by `analysisId`). Execution/input snapshots and run-to-run comparison are not implemented yet.
 - Go and Node.js SDK repositories do not exist yet.
 
 ## Current development priorities

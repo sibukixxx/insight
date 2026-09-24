@@ -331,6 +331,17 @@ Current `main` includes:
 
 The publication-promotion workflow is implemented through domain/service/usecase/HTTP/report layers. Human review is required before `PUBLICATION_READY`; publication is never automatic. `approved-artifact.json` returns the persisted reviewed snapshot rather than regenerating the artifact from later state.
 
+## Results are scoped to one analysis run
+
+Every analysis run is kept; re-running never deletes or overwrites an earlier run. Result views are bound to exactly one run so runs never blend together:
+
+- The project page, traces and patterns, evaluation, and `report.md` show the **latest completed run** by default. Queued, running and failed runs have no results and are never selected implicitly.
+- Choose another completed run from the run selector, or pass `?analysisId=<id>` to `GET /api/projects/{id}/insights`, `/patterns`, `/evaluation` and `/report.md`. A run that belongs to another project returns 404.
+- `report.md` states which run it describes (analysis ID, status, start/finish, mode, model, prompt fingerprint, rule version). Values a run never recorded are printed as `not recorded`, never as empty or default values.
+- A research report is bound to the run that produced its latest iteration, the same run `artifact.json` exports. A later analysis does not change it; an iteration whose insights span runs is rejected with 409.
+
+Before this change, re-running an analysis listed insights and patterns from every run together, and `report.md` combined all runs' insights with the latest run's metrics.
+
 ## Causal claims: intentionally conservative
 
 Insight Lab is **not a causal-effect estimator**.

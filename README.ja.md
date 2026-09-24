@@ -345,6 +345,17 @@ DISCOVERY
 
 Public Report向けPromotion workflowはdomain/service/usecase/HTTP/reportまで実装済みです。`PUBLICATION_READY`にはHuman Reviewが必須で、自動公開は行いません。`approved-artifact.json` は後続状態から再生成せず、承認時に保存したreview済みsnapshotを返します。
 
+## 結果は1つの解析Runに束縛される
+
+解析Runはすべて保持され、再実行しても過去のRunは削除も上書きもされません。結果の表示は常に1つのRunに束縛され、Run同士が混ざりません。
+
+- プロジェクト画面、痕跡・パターン、評価、`report.md` は既定で**最新の完了Run**を表示します。queued / running / failed のRunには結果がないため、暗黙に選ばれることはありません。
+- 別の完了Runはプロジェクト画面のRunセレクタで選べます。APIでは `GET /api/projects/{id}/insights`、`/patterns`、`/evaluation`、`/report.md` に `?analysisId=<id>` を付けます。別プロジェクトのRunを指定すると404になります。
+- `report.md` は対象Run（analysis ID、status、開始・終了時刻、mode、model、prompt fingerprint、rule version）を明記します。Runが記録していない値は空や既定値ではなく `not recorded` と表示します。
+- Research report は最新iterationを生んだRunに束縛され、`artifact.json` と同じRunを指します。後から解析を実行しても変わりません。iterationのInsightが複数Runにまたがる場合は409で拒否します。
+
+この変更以前は、再解析するとInsightとPatternが全Run分まとめて表示され、`report.md` は全RunのInsightと最新Runのmetricsを組み合わせていました。
+
 ## 因果関係について
 
 Insight Labは**因果効果推定器ではありません**。
