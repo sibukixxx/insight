@@ -84,7 +84,9 @@ func BuildExecutionSnapshot(settings Settings, semantic domain.AnalysisMode, bui
 	config := ExecutionConfig{
 		EngineVersion: build.Version, GitCommit: build.Commit, GitDirty: build.Dirty,
 		ExecutionMode: ExecutionModeDeterministic, SemanticAnalysisMode: semantic,
-		RuleVersions: map[string]string{"datasetPreanalysis": datasetPreAnalysisRuleVersion, "grounding": groundingRuleVersion},
+		RuleVersions: map[string]string{
+			"datasetPreanalysis": datasetPreAnalysisRuleVersion, "analyticalArtifact": analyticalArtifactRuleVersion, "grounding": groundingRuleVersion,
+		},
 	}
 	if settings.Configured() {
 		promptFP, err := promptFingerprintV2(pipelineLLMSteps(), promptProtocol{Fallback: llm.JSONObjectFallbackInstruction, Retry: llm.SchemaRetryTemplate})

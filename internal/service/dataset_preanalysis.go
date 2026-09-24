@@ -64,8 +64,13 @@ func RunDatasetPreAnalysis(docs []*domain.Document, now time.Time) DatasetPreAna
 	for _, o := range pre.Observations {
 		pre.handled[o.DocumentID] = true
 	}
+	artifactObservations, artifactNotes := MaterializeAnalyticalArtifactObservations(docs, now)
+	for _, o := range artifactObservations {
+		pre.handled[o.DocumentID] = true
+	}
+	pre.Observations = append(pre.Observations, artifactObservations...)
 	pre.Comparisons, cmpNotes = ComputeDatasetComparisons(docs)
-	pre.Notes = append(append(pre.Notes, obsNotes...), cmpNotes...)
+	pre.Notes = append(append(append(pre.Notes, obsNotes...), artifactNotes...), cmpNotes...)
 
 	hashes := map[string]bool{}
 	seenDataset := map[string]bool{}

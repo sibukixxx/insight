@@ -88,7 +88,7 @@ func TestDeterministicExecutionSnapshotRecordsNoModel(t *testing.T) {
 	want := ExecutionConfig{
 		EngineVersion: "v0.9.0", GitCommit: "abc123", GitDirty: "false",
 		ExecutionMode: ExecutionModeDeterministic,
-		RuleVersions:  map[string]string{"datasetPreanalysis": datasetPreAnalysisRuleVersion, "grounding": groundingRuleVersion},
+		RuleVersions:  map[string]string{"datasetPreanalysis": datasetPreAnalysisRuleVersion, "analyticalArtifact": analyticalArtifactRuleVersion, "grounding": groundingRuleVersion},
 	}
 	if got := snapshot.ExecutionConfig; !equalJSON(t, got, want) {
 		t.Fatalf("deterministic snapshot = %+v, want %+v", got, want)
