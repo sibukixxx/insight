@@ -16,6 +16,10 @@ import (
 	"insight-lab/internal/domain"
 )
 
+// qualityRuleVersion is recorded in every run's execution snapshot. Bump it
+// whenever the quality flag rules or thresholds change in a way that can change results.
+const qualityRuleVersion = "quality/v1"
+
 // genericNeedTerms are labels that, on their own, are not insights: the
 // first group is what the customer already consciously wants (so it is a
 // stated need, not a latent one); the second is abstractions so broad that

@@ -170,7 +170,10 @@
       const found = analyses.find((a) => a.id === runID);
       if (found) return { run: found, notice: "" };
     }
-    const latestCompleted = analyses.find((a) => a.status === "completed") || null;
+    // Same rule as the server: the most recently finished completed run.
+    const latestCompleted = analyses
+      .filter((a) => a.status === "completed")
+      .sort((a, b) => String(b.finishedAt || b.createdAt).localeCompare(String(a.finishedAt || a.createdAt)))[0] || null;
     return { run: latestCompleted, notice: runID ? "The selected run was not found in this project; showing the latest completed run." : "" };
   }
 
@@ -204,7 +207,23 @@
         ${chip("model", modelScoped(prov, prov.model))}
         ${chip("prompt", modelScoped(prov, fingerprint), prov.promptFingerprint)}
         ${chip("rules", prov.ruleVersion || NOT_RECORDED)}
+        ${chip("engine", engineLabel(run.executionSnapshot), run.executionSnapshot && run.executionSnapshot.gitCommit)}
+        ${chip("execution", shortFingerprint(run.executionFingerprint), run.executionFingerprint)}
+        ${chip("input", shortFingerprint(run.inputFingerprint), run.inputFingerprint)}
       </div>`;
+  }
+
+  // Runs recorded before snapshots existed carry no fingerprints; that is
+  // "not recorded", never "same as another run".
+  function shortFingerprint(fp) {
+    return fp ? fp.replace(/^sha256:/, "").slice(0, 7) : NOT_RECORDED;
+  }
+
+  function engineLabel(execution) {
+    if (!execution) return NOT_RECORDED;
+    const commit = execution.gitCommit && execution.gitCommit !== "UNKNOWN" ? `@${execution.gitCommit.slice(0, 7)}` : "";
+    const dirty = execution.gitDirty === "true" ? "+dirty" : "";
+    return `${execution.engineVersion || "UNKNOWN"}${commit}${dirty}`;
   }
 
   function runSelectorHTML(analyses, selected) {

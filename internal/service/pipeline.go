@@ -31,6 +31,11 @@ type Pipeline struct {
 	// Model is the configured model name, recorded in the run provenance so
 	// a report can be traced to the model version that wrote its narrative.
 	Model string
+
+	// usage accumulates provider-reported tokens for the current run. A
+	// Pipeline value serves one run at a time and calls the model
+	// sequentially, so no lock is needed.
+	usage *LLMUsage
 }
 
 // ExecutionMode states whether a model took part in the run at all. It is
@@ -108,6 +113,17 @@ type Metrics struct {
 	QualityFlagCounts map[string]int `json:"qualityFlagCounts"`
 	// Provenance records inputs, rules and (if any) model behind this run.
 	Provenance RunProvenance `json:"provenance"`
+	// Usage totals the tokens the provider reported for this run. It is nil
+	// for a deterministic run, which made no model calls.
+	Usage *LLMUsage `json:"usage,omitempty"`
+}
+
+// LLMUsage is the provider-reported token usage summed over a run.
+type LLMUsage struct {
+	Calls            int `json:"calls"`
+	PromptTokens     int `json:"promptTokens"`
+	CompletionTokens int `json:"completionTokens"`
+	TotalTokens      int `json:"totalTokens"`
 }
 
 type draftInsight struct {
@@ -119,13 +135,18 @@ type draftInsight struct {
 }
 
 func (p *Pipeline) Run(ctx context.Context, analysisID, projectID string, progress ProgressFunc) (*Metrics, error) {
-	if progress == nil {
-		progress = func(string, int, string) {}
-	}
-
 	docs, err := p.Documents.ListByProject(ctx, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("list documents: %w", err)
+	}
+	return p.RunDocuments(ctx, analysisID, projectID, docs, progress)
+}
+
+// RunDocuments analyzes docs as they were read by the caller, so the input
+// snapshot recorded for a run describes exactly what the run analyzed.
+func (p *Pipeline) RunDocuments(ctx context.Context, analysisID, projectID string, docs []*domain.Document, progress ProgressFunc) (*Metrics, error) {
+	if progress == nil {
+		progress = func(string, int, string) {}
 	}
 	if len(docs) == 0 {
 		return nil, fmt.Errorf("the project has no documents")
@@ -142,6 +163,8 @@ func (p *Pipeline) Run(ctx context.Context, analysisID, projectID string, progre
 	if p.LLM == nil {
 		return p.runDeterministic(ctx, analysisID, projectID, pre, metrics, now, progress)
 	}
+	p.usage = &LLMUsage{}
+	metrics.Usage = p.usage
 
 	passages, contextStats := prepareLLMContext(documentsForModel(docs, pre), defaultContextRuneLimit)
 	metrics.ContextReduction = contextStats
@@ -165,6 +188,7 @@ func (p *Pipeline) Run(ctx context.Context, analysisID, projectID string, progre
 	if len(allObs) == 0 {
 		return nil, fmt.Errorf("no observations could be verified against the source text")
 	}
+	assignObservationRun(allObs, analysisID)
 	if err := p.Observations.CreateBatch(ctx, allObs); err != nil {
 		return nil, fmt.Errorf("save observations: %w", err)
 	}
@@ -266,6 +290,7 @@ func (p *Pipeline) runDeterministic(ctx context.Context, analysisID, projectID s
 		return nil, fmt.Errorf("the LLM is not configured and the project has no dataset documents to pre-analyze deterministically; enter a base URL and model on the Settings page, or import a dataset CSV")
 	}
 	progress("extracting_observations", 10, "Materializing dataset observations (no model configured)...")
+	assignObservationRun(pre.Observations, analysisID)
 	if err := p.Observations.CreateBatch(ctx, pre.Observations); err != nil {
 		return nil, fmt.Errorf("save observations: %w", err)
 	}
@@ -288,6 +313,14 @@ func (p *Pipeline) runDeterministic(ctx context.Context, analysisID, projectID s
 	return metrics, nil
 }
 
+// assignObservationRun makes the run that is persisting observations their
+// owner, so results of different runs never share an observation.
+func assignObservationRun(observations []*domain.Observation, analysisID string) {
+	for _, o := range observations {
+		o.AnalysisID = analysisID
+	}
+}
+
 func (p *Pipeline) provenance(pre DatasetPreAnalysis) RunProvenance {
 	prov := RunProvenance{
 		Mode: ExecutionModeDeterministic, RuleVersion: pre.RuleVersion,
@@ -297,12 +330,7 @@ func (p *Pipeline) provenance(pre DatasetPreAnalysis) RunProvenance {
 		CompatibilityWarnings:     pre.CompatibilityWarnings,
 		Notes:                     pre.Notes,
 	}
-	for _, m := range pre.Manifests {
-		prov.Datasets = append(prov.Datasets, DatasetProvenance{
-			SourceName: m.SourceName, DatasetID: m.DatasetID, RetrievalMethod: m.RetrievalMethod, RetrievedAt: m.RetrievedAt,
-			SchemaID: m.SchemaID, SchemaVersion: m.SchemaVersion, RecipeRef: m.RecipeRef, FileHash: m.FileHash,
-		})
-	}
+	prov.Datasets = datasetProvenances(pre)
 	if p.LLM != nil {
 		prov.Mode = ExecutionModeModelBacked
 		prov.Model = p.Model
@@ -494,13 +522,47 @@ func (p *Pipeline) persistInsights(ctx context.Context, analysisID, projectID st
 
 // --- LLM step calls ---
 
-func (p *Pipeline) extractObservations(ctx context.Context, chunk string) (*observationExtractionOutput, error) {
+// llmStep is everything that shapes one model call besides its input: the
+// system prompt, the response schema and the temperature. Keeping them in
+// one table lets the calls and the prompt fingerprint share a single source.
+type llmStep struct {
+	Name         string
+	SystemPrompt string
+	Schema       func() llm.Schema
+	Temperature  float64
+}
+
+var (
+	stepObservationExtraction = llmStep{"observation_extraction", observationExtractionPrompt, observationExtractionSchema, 0.2}
+	stepTraceDetection        = llmStep{"trace_detection", traceDetectionPrompt, traceDetectionSchema, 0.3}
+	stepPatternDetection      = llmStep{"pattern_detection", patternDetectionPrompt, patternDetectionSchema, 0.3}
+	stepHypothesis            = llmStep{"hypothesis_generation", hypothesisPrompt, hypothesisSchema, 0.4}
+	stepEvidenceRetrieval     = llmStep{"evidence_retrieval", evidenceRetrievalPrompt, evidenceRetrievalSchema, 0.2}
+	stepInsightWriteup        = llmStep{"insight_writeup", insightWriteupPrompt, insightWriteupSchema, 0.4}
+	stepDedupe                = llmStep{"dedupe", dedupePrompt, dedupeSchema, 0.1}
+)
+
+// pipelineLLMSteps lists every model step the pipeline can run, in the
+// order the pipeline runs them.
+func pipelineLLMSteps() []llmStep {
+	return []llmStep{stepObservationExtraction, stepTraceDetection, stepPatternDetection, stepHypothesis, stepEvidenceRetrieval, stepInsightWriteup, stepDedupe}
+}
+
+func (p *Pipeline) generate(ctx context.Context, step llmStep, messages []llm.Message) (*llm.GenerateResponse, error) {
 	resp, err := p.LLM.Generate(ctx, llm.GenerateRequest{
-		SystemPrompt: observationExtractionPrompt,
-		Messages:     []llm.Message{{Role: "user", Content: chunk}},
-		Schema:       observationExtractionSchema(),
-		Temperature:  0.2,
+		SystemPrompt: step.SystemPrompt, Messages: messages, Schema: step.Schema(), Temperature: step.Temperature,
 	})
+	if err == nil && p.usage != nil {
+		p.usage.Calls++
+		p.usage.PromptTokens += resp.Usage.PromptTokens
+		p.usage.CompletionTokens += resp.Usage.CompletionTokens
+		p.usage.TotalTokens += resp.Usage.TotalTokens
+	}
+	return resp, err
+}
+
+func (p *Pipeline) extractObservations(ctx context.Context, chunk string) (*observationExtractionOutput, error) {
+	resp, err := p.generate(ctx, stepObservationExtraction, []llm.Message{{Role: "user", Content: chunk}})
 	if err != nil {
 		return nil, err
 	}
@@ -516,12 +578,7 @@ func (p *Pipeline) detectTraces(ctx context.Context, obs []*domain.Observation) 
 	if err != nil {
 		return nil, err
 	}
-	resp, err := p.LLM.Generate(ctx, llm.GenerateRequest{
-		SystemPrompt: traceDetectionPrompt,
-		Messages:     []llm.Message{{Role: "user", Content: string(payload)}},
-		Schema:       traceDetectionSchema(),
-		Temperature:  0.3,
-	})
+	resp, err := p.generate(ctx, stepTraceDetection, []llm.Message{{Role: "user", Content: string(payload)}})
 	if err != nil {
 		return nil, err
 	}
@@ -537,12 +594,7 @@ func (p *Pipeline) detectPatterns(ctx context.Context, obs []*domain.Observation
 	if err != nil {
 		return nil, err
 	}
-	resp, err := p.LLM.Generate(ctx, llm.GenerateRequest{
-		SystemPrompt: patternDetectionPrompt,
-		Messages:     []llm.Message{{Role: "user", Content: string(payload)}},
-		Schema:       patternDetectionSchema(),
-		Temperature:  0.3,
-	})
+	resp, err := p.generate(ctx, stepPatternDetection, []llm.Message{{Role: "user", Content: string(payload)}})
 	if err != nil {
 		return nil, err
 	}
@@ -558,12 +610,7 @@ func (p *Pipeline) generateHypotheses(ctx context.Context, patterns []*domain.Pa
 	if err != nil {
 		return nil, err
 	}
-	resp, err := p.LLM.Generate(ctx, llm.GenerateRequest{
-		SystemPrompt: hypothesisPrompt,
-		Messages:     []llm.Message{{Role: "user", Content: string(payload)}},
-		Schema:       hypothesisSchema(),
-		Temperature:  0.4,
-	})
+	resp, err := p.generate(ctx, stepHypothesis, []llm.Message{{Role: "user", Content: string(payload)}})
 	if err != nil {
 		return nil, err
 	}
@@ -585,12 +632,7 @@ func (p *Pipeline) retrieveEvidence(ctx context.Context, h hypothesisCandidate, 
 	if err != nil {
 		return nil, err
 	}
-	resp, err := p.LLM.Generate(ctx, llm.GenerateRequest{
-		SystemPrompt: evidenceRetrievalPrompt,
-		Messages:     []llm.Message{{Role: "user", Content: string(payload)}},
-		Schema:       evidenceRetrievalSchema(),
-		Temperature:  0.2,
-	})
+	resp, err := p.generate(ctx, stepEvidenceRetrieval, []llm.Message{{Role: "user", Content: string(payload)}})
 	if err != nil {
 		return nil, err
 	}
@@ -610,12 +652,7 @@ func (p *Pipeline) writeupInsight(ctx context.Context, h hypothesisCandidate, su
 	if err != nil {
 		return nil, err
 	}
-	resp, err := p.LLM.Generate(ctx, llm.GenerateRequest{
-		SystemPrompt: insightWriteupPrompt,
-		Messages:     []llm.Message{{Role: "user", Content: string(payload)}},
-		Schema:       insightWriteupSchema(),
-		Temperature:  0.4,
-	})
+	resp, err := p.generate(ctx, stepInsightWriteup, []llm.Message{{Role: "user", Content: string(payload)}})
 	if err != nil {
 		return nil, err
 	}
@@ -648,12 +685,7 @@ func (p *Pipeline) dedupeDrafts(ctx context.Context, drafts []draftInsight) (kee
 		return nil, 0, err
 	}
 
-	resp, err := p.LLM.Generate(ctx, llm.GenerateRequest{
-		SystemPrompt: dedupePrompt,
-		Messages:     []llm.Message{{Role: "user", Content: string(payload)}},
-		Schema:       dedupeSchema(),
-		Temperature:  0.1,
-	})
+	resp, err := p.generate(ctx, stepDedupe, []llm.Message{{Role: "user", Content: string(payload)}})
 	if err != nil {
 		return nil, 0, err
 	}

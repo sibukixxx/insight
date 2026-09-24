@@ -356,6 +356,17 @@ Public Report向けPromotion workflowはdomain/service/usecase/HTTP/reportまで
 
 この変更以前は、再解析するとInsightとPatternが全Run分まとめて表示され、`report.md` は全RunのInsightと最新Runのmetricsを組み合わせていました。
 
+### 各Runが記録するもの
+
+2つのRunがなぜ違うのかを後から判断できるよう、各Runは2つのsnapshotを記録します。
+
+- **Execution snapshot**（enqueue時に確定）: engine version、git commitとdirty状態、決定論ルールの版、prompt versionとfingerprint、execution mode、指定されたsemantic analysis mode。model-backedの場合はprovider host、model、clientパラメータも記録します。キュー待ちの間にSettingsが変わっても、Runはこのsnapshotの設定で実行され、変更があったことはsnapshotに記録されます。
+- **Input snapshot**（実行開始時に確定）: 文書ごとのcontent hashとmetadata hash、dataset hashとmanifest、互換性警告。
+
+各snapshotは正準形の `sha256:` fingerprintを持ちます。キーをソートした空白なしJSONで、HTMLエスケープはせず、nullと空コレクションは省きます。input fingerprintは文書IDや順序に依存しないので、同じ証拠なら同じ値になります。input fingerprintが同じでexecution fingerprintが違う2つのRunは、証拠ではなく測定器が違うことを意味します。ただしLLM出力は非決定的なので、差分の原因を自動で帰属することはしません。
+
+snapshotにはAPI key、完全なエンドポイントURL、query stringを含めず、hostだけを残します。snapshot導入前のRunは `not recorded` と表示します。`GET /api/health` は実行中engineのversion、commit、dirty状態を返します。versionは `make build VERSION=v0.9.0` で指定でき、指定がなければgit tagから取り、tagがなければ `UNKNOWN` です。providerが返したtoken使用量はRunごとに `metrics.usage` に集計します。`POST /api/projects/{id}/analysis` のbodyには任意で `label`、`note`、`semanticAnalysisMode` を指定できます。
+
 ## 因果関係について
 
 Insight Labは**因果効果推定器ではありません**。

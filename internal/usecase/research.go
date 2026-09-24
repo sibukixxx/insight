@@ -39,7 +39,7 @@ func (a *Application) CreateResearchRun(ctx context.Context, in CreateResearchRu
 	if strings.TrimSpace(in.Question) == "" {
 		return nil, fmt.Errorf("question is required")
 	}
-	insights, err := a.latestInsights(ctx, in.ProjectID)
+	analysisID, insights, err := a.latestInsights(ctx, in.ProjectID)
 	if err != nil {
 		return nil, err
 	}
@@ -50,6 +50,7 @@ func (a *Application) CreateResearchRun(ctx context.Context, in CreateResearchRu
 	}
 	iteration := service.BuildResearchIteration(1, in.Question, in.InputReferences, insights, now)
 	iteration.AnalysisMode = mode
+	iteration.AnalysisID = analysisID
 	if len(in.InputSnapshot.ArtifactReferences) == 0 {
 		in.InputSnapshot.ArtifactReferences = append([]string(nil), in.InputReferences...)
 	}
@@ -68,7 +69,7 @@ func (a *Application) AppendResearchIteration(ctx context.Context, in AppendRese
 	if err != nil {
 		return nil, err
 	}
-	insights, err := a.latestInsights(ctx, run.ProjectID)
+	analysisID, insights, err := a.latestInsights(ctx, run.ProjectID)
 	if err != nil {
 		return nil, err
 	}
@@ -89,6 +90,7 @@ func (a *Application) AppendResearchIteration(ctx context.Context, in AppendRese
 	}
 	iteration := service.BuildResearchIteration(len(run.Iterations)+1, question, in.InputReferences, insights, now)
 	iteration.AnalysisMode = mode
+	iteration.AnalysisID = analysisID
 	iteration.Claims = append([]domain.ResearchClaim(nil), in.Claims...)
 	snapshot := in.InputSnapshot
 	if len(snapshot.ArtifactReferences) == 0 {
@@ -268,22 +270,24 @@ func (a *Application) GetHumanHandoff(ctx context.Context, runID string) (*domai
 	return &handoff, nil
 }
 
-func (a *Application) latestInsights(ctx context.Context, projectID string) ([]*domain.Insight, error) {
+// latestInsights returns the latest analysis run's ID and insights. A new
+// iteration is only built from a completed latest run.
+func (a *Application) latestInsights(ctx context.Context, projectID string) (string, []*domain.Insight, error) {
 	analysis, err := a.repos.Analyses.LatestByProject(ctx, projectID)
 	if err != nil {
-		return nil, fmt.Errorf("latest analysis: %w", err)
+		return "", nil, fmt.Errorf("latest analysis: %w", err)
 	}
 	if analysis.Status != domain.AnalysisCompleted {
-		return nil, fmt.Errorf("latest analysis has not completed")
+		return "", nil, fmt.Errorf("latest analysis has not completed")
 	}
 	result, err := a.repos.Insights.ListByAnalysis(ctx, analysis.ID)
 	if err != nil {
-		return nil, err
+		return "", nil, err
 	}
 	if len(result) == 0 {
-		return nil, fmt.Errorf("latest analysis has no insights")
+		return "", nil, fmt.Errorf("latest analysis has no insights")
 	}
-	return result, nil
+	return analysis.ID, result, nil
 }
 
 func (a *Application) GetResearchRun(ctx context.Context, id string) (*domain.ResearchRun, error) {

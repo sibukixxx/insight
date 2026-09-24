@@ -19,6 +19,19 @@ const (
 	maxTotalIterations = 10 // hard safety belt against any looping bug above
 )
 
+// Policy is the retry and timeout behavior of the OpenAI-compatible client.
+// Run snapshots record it because it can change which response is kept.
+type Policy struct {
+	StepTimeoutSeconds   int `json:"stepTimeoutSeconds"`
+	MaxValidationRetries int `json:"maxValidationRetries"`
+	MaxTransientRetries  int `json:"maxTransientRetries"`
+}
+
+// OpenAIClientPolicy returns the policy NewOpenAIClient uses.
+func OpenAIClientPolicy() Policy {
+	return Policy{StepTimeoutSeconds: int(stepTimeout / time.Second), MaxValidationRetries: maxValidationRetry, MaxTransientRetries: maxTransientRetry}
+}
+
 type OpenAIClient struct {
 	BaseURL string
 	APIKey  string
@@ -88,9 +101,7 @@ func (c *OpenAIClient) Generate(ctx context.Context, req GenerateRequest) (*Gene
 			}
 			messages = append(messages,
 				Message{Role: "assistant", Content: string(raw)},
-				Message{Role: "user", Content: fmt.Sprintf(
-					"前回の出力はスキーマに適合しませんでした: %v\n%sで指定した形式のJSONのみを、他のテキストを含めずに出力してください。",
-					verr, req.Schema.Name)},
+				Message{Role: "user", Content: fmt.Sprintf(SchemaRetryTemplate, verr, req.Schema.Name)},
 			)
 			continue
 		}
@@ -100,6 +111,17 @@ func (c *OpenAIClient) Generate(ctx context.Context, req GenerateRequest) (*Gene
 
 	return nil, fmt.Errorf("llm: exceeded %d iterations without a valid response", maxTotalIterations)
 }
+
+// JSONObjectFallbackInstruction is appended to the system prompt, followed
+// by the schema, when an endpoint rejects json_schema and the client falls
+// back to json_object mode. It changes what the model is told, so it is part
+// of the prompt fingerprint.
+const JSONObjectFallbackInstruction = "\n\n次のJSON Schemaに厳密に従うJSONオブジェクトのみを出力してください。説明文やコードブロックのマークダウンは含めないでください。\n"
+
+// SchemaRetryTemplate is the user message sent after a response fails schema
+// validation (arguments: validation error, schema name). It is part of the
+// prompt fingerprint for the same reason.
+const SchemaRetryTemplate = "前回の出力はスキーマに適合しませんでした: %v\n%sで指定した形式のJSONのみを、他のテキストを含めずに出力してください。"
 
 func sleepBackoff(ctx context.Context, attempt int) bool {
 	delay := time.Duration(attempt) * 500 * time.Millisecond
@@ -115,7 +137,7 @@ func buildMessages(req GenerateRequest, mode Mode) []Message {
 	system := req.SystemPrompt
 	if mode == ModeJSONObject {
 		schemaJSON, _ := json.MarshalIndent(req.Schema.Schema, "", "  ")
-		system = system + "\n\n次のJSON Schemaに厳密に従うJSONオブジェクトのみを出力してください。説明文やコードブロックのマークダウンは含めないでください。\n" + string(schemaJSON)
+		system = system + JSONObjectFallbackInstruction + string(schemaJSON)
 	}
 	out := make([]Message, 0, len(req.Messages)+1)
 	out = append(out, Message{Role: "system", Content: system})

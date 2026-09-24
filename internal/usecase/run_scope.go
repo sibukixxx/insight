@@ -48,11 +48,14 @@ func (a *Application) ResolveAnalysis(ctx context.Context, projectID, analysisID
 }
 
 // iterationAnalysis resolves the single analysis run that produced an
-// iteration's insights. ok is false when the iteration carries no insight
-// with a recorded analysis (legacy data). Insights from different runs, or
-// from another project, yield ErrMixedAnalysisRuns.
+// iteration's insights: the iteration's recorded AnalysisID, or for legacy
+// iterations the run its insights agree on. ok is false when neither is
+// recorded. Insights from different runs, or from another project, yield
+// ErrMixedAnalysisRuns.
 func (a *Application) iterationAnalysis(ctx context.Context, projectID string, iteration domain.ResearchIteration) (*domain.Analysis, bool, error) {
-	var analysisID string
+	// A recorded AnalysisID is authoritative; InsightIDs must still agree
+	// with it, which guards against a hand-edited or corrupted iteration.
+	analysisID := iteration.AnalysisID
 	for _, id := range iteration.InsightIDs {
 		insight, err := a.repos.Insights.Get(ctx, id)
 		if err != nil {

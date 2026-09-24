@@ -7,5 +7,6 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 		"status":     "ok",
 		"demoBuild":  h.Build.DemoBuild,
 		"clientName": h.Build.ClientName,
+		"engine":     h.Build.Engine,
 	})
 }

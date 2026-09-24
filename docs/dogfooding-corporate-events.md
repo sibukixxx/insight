@@ -39,7 +39,7 @@ curl -F file=@companies.csv \
   http://127.0.0.1:8787/api/projects/PROJECT_ID/documents/import/analysis
 ```
 
-Datasets in the same project whose manifests declare a different unit, population scope, period granularity or schema version surface as `compatibilityWarnings` in the run's provenance and in the `## Run provenance` section of the exported report — a warning, not a silent rejection, since harmonizing populations (Issue #12) is legitimate work that must stay visible.
+Datasets in the same project whose manifests declare a different unit, population scope, period granularity or schema version surface as `compatibilityWarnings` in the run's provenance and in the `## Analysis run` section of the exported report — a warning, not a silent rejection, since harmonizing populations (Issue #12) is legitimate work that must stay visible.
 
 ## Reproducible run
 
@@ -83,7 +83,7 @@ Not established: a municipal policy caused the difference
 Identification: NOT_IDENTIFIED
 ```
 
-Without an LLM configured, the report's `## Run provenance` section instead shows `mode: deterministic`, the dataset file hashes, and the computed delta/rate/baseline/share for each period pair — no hypotheses or narrative.
+Without an LLM configured, the report's `## Analysis run` section instead shows `mode: deterministic`, the dataset file hashes, and the computed delta/rate/baseline/share for each period pair — no hypotheses or narrative.
 
 ## Acceptance checks
 

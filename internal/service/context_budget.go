@@ -7,6 +7,10 @@ import (
 	"insight-lab/internal/domain"
 )
 
+// contextBudgetRuleVersion is recorded in every run's execution snapshot. Bump it
+// whenever context reduction limits or filters change in a way that can change results.
+const contextBudgetRuleVersion = "context-budget/v1"
+
 const defaultContextRuneLimit = 64_000
 
 const (

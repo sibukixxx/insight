@@ -4,6 +4,10 @@ import (
 	"insight-lab/internal/domain"
 )
 
+// confidenceRuleVersion is recorded in every run's execution snapshot. Bump it
+// whenever the confidence formula changes in a way that can change results.
+const confidenceRuleVersion = "confidence/v1"
+
 // ConfidenceInput carries everything the app-side confidence formula
 // needs. The LLM is never asked for a confidence number (see
 // docs/design-review.md P0-2 / design §7): every input here comes from

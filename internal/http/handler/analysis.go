@@ -4,12 +4,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 
 	"insight-lab/internal/domain"
+	"insight-lab/internal/service"
 	"insight-lab/internal/usecase"
 )
 
@@ -26,6 +29,16 @@ type analysisDTO struct {
 	// Metrics is the recorded evaluation summary, including run provenance.
 	// Only a completed run carries it.
 	Metrics json.RawMessage `json:"metrics,omitempty"`
+
+	Label                string `json:"label,omitempty"`
+	Note                 string `json:"note,omitempty"`
+	SemanticAnalysisMode string `json:"semanticAnalysisMode,omitempty"`
+	// ExecutionSnapshot and InputSnapshot are absent for runs recorded before
+	// snapshots existed. A missing snapshot means "not recorded".
+	ExecutionSnapshot    json.RawMessage `json:"executionSnapshot,omitempty"`
+	InputSnapshot        json.RawMessage `json:"inputSnapshot,omitempty"`
+	ExecutionFingerprint string          `json:"executionFingerprint,omitempty"`
+	InputFingerprint     string          `json:"inputFingerprint,omitempty"`
 }
 
 func toAnalysisDTO(a *domain.Analysis) analysisDTO {
@@ -45,6 +58,14 @@ func toAnalysisDTO(a *domain.Analysis) analysisDTO {
 	if a.Status == domain.AnalysisCompleted && json.Valid([]byte(a.Metrics)) {
 		dto.Metrics = json.RawMessage(a.Metrics)
 	}
+	dto.Label, dto.Note, dto.SemanticAnalysisMode = a.Label, a.Note, string(a.SemanticAnalysisMode)
+	if json.Valid([]byte(a.ExecutionSnapshot)) {
+		dto.ExecutionSnapshot = json.RawMessage(a.ExecutionSnapshot)
+	}
+	if json.Valid([]byte(a.InputSnapshot)) {
+		dto.InputSnapshot = json.RawMessage(a.InputSnapshot)
+	}
+	dto.ExecutionFingerprint, dto.InputFingerprint = a.ExecutionFingerprint, a.InputFingerprint
 	return dto
 }
 
@@ -53,7 +74,25 @@ func (h *Handler) CreateAnalysis(w http.ResponseWriter, r *http.Request) {
 	if !h.requireProject(w, r, projectID) {
 		return
 	}
-	a, err := h.JobManager.Enqueue(r.Context(), projectID)
+	// The body is optional; an empty request starts an unlabelled run.
+	var req struct {
+		Label                string              `json:"label"`
+		Note                 string              `json:"note"`
+		SemanticAnalysisMode domain.AnalysisMode `json:"semanticAnalysisMode"`
+	}
+	if r.ContentLength != 0 {
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil && !errors.Is(err, io.EOF) {
+			writeError(w, http.StatusBadRequest, "invalid request body")
+			return
+		}
+	}
+	if req.SemanticAnalysisMode != "" && !req.SemanticAnalysisMode.Valid() {
+		writeError(w, http.StatusBadRequest, fmt.Sprintf("invalid semanticAnalysisMode %q", req.SemanticAnalysisMode))
+		return
+	}
+	a, err := h.JobManager.Enqueue(r.Context(), service.EnqueueRequest{
+		ProjectID: projectID, Label: strings.TrimSpace(req.Label), Note: strings.TrimSpace(req.Note), SemanticAnalysisMode: req.SemanticAnalysisMode,
+	})
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return

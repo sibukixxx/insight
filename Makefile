@@ -2,17 +2,24 @@ BINARY  := insight-lab
 PKG     := ./cmd/insight-lab
 BINDIR  := bin
 
+# Release version recorded in every analysis run's execution snapshot. It
+# comes from a git tag (override with `make build VERSION=v0.9.0`). Without a
+# tag it stays empty and the engine reports UNKNOWN; the commit and dirty
+# state are still read from the Go build's VCS metadata.
+VERSION ?= $(shell git describe --tags --dirty 2>/dev/null)
+LDFLAGS := $(if $(VERSION),-X insight-lab/internal/buildinfo.Version=$(VERSION))
+
 .PHONY: build build-demo build-delivery test test-golden vet clean cross-compile cross-compile-demo cross-compile-delivery eval-demo
 
 build: build-delivery
 
 # 顧客への納品用ビルド。デモデータは一切コンパイルされない（internal/sampledata/embed_delivery.go）。
 build-delivery:
-	go build -o $(BINDIR)/$(BINARY) $(PKG)
+	go build -ldflags "$(LDFLAGS)" -o $(BINDIR)/$(BINARY) $(PKG)
 
 # 商談デモ用ビルド。サンプルインタビューデータを埋め込む（internal/sampledata/embed_demo.go）。
 build-demo:
-	go build -tags demo -o $(BINDIR)/$(BINARY)-demo $(PKG)
+	go build -ldflags "$(LDFLAGS)" -tags demo -o $(BINDIR)/$(BINARY)-demo $(PKG)
 
 test:
 	go test ./...
@@ -37,13 +44,13 @@ eval-demo:
 cross-compile: cross-compile-demo cross-compile-delivery
 
 cross-compile-delivery:
-	CGO_ENABLED=0 GOOS=darwin  GOARCH=arm64 go build -o $(BINDIR)/$(BINARY)-darwin-arm64        $(PKG)
-	CGO_ENABLED=0 GOOS=darwin  GOARCH=amd64 go build -o $(BINDIR)/$(BINARY)-darwin-amd64        $(PKG)
-	CGO_ENABLED=0 GOOS=linux   GOARCH=amd64 go build -o $(BINDIR)/$(BINARY)-linux-amd64         $(PKG)
-	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o $(BINDIR)/$(BINARY)-windows-amd64.exe   $(PKG)
+	CGO_ENABLED=0 GOOS=darwin  GOARCH=arm64 go build -ldflags "$(LDFLAGS)" -o $(BINDIR)/$(BINARY)-darwin-arm64        $(PKG)
+	CGO_ENABLED=0 GOOS=darwin  GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o $(BINDIR)/$(BINARY)-darwin-amd64        $(PKG)
+	CGO_ENABLED=0 GOOS=linux   GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o $(BINDIR)/$(BINARY)-linux-amd64         $(PKG)
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o $(BINDIR)/$(BINARY)-windows-amd64.exe   $(PKG)
 
 cross-compile-demo:
-	CGO_ENABLED=0 GOOS=darwin  GOARCH=arm64 go build -tags demo -o $(BINDIR)/$(BINARY)-demo-darwin-arm64      $(PKG)
-	CGO_ENABLED=0 GOOS=darwin  GOARCH=amd64 go build -tags demo -o $(BINDIR)/$(BINARY)-demo-darwin-amd64      $(PKG)
-	CGO_ENABLED=0 GOOS=linux   GOARCH=amd64 go build -tags demo -o $(BINDIR)/$(BINARY)-demo-linux-amd64       $(PKG)
-	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -tags demo -o $(BINDIR)/$(BINARY)-demo-windows-amd64.exe $(PKG)
+	CGO_ENABLED=0 GOOS=darwin  GOARCH=arm64 go build -ldflags "$(LDFLAGS)" -tags demo -o $(BINDIR)/$(BINARY)-demo-darwin-arm64      $(PKG)
+	CGO_ENABLED=0 GOOS=darwin  GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -tags demo -o $(BINDIR)/$(BINARY)-demo-darwin-amd64      $(PKG)
+	CGO_ENABLED=0 GOOS=linux   GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -tags demo -o $(BINDIR)/$(BINARY)-demo-linux-amd64       $(PKG)
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -tags demo -o $(BINDIR)/$(BINARY)-demo-windows-amd64.exe $(PKG)
