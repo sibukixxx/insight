@@ -2,7 +2,7 @@ package usecase
 
 import (
 	"context"
-	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -11,12 +11,17 @@ import (
 	"insight-lab/internal/service"
 )
 
-// ProjectReport is a portable, human-readable snapshot of the latest
-// analysis. Keeping report assembly in the use-case layer lets HTTP remain a
-// delivery concern and makes future PDF/export adapters reuse the same data.
+// ProjectReport is a portable, human-readable snapshot of exactly one
+// analysis run. Insights, metrics and provenance all come from Analysis, so
+// a report never blends runs. Keeping report assembly in the use-case layer
+// lets HTTP remain a delivery concern and makes future PDF/export adapters
+// reuse the same data.
 type ProjectReport struct {
-	Project          *domain.Project
-	Documents        map[string]*domain.Document
+	Project   *domain.Project
+	Documents map[string]*domain.Document
+	// Analysis is the run the report is bound to, or nil when the project
+	// has no completed run yet.
+	Analysis         *domain.Analysis
 	Insights         []*InsightDetail
 	Metrics          *service.Metrics
 	GeneratedAt      time.Time
@@ -24,37 +29,62 @@ type ProjectReport struct {
 	HumanEvaluations map[string]*domain.HumanEvaluation
 }
 
-func (a *Application) ExportProjectMarkdown(ctx context.Context, projectID string) ([]byte, error) {
-	report, err := a.buildProjectReport(ctx, projectID)
+// ExportProjectMarkdown renders the report of one analysis run. An empty
+// analysisID selects the latest completed run (see ResolveAnalysis).
+func (a *Application) ExportProjectMarkdown(ctx context.Context, projectID, analysisID string) ([]byte, error) {
+	analysis, err := a.ResolveAnalysis(ctx, projectID, analysisID)
+	if errors.Is(err, ErrNoCompletedAnalysis) {
+		analysis, err = nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	var insights []*domain.Insight
+	if analysis != nil {
+		if insights, err = a.repos.Insights.ListByAnalysis(ctx, analysis.ID); err != nil {
+			return nil, fmt.Errorf("list report insights: %w", err)
+		}
+	}
+	report, err := a.buildProjectReport(ctx, projectID, analysis, insights)
 	if err != nil {
 		return nil, err
 	}
 	return renderProjectMarkdown(report), nil
 }
 
+// ExportResearchMarkdown renders a research run bound to the analysis run
+// that produced its latest iteration, the same run GetResearchArtifact
+// exports. A newer project analysis therefore never changes the report of an
+// existing iteration, and an iteration whose insights span runs fails closed
+// with ErrMixedAnalysisRuns.
 func (a *Application) ExportResearchMarkdown(ctx context.Context, runID string) ([]byte, error) {
 	run, err := a.repos.Research.GetResearchRun(ctx, runID)
 	if err != nil {
 		return nil, err
 	}
-	report, err := a.buildProjectReport(ctx, run.ProjectID)
+	var analysis *domain.Analysis
+	var insights []*domain.Insight
+	if iteration, ok := run.LatestIteration(); ok {
+		resolved, bound, err := a.iterationAnalysis(ctx, run.ProjectID, iteration)
+		if err != nil {
+			return nil, err
+		}
+		if bound {
+			analysis = resolved
+		}
+		for _, id := range iteration.InsightIDs {
+			insight, err := a.repos.Insights.Get(ctx, id)
+			if err != nil {
+				return nil, fmt.Errorf("resolve research report insight %s: %w", id, err)
+			}
+			insights = append(insights, insight)
+		}
+	}
+	report, err := a.buildProjectReport(ctx, run.ProjectID, analysis, insights)
 	if err != nil {
 		return nil, err
 	}
 	report.ResearchRun = run
-	referenced := map[string]bool{}
-	for _, iteration := range run.Iterations {
-		for _, id := range iteration.InsightIDs {
-			referenced[id] = true
-		}
-	}
-	filtered := report.Insights[:0]
-	for _, detail := range report.Insights {
-		if referenced[detail.Insight.ID] {
-			filtered = append(filtered, detail)
-		}
-	}
-	report.Insights = filtered
 	report.HumanEvaluations = map[string]*domain.HumanEvaluation{}
 	for _, iteration := range run.Iterations {
 		if evaluation, err := a.repos.Research.GetHumanEvaluation(ctx, run.ID, iteration.ID); err == nil {
@@ -64,7 +94,10 @@ func (a *Application) ExportResearchMarkdown(ctx context.Context, runID string) 
 	return renderProjectMarkdown(report), nil
 }
 
-func (a *Application) buildProjectReport(ctx context.Context, projectID string) (ProjectReport, error) {
+// buildProjectReport assembles a report bound to analysis. The caller has
+// already selected insights from that same run; metrics and provenance are
+// read from it too, and are left nil unless the run completed.
+func (a *Application) buildProjectReport(ctx context.Context, projectID string, analysis *domain.Analysis, insights []*domain.Insight) (ProjectReport, error) {
 	project, err := a.repos.Projects.Get(ctx, projectID)
 	if err != nil {
 		return ProjectReport{}, err
@@ -72,10 +105,6 @@ func (a *Application) buildProjectReport(ctx context.Context, projectID string) 
 	documents, err := a.repos.Documents.ListByProject(ctx, projectID)
 	if err != nil {
 		return ProjectReport{}, fmt.Errorf("list report documents: %w", err)
-	}
-	insights, err := a.repos.Insights.ListByProject(ctx, projectID)
-	if err != nil {
-		return ProjectReport{}, fmt.Errorf("list report insights: %w", err)
 	}
 
 	details := make([]*InsightDetail, 0, len(insights))
@@ -88,11 +117,8 @@ func (a *Application) buildProjectReport(ctx context.Context, projectID string) 
 	}
 
 	var metrics *service.Metrics
-	if analysis, err := a.repos.Analyses.LatestByProject(ctx, projectID); err == nil && analysis.Metrics != "" {
-		var parsed service.Metrics
-		if json.Unmarshal([]byte(analysis.Metrics), &parsed) == nil {
-			metrics = &parsed
-		}
+	if parsed, ok := completedMetrics(analysis); ok {
+		metrics = &parsed
 	}
 	documentIndex := make(map[string]*domain.Document, len(documents))
 	for _, document := range documents {
@@ -100,7 +126,7 @@ func (a *Application) buildProjectReport(ctx context.Context, projectID string) 
 	}
 
 	return ProjectReport{
-		Project: project, Documents: documentIndex, Insights: details,
+		Project: project, Documents: documentIndex, Analysis: analysis, Insights: details,
 		Metrics: metrics, GeneratedAt: a.now(),
 	}, nil
 }
@@ -111,6 +137,7 @@ func renderProjectMarkdown(report ProjectReport) []byte {
 	fmt.Fprintf(&b, "Generated: %s  \n", report.GeneratedAt.UTC().Format(time.RFC3339))
 	fmt.Fprintf(&b, "Insights: %d\n\n", len(report.Insights))
 
+	writeAnalysisRun(&b, report.Analysis, report.Metrics)
 	if report.Metrics != nil {
 		m := report.Metrics
 		b.WriteString("## Quality summary\n\n")
@@ -118,7 +145,6 @@ func renderProjectMarkdown(report ProjectReport) []byte {
 		fmt.Fprintf(&b, "- Trace-backed Insights: %.0f%%\n", m.TraceBackedInsightRate*100)
 		fmt.Fprintf(&b, "- Quality Flagged: %.0f%%\n", m.QualityFlaggedInsightRate*100)
 		fmt.Fprintf(&b, "- Source-verified observations: %d / %d\n\n", m.GroundedObservations, m.TotalObservationCandidates)
-		writeRunProvenance(&b, m.Provenance)
 	}
 
 	writeResearchLoop(&b, report)
@@ -195,25 +221,37 @@ func renderProjectMarkdown(report ProjectReport) []byte {
 	return []byte(b.String())
 }
 
-// writeRunProvenance renders the reproducibility trail from Issue #16: the
-// mode (deterministic vs model-backed), rule/model/prompt versions, the
-// dataset files a run drew from, and any comparability warnings between
-// them. An empty RuleVersion means the analysis predates this field or
-// carries no dataset provenance at all, so the whole section is omitted
-// rather than printing a misleading empty heading.
-func writeRunProvenance(b *strings.Builder, prov service.RunProvenance) {
-	if prov.RuleVersion == "" {
+// notRecorded is printed for a provenance value the run never stored, so a
+// legacy run is never mistaken for one with an empty or default value.
+const notRecorded = "not recorded"
+
+// writeAnalysisRun renders which analysis run the whole report is bound to,
+// then the reproducibility trail from Issue #16: execution mode, model,
+// prompt and rule versions, the dataset files the run drew from, and any
+// comparability warnings. The section is always present; values the run did
+// not record are printed as "not recorded" instead of disappearing.
+func writeAnalysisRun(b *strings.Builder, analysis *domain.Analysis, metrics *service.Metrics) {
+	b.WriteString("## Analysis run\n\n")
+	if analysis == nil {
+		b.WriteString("No completed analysis run is available. Nothing in this report is bound to a run.\n\n")
 		return
 	}
-	b.WriteString("## Run provenance\n\n")
-	fmt.Fprintf(b, "- Mode: `%s`\n", prov.Mode)
-	if prov.Model != "" {
-		fmt.Fprintf(b, "- Model: %s\n", markdownInline(prov.Model))
+	fmt.Fprintf(b, "- Analysis ID: `%s`\n", analysis.ID)
+	fmt.Fprintf(b, "- Status: `%s`\n", analysis.Status)
+	if analysis.Error != "" {
+		fmt.Fprintf(b, "- Error: %s\n", markdownInline(analysis.Error))
 	}
-	if prov.PromptFingerprint != "" {
-		fmt.Fprintf(b, "- Prompt fingerprint: `%s`\n", prov.PromptFingerprint)
+	fmt.Fprintf(b, "- Started: %s\n", reportTime(analysis.StartedAt))
+	fmt.Fprintf(b, "- Finished: %s\n", reportTime(analysis.FinishedAt))
+
+	var prov service.RunProvenance
+	if metrics != nil {
+		prov = metrics.Provenance
 	}
-	fmt.Fprintf(b, "- Rule version: `%s`\n", prov.RuleVersion)
+	fmt.Fprintf(b, "- Mode: %s\n", codeOrNotRecorded(string(prov.Mode)))
+	fmt.Fprintf(b, "- Model: %s\n", modelScopedValue(prov.Mode, markdownInline(prov.Model)))
+	fmt.Fprintf(b, "- Prompt fingerprint: %s\n", modelScopedValue(prov.Mode, codeOrEmpty(prov.PromptFingerprint)))
+	fmt.Fprintf(b, "- Rule version: %s\n\n", codeOrNotRecorded(prov.RuleVersion))
 	writeStringList(b, "Dataset file hashes", prov.DatasetHashes)
 
 	for _, d := range prov.Datasets {
@@ -242,6 +280,39 @@ func writeRunProvenance(b *strings.Builder, prov service.RunProvenance) {
 		b.WriteByte('\n')
 	}
 	writeStringList(b, "Pre-analysis notes", prov.Notes)
+}
+
+func reportTime(t *time.Time) string {
+	if t == nil {
+		return notRecorded
+	}
+	return t.UTC().Format(time.RFC3339)
+}
+
+func codeOrEmpty(value string) string {
+	if value == "" {
+		return ""
+	}
+	return "`" + value + "`"
+}
+
+func codeOrNotRecorded(value string) string {
+	if value == "" {
+		return notRecorded
+	}
+	return "`" + value + "`"
+}
+
+// modelScopedValue prints a model-related value. A deterministic run used no
+// model, which is a recorded fact, not a missing value.
+func modelScopedValue(mode service.ExecutionMode, value string) string {
+	switch {
+	case value != "":
+		return value
+	case mode == service.ExecutionModeDeterministic:
+		return "none (deterministic run)"
+	}
+	return notRecorded
 }
 
 // reportStage is the stage findings in this report must be labelled against.

@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -190,22 +189,6 @@ func (a *Application) GetResearchArtifact(ctx context.Context, runID string) (*R
 	return artifact, nil
 }
 
-// latestRunProvenance decodes the RunProvenance recorded on the project's
-// latest analysis. ok is false when there is no completed analysis or it
-// predates provenance tracking, so callers leave those fields empty rather
-// than exporting zero values that look like a deterministic-only run.
-func (a *Application) latestRunProvenance(ctx context.Context, projectID string) (service.RunProvenance, bool) {
-	analysis, err := a.repos.Analyses.LatestByProject(ctx, projectID)
-	if err != nil || analysis.Metrics == "" {
-		return service.RunProvenance{}, false
-	}
-	var metrics service.Metrics
-	if err := json.Unmarshal([]byte(analysis.Metrics), &metrics); err != nil || metrics.Provenance.RuleVersion == "" && metrics.Provenance.Mode == "" {
-		return service.RunProvenance{}, false
-	}
-	return metrics.Provenance, true
-}
-
 func (a *Application) artifactInsights(ctx context.Context, insightIDs []string) ([]ArtifactInsight, error) {
 	out := make([]ArtifactInsight, 0, len(insightIDs))
 	for _, id := range insightIDs {
@@ -250,32 +233,4 @@ func (a *Application) GetApprovedResearchArtifact(ctx context.Context, runID str
 		return nil, fmt.Errorf("latest iteration has no approved research artifact")
 	}
 	return iteration.ApprovedArtifact, nil
-}
-
-// iterationMetrics binds provenance to the analysis that produced this iteration's
-// insights. A later project analysis must never silently change an older report.
-func (a *Application) iterationMetrics(ctx context.Context, projectID string, iteration domain.ResearchIteration) (service.Metrics, bool) {
-	var analysisID string
-	for _, id := range iteration.InsightIDs {
-		insight, err := a.repos.Insights.Get(ctx, id)
-		if err != nil || insight.ProjectID != projectID || insight.AnalysisID == nil || *insight.AnalysisID == "" {
-			return service.Metrics{}, false
-		}
-		if analysisID != "" && analysisID != *insight.AnalysisID {
-			return service.Metrics{}, false
-		}
-		analysisID = *insight.AnalysisID
-	}
-	if analysisID == "" {
-		return service.Metrics{}, false
-	}
-	analysis, err := a.repos.Analyses.Get(ctx, analysisID)
-	if err != nil || analysis.ProjectID != projectID || analysis.Status != domain.AnalysisCompleted {
-		return service.Metrics{}, false
-	}
-	var metrics service.Metrics
-	if json.Unmarshal([]byte(analysis.Metrics), &metrics) != nil {
-		return service.Metrics{}, false
-	}
-	return metrics, true
 }

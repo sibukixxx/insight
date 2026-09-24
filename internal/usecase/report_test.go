@@ -81,7 +81,8 @@ func TestRenderProjectMarkdownComparesHypothesisSet(t *testing.T) {
 func TestRenderProjectMarkdownShowsRunProvenance(t *testing.T) {
 	retrievedAt := time.Date(2026, 9, 1, 9, 0, 0, 0, time.UTC)
 	report := ProjectReport{
-		Project: &domain.Project{Name: "Dataset run"},
+		Project:  &domain.Project{Name: "Dataset run"},
+		Analysis: &domain.Analysis{ID: "ana_dataset", Status: domain.AnalysisCompleted},
 		Metrics: &service.Metrics{
 			Provenance: service.RunProvenance{
 				Mode: service.ExecutionModeModelBacked, Model: "gpt-x", PromptFingerprint: "abc123",
@@ -103,7 +104,7 @@ func TestRenderProjectMarkdownShowsRunProvenance(t *testing.T) {
 
 	got := string(renderProjectMarkdown(report))
 	for _, want := range []string{
-		"## Run provenance",
+		"## Analysis run", "Analysis ID: `ana_dataset`",
 		"model_backed", "gpt-x", "abc123", "dataset-preanalysis/v1",
 		"hash_a", "hash\\_b",
 		"e-Stat", "000032143614", "download", "estat-economic-census-enterprise", "2021", "recipes/estat-economic-census.md",
@@ -116,12 +117,17 @@ func TestRenderProjectMarkdownShowsRunProvenance(t *testing.T) {
 	}
 }
 
-func TestRenderProjectMarkdownOmitsRunProvenanceWhenAbsent(t *testing.T) {
+func TestRenderProjectMarkdownStatesThatNoRunIsBoundWhenNoAnalysisCompleted(t *testing.T) {
 	got := string(renderProjectMarkdown(ProjectReport{
 		Project: &domain.Project{Name: "No metrics"}, GeneratedAt: time.Unix(0, 0),
 	}))
-	if strings.Contains(got, "## Run provenance") {
-		t.Errorf("a report with no metrics must not claim any provenance: %s", got)
+	if !strings.Contains(got, "No completed analysis run is available") {
+		t.Errorf("a report without a run must say so: %s", got)
+	}
+	for _, claim := range []string{"Analysis ID:", "Mode:", "Rule version:", "## Quality summary"} {
+		if strings.Contains(got, claim) {
+			t.Errorf("a report with no run must not claim %q: %s", claim, got)
+		}
 	}
 }
 

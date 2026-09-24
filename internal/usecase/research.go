@@ -276,15 +276,9 @@ func (a *Application) latestInsights(ctx context.Context, projectID string) ([]*
 	if analysis.Status != domain.AnalysisCompleted {
 		return nil, fmt.Errorf("latest analysis has not completed")
 	}
-	all, err := a.repos.Insights.ListByProject(ctx, projectID)
+	result, err := a.repos.Insights.ListByAnalysis(ctx, analysis.ID)
 	if err != nil {
 		return nil, err
-	}
-	result := make([]*domain.Insight, 0, len(all))
-	for _, insight := range all {
-		if insight.AnalysisID != nil && *insight.AnalysisID == analysis.ID {
-			result = append(result, insight)
-		}
 	}
 	if len(result) == 0 {
 		return nil, fmt.Errorf("latest analysis has no insights")

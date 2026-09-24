@@ -11,13 +11,9 @@ import (
 
 func (h *Handler) ExportProjectReport(w http.ResponseWriter, r *http.Request) {
 	projectID := chi.URLParam(r, "projectID")
-	report, err := h.App.ExportProjectMarkdown(r.Context(), projectID)
+	report, err := h.App.ExportProjectMarkdown(r.Context(), projectID, analysisIDParam(r))
 	if err != nil {
-		if errors.Is(err, usecase.ErrNotFound) {
-			writeError(w, http.StatusNotFound, "project not found")
-			return
-		}
-		writeError(w, http.StatusInternalServerError, err.Error())
+		writeRunScopeError(w, err)
 		return
 	}
 	w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
@@ -30,8 +26,11 @@ func (h *Handler) ExportResearchReport(w http.ResponseWriter, r *http.Request) {
 	report, err := h.App.ExportResearchMarkdown(r.Context(), chi.URLParam(r, "runID"))
 	if err != nil {
 		status := http.StatusInternalServerError
-		if errors.Is(err, usecase.ErrNotFound) {
+		switch {
+		case errors.Is(err, usecase.ErrNotFound):
 			status = http.StatusNotFound
+		case errors.Is(err, usecase.ErrMixedAnalysisRuns):
+			status = http.StatusConflict
 		}
 		writeError(w, status, err.Error())
 		return
