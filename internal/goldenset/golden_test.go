@@ -280,7 +280,6 @@ func TestGoldenValidInconclusiveKeepsBothHypothesesOpen(t *testing.T) {
 	}
 }
 
-
 // TestGoldenPolishedButUnsupportedCannotReachPublicationReady connects the
 // Golden Set to the Public Report Promotion Gate (#24). A plausible,
 // publication-shaped narrative is not enough: mechanically verifiable
@@ -325,19 +324,19 @@ func TestGoldenPolishedButUnsupportedCannotReachPublicationReady(t *testing.T) {
 // promotion assessment is allowed to manufacture it.
 func TestGoldenHumanReviewRemainsExternalInput(t *testing.T) {
 	evaluation := domain.HumanEvaluation{
-		ResearchRunID:        "run-golden-human",
-		IterationID:          "iter-golden-human",
-		ObservationGrounding: 5,
-		SurpriseUsefulness:    4,
-		HypothesisDiversity:   4,
+		ResearchRunID:          "run-golden-human",
+		IterationID:            "iter-golden-human",
+		ObservationGrounding:   5,
+		SurpriseUsefulness:     4,
+		HypothesisDiversity:    4,
 		CounterEvidenceQuality: 4,
 		MissingEvidenceQuality: 5,
 		IdentificationHonesty:  5,
-		NextDataUsefulness:      4,
-		Novelty:                 domain.NoveltyPartiallyNew,
-		OverallUsefulness:       4,
-		Notes:                   "human-supplied golden review",
-		EvaluatedAt:             time.Date(2026, 9, 20, 0, 0, 0, 0, time.UTC),
+		NextDataUsefulness:     4,
+		Novelty:                domain.NoveltyPartiallyNew,
+		OverallUsefulness:      4,
+		Notes:                  "human-supplied golden review",
+		EvaluatedAt:            time.Date(2026, 9, 20, 0, 0, 0, 0, time.UTC),
 	}
 	if evaluation.Novelty != domain.NoveltyPartiallyNew || evaluation.OverallUsefulness != 4 {
 		t.Fatalf("human review outcome must be preserved exactly: %+v", evaluation)

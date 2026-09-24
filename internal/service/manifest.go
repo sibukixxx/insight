@@ -24,27 +24,27 @@ import (
 // credential-looking query parameters so an exporter cannot smuggle an
 // API key into project metadata by accident.
 type AcquisitionManifest struct {
-	SourceName          string            `json:"sourceName"`
-	SourceURL           string            `json:"sourceUrl,omitempty"`
-	DatasetID           string            `json:"datasetId"` // dataset / table / stat identifier at the source
-	RetrievalMethod     RetrievalMethod   `json:"retrievalMethod"`
-	RetrievedAt         time.Time         `json:"retrievedAt"`
-	QueryParameters     map[string]string `json:"queryParameters,omitempty"`
-	Geography           string            `json:"geography,omitempty"`
-	Period              string            `json:"period,omitempty"`
-	Unit                string            `json:"unit,omitempty"`
-	PopulationScope     string            `json:"populationScope,omitempty"` // population / denominator the counts refer to
+	SourceName      string            `json:"sourceName"`
+	SourceURL       string            `json:"sourceUrl,omitempty"`
+	DatasetID       string            `json:"datasetId"` // dataset / table / stat identifier at the source
+	RetrievalMethod RetrievalMethod   `json:"retrievalMethod"`
+	RetrievedAt     time.Time         `json:"retrievedAt"`
+	QueryParameters map[string]string `json:"queryParameters,omitempty"`
+	Geography       string            `json:"geography,omitempty"`
+	Period          string            `json:"period,omitempty"`
+	Unit            string            `json:"unit,omitempty"`
+	PopulationScope string            `json:"populationScope,omitempty"` // population / denominator the counts refer to
 	// PopulationDefinitionID is a stable identifier of the population
 	// definition. When two manifests both carry one, it decides
 	// comparability instead of the free-text PopulationScope, so a documented
 	// harmonization can share a definition across differently worded sources.
-	PopulationDefinitionID string `json:"populationDefinitionId,omitempty"`
-	KnownCaveats        []string          `json:"knownCaveats,omitempty"`
-	TransformationSteps []string          `json:"transformationSteps,omitempty"`
-	FileHash            string            `json:"fileHash,omitempty"` // sha256 hex of the imported file; filled in by the importer
-	SchemaID            string            `json:"schemaId"`
-	SchemaVersion       string            `json:"schemaVersion,omitempty"`
-	RecipeRef           string            `json:"recipeRef,omitempty"` // pointer to the acquisition recipe (script, doc, adapter version)
+	PopulationDefinitionID string   `json:"populationDefinitionId,omitempty"`
+	KnownCaveats           []string `json:"knownCaveats,omitempty"`
+	TransformationSteps    []string `json:"transformationSteps,omitempty"`
+	FileHash               string   `json:"fileHash,omitempty"` // sha256 hex of the imported file; filled in by the importer
+	SchemaID               string   `json:"schemaId"`
+	SchemaVersion          string   `json:"schemaVersion,omitempty"`
+	RecipeRef              string   `json:"recipeRef,omitempty"` // pointer to the acquisition recipe (script, doc, adapter version)
 }
 
 type RetrievalMethod string

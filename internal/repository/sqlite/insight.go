@@ -40,14 +40,14 @@ func (r *InsightRepository) Create(ctx context.Context, insight *domain.Insight)
 		return err
 	}
 	contextJSON, err := json.Marshal(causalContext{
-		CompetingHypotheses: insight.CompetingHypotheses,
-		CausalStructure: insight.CausalStructure,
-		MissingEvidence: insight.MissingEvidence,
+		CompetingHypotheses:   insight.CompetingHypotheses,
+		CausalStructure:       insight.CausalStructure,
+		MissingEvidence:       insight.MissingEvidence,
 		FalsificationCriteria: insight.FalsificationCriteria,
-		NextValidation: insight.NextValidation,
-		Connection: insight.Connection,
-		Mechanism: insight.Mechanism,
-		Generalization: insight.Generalization,
+		NextValidation:        insight.NextValidation,
+		Connection:            insight.Connection,
+		Mechanism:             insight.Mechanism,
+		Generalization:        insight.Generalization,
 	})
 	if err != nil {
 		return fmt.Errorf("encode causal context: %w", err)

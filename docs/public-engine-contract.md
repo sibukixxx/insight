@@ -156,3 +156,14 @@ The request body is at most 16 MiB. A request carries at most 500 documents and 
 - Scheduler or orchestration.
 - Authentication for multi-tenant deployment. The server binds to localhost by default and rejects cross-origin browser requests.
 - Streaming progress. Both SDKs poll.
+
+### Running model-backed fixtures outside this repository
+
+`cmd/insight-scripted-llm` serves a deterministic, grounded, OpenAI-compatible `/chat/completions` endpoint (the same scripted model the in-repo conformance test uses). It is a test tool, never a model:
+
+```sh
+go run ./cmd/insight-scripted-llm -addr 127.0.0.1:8788 &
+go run ./cmd/insight-lab -port 8787 -base-url http://127.0.0.1:8788 -model scripted -api-key scripted -no-browser
+```
+
+Standalone SDK repositories point `INSIGHT_MODEL_BACKED_URL` at that engine to run fixtures whose `engine` is `model_backed`.

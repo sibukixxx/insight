@@ -8,11 +8,11 @@ import (
 func TestValidationEvidenceProvenanceRejectsSameIterationEvidence(t *testing.T) {
 	expectation := Expectation{ID: "exp-1", FrozenForValidation: true}
 	v := ValidationEvidenceProvenance{
-		ExpectationID: "exp-1",
-		EvidenceReference: "dataset-b",
-		SourceIterationID: "it-2",
+		ExpectationID:         "exp-1",
+		EvidenceReference:     "dataset-b",
+		SourceIterationID:     "it-2",
 		IndependenceRationale: "held out from exploratory iteration",
-		RecordedAt: time.Now(),
+		RecordedAt:            time.Now(),
 	}
 	if err := v.Validate("it-2", []Expectation{expectation}); err == nil {
 		t.Fatal("same-iteration evidence must not be accepted as independent")
@@ -21,9 +21,9 @@ func TestValidationEvidenceProvenanceRejectsSameIterationEvidence(t *testing.T) 
 
 func TestValidationEvidenceProvenanceRequiresFrozenExpectation(t *testing.T) {
 	v := ValidationEvidenceProvenance{
-		ExpectationID: "exp-1",
-		EvidenceReference: "dataset-b",
-		SourceIterationID: "it-1",
+		ExpectationID:         "exp-1",
+		EvidenceReference:     "dataset-b",
+		SourceIterationID:     "it-1",
 		IndependenceRationale: "collected before validation",
 	}
 	if err := v.Validate("it-2", []Expectation{{ID: "exp-1"}}); err == nil {
@@ -33,10 +33,10 @@ func TestValidationEvidenceProvenanceRequiresFrozenExpectation(t *testing.T) {
 
 func TestValidationEvidenceProvenanceAcceptsIndependentFrozenTarget(t *testing.T) {
 	v := ValidationEvidenceProvenance{
-		ExpectationID: "exp-1",
-		EvidenceReference: "dataset-b",
-		SourceIterationID: "it-1",
-		DatasetReference: "holdout.csv",
+		ExpectationID:         "exp-1",
+		EvidenceReference:     "dataset-b",
+		SourceIterationID:     "it-1",
+		DatasetReference:      "holdout.csv",
 		IndependenceRationale: "not used to generate the expectation",
 	}
 	if err := v.Validate("it-2", []Expectation{{ID: "exp-1", FrozenForValidation: true}}); err != nil {

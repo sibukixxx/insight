@@ -38,7 +38,7 @@ func TestCarryForwardResearchGapsWithLinksResolvesOnlyTargetedGap(t *testing.T) 
 
 func TestCarryForwardResearchGapsWithLinksDoesNotResolveUnknownGap(t *testing.T) {
 	previous := domain.ResearchIteration{
-		ID: "it-1",
+		ID:           "it-1",
 		ResearchGaps: []domain.ResearchGap{{ID: "gap-a", Need: "comparison series", Resolvable: true}},
 	}
 	got := CarryForwardResearchGapsWithLinks(previous, domain.ResearchIteration{ID: "it-2"}, []string{"other.csv"}, []domain.AddedEvidenceLink{

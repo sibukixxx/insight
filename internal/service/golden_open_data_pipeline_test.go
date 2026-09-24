@@ -42,14 +42,14 @@ func TestGoldenRealOpenDataRunsThroughDeterministicPipeline(t *testing.T) {
 			continue
 		}
 		selected = append(selected, selectedRow{
-			metricID: metric,
-			period: row[header["period"]],
-			value: row[header["value"]],
-			populationScope: row[header["population_scope"]],
+			metricID:               metric,
+			period:                 row[header["period"]],
+			value:                  row[header["value"]],
+			populationScope:        row[header["population_scope"]],
 			populationDefinitionID: row[header["population_definition_id"]],
-			harmonizationMethod: row[header["harmonization_method"]],
-			sourceName: row[header["source_name"]],
-			sourceURL: row[header["source_url"]],
+			harmonizationMethod:    row[header["harmonization_method"]],
+			sourceName:             row[header["source_name"]],
+			sourceURL:              row[header["source_url"]],
 		})
 	}
 	if len(selected) != 3 {
@@ -59,37 +59,37 @@ func TestGoldenRealOpenDataRunsThroughDeterministicPipeline(t *testing.T) {
 	docs := make([]*domain.Document, 0, len(selected))
 	for i, row := range selected {
 		manifest := AcquisitionManifest{
-			SourceName: row.sourceName,
-			SourceURL: row.sourceURL,
-			DatasetID: row.metricID + "-" + row.period + "-" + row.populationDefinitionID,
-			RetrievalMethod: RetrievalDownload,
-			RetrievedAt: time.Date(2026, 9, 20, 0, 0, 0, 0, time.UTC),
-			Geography: "Japan",
-			Period: row.period,
-			Unit: "enterprises",
-			PopulationScope: row.populationScope,
+			SourceName:             row.sourceName,
+			SourceURL:              row.sourceURL,
+			DatasetID:              row.metricID + "-" + row.period + "-" + row.populationDefinitionID,
+			RetrievalMethod:        RetrievalDownload,
+			RetrievedAt:            time.Date(2026, 9, 20, 0, 0, 0, 0, time.UTC),
+			Geography:              "Japan",
+			Period:                 row.period,
+			Unit:                   "enterprises",
+			PopulationScope:        row.populationScope,
 			PopulationDefinitionID: row.populationDefinitionID,
-			KnownCaveats: []string{"golden fixture mirrors checked-in normalized public data"},
-			SchemaID: "japan-economic-census-enterprise-equivalents",
-			SchemaVersion: row.period,
-			RecipeRef: "reports/japan-company-count-2021-2024/ACQUISITION.md",
-			FileHash: "golden-open-data",
+			KnownCaveats:           []string{"golden fixture mirrors checked-in normalized public data"},
+			SchemaID:               "japan-economic-census-enterprise-equivalents",
+			SchemaVersion:          row.period,
+			RecipeRef:              "reports/japan-company-count-2021-2024/ACQUISITION.md",
+			FileHash:               "golden-open-data",
 		}
 		meta := manifest.DocumentMetadata(map[string]string{
-			"period": row.period,
-			"event_type": "enterprise_equivalents",
-			"location": "Japan",
-			"record_count": row.value,
+			"period":          row.period,
+			"event_type":      "enterprise_equivalents",
+			"location":        "Japan",
+			"record_count":    row.value,
 			"source_provider": "statistics_bureau",
-			"source_version": "economic-census",
+			"source_version":  "economic-census",
 		})
 		first := "Dataset observation: period=" + row.period + "; location=Japan; event_type=enterprise_equivalents; record_count=" + row.value + "."
 		docs = append(docs, &domain.Document{
-			ID: "golden-open-data-" + string(rune('a'+i)),
-			Source: domain.SourceDataset,
-			Title: row.metricID + " " + row.period,
-			Content: first + " Source: " + row.sourceName + ".",
-			Metadata: meta,
+			ID:        "golden-open-data-" + string(rune('a'+i)),
+			Source:    domain.SourceDataset,
+			Title:     row.metricID + " " + row.period,
+			Content:   first + " Source: " + row.sourceName + ".",
+			Metadata:  meta,
 			CreatedAt: time.Date(2026, 9, 20, 0, 0, 0, 0, time.UTC),
 		})
 	}
