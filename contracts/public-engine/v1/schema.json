@@ -43,6 +43,7 @@
     "MIXED_ANALYSIS_RUNS": 409,
     "STALE_ITERATION": 409,
     "EXECUTION_PROFILE_UNAVAILABLE": 422,
+    "MODEL_BINDING_UNAVAILABLE": 422,
     "INPUT_SOURCE_UNAVAILABLE": 422,
     "INPUT_VERIFICATION_FAILED": 400,
     "INTERNAL": 500
@@ -103,7 +104,17 @@
         "researchArtifact": {"$ref": "#/$defs/SchemaRef"},
         "analyticalArtifact": {"$ref": "#/$defs/SchemaRef"},
         "executionProfiles": {"type": "array", "items": {"$ref": "#/$defs/ExecutionProfileInfo"}},
-        "inputSourceKinds": {"type": "array", "items": {"type": "string", "enum": ["INLINE_DOCUMENT", "ANALYTICAL_ARTIFACT", "RAW_ARTIFACT"]}}
+        "inputSourceKinds": {"type": "array", "items": {"type": "string", "enum": ["INLINE_DOCUMENT", "ANALYTICAL_ARTIFACT", "RAW_ARTIFACT"]}},
+        "modelRouting": {"$ref": "#/$defs/ModelRouting"}
+      }
+    },
+    "ModelRouting": {
+      "type": "object",
+      "description": "Per-run model binding extension point (#65): stages a caller may bind and the models the engine operator allowed (the configured model is always allowed). The engine never chooses models itself; bindings are execution config recorded in provenance.execution.llm.models and the execution fingerprint, and never change research semantics.",
+      "required": ["stages", "allowedModels"],
+      "properties": {
+        "stages": {"type": "array", "items": {"type": "string"}},
+        "allowedModels": {"type": "array", "items": {"type": "string"}}
       }
     },
     "CreateSubjectRequest": {
@@ -183,7 +194,8 @@
         "label": {"type": "string", "maxLength": 256},
         "note": {"type": "string", "maxLength": 2000},
         "semanticAnalysisMode": {"type": "string", "enum": ["DISCOVERY", "DATASET_ANALYSIS", "RESEARCH_REVIEW"]},
-        "executionProfile": {"$ref": "#/$defs/ExecutionProfile"}
+        "executionProfile": {"$ref": "#/$defs/ExecutionProfile"},
+        "modelBindings": {"type": "object", "maxProperties": 16, "additionalProperties": {"type": "string", "minLength": 1, "maxLength": 128}, "description": "Stage -> model. Unknown stage is INVALID_REQUEST; a model the operator did not allow (or no model endpoint) is MODEL_BINDING_UNAVAILABLE."}
       }
     },
     "AnalysisProvenance": {
@@ -715,7 +727,7 @@
       "type": "object",
       "required": ["code", "message"],
       "properties": {
-        "code": {"type": "string", "enum": ["INVALID_REQUEST", "UNSUPPORTED_CONTRACT_VERSION", "NOT_FOUND", "IDEMPOTENCY_CONFLICT", "IDENTITY_CONFLICT", "ANALYSIS_NOT_COMPLETED", "ANALYSIS_HAS_NO_HYPOTHESES", "MIXED_ANALYSIS_RUNS", "STALE_ITERATION", "EXECUTION_PROFILE_UNAVAILABLE", "INPUT_SOURCE_UNAVAILABLE", "INPUT_VERIFICATION_FAILED", "INTERNAL"]},
+        "code": {"type": "string", "enum": ["INVALID_REQUEST", "UNSUPPORTED_CONTRACT_VERSION", "NOT_FOUND", "IDEMPOTENCY_CONFLICT", "IDENTITY_CONFLICT", "ANALYSIS_NOT_COMPLETED", "ANALYSIS_HAS_NO_HYPOTHESES", "MIXED_ANALYSIS_RUNS", "STALE_ITERATION", "EXECUTION_PROFILE_UNAVAILABLE", "MODEL_BINDING_UNAVAILABLE", "INPUT_SOURCE_UNAVAILABLE", "INPUT_VERIFICATION_FAILED", "INTERNAL"]},
         "message": {"type": "string"}
       }
     },

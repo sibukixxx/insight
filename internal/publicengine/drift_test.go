@@ -14,7 +14,8 @@ import (
 // wireTypes maps every schema $def that describes an object to the Go type
 // the server encodes or decodes for it.
 var wireTypes = map[string]any{
-	"SubjectRef": SubjectRef{}, "EngineBuild": EngineBuild{}, "SchemaRef": SchemaRef{}, "EngineInfo": EngineInfo{},
+	"ModelRouting": ModelRouting{},
+	"SubjectRef":   SubjectRef{}, "EngineBuild": EngineBuild{}, "SchemaRef": SchemaRef{}, "EngineInfo": EngineInfo{},
 	"CreateSubjectRequest": CreateSubjectRequest{}, "Subject": Subject{}, "EvidenceDocument": EvidenceDocument{},
 	"AddEvidenceRequest": AddEvidenceRequest{}, "EvidenceItemReceipt": EvidenceItemReceipt{}, "EvidenceReceipt": EvidenceReceipt{},
 	"StartAnalysisRequest": StartAnalysisRequest{}, "AnalysisProvenance": AnalysisProvenance{}, "AnalysisRun": AnalysisRun{},

@@ -29,6 +29,10 @@ type SSEEvent struct {
 // current status via GET /api/analysis/{id} instead of depending on the
 // in-memory channel.
 type JobManager struct {
+	// AllowedModels are the models, besides the configured one, that callers
+	// may bind to pipeline stages (operator config; empty = configured only).
+	AllowedModels []string
+
 	analyses     repository.AnalysisRepository
 	pipeline     *Pipeline
 	settings     *SettingsStore
@@ -121,6 +125,9 @@ type EnqueueRequest struct {
 	SemanticAnalysisMode domain.AnalysisMode
 	// ExecutionProfile is the requested strategy; empty means AUTO.
 	ExecutionProfile execution.Profile
+	// ModelBindings optionally binds pipeline stages to operator-allowed
+	// models (ModelStages / AllowedModels).
+	ModelBindings map[string]string
 }
 
 // Enqueue creates the analysis row (status "queued") with the execution
@@ -133,6 +140,11 @@ func (m *JobManager) Enqueue(ctx context.Context, req EnqueueRequest) (*domain.A
 	}
 	now := time.Now().UTC()
 	settings := m.settings.Get()
+	bindings, err := ResolveModelBindings(settings, m.AllowedModels, req.ModelBindings)
+	if err != nil {
+		return nil, err
+	}
+	settings.StageModels = bindings
 	resolution, err := m.resolveProfile(ctx, req)
 	if err != nil {
 		return nil, err
@@ -189,7 +201,7 @@ func (m *JobManager) run(ctx context.Context, analysisID string) {
 	// the project has nothing a rule can analyze.
 	var client llm.Client
 	if settings.Configured() {
-		client = m.newLLMClient(settings)
+		client = newStageRouter(settings, m.newLLMClient)
 	}
 
 	pipeline := &Pipeline{

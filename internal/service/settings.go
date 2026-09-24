@@ -17,6 +17,9 @@ type Settings struct {
 	APIKey  string
 	Model   string
 	BaseURL string
+	// StageModels is set only on the per-run copy captured at enqueue: the
+	// caller's validated stage → model bindings (see ResolveModelBindings).
+	StageModels map[string]string
 }
 
 func (s Settings) Configured() bool {

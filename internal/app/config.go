@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 )
 
 type Config struct {
@@ -23,7 +24,8 @@ type Config struct {
 	InputRoot string
 	// HeavyDir enables the HEAVY profile with the local Heavy Execution
 	// Adapter persisting job state in this directory. Empty disables HEAVY.
-	HeavyDir string
+	HeavyDir      string
+	AllowedModels []string
 }
 
 func ParseConfig(args []string) (*Config, error) {
@@ -37,6 +39,7 @@ func ParseConfig(args []string) (*Config, error) {
 	model := fs.String("model", "", "LLM model name")
 	baseURL := fs.String("base-url", "", "OpenAI-compatible base URL")
 	inputRoot := fs.String("input-root", os.Getenv("INSIGHT_LAB_INPUT_ROOT"), "directory that file: raw artifact references may read (empty disables raw references)")
+	allowedModels := fs.String("allowed-models", os.Getenv("INSIGHT_LAB_ALLOWED_MODELS"), "comma-separated models (besides -model) callers may bind to pipeline stages via modelBindings")
 	heavyDir := fs.String("heavy-dir", os.Getenv("INSIGHT_LAB_HEAVY_DIR"), "directory for local HEAVY job state (empty disables the HEAVY profile)")
 	clientName := fs.String("client", os.Getenv("INSIGHT_LAB_CLIENT_NAME"), "client name shown in the delivery build's confidentiality banner")
 
@@ -57,17 +60,18 @@ func ParseConfig(args []string) (*Config, error) {
 	}
 
 	return &Config{
-		Host:       *host,
-		Port:       *port,
-		DBPath:     path,
-		Demo:       *demo,
-		NoBrowser:  *noBrowser,
-		APIKey:     *apiKey,
-		Model:      *model,
-		BaseURL:    *baseURL,
-		ClientName: *clientName,
-		InputRoot:  *inputRoot,
-		HeavyDir:   *heavyDir,
+		Host:          *host,
+		Port:          *port,
+		DBPath:        path,
+		Demo:          *demo,
+		NoBrowser:     *noBrowser,
+		APIKey:        *apiKey,
+		Model:         *model,
+		BaseURL:       *baseURL,
+		ClientName:    *clientName,
+		InputRoot:     *inputRoot,
+		HeavyDir:      *heavyDir,
+		AllowedModels: splitList(*allowedModels),
 	}, nil
 }
 
@@ -98,4 +102,14 @@ func defaultDataDir() (string, error) {
 		}
 		return filepath.Join(home, ".local", "share", "insight-lab"), nil
 	}
+}
+
+func splitList(s string) []string {
+	var out []string
+	for _, v := range strings.Split(s, ",") {
+		if v = strings.TrimSpace(v); v != "" {
+			out = append(out, v)
+		}
+	}
+	return out
 }

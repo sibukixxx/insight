@@ -3,6 +3,7 @@ package publicengine
 import (
 	"errors"
 	"fmt"
+	"insight-lab/internal/service"
 	"net/http"
 
 	"insight-lab/internal/domain"
@@ -26,6 +27,7 @@ const (
 	CodeStaleIteration              Code = "STALE_ITERATION"
 	CodeInternal                    Code = "INTERNAL"
 	CodeExecutionProfileUnavailable Code = "EXECUTION_PROFILE_UNAVAILABLE"
+	CodeModelBindingUnavailable     Code = "MODEL_BINDING_UNAVAILABLE"
 	CodeInputSourceUnavailable      Code = "INPUT_SOURCE_UNAVAILABLE"
 	CodeInputVerificationFailed     Code = "INPUT_VERIFICATION_FAILED"
 )
@@ -42,6 +44,7 @@ var errorStatus = map[Code]int{
 	CodeStaleIteration:              http.StatusConflict,
 	CodeInternal:                    http.StatusInternalServerError,
 	CodeExecutionProfileUnavailable: http.StatusUnprocessableEntity,
+	CodeModelBindingUnavailable:     http.StatusUnprocessableEntity,
 	CodeInputSourceUnavailable:      http.StatusUnprocessableEntity,
 	CodeInputVerificationFailed:     http.StatusBadRequest,
 }
@@ -88,6 +91,10 @@ func AsError(err error) *Error {
 		return newError(CodeInvalidRequest, "%s", err.Error())
 	case errors.Is(err, usecase.ErrCrossProjectComparison):
 		return newError(CodeNotFound, "analysis not found for this subject")
+	case errors.Is(err, service.ErrModelBindingUnavailable):
+		return newError(CodeModelBindingUnavailable, "%s", err.Error())
+	case errors.Is(err, service.ErrInvalidModelBinding):
+		return newError(CodeInvalidRequest, "%s", err.Error())
 	case errors.Is(err, execution.ErrProfileUnavailable):
 		return newError(CodeExecutionProfileUnavailable, "%s", err.Error())
 	case errors.Is(err, execution.ErrInvalidProfile):

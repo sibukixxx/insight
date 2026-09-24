@@ -48,7 +48,8 @@ func newPublicServer(t *testing.T, modelBacked bool) *httptest.Server {
 	// Raw artifact fixtures read fixtures/data; HEAVY uses the local adapter.
 	prep := &service.Preparation{Resolver: input.Resolvers{"file": input.FileResolver{Root: fixtureDir + "/data"}}, Heavy: execution.NewLocalRuntime(t.TempDir(), 2), Partitions: 3}
 	jobs.ConfigureExecution(prep)
-	engine := publicengine.New(app, sqlite.NewPublicRepository(db), documents, jobs, conformanceBuild, publicengine.WithInputResolver(prep.Resolver, 0))
+	jobs.AllowedModels = []string{"scripted-model-large"}
+	engine := publicengine.New(app, sqlite.NewPublicRepository(db), documents, jobs, conformanceBuild, publicengine.WithInputResolver(prep.Resolver, 0), publicengine.WithAllowedModels(jobs.AllowedModels))
 	engine.EnableTriage(sqlite.NewTriageRepository(db), nil)
 	server := httptest.NewServer(httpapi.NewRouter(httpapi.Deps{App: app, JobManager: jobs, PublicEngine: engine}))
 	t.Cleanup(func() {

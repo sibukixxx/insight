@@ -1,0 +1,146 @@
+{
+  "fixture": "17-model-bindings",
+  "contractVersion": "1",
+  "covers": "#65 extension point: per-run stage -> model bindings among operator-allowed models are recorded in execution provenance; unknown stages and disallowed models fail explicitly",
+  "engine": "model_backed",
+  "steps": [
+    {
+      "op": "getEngine",
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "modelRouting.stages",
+          "minLength": 1
+        },
+        {
+          "path": "modelRouting.allowedModels[0]",
+          "equals": "scripted-model-large"
+        }
+      ]
+    },
+    {
+      "op": "createSubject",
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-subject",
+        "subject": {
+          "namespace": "conformance",
+          "id": "bindings-${uniq}"
+        }
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "subjectId": "subjectId"
+      }
+    },
+    {
+      "op": "addEvidence",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-evidence",
+        "documents": [
+          {
+            "externalRef": "e1",
+            "source": "review",
+            "content": "Sales rose in March after the price change."
+          }
+        ]
+      },
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "op": "startAnalysis",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-bad-stage",
+        "modelBindings": {
+          "made_up_stage": "scripted-model-large"
+        }
+      },
+      "expect": {
+        "errorCode": "INVALID_REQUEST",
+        "httpStatus": 400
+      }
+    },
+    {
+      "op": "startAnalysis",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-bad-model",
+        "modelBindings": {
+          "need_hypothesis": "not-allowed-model"
+        }
+      },
+      "expect": {
+        "errorCode": "MODEL_BINDING_UNAVAILABLE",
+        "httpStatus": 422
+      }
+    },
+    {
+      "op": "startAnalysis",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-bound",
+        "modelBindings": {
+          "need_hypothesis": "scripted-model-large"
+        }
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "analysisId": "analysisId"
+      }
+    },
+    {
+      "op": "waitForAnalysis",
+      "params": {
+        "subjectId": "${subjectId}",
+        "analysisId": "${analysisId}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "status",
+          "equals": "completed"
+        },
+        {
+          "path": "provenance.execution.llm.models[0].stage",
+          "equals": "observation_extraction"
+        },
+        {
+          "path": "provenance.execution.llm.models[0].model",
+          "equals": "scripted-model"
+        },
+        {
+          "path": "provenance.execution.llm.models[3].stage",
+          "equals": "need_hypothesis"
+        },
+        {
+          "path": "provenance.execution.llm.models[3].model",
+          "equals": "scripted-model-large"
+        }
+      ]
+    }
+  ]
+}

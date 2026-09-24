@@ -50,6 +50,8 @@ type EngineInfo struct {
 	// ExecutionProfiles and InputSourceKinds advertise capabilities (#90/#91).
 	ExecutionProfiles []ExecutionProfileInfo `json:"executionProfiles,omitempty"`
 	InputSourceKinds  []string               `json:"inputSourceKinds,omitempty"`
+	// ModelRouting advertises per-run model bindings (#65 extension point).
+	ModelRouting *ModelRouting `json:"modelRouting,omitempty"`
 }
 
 type ExecutionProfileInfo struct {
@@ -154,6 +156,9 @@ type StartAnalysisRequest struct {
 	Note                 string `json:"note,omitempty"`
 	SemanticAnalysisMode string `json:"semanticAnalysisMode,omitempty"`
 	ExecutionProfile     string `json:"executionProfile,omitempty"`
+	// ModelBindings maps pipeline stages (EngineInfo.modelRouting.stages) to
+	// operator-allowed models. Execution config only; never semantics.
+	ModelBindings map[string]string `json:"modelBindings,omitempty"`
 }
 
 type AnalysisProvenance struct {
