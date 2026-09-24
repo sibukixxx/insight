@@ -24,7 +24,11 @@
     "listAnalyses": {"method": "GET", "path": "/api/public/v1/subjects/{subjectId}/analyses", "response": "AnalysisList", "status": 200},
     "compareAnalyses": {"method": "GET", "path": "/api/public/v1/subjects/{subjectId}/analyses/{analysisId}/compare/{otherAnalysisId}", "response": "RunComparisonResult", "status": 200},
     "listResearchRuns": {"method": "GET", "path": "/api/public/v1/subjects/{subjectId}/research-runs", "response": "ResearchRunList", "status": 200},
-    "reEvaluate": {"method": "POST", "path": "/api/public/v1/research-runs/{researchRunId}/re-evaluations", "request": "ReEvaluationRequest", "response": "ReEvaluationResult", "status": 201}
+    "reEvaluate": {"method": "POST", "path": "/api/public/v1/research-runs/{researchRunId}/re-evaluations", "request": "ReEvaluationRequest", "response": "ReEvaluationResult", "status": 201},
+    "getScenarios": {"method": "GET", "path": "/api/public/v1/research-runs/{researchRunId}/scenarios", "response": "ScenarioAnalysis", "status": 200},
+    "createScenarioSet": {"method": "POST", "path": "/api/public/v1/research-runs/{researchRunId}/scenario-sets", "request": "CreateScenarioSetRequest", "response": "ScenarioSetResult", "status": 201},
+    "scaffoldScenarioSet": {"method": "POST", "path": "/api/public/v1/research-runs/{researchRunId}/scenario-sets/scaffold", "request": "ScaffoldScenarioSetRequest", "response": "ScenarioSetResult", "status": 201},
+    "evaluateScenarios": {"method": "POST", "path": "/api/public/v1/research-runs/{researchRunId}/scenario-sets/{scenarioSetId}/evaluations", "request": "EvaluateScenariosRequest", "response": "ScenarioEvaluationResult", "status": 201}
   },
   "x-errorCodes": {
     "INVALID_REQUEST": 400,
@@ -527,6 +531,307 @@
     "PlanMove": {"type": "object", "required": ["name", "toBucket", "rationale"], "properties": {"name": {"type": "string"}, "fromBucket": {"$ref": "#/$defs/TriageBucket"}, "toBucket": {"$ref": "#/$defs/TriageBucket"}, "role": {"$ref": "#/$defs/TriageRole"}, "classifications": {"type": "array", "items": {"$ref": "#/$defs/TriageClassification"}}, "rationale": {"type": "string", "minLength": 1}}},
     "SelectionPlan": {"type": "object", "description": "One immutable version. decisions lists every profiled column exactly once, in profile order. moves records how this version differs from its parent.", "required": ["contractVersion", "subjectId", "planId", "profileId", "version", "question", "proposer", "decisions", "processingBoundary", "createdAt"], "properties": {"contractVersion": {"$ref": "#/$defs/ContractVersion"}, "subjectId": {"type": "string"}, "planId": {"type": "string"}, "profileId": {"type": "string"}, "version": {"type": "integer", "minimum": 1}, "parentPlanId": {"type": "string"}, "question": {"type": "string"}, "proposer": {"$ref": "#/$defs/PlanProposer"}, "hypothesisIds": {"type": "array", "items": {"type": "string"}}, "gaps": {"type": "array", "items": {"$ref": "#/$defs/TriageGapRef"}}, "decisions": {"type": "array", "items": {"$ref": "#/$defs/VariableDecision"}}, "moves": {"type": "array", "items": {"$ref": "#/$defs/PlanMove"}}, "processingBoundary": {"type": "string"}, "createdAt": {"type": "string", "format": "date-time"}}},
     "SelectionPlanList": {"type": "object", "required": ["contractVersion", "subjectId", "profileId", "plans"], "properties": {"contractVersion": {"$ref": "#/$defs/ContractVersion"}, "subjectId": {"type": "string"}, "profileId": {"type": "string"}, "plans": {"type": "array", "items": {"$ref": "#/$defs/SelectionPlan"}}}},
-    "ReviseSelectionPlanRequest": {"type": "object", "required": ["contractVersion", "idempotencyKey", "actor", "moves"], "properties": {"contractVersion": {"$ref": "#/$defs/ContractVersion"}, "idempotencyKey": {"$ref": "#/$defs/IdempotencyKey"}, "actor": {"type": "string", "minLength": 1, "maxLength": 128}, "moves": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/PlanMove"}}}}
+    "ReviseSelectionPlanRequest": {"type": "object", "required": ["contractVersion", "idempotencyKey", "actor", "moves"], "properties": {"contractVersion": {"$ref": "#/$defs/ContractVersion"}, "idempotencyKey": {"$ref": "#/$defs/IdempotencyKey"}, "actor": {"type": "string", "minLength": 1, "maxLength": 128}, "moves": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/PlanMove"}}}},
+    "ScenarioBaseline": {
+      "type": "object",
+      "description": "Observed baseline all scenarios branch from. asOf is required.",
+      "required": ["asOf", "description"],
+      "properties": {
+        "asOf": {"type": "string", "format": "date-time"},
+        "description": {"type": "string"},
+        "evidenceRefs": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "ScenarioHorizon": {
+      "type": "object",
+      "description": "Forecast horizon of a scenario; end must be after the baseline asOf.",
+      "required": ["label", "end"],
+      "properties": {
+        "label": {"type": "string"},
+        "end": {"type": "string", "format": "date-time"}
+      }
+    },
+    "TimeWindow": {
+      "type": "object",
+      "description": "Closed time window.",
+      "required": ["start", "end"],
+      "properties": {
+        "start": {"type": "string", "format": "date-time"},
+        "end": {"type": "string", "format": "date-time"}
+      }
+    },
+    "Assumption": {
+      "type": "object",
+      "description": "A typed assumption. Only OBSERVED_BASELINE may cite evidenceRefs as observed fact; other kinds cite sourceRefs.",
+      "required": ["id", "statement", "kind", "asOf"],
+      "properties": {
+        "id": {"type": "string"},
+        "statement": {"type": "string"},
+        "kind": {"type": "string", "enum": ["OBSERVED_BASELINE", "EXOGENOUS_ASSUMPTION", "MODEL_ASSUMPTION", "HUMAN_ASSUMPTION", "POLICY_ASSUMPTION"]},
+        "sourceRefs": {"type": "array", "items": {"type": "string"}},
+        "evidenceRefs": {"type": "array", "items": {"type": "string"}},
+        "asOf": {"type": "string", "format": "date-time"},
+        "validUntil": {"type": "string", "format": "date-time"}
+      }
+    },
+    "ValueRange": {
+      "type": "object",
+      "description": "Optional numeric range for a RANGE expectation.",
+      "required": [],
+      "properties": {
+        "min": {"type": "number"},
+        "max": {"type": "number"},
+        "unit": {"type": "string"}
+      }
+    },
+    "ScenarioExpectation": {
+      "type": "object",
+      "description": "Frozen, falsifiable statement about a future observation.",
+      "required": ["id", "indicator", "statement", "observationWindow", "falsificationCondition", "provenance", "observedDataAvailableAtCreation"],
+      "properties": {
+        "id": {"type": "string"},
+        "indicator": {"type": "string"},
+        "statement": {"type": "string"},
+        "direction": {"type": "string", "enum": ["INCREASE", "DECREASE", "NO_CHANGE", "RANGE"]},
+        "range": {"$ref": "#/$defs/ValueRange"},
+        "observationWindow": {"$ref": "#/$defs/TimeWindow"},
+        "falsificationCondition": {"type": "string"},
+        "provenance": {"type": "string", "description": "ExpectationBasis (PRIOR, LITERATURE, DOMAIN_KNOWLEDGE, MODEL_PROPOSED_POST_HOC, HUMAN_POST_HOC, DERIVED_FROM_PRIOR_RUN, OTHER, UNKNOWN). Post-hoc provenance is never treated as prior."},
+        "observedDataAvailableAtCreation": {"type": "boolean"},
+        "sourceRefs": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "ScenarioProbability": {
+      "type": "object",
+      "description": "Caller-supplied probability with its basis and sources. The engine never generates one.",
+      "required": ["value", "basis", "sourceRefs"],
+      "properties": {
+        "value": {"type": "number", "minimum": 0, "maximum": 1},
+        "basis": {"type": "string"},
+        "sourceRefs": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "Scenario": {
+      "type": "object",
+      "description": "One possible future branch. At least one expectation must be testable after the baseline.",
+      "required": ["id", "title", "horizon", "assumptions", "expectations"],
+      "properties": {
+        "id": {"type": "string"},
+        "title": {"type": "string"},
+        "horizon": {"$ref": "#/$defs/ScenarioHorizon"},
+        "assumptions": {"type": "array", "items": {"$ref": "#/$defs/Assumption"}},
+        "mechanisms": {"type": "array", "items": {"type": "string"}},
+        "expectations": {"type": "array", "items": {"$ref": "#/$defs/ScenarioExpectation"}},
+        "disconfirmingObservations": {"type": "array", "items": {"type": "string"}},
+        "affectedDimensions": {"type": "array", "items": {"type": "string"}},
+        "evidenceRefs": {"type": "array", "items": {"type": "string"}},
+        "unresolvedGapIds": {"type": "array", "items": {"type": "string"}},
+        "derivedFromHypothesisId": {"type": "string"},
+        "limitations": {"type": "array", "items": {"type": "string"}},
+        "probability": {"$ref": "#/$defs/ScenarioProbability"}
+      }
+    },
+    "ScenarioRelation": {
+      "type": "object",
+      "description": "Explicit relation between branches; scenarios need not be mutually exclusive.",
+      "required": ["scenarioIds", "kind"],
+      "properties": {
+        "scenarioIds": {"type": "array", "items": {"type": "string"}},
+        "kind": {"type": "string", "enum": ["MUTUALLY_EXCLUSIVE", "OVERLAPPING", "NESTED", "CONFLICTING"]},
+        "note": {"type": "string"}
+      }
+    },
+    "ScenarioSet": {
+      "type": "object",
+      "description": "Append-only scenario set version. Curating creates a new version.",
+      "required": ["id", "researchRunId", "version", "question", "baseline", "nonExhaustive", "scenarios", "origin", "createdAt"],
+      "properties": {
+        "id": {"type": "string"},
+        "researchRunId": {"type": "string"},
+        "version": {"type": "integer"},
+        "question": {"type": "string"},
+        "baseline": {"$ref": "#/$defs/ScenarioBaseline"},
+        "nonExhaustive": {"type": "boolean"},
+        "sharedEvidenceRefs": {"type": "array", "items": {"type": "string"}},
+        "scenarios": {"type": "array", "items": {"$ref": "#/$defs/Scenario"}},
+        "relations": {"type": "array", "items": {"$ref": "#/$defs/ScenarioRelation"}},
+        "origin": {"type": "string", "enum": ["DETERMINISTIC_SCAFFOLD", "HUMAN", "MODEL", "IMPORTED"]},
+        "fromIterationId": {"type": "string"},
+        "createdAt": {"type": "string", "format": "date-time"}
+      }
+    },
+    "ScenarioSetDraft": {
+      "type": "object",
+      "description": "Scenario set submitted by a consumer; id, version and createdAt are assigned by the engine.",
+      "required": ["question", "baseline", "nonExhaustive", "scenarios", "origin"],
+      "properties": {
+        "question": {"type": "string"},
+        "baseline": {"$ref": "#/$defs/ScenarioBaseline"},
+        "nonExhaustive": {"type": "boolean"},
+        "sharedEvidenceRefs": {"type": "array", "items": {"type": "string"}},
+        "scenarios": {"type": "array", "items": {"$ref": "#/$defs/Scenario"}},
+        "relations": {"type": "array", "items": {"$ref": "#/$defs/ScenarioRelation"}},
+        "origin": {"type": "string", "enum": ["DETERMINISTIC_SCAFFOLD", "HUMAN", "MODEL", "IMPORTED"]},
+        "fromIterationId": {"type": "string"}
+      }
+    },
+    "IndicatorObservation": {
+      "type": "object",
+      "description": "A later observation for one expectation. CONSISTENT/CONTRADICTS require evidenceRef. Observations at or before the set was created cannot test it.",
+      "required": ["expectationId", "outcome", "observedAt"],
+      "properties": {
+        "expectationId": {"type": "string"},
+        "outcome": {"type": "string", "enum": ["CONSISTENT", "CONTRADICTS", "INCONCLUSIVE", "NOT_OBSERVED"]},
+        "evidenceRef": {"type": "string"},
+        "observedAt": {"type": "string", "format": "date-time"},
+        "note": {"type": "string"}
+      }
+    },
+    "AssumptionCheck": {
+      "type": "object",
+      "description": "Whether later evidence kept an assumption. INVALIDATED requires evidenceRef.",
+      "required": ["assumptionId", "result"],
+      "properties": {
+        "assumptionId": {"type": "string"},
+        "result": {"type": "string", "enum": ["HOLDS", "INVALIDATED", "UNKNOWN"]},
+        "evidenceRef": {"type": "string"},
+        "note": {"type": "string"}
+      }
+    },
+    "ScenarioState": {
+      "type": "object",
+      "description": "Evidence state of one scenario at one evaluation.",
+      "required": ["scenarioId", "status", "lastEvaluatedAt"],
+      "properties": {
+        "scenarioId": {"type": "string"},
+        "status": {"type": "string", "enum": ["UNTESTED", "CONSISTENT_SO_FAR", "WEAKENED", "CONTRADICTED", "INCONCLUSIVE"], "description": "Evidence state of a branch. Never a probability."},
+        "reasons": {"type": "array", "items": {"type": "string"}},
+        "lastEvaluatedAt": {"type": "string", "format": "date-time"}
+      }
+    },
+    "FiredFalsification": {
+      "type": "object",
+      "description": "A falsification condition that fired on evidence.",
+      "required": ["scenarioId", "expectationId", "condition", "evidenceRef"],
+      "properties": {
+        "scenarioId": {"type": "string"},
+        "expectationId": {"type": "string"},
+        "condition": {"type": "string"},
+        "evidenceRef": {"type": "string"}
+      }
+    },
+    "ScenarioStatusChange": {
+      "type": "object",
+      "description": "Status movement of one scenario.",
+      "required": ["scenarioId", "from", "to"],
+      "properties": {
+        "scenarioId": {"type": "string"},
+        "from": {"type": "string", "enum": ["UNTESTED", "CONSISTENT_SO_FAR", "WEAKENED", "CONTRADICTED", "INCONCLUSIVE"], "description": "Evidence state of a branch. Never a probability."},
+        "to": {"type": "string", "enum": ["UNTESTED", "CONSISTENT_SO_FAR", "WEAKENED", "CONTRADICTED", "INCONCLUSIVE"], "description": "Evidence state of a branch. Never a probability."}
+      }
+    },
+    "ScenarioDelta": {
+      "type": "object",
+      "description": "What new evidence changed. It ranks nothing and never names a most likely future.",
+      "required": ["toEvaluationId"],
+      "properties": {
+        "fromEvaluationId": {"type": "string"},
+        "toEvaluationId": {"type": "string"},
+        "strengthened": {"type": "array", "items": {"$ref": "#/$defs/ScenarioStatusChange"}},
+        "weakened": {"type": "array", "items": {"$ref": "#/$defs/ScenarioStatusChange"}},
+        "contradicted": {"type": "array", "items": {"$ref": "#/$defs/ScenarioStatusChange"}},
+        "unchanged": {"type": "array", "items": {"type": "string"}},
+        "assumptionsInvalidated": {"type": "array", "items": {"type": "string"}},
+        "falsificationsFired": {"type": "array", "items": {"$ref": "#/$defs/FiredFalsification"}},
+        "newlyRequiredEvidence": {"type": "array", "items": {"type": "string"}},
+        "explanation": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "ScenarioEvaluation": {
+      "type": "object",
+      "description": "Append-only evaluation of one set version; carries forward earlier observations.",
+      "required": ["id", "scenarioSetId", "setVersion", "researchRunId", "observations", "states", "delta", "evaluatedAt"],
+      "properties": {
+        "id": {"type": "string"},
+        "scenarioSetId": {"type": "string"},
+        "setVersion": {"type": "integer"},
+        "researchRunId": {"type": "string"},
+        "iterationId": {"type": "string"},
+        "observations": {"type": "array", "items": {"$ref": "#/$defs/IndicatorObservation"}},
+        "assumptionChecks": {"type": "array", "items": {"$ref": "#/$defs/AssumptionCheck"}},
+        "states": {"type": "array", "items": {"$ref": "#/$defs/ScenarioState"}},
+        "dataRequirements": {"type": "array", "items": {"type": "object", "description": "Scenario-specific DataRequirement, same shape as in the Research Artifact."}},
+        "delta": {"$ref": "#/$defs/ScenarioDelta"},
+        "evaluatedAt": {"type": "string", "format": "date-time"}
+      }
+    },
+    "CreateScenarioSetRequest": {
+      "type": "object",
+      "description": "Submit a curated scenario set as the next version.",
+      "required": ["contractVersion", "idempotencyKey", "scenarioSet"],
+      "properties": {
+        "contractVersion": {"$ref": "#/$defs/ContractVersion"},
+        "idempotencyKey": {"$ref": "#/$defs/IdempotencyKey"},
+        "scenarioSet": {"$ref": "#/$defs/ScenarioSetDraft"}
+      }
+    },
+    "ScaffoldScenarioSetRequest": {
+      "type": "object",
+      "description": "Draft scenarios deterministically from an iteration's competing hypotheses. Baseline and horizon are required.",
+      "required": ["contractVersion", "idempotencyKey", "baseline", "horizon"],
+      "properties": {
+        "contractVersion": {"$ref": "#/$defs/ContractVersion"},
+        "idempotencyKey": {"$ref": "#/$defs/IdempotencyKey"},
+        "iterationId": {"type": "string"},
+        "baseline": {"$ref": "#/$defs/ScenarioBaseline"},
+        "horizon": {"$ref": "#/$defs/ScenarioHorizon"}
+      }
+    },
+    "EvaluateScenariosRequest": {
+      "type": "object",
+      "description": "Evaluate a scenario set version against new observations.",
+      "required": ["contractVersion", "idempotencyKey"],
+      "properties": {
+        "contractVersion": {"$ref": "#/$defs/ContractVersion"},
+        "idempotencyKey": {"$ref": "#/$defs/IdempotencyKey"},
+        "iterationId": {"type": "string"},
+        "observations": {"type": "array", "items": {"$ref": "#/$defs/IndicatorObservation"}},
+        "assumptionChecks": {"type": "array", "items": {"$ref": "#/$defs/AssumptionCheck"}}
+      }
+    },
+    "ScenarioSetResult": {
+      "type": "object",
+      "description": "A stored scenario set version.",
+      "required": ["contractVersion", "researchRunId", "scenarioSet"],
+      "properties": {
+        "contractVersion": {"$ref": "#/$defs/ContractVersion"},
+        "researchRunId": {"type": "string"},
+        "scenarioSet": {"$ref": "#/$defs/ScenarioSet"},
+        "skipped": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "ScenarioEvaluationResult": {
+      "type": "object",
+      "description": "A stored scenario evaluation.",
+      "required": ["contractVersion", "researchRunId", "evaluation"],
+      "properties": {
+        "contractVersion": {"$ref": "#/$defs/ContractVersion"},
+        "researchRunId": {"type": "string"},
+        "evaluation": {"$ref": "#/$defs/ScenarioEvaluation"}
+      }
+    },
+    "ScenarioAnalysis": {
+      "type": "object",
+      "description": "Scenario history of a research run. Empty lists when none exist; scenarios are never synthesized.",
+      "required": ["contractVersion", "researchRunId", "sets", "evaluations"],
+      "properties": {
+        "contractVersion": {"$ref": "#/$defs/ContractVersion"},
+        "researchRunId": {"type": "string"},
+        "currentSet": {"$ref": "#/$defs/ScenarioSet"},
+        "currentEvaluation": {"$ref": "#/$defs/ScenarioEvaluation"},
+        "sets": {"type": "array", "items": {"$ref": "#/$defs/ScenarioSet"}},
+        "evaluations": {"type": "array", "items": {"$ref": "#/$defs/ScenarioEvaluation"}}
+      }
+    }
   }
 }

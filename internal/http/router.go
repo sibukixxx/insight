@@ -95,6 +95,10 @@ func NewRouter(deps Deps) http.Handler {
 			r.Get("/report.md", h.ExportResearchReport)
 			r.Get("/artifact.json", h.GetResearchArtifact)
 			r.Get("/approved-artifact.json", h.GetApprovedResearchArtifact)
+			r.Get("/scenarios", h.GetScenarioAnalysis)
+			r.Post("/scenario-sets", h.CreateScenarioSet)
+			r.Post("/scenario-sets/scaffold", h.ScaffoldScenarioSet)
+			r.Post("/scenario-sets/{scenarioSetID}/evaluations", h.EvaluateScenarios)
 		})
 
 		r.Get("/documents/{documentID}", h.GetDocument)

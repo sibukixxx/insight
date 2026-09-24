@@ -1,0 +1,289 @@
+{
+ "id": "set-japan-eu",
+ "researchRunId": "run-japan-eu",
+ "version": 1,
+ "question": "円安と海外の実質購買力・物価・貿易構造を踏まえ、日本からどの市場・商品カテゴリへ輸出余地が生まれうるか",
+ "baseline": {
+  "asOf": "2026-06-30T00:00:00Z",
+  "description": "Observed trade, FX and price levels as of 2026-06-30",
+  "evidenceRefs": [
+   "comext:2021-2026",
+   "ecb:eurofxref:JPY:2026-06"
+  ]
+ },
+ "nonExhaustive": true,
+ "sharedEvidenceRefs": [
+  "comext:2021-2026",
+  "ecb:eurofxref:JPY:2026-06",
+  "eurostat:hicp"
+ ],
+ "scenarios": [
+  {
+   "id": "S1",
+   "title": "FX advantage lowers landed EUR price and Japanese quantity/share rises",
+   "horizon": {
+    "label": "12 months",
+    "end": "2027-06-30T00:00:00Z"
+   },
+   "assumptions": [
+    {
+     "id": "A-FX",
+     "statement": "JPY/EUR depreciated versus the 2021 average as of the baseline",
+     "kind": "OBSERVED_BASELINE",
+     "evidenceRefs": [
+      "ecb:eurofxref:JPY:2026-06"
+     ],
+     "asOf": "2026-06-30T00:00:00Z"
+    },
+    {
+     "id": "S1-A1",
+     "statement": "Exporters pass the FX gain through to EUR prices",
+     "kind": "EXOGENOUS_ASSUMPTION",
+     "sourceRefs": [
+      "survey:pricing-to-market"
+     ],
+     "asOf": "2026-06-30T00:00:00Z",
+     "validUntil": "2027-06-30T00:00:00Z"
+    }
+   ],
+   "mechanisms": [
+    "weaker yen -> lower EUR unit value -> higher quantity"
+   ],
+   "expectations": [
+    {
+     "id": "S1-E1",
+     "indicator": "COMEXT EU import quantity from Japan (HS 84,85)",
+     "statement": "Import quantity from Japan rises over the window",
+     "direction": "INCREASE",
+     "observationWindow": {
+      "start": "2026-07-01T00:00:00Z",
+      "end": "2027-06-30T00:00:00Z"
+     },
+     "falsificationCondition": "EU import quantity from Japan flat or falling while EUR unit value falls",
+     "provenance": "DOMAIN_KNOWLEDGE",
+     "observedDataAvailableAtCreation": false,
+     "sourceRefs": [
+      "trade-theory:pass-through"
+     ]
+    },
+    {
+     "id": "S1-E2",
+     "indicator": "COMEXT EUR unit value of imports from Japan",
+     "statement": "EUR unit value falls",
+     "direction": "DECREASE",
+     "observationWindow": {
+      "start": "2026-07-01T00:00:00Z",
+      "end": "2027-06-30T00:00:00Z"
+     },
+     "falsificationCondition": "EUR unit value unchanged or rising",
+     "provenance": "DOMAIN_KNOWLEDGE",
+     "observedDataAvailableAtCreation": false,
+     "sourceRefs": [
+      "trade-theory:pass-through"
+     ]
+    }
+   ],
+   "affectedDimensions": [
+    "HS84",
+    "HS85",
+    "EU27"
+   ],
+   "evidenceRefs": [
+    "comext:2021-2026"
+   ]
+  },
+  {
+   "id": "S2",
+   "title": "FX advantage exists but shipping and tariff costs absorb it",
+   "horizon": {
+    "label": "12 months",
+    "end": "2027-06-30T00:00:00Z"
+   },
+   "assumptions": [
+    {
+     "id": "A-FX",
+     "statement": "JPY/EUR depreciated versus the 2021 average as of the baseline",
+     "kind": "OBSERVED_BASELINE",
+     "evidenceRefs": [
+      "ecb:eurofxref:JPY:2026-06"
+     ],
+     "asOf": "2026-06-30T00:00:00Z"
+    },
+    {
+     "id": "S2-A1",
+     "statement": "Container freight rates stay above the 2019 level",
+     "kind": "EXOGENOUS_ASSUMPTION",
+     "sourceRefs": [
+      "freight-index:WCI"
+     ],
+     "asOf": "2026-06-30T00:00:00Z",
+     "validUntil": "2027-06-30T00:00:00Z"
+    }
+   ],
+   "expectations": [
+    {
+     "id": "S2-E1",
+     "indicator": "Landed EUR price index incl. freight and TARIC duty",
+     "statement": "Landed price does not fall",
+     "direction": "NO_CHANGE",
+     "observationWindow": {
+      "start": "2026-07-01T00:00:00Z",
+      "end": "2027-06-30T00:00:00Z"
+     },
+     "falsificationCondition": "landed EUR price falls by more than the FX move net of freight",
+     "provenance": "DOMAIN_KNOWLEDGE",
+     "observedDataAvailableAtCreation": false,
+     "sourceRefs": [
+      "trade-theory:pass-through"
+     ]
+    }
+   ],
+   "affectedDimensions": [
+    "EU27"
+   ]
+  },
+  {
+   "id": "S3",
+   "title": "Purchasing power weakens and consumers substitute toward cheaper imports",
+   "horizon": {
+    "label": "12 months",
+    "end": "2027-06-30T00:00:00Z"
+   },
+   "assumptions": [
+    {
+     "id": "S3-A1",
+     "statement": "EU real disposable income declines over the window",
+     "kind": "EXOGENOUS_ASSUMPTION",
+     "sourceRefs": [
+      "eurostat:nasq_10_nf_tr"
+     ],
+     "asOf": "2026-06-30T00:00:00Z",
+     "validUntil": "2027-06-30T00:00:00Z"
+    }
+   ],
+   "expectations": [
+    {
+     "id": "S3-E1",
+     "indicator": "Japan share of EU extra imports in discretionary categories",
+     "statement": "Japan share falls while non-Japan low-price share rises",
+     "direction": "DECREASE",
+     "observationWindow": {
+      "start": "2026-07-01T00:00:00Z",
+      "end": "2027-06-30T00:00:00Z"
+     },
+     "falsificationCondition": "Japan share rises while real income falls",
+     "provenance": "DOMAIN_KNOWLEDGE",
+     "observedDataAvailableAtCreation": false,
+     "sourceRefs": [
+      "trade-theory:pass-through"
+     ]
+    }
+   ],
+   "affectedDimensions": [
+    "discretionary"
+   ]
+  },
+  {
+   "id": "S4",
+   "title": "Purchasing power weakens and discretionary demand falls including Japanese imports",
+   "horizon": {
+    "label": "12 months",
+    "end": "2027-06-30T00:00:00Z"
+   },
+   "assumptions": [
+    {
+     "id": "S4-A1",
+     "statement": "EU real disposable income declines over the window",
+     "kind": "EXOGENOUS_ASSUMPTION",
+     "sourceRefs": [
+      "eurostat:nasq_10_nf_tr"
+     ],
+     "asOf": "2026-06-30T00:00:00Z",
+     "validUntil": "2027-06-30T00:00:00Z"
+    }
+   ],
+   "expectations": [
+    {
+     "id": "S4-E1",
+     "indicator": "EU total discretionary import value (all origins)",
+     "statement": "Total discretionary import value falls",
+     "direction": "DECREASE",
+     "observationWindow": {
+      "start": "2026-07-01T00:00:00Z",
+      "end": "2027-06-30T00:00:00Z"
+     },
+     "falsificationCondition": "total discretionary import value rises",
+     "provenance": "DOMAIN_KNOWLEDGE",
+     "observedDataAvailableAtCreation": false,
+     "sourceRefs": [
+      "trade-theory:pass-through"
+     ]
+    }
+   ],
+   "affectedDimensions": [
+    "discretionary"
+   ]
+  },
+  {
+   "id": "S5",
+   "title": "Demand rises for category-specific reasons unrelated to FX",
+   "horizon": {
+    "label": "12 months",
+    "end": "2027-06-30T00:00:00Z"
+   },
+   "assumptions": [
+    {
+     "id": "S5-A1",
+     "statement": "A category-specific demand driver exists independent of FX",
+     "kind": "HUMAN_ASSUMPTION",
+     "sourceRefs": [
+      "analyst-note:category-driver"
+     ],
+     "asOf": "2026-06-30T00:00:00Z",
+     "validUntil": "2027-06-30T00:00:00Z"
+    }
+   ],
+   "expectations": [
+    {
+     "id": "S5-E1",
+     "indicator": "EU imports of the category from non-Japan origins",
+     "statement": "Imports from all origins rise together",
+     "direction": "INCREASE",
+     "observationWindow": {
+      "start": "2026-07-01T00:00:00Z",
+      "end": "2027-06-30T00:00:00Z"
+     },
+     "falsificationCondition": "only imports from Japan rise while other origins stay flat",
+     "provenance": "DOMAIN_KNOWLEDGE",
+     "observedDataAvailableAtCreation": false,
+     "sourceRefs": [
+      "trade-theory:pass-through"
+     ]
+    }
+   ],
+   "affectedDimensions": [
+    "category-specific"
+   ]
+  }
+ ],
+ "relations": [
+  {
+   "scenarioIds": [
+    "S3",
+    "S4"
+   ],
+   "kind": "CONFLICTING",
+   "note": "S3 predicts falling Japan share with stable total demand; S4 predicts falling total demand"
+  },
+  {
+   "scenarioIds": [
+    "S1",
+    "S2"
+   ],
+   "kind": "MUTUALLY_EXCLUSIVE",
+   "note": "landed price either falls or does not"
+  }
+ ],
+ "origin": "HUMAN",
+ "createdAt": "2026-07-01T00:00:00Z"
+}

@@ -45,7 +45,7 @@ func newPublicServer(t *testing.T, modelBacked bool) *httptest.Server {
 	jobs := service.NewJobManager(analyses, pipeline, service.NewSettingsStore(settings), func(service.Settings) llm.Client { return scriptedModel{} })
 	ctx, cancel := context.WithCancel(context.Background())
 	jobs.Start(ctx, 2)
-	app := usecase.New(usecase.Repositories{Projects: projects, Documents: documents, Observations: observations, Patterns: patterns, Analyses: analyses, Insights: insights, Evidence: evidence, Research: sqlite.NewResearchRepository(db)})
+	app := usecase.New(usecase.Repositories{Projects: projects, Documents: documents, Observations: observations, Patterns: patterns, Analyses: analyses, Insights: insights, Evidence: evidence, Research: sqlite.NewResearchRepository(db), Scenarios: sqlite.NewScenarioRepository(db)})
 	engine := publicengine.New(app, sqlite.NewPublicRepository(db), documents, jobs, conformanceBuild)
 	engine.EnableTriage(sqlite.NewTriageRepository(db), nil)
 	server := httptest.NewServer(httpapi.NewRouter(httpapi.Deps{App: app, JobManager: jobs, PublicEngine: engine}))

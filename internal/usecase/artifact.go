@@ -100,6 +100,10 @@ type ResearchArtifact struct {
 	HumanOverrides     []domain.HumanOverride     `json:"humanOverrides,omitempty"`
 	HumanEvaluation    *domain.HumanEvaluation    `json:"humanEvaluation,omitempty"`
 
+	// ScenarioAnalysis (Issue #66) is additive: present only when the run
+	// has scenario sets. Status inside is evidence state, never probability.
+	ScenarioAnalysis *ScenarioAnalysis `json:"scenarioAnalysis,omitempty"`
+
 	CreatedAt  time.Time `json:"iterationCreatedAt"`
 	ExportedAt time.Time `json:"exportedAt"`
 }
@@ -184,6 +188,16 @@ func (a *Application) GetResearchArtifact(ctx context.Context, runID string) (*R
 		Readiness:            iteration.Readiness, EffectiveReadiness: iteration.EffectiveReadiness(),
 		StopDecision: iteration.Stop, HumanOverrides: iteration.HumanOverrides,
 		CreatedAt: iteration.CreatedAt, ExportedAt: a.now(),
+	}
+
+	if a.repos.Scenarios != nil {
+		scenarios, err := a.GetScenarioAnalysis(ctx, run.ID)
+		if err != nil {
+			return nil, err
+		}
+		if len(scenarios.Sets) > 0 {
+			artifact.ScenarioAnalysis = scenarios
+		}
 	}
 
 	if evaluation, err := a.repos.Research.GetHumanEvaluation(ctx, run.ID, iteration.ID); err == nil {
