@@ -329,21 +329,21 @@ type ResearchIteration struct {
 	// iteration: those built from this iteration's own insights plus any
 	// frozen expectation derived from a prior iteration. They are never
 	// mutated in place; freezing or deriving always produces a new entry.
-	Expectations         []Expectation                  `json:"expectations,omitempty"`
-	ResearchGaps         []ResearchGap                  `json:"researchGaps,omitempty"`
-	DataRequirements     []DataRequirement              `json:"dataRequirements,omitempty"`
-	AddedEvidence        []string                       `json:"addedEvidence,omitempty"`
-	AddedEvidenceLinks   []AddedEvidenceLink            `json:"addedEvidenceLinks,omitempty"`
-	HypothesisChanges    []HypothesisChange             `json:"hypothesisChanges,omitempty"`
-	ValidationEvidence   []ValidationEvidenceProvenance `json:"validationEvidence,omitempty"`
-	Delta                *InsightDelta                  `json:"insightDelta,omitempty"`
+	Expectations       []Expectation                  `json:"expectations,omitempty"`
+	ResearchGaps       []ResearchGap                  `json:"researchGaps,omitempty"`
+	DataRequirements   []DataRequirement              `json:"dataRequirements,omitempty"`
+	AddedEvidence      []string                       `json:"addedEvidence,omitempty"`
+	AddedEvidenceLinks []AddedEvidenceLink            `json:"addedEvidenceLinks,omitempty"`
+	HypothesisChanges  []HypothesisChange             `json:"hypothesisChanges,omitempty"`
+	ValidationEvidence []ValidationEvidenceProvenance `json:"validationEvidence,omitempty"`
+	Delta              *InsightDelta                  `json:"insightDelta,omitempty"`
 	// ReEvaluation is set when this iteration was created by the
 	// re-evaluation contract (#74).
-	ReEvaluation *ReEvaluation `json:"reEvaluation,omitempty"`
-	WhatWeCannotConclude []string                       `json:"whatWeCannotConclude,omitempty"`
-	Readiness            ReadinessAssessment            `json:"readiness"`
-	Stop                 *StopDecision                  `json:"stop,omitempty"`
-	HumanOverrides       []HumanOverride                `json:"humanOverrides,omitempty"`
+	ReEvaluation         *ReEvaluation       `json:"reEvaluation,omitempty"`
+	WhatWeCannotConclude []string            `json:"whatWeCannotConclude,omitempty"`
+	Readiness            ReadinessAssessment `json:"readiness"`
+	Stop                 *StopDecision       `json:"stop,omitempty"`
+	HumanOverrides       []HumanOverride     `json:"humanOverrides,omitempty"`
 	// PromotionGateInput is the evidence a promotion transition was last
 	// checked against (issue #24). It is kept alongside Promotion so a later
 	// explicit transition (e.g. to PUBLISHED) can be re-checked without the

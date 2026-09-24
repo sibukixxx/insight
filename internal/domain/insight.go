@@ -1,8 +1,8 @@
 package domain
 
 import (
- "time"
- "insight-lab/internal/analytical/model"
+	"insight-lab/internal/analytical/model"
+	"time"
 )
 
 type EvidenceType string
@@ -14,7 +14,7 @@ const (
 )
 
 type Evidence struct {
- Temporal *model.TemporalEvidence `json:"temporal,omitempty"`
+	Temporal       *model.TemporalEvidence `json:"temporal,omitempty"`
 	ID             string
 	InsightID      string
 	DocumentID     string
@@ -62,7 +62,6 @@ type QualityFlag struct {
 	Code   QualityFlagCode `json:"code"`
 	Detail string          `json:"detail,omitempty"`
 }
-
 
 // InsightReferenceKind identifies what kind of grounded object a connection
 // endpoint points at. References stay provider-neutral so the same semantic
@@ -116,29 +115,29 @@ func (k ConnectionKind) Valid() bool {
 // InsightConnection is a proposed non-obvious relation between grounded
 // objects. Kind is descriptive only; it never promotes causal status.
 type InsightConnection struct {
-	Sources   []InsightReference `json:"sources,omitempty"`
-	Targets   []InsightReference `json:"targets,omitempty"`
-	Kind      ConnectionKind     `json:"kind,omitempty"`
-	Statement string             `json:"statement,omitempty"`
-	WhyItMatters string          `json:"whyItMatters,omitempty"`
+	Sources      []InsightReference `json:"sources,omitempty"`
+	Targets      []InsightReference `json:"targets,omitempty"`
+	Kind         ConnectionKind     `json:"kind,omitempty"`
+	Statement    string             `json:"statement,omitempty"`
+	WhyItMatters string             `json:"whyItMatters,omitempty"`
 }
 
 // MechanismStep is one bridge in a candidate explanatory chain. EvidenceRefs
 // point to existing evidence/artifact identifiers; an unsupported step stays
 // explicit instead of being hidden inside persuasive prose.
 type MechanismStep struct {
-	Statement      string   `json:"statement"`
-	EvidenceRefs   []string `json:"evidenceRefs,omitempty"`
-	Assumptions    []string `json:"assumptions,omitempty"`
+	Statement       string   `json:"statement"`
+	EvidenceRefs    []string `json:"evidenceRefs,omitempty"`
+	Assumptions     []string `json:"assumptions,omitempty"`
 	MissingEvidence []string `json:"missingEvidence,omitempty"`
 }
 
 type MechanismCandidate struct {
-	Statement            string          `json:"statement,omitempty"`
-	Steps                []MechanismStep `json:"steps,omitempty"`
-	AlternativeMechanisms []string       `json:"alternativeMechanisms,omitempty"`
-	CounterEvidenceRefs  []string        `json:"counterEvidenceRefs,omitempty"`
-	FalsificationCriteria []string       `json:"falsificationCriteria,omitempty"`
+	Statement             string          `json:"statement,omitempty"`
+	Steps                 []MechanismStep `json:"steps,omitempty"`
+	AlternativeMechanisms []string        `json:"alternativeMechanisms,omitempty"`
+	CounterEvidenceRefs   []string        `json:"counterEvidenceRefs,omitempty"`
+	FalsificationCriteria []string        `json:"falsificationCriteria,omitempty"`
 }
 
 type GeneralizationStatus string
@@ -157,13 +156,13 @@ func (s GeneralizationStatus) Valid() bool {
 // model-certified universal law. Human review/additional evidence owns any
 // promotion beyond CANDIDATE.
 type InsightGeneralization struct {
-	SourceContext        string               `json:"sourceContext,omitempty"`
-	Principle            string               `json:"principle,omitempty"`
-	TargetContext        string               `json:"targetContext,omitempty"`
-	ApplicabilityConditions []string          `json:"applicabilityConditions,omitempty"`
-	BoundaryConditions   []string             `json:"boundaryConditions,omitempty"`
-	KnownFailureConditions []string           `json:"knownFailureConditions,omitempty"`
-	Status               GeneralizationStatus `json:"status,omitempty"`
+	SourceContext           string               `json:"sourceContext,omitempty"`
+	Principle               string               `json:"principle,omitempty"`
+	TargetContext           string               `json:"targetContext,omitempty"`
+	ApplicabilityConditions []string             `json:"applicabilityConditions,omitempty"`
+	BoundaryConditions      []string             `json:"boundaryConditions,omitempty"`
+	KnownFailureConditions  []string             `json:"knownFailureConditions,omitempty"`
+	Status                  GeneralizationStatus `json:"status,omitempty"`
 }
 
 type Insight struct {

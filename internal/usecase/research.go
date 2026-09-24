@@ -229,9 +229,9 @@ func (a *Application) FreezeResearchExpectation(ctx context.Context, in FreezeRe
 // latest iteration of a run may transition, because the run's current stage
 // is always read from its latest iteration.
 type TransitionResearchStageInput struct {
-	RunID                      string
-	IterationID                string
-	TargetStage                domain.ResearchStage
+	RunID       string
+	IterationID string
+	TargetStage domain.ResearchStage
 	// Deprecated compatibility flag. New callers should supply ValidationEvidence
 	// so the reason for VALIDATION remains auditable after the transition.
 	IndependentEvidencePlanned bool
@@ -368,7 +368,6 @@ func (a *Application) SaveHumanEvaluation(ctx context.Context, evaluation *domai
 func (a *Application) GetHumanEvaluation(ctx context.Context, runID, iterationID string) (*domain.HumanEvaluation, error) {
 	return a.repos.Research.GetHumanEvaluation(ctx, runID, iterationID)
 }
-
 
 func (a *Application) CompareResearchIterations(ctx context.Context, runID, fromIterationID, toIterationID string) (*domain.InsightDelta, error) {
 	from, err := a.repos.Research.GetResearchIteration(ctx, runID, fromIterationID)

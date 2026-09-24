@@ -18,9 +18,9 @@ func TestAnalysisModeAxesAreExplicit(t *testing.T) {
 
 func TestResearchClaimIsNotEvidence(t *testing.T) {
 	claim := ResearchClaim{
-		ID: "claim-1",
-		Statement: "The policy caused the increase",
-		SourceReference: "external-report.pdf",
+		ID:                 "claim-1",
+		Statement:          "The policy caused the increase",
+		SourceReference:    "external-report.pdf",
 		EvidenceReferences: []string{"official-table.csv"},
 	}
 	if err := claim.Validate(); err != nil {

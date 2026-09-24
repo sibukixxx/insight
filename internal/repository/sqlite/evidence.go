@@ -3,7 +3,7 @@ package sqlite
 import (
 	"context"
 	"database/sql"
- "encoding/json"
+	"encoding/json"
 	"errors"
 
 	"insight-lab/internal/domain"
@@ -25,8 +25,11 @@ func (r *EvidenceRepository) CreateBatch(ctx context.Context, evidence []*domain
 		return err
 	}
 	for _, e := range evidence {
-  temporal, err := json.Marshal(e.Temporal)
-  if err != nil { tx.Rollback(); return err }
+		temporal, err := json.Marshal(e.Temporal)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
 		if _, err := tx.ExecContext(ctx,
 			`INSERT INTO evidence (id, insight_id, document_id, observation_id, quote, evidence_type, relevance_score, start_offset, end_offset, temporal_evidence)
 			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -71,7 +74,7 @@ func scanEvidence(s scanner) (*domain.Evidence, error) {
 	var e domain.Evidence
 	var observationID sql.NullString
 	var evidenceType string
- var temporal sql.NullString
+	var temporal sql.NullString
 	if err := s.Scan(&e.ID, &e.InsightID, &e.DocumentID, &observationID, &e.Quote, &evidenceType,
 		&e.RelevanceScore, &e.StartOffset, &e.EndOffset, &temporal); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -79,8 +82,12 @@ func scanEvidence(s scanner) (*domain.Evidence, error) {
 		}
 		return nil, err
 	}
-	if temporal.Valid { if err := json.Unmarshal([]byte(temporal.String), &e.Temporal); err != nil { return nil, err } }
- e.Type = domain.EvidenceType(evidenceType)
+	if temporal.Valid {
+		if err := json.Unmarshal([]byte(temporal.String), &e.Temporal); err != nil {
+			return nil, err
+		}
+	}
+	e.Type = domain.EvidenceType(evidenceType)
 	if observationID.Valid {
 		v := observationID.String
 		e.ObservationID = &v

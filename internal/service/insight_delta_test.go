@@ -8,16 +8,16 @@ import (
 
 func TestCompareResearchIterationsTracksInputAndInterpretationChange(t *testing.T) {
 	before := domain.ResearchIteration{
-		ID: "it-1",
+		ID:            "it-1",
 		InputSnapshot: domain.InputSetSnapshot{Variables: []string{"population"}, EvidenceReferences: []string{"population.csv"}},
-		InsightIDs: []string{"h1"},
-		ResearchGaps: []domain.ResearchGap{{ID: "g1", Need: "income"}},
+		InsightIDs:    []string{"h1"},
+		ResearchGaps:  []domain.ResearchGap{{ID: "g1", Need: "income"}},
 	}
 	after := domain.ResearchIteration{
-		ID: "it-2",
-		InputSnapshot: domain.InputSetSnapshot{Variables: []string{"population", "income"}, EvidenceReferences: []string{"population.csv", "income.csv"}},
-		InsightIDs: []string{"h1", "h2"},
-		ResearchGaps: []domain.ResearchGap{{ID: "g1", Need: "income", Resolved: true}},
+		ID:                "it-2",
+		InputSnapshot:     domain.InputSetSnapshot{Variables: []string{"population", "income"}, EvidenceReferences: []string{"population.csv", "income.csv"}},
+		InsightIDs:        []string{"h1", "h2"},
+		ResearchGaps:      []domain.ResearchGap{{ID: "g1", Need: "income", Resolved: true}},
 		HypothesisChanges: []domain.HypothesisChange{{HypothesisID: "h1", Evolution: domain.HypothesisWeakened, Reason: "new evidence"}},
 	}
 	d := CompareResearchIterations(before, after)

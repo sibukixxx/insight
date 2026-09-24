@@ -3,7 +3,7 @@ package sqlite
 import (
 	"context"
 	"database/sql"
- "encoding/json"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -27,8 +27,11 @@ func (r *ObservationRepository) CreateBatch(ctx context.Context, obs []*domain.O
 		return err
 	}
 	for _, o := range obs {
-  temporal, err := json.Marshal(o.Temporal)
-  if err != nil { tx.Rollback(); return err }
+		temporal, err := json.Marshal(o.Temporal)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
 		if _, err := tx.ExecContext(ctx,
 			`INSERT INTO observations (id, analysis_id, document_id, quote, start_offset, end_offset, behavior, topic, created_at, temporal_evidence)
 			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -119,7 +122,7 @@ func scanObservations(rows *sql.Rows) ([]*domain.Observation, error) {
 func scanObservation(s scanner) (*domain.Observation, error) {
 	var o domain.Observation
 	var createdAt string
- var temporal sql.NullString
+	var temporal sql.NullString
 	var topic, analysisID sql.NullString
 	if err := s.Scan(&o.ID, &analysisID, &o.DocumentID, &o.Quote, &o.StartOffset, &o.EndOffset, &o.Behavior, &topic, &createdAt, &temporal); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -127,8 +130,12 @@ func scanObservation(s scanner) (*domain.Observation, error) {
 		}
 		return nil, err
 	}
-	if temporal.Valid { if err := json.Unmarshal([]byte(temporal.String), &o.Temporal); err != nil { return nil, fmt.Errorf("decode temporal evidence: %w", err) } }
- o.Topic = topic.String
+	if temporal.Valid {
+		if err := json.Unmarshal([]byte(temporal.String), &o.Temporal); err != nil {
+			return nil, fmt.Errorf("decode temporal evidence: %w", err)
+		}
+	}
+	o.Topic = topic.String
 	o.AnalysisID = analysisID.String
 	t, err := parseTime(createdAt)
 	if err != nil {
