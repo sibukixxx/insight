@@ -20,6 +20,7 @@ Evidence-first analysis engine. Keep observations, expectations, mismatches, com
 - Core/domain changes: `make test && make vet`.
 - Insight scoring/evaluation changes: also run `make test-golden`.
 - Demo-only changes: verify both normal and `demo` build paths remain separated.
+- Public contract changes (`contracts/public-engine/v1`, `contracts/analytical-artifact/v1`): `make test` (drift and conformance tests), update `docs/public-engine-contract.md` in the same PR, then resync the snapshots in `insight-sdk-go` and `insight-sdk-js` (`contract/PROVENANCE.md`) and release a new SDK minor version. The SDK repositories never lead; this repository is authoritative.
 
 ## Done
 - Changed analysis behavior is covered by tests or golden fixtures as applicable.
