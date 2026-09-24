@@ -10,7 +10,10 @@ import (
 )
 
 type CreateResearchRunInput struct {
-	ProjectID       string
+	ProjectID string
+	// AnalysisID names the completed analysis run to build from. Empty means
+	// the project's latest run, which must have completed.
+	AnalysisID      string
 	Question        string
 	InputReferences []string
 	AnalysisMode    domain.AnalysisMode
@@ -19,7 +22,10 @@ type CreateResearchRunInput struct {
 }
 
 type AppendResearchIterationInput struct {
-	RunID              string
+	RunID string
+	// AnalysisID names the completed analysis run to build from. Empty means
+	// the project's latest run, which must have completed.
+	AnalysisID         string
 	Question           string
 	InputReferences    []string
 	AddedEvidence      []string
@@ -39,7 +45,7 @@ func (a *Application) CreateResearchRun(ctx context.Context, in CreateResearchRu
 	if strings.TrimSpace(in.Question) == "" {
 		return nil, fmt.Errorf("question is required")
 	}
-	analysisID, insights, err := a.latestInsights(ctx, in.ProjectID)
+	analysisID, insights, err := a.researchInsights(ctx, in.ProjectID, in.AnalysisID)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +75,7 @@ func (a *Application) AppendResearchIteration(ctx context.Context, in AppendRese
 	if err != nil {
 		return nil, err
 	}
-	analysisID, insights, err := a.latestInsights(ctx, run.ProjectID)
+	analysisID, insights, err := a.researchInsights(ctx, run.ProjectID, in.AnalysisID)
 	if err != nil {
 		return nil, err
 	}
@@ -270,22 +276,33 @@ func (a *Application) GetHumanHandoff(ctx context.Context, runID string) (*domai
 	return &handoff, nil
 }
 
-// latestInsights returns the latest analysis run's ID and insights. A new
-// iteration is only built from a completed latest run.
-func (a *Application) latestInsights(ctx context.Context, projectID string) (string, []*domain.Insight, error) {
-	analysis, err := a.repos.Analyses.LatestByProject(ctx, projectID)
+// researchInsights returns the analysis run a research iteration is built
+// from and its insights. An explicit analysisID must belong to the project
+// and have completed. Without one, the project's latest run is used and must
+// have completed; an older completed run is never substituted silently.
+func (a *Application) researchInsights(ctx context.Context, projectID, analysisID string) (string, []*domain.Insight, error) {
+	var analysis *domain.Analysis
+	var err error
+	if analysisID != "" {
+		analysis, err = a.ResolveAnalysis(ctx, projectID, analysisID)
+	} else {
+		analysis, err = a.repos.Analyses.LatestByProject(ctx, projectID)
+		if err != nil {
+			err = fmt.Errorf("latest analysis: %w", err)
+		}
+	}
 	if err != nil {
-		return "", nil, fmt.Errorf("latest analysis: %w", err)
+		return "", nil, err
 	}
 	if analysis.Status != domain.AnalysisCompleted {
-		return "", nil, fmt.Errorf("latest analysis has not completed")
+		return "", nil, fmt.Errorf("analysis %s: %w", analysis.ID, ErrAnalysisNotCompleted)
 	}
 	result, err := a.repos.Insights.ListByAnalysis(ctx, analysis.ID)
 	if err != nil {
 		return "", nil, err
 	}
 	if len(result) == 0 {
-		return "", nil, fmt.Errorf("latest analysis has no insights")
+		return "", nil, fmt.Errorf("analysis %s: %w", analysis.ID, ErrAnalysisHasNoHypotheses)
 	}
 	return analysis.ID, result, nil
 }

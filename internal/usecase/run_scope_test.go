@@ -349,3 +349,60 @@ func TestProjectReportShowsTheRunSnapshot(t *testing.T) {
 		t.Fatalf("report leaks a credential or the full provider URL:\n%s", report)
 	}
 }
+
+func TestCreateResearchRunUsesTheExplicitlyNamedAnalysis(t *testing.T) {
+	app, ctx, _ := seedRunScopeProject(t)
+	run, err := app.CreateResearchRun(ctx, CreateResearchRunInput{ProjectID: "p1", Question: "q", AnalysisID: "a1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if it := run.Iterations[0]; it.AnalysisID != "a1" || len(it.InsightIDs) != 1 || it.InsightIDs[0] != "ins_a1" {
+		t.Fatalf("iteration = analysis %q insights %v, want a1 / ins_a1", it.AnalysisID, it.InsightIDs)
+	}
+}
+
+func TestResearchRunRejectsAnAnalysisThatIsNotCompletedOrBelongsElsewhere(t *testing.T) {
+	app, ctx, base := seedRunScopeProject(t)
+	addFailedAnalysis(t, app, ctx, "a3", base.Add(5*time.Hour))
+	if _, err := app.CreateResearchRun(ctx, CreateResearchRunInput{ProjectID: "p1", Question: "q", AnalysisID: "a3"}); !errors.Is(err, ErrAnalysisNotCompleted) {
+		t.Fatalf("failed analysis err = %v, want ErrAnalysisNotCompleted", err)
+	}
+	if err := app.repos.Projects.Create(ctx, &domain.Project{ID: "p2", Name: "other", CreatedAt: base}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := app.CreateResearchRun(ctx, CreateResearchRunInput{ProjectID: "p2", Question: "q", AnalysisID: "a1"}); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("foreign analysis err = %v, want ErrNotFound", err)
+	}
+}
+
+func TestAppendResearchIterationUsesTheExplicitlyNamedAnalysis(t *testing.T) {
+	app, ctx, _ := seedRunScopeProject(t)
+	run, err := app.CreateResearchRun(ctx, CreateResearchRunInput{ProjectID: "p1", Question: "q", AnalysisID: "a1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	it, err := app.AppendResearchIteration(ctx, AppendResearchIterationInput{RunID: run.ID, AnalysisID: "a2"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if it.AnalysisID != "a2" || it.Delta == nil {
+		t.Fatalf("appended iteration analysis %q delta %v", it.AnalysisID, it.Delta)
+	}
+}
+
+func TestListObservationsReturnsOnlyTheSelectedRun(t *testing.T) {
+	app, ctx, base := seedRunScopeProject(t)
+	if err := app.repos.Documents.Create(ctx, &domain.Document{ID: "d1", ProjectID: "p1", Source: domain.SourceInterview, Content: "abc", CreatedAt: base}); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.repos.Observations.CreateBatch(ctx, []*domain.Observation{
+		{ID: "o1", AnalysisID: "a1", DocumentID: "d1", Quote: "a", EndOffset: 1, Behavior: "b", CreatedAt: base},
+		{ID: "o2", AnalysisID: "a2", DocumentID: "d1", Quote: "b", StartOffset: 1, EndOffset: 2, Behavior: "b", CreatedAt: base},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := app.ListObservations(ctx, "p1", "a1")
+	if err != nil || len(got) != 1 || got[0].ID != "o1" {
+		t.Fatalf("ListObservations(a1) = %v, %v, want only o1", got, err)
+	}
+}

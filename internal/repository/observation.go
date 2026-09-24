@@ -12,4 +12,6 @@ type ObservationRepository interface {
 	ListByProject(ctx context.Context, projectID string) ([]*domain.Observation, error)
 	ListByDocument(ctx context.Context, documentID string) ([]*domain.Observation, error)
 	ListByIDs(ctx context.Context, ids []string) ([]*domain.Observation, error)
+	// ListByAnalysis returns the observations one analysis run produced.
+	ListByAnalysis(ctx context.Context, analysisID string) ([]*domain.Observation, error)
 }
