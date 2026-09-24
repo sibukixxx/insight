@@ -34,6 +34,11 @@ type AcquisitionManifest struct {
 	Period              string            `json:"period,omitempty"`
 	Unit                string            `json:"unit,omitempty"`
 	PopulationScope     string            `json:"populationScope,omitempty"` // population / denominator the counts refer to
+	// PopulationDefinitionID is a stable identifier of the population
+	// definition. When two manifests both carry one, it decides
+	// comparability instead of the free-text PopulationScope, so a documented
+	// harmonization can share a definition across differently worded sources.
+	PopulationDefinitionID string `json:"populationDefinitionId,omitempty"`
 	KnownCaveats        []string          `json:"knownCaveats,omitempty"`
 	TransformationSteps []string          `json:"transformationSteps,omitempty"`
 	FileHash            string            `json:"fileHash,omitempty"` // sha256 hex of the imported file; filled in by the importer
@@ -208,7 +213,7 @@ func CheckDatasetCompatibility(manifests []AcquisitionManifest) []DatasetCompati
 				warnings = append(warnings, DatasetCompatibilityWarning{Code: CompatibilityUnitMismatch, DatasetIDs: pair,
 					Detail: fmt.Sprintf("unit %q (%s) differs from %q (%s); counts are not directly comparable", a.Unit, a.DatasetID, b.Unit, b.DatasetID)})
 			}
-			if mismatch(a.PopulationScope, b.PopulationScope) {
+			if populationMismatch(a, b) {
 				warnings = append(warnings, DatasetCompatibilityWarning{Code: CompatibilityPopulationMismatch, DatasetIDs: pair,
 					Detail: fmt.Sprintf("population scope %q (%s) differs from %q (%s); a delta would mix denominators", a.PopulationScope, a.DatasetID, b.PopulationScope, b.DatasetID)})
 			}
@@ -257,4 +262,21 @@ func periodGranularity(period string) string {
 	default:
 		return "unknown"
 	}
+}
+
+// populationMismatch compares definition IDs when both manifests have one and
+// falls back to the free-text scope otherwise.
+func populationMismatch(a, b AcquisitionManifest) bool {
+	if a.PopulationDefinitionID != "" && b.PopulationDefinitionID != "" {
+		return a.PopulationDefinitionID != b.PopulationDefinitionID
+	}
+	return mismatch(a.PopulationScope, b.PopulationScope)
+}
+
+// PopulationKey is the value comparisons are grouped by.
+func (m AcquisitionManifest) PopulationKey() string {
+	if m.PopulationDefinitionID != "" {
+		return "id:" + m.PopulationDefinitionID
+	}
+	return m.PopulationScope
 }

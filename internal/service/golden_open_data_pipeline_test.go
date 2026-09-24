@@ -68,6 +68,7 @@ func TestGoldenRealOpenDataRunsThroughDeterministicPipeline(t *testing.T) {
 			Period: row.period,
 			Unit: "enterprises",
 			PopulationScope: row.populationScope,
+			PopulationDefinitionID: row.populationDefinitionID,
 			KnownCaveats: []string{"golden fixture mirrors checked-in normalized public data"},
 			SchemaID: "japan-economic-census-enterprise-equivalents",
 			SchemaVersion: row.period,

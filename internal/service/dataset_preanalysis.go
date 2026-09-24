@@ -152,7 +152,7 @@ func ComputeDatasetComparisons(docs []*domain.Document) ([]DatasetComparison, []
 		}
 		unit, population := "", ""
 		if m, ok := ManifestFromDocument(d); ok {
-			unit, population = m.Unit, m.PopulationScope
+			unit, population = m.Unit, m.PopulationKey()
 		}
 		provider := strings.TrimSpace(d.Metadata["source_provider"] + " " + d.Metadata["source_version"])
 		key := strings.Join([]string{d.Metadata["event_type"], datasetLocation(d.Metadata), provider, unit, population}, "\x00")

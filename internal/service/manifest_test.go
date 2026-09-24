@@ -199,3 +199,19 @@ func TestPeriodGranularityClassifiesCommonPeriodShapes(t *testing.T) {
 		}
 	}
 }
+
+func TestPopulationMismatchPrefersDefinitionIDOverScopeText(t *testing.T) {
+	a := AcquisitionManifest{PopulationScope: "2021 wording", PopulationDefinitionID: "JP_incl_no_employee"}
+	b := AcquisitionManifest{PopulationScope: "2024 harmonized wording", PopulationDefinitionID: "JP_incl_no_employee"}
+	if populationMismatch(a, b) {
+		t.Fatal("same definition ID with different wording must be comparable")
+	}
+	b.PopulationDefinitionID = "JP_excl_no_employee"
+	if !populationMismatch(a, b) {
+		t.Fatal("different definition IDs must be a mismatch")
+	}
+	a.PopulationDefinitionID, b.PopulationDefinitionID = "", ""
+	if !populationMismatch(a, b) {
+		t.Fatal("without IDs, differing scope text must remain a mismatch")
+	}
+}
