@@ -1,8 +1,12 @@
 package domain
 
-import "time"
+import (
+ "time"
+ "insight-lab/internal/analytical/model"
+)
 
 type Observation struct {
+ Temporal *model.TemporalEvidence `json:"temporal,omitempty"`
 	ID string
 	// AnalysisID is the run that produced the observation. It is empty for
 	// observations recorded before runs owned them, when the run could not

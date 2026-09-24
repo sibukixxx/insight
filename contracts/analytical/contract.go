@@ -2,7 +2,10 @@
 // Artifact wire contracts. Consumers do not import Insight internal packages.
 package analytical
 
-import internal "insight-lab/internal/analytical"
+import (
+ internal "insight-lab/internal/analytical"
+ "insight-lab/internal/domain"
+)
 
 const (
 	Schema  = internal.Schema
@@ -31,4 +34,21 @@ func Import(data []byte) (*Artifact, error)    { return internal.Import(data) }
 func Export(artifact Artifact) ([]byte, error) { return internal.Export(artifact) }
 func CheckDuplicate(existing, incoming Artifact) (bool, error) {
 	return internal.CheckDuplicate(existing, incoming)
+}
+
+type TemporalMetadata = internal.TemporalMetadata
+type TemporalEvidence = internal.TemporalEvidence
+type ObservationReference = internal.ObservationReference
+type ObservationDelta = internal.ObservationDelta
+type Observation = domain.Observation
+type Candidate = internal.Candidate
+
+func ToCandidatesForAnalysis(artifact Artifact, analysisID string) ([]Candidate,error) {
+ return internal.ToCandidatesForAnalysis(artifact,analysisID)
+}
+func CompareObservations(previous,current Observation) ObservationDelta {
+ return internal.CompareObservations(previous,current)
+}
+func CompareObservationSeries(observations []Observation) []ObservationDelta {
+ return internal.CompareObservationSeries(observations)
 }

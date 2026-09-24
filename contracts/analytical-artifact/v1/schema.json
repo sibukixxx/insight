@@ -69,7 +69,18 @@
     "metric": {
       "type": "object",
       "required": ["id", "name", "unit"],
-      "properties": {"id": {"type": "string", "minLength": 1}, "name": {"type": "string", "minLength": 1}, "description": {"type": "string"}, "unit": {"type": "string", "minLength": 1}, "aggregation": {"type": "string"}},
+      "properties": {"version": {"type": "string", "minLength": 1}, "id": {"type": "string", "minLength": 1}, "name": {"type": "string", "minLength": 1}, "description": {"type": "string"}, "unit": {"type": "string", "minLength": 1}, "aggregation": {"type": "string"}},
+      "additionalProperties": false
+    },
+    "temporal": {
+      "type": "object",
+      "required": ["observedAt", "origin", "geography", "valueBasis"],
+      "properties": {
+        "observedAt": {"type": "string", "format": "date-time"},
+        "origin": {"enum": ["observed", "derived"]},
+        "geography": {"type": "string", "minLength": 1},
+        "valueBasis": {"enum": ["nominal", "real", "not_applicable"]}
+      },
       "additionalProperties": false
     },
     "quality": {
@@ -83,6 +94,7 @@
       "required": ["metricId", "period"],
       "properties": {
         "metricId": {"type": "string", "minLength": 1},
+        "temporal": {"$ref": "#/$defs/temporal"},
         "dimensions": {"type": "object", "additionalProperties": {"type": "string"}},
         "period": {"$ref": "#/$defs/period"},
         "value": {"type": ["number", "string", "boolean", "null"]},
