@@ -309,18 +309,22 @@ type ResearchIteration struct {
 	// AnalysisID is the analysis run whose insights this iteration was built
 	// from. It is empty for iterations recorded before runs were referenced
 	// directly; those are resolved through their InsightIDs.
-	AnalysisID       string            `json:"analysisId,omitempty"`
-	Stage            ResearchStage     `json:"stage,omitempty"`
-	AnalysisMode     AnalysisMode      `json:"semanticAnalysisMode,omitempty"`
-	Question         string            `json:"question"`
-	InputReferences  []string          `json:"inputReferences,omitempty"`
-	InputSnapshot    InputSetSnapshot  `json:"inputSnapshot,omitempty"`
-	ObservationIDs   []string          `json:"observationIds,omitempty"`
-	SurpriseIDs      []string          `json:"surpriseIds,omitempty"`
-	HypothesisSetIDs []string          `json:"hypothesisSetIds,omitempty"`
-	InsightIDs       []string          `json:"insightIds,omitempty"`
-	Claims           []ResearchClaim   `json:"claims,omitempty"`
-	HypothesisStates []HypothesisState `json:"hypothesisStates,omitempty"`
+	AnalysisID   string        `json:"analysisId,omitempty"`
+	Stage        ResearchStage `json:"stage,omitempty"`
+	AnalysisMode AnalysisMode  `json:"semanticAnalysisMode,omitempty"`
+	Question     string        `json:"question"`
+	// PreviousIterationID and ObservationWindow make longitudinal history
+	// explicit (#71). Both are empty on iterations recorded before #71.
+	PreviousIterationID string             `json:"previousIterationId,omitempty"`
+	ObservationWindow   *ObservationWindow `json:"observationWindow,omitempty"`
+	InputReferences     []string           `json:"inputReferences,omitempty"`
+	InputSnapshot       InputSetSnapshot   `json:"inputSnapshot,omitempty"`
+	ObservationIDs      []string           `json:"observationIds,omitempty"`
+	SurpriseIDs         []string           `json:"surpriseIds,omitempty"`
+	HypothesisSetIDs    []string           `json:"hypothesisSetIds,omitempty"`
+	InsightIDs          []string           `json:"insightIds,omitempty"`
+	Claims              []ResearchClaim    `json:"claims,omitempty"`
+	HypothesisStates    []HypothesisState  `json:"hypothesisStates,omitempty"`
 	// Expectations are the first-class validation targets carried on this
 	// iteration: those built from this iteration's own insights plus any
 	// frozen expectation derived from a prior iteration. They are never
