@@ -1,0 +1,1394 @@
+{
+ "artifactSchema": "insight-lab.analytical-artifact",
+ "schemaVersion": "1",
+ "id": "trade-fx-monthly-2023-2024",
+ "artifactHash": {
+  "algorithm": "sha256",
+  "value": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+ },
+ "producer": "generic-sql-export",
+ "producerVersion": "1.0.0",
+ "generatedAt": "2025-01-15T00:00:00Z",
+ "datasets": [
+  {
+   "id": "customs-monthly",
+   "version": "2025-01",
+   "hash": {
+    "algorithm": "sha256",
+    "value": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+   }
+  },
+  {
+   "id": "fx-monthly",
+   "version": "2025-01",
+   "hash": {
+    "algorithm": "sha256",
+    "value": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+   }
+  }
+ ],
+ "spec": {
+  "kind": "sql",
+  "reference": "queries/trade_fx_monthly.sql",
+  "hash": {
+   "algorithm": "sha256",
+   "value": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+  }
+ },
+ "dimensions": [
+  "origin",
+  "destination",
+  "pair"
+ ],
+ "period": {
+  "start": "2023-01",
+  "end": "2024-12",
+  "basis": "calendar-month"
+ },
+ "population": {
+  "description": "Customs-cleared JP→EU exports and the EURJPY reference rate",
+  "unit": "monthly windows"
+ },
+ "metrics": [
+  {
+   "id": "export_value",
+   "name": "Export value",
+   "unit": "JPY bn",
+   "aggregation": "sum",
+   "version": "customs-value-v1"
+  },
+  {
+   "id": "export_volume",
+   "name": "Export volume",
+   "unit": "kt",
+   "aggregation": "sum",
+   "version": "customs-volume-v1"
+  },
+  {
+   "id": "fx_eurjpy",
+   "name": "EURJPY monthly average",
+   "unit": "JPY per EUR",
+   "aggregation": "mean",
+   "version": "fx-avg-v1"
+  }
+ ],
+ "results": [
+  {
+   "metricId": "export_value",
+   "dimensions": {
+    "origin": "JP",
+    "destination": "EU"
+   },
+   "period": {
+    "start": "2023-01",
+    "end": "2023-01",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2023-01-31T23:59:59Z",
+    "origin": "observed",
+    "geography": "JP→EU",
+    "valueBasis": "nominal"
+   },
+   "value": 100
+  },
+  {
+   "metricId": "export_volume",
+   "dimensions": {
+    "origin": "JP",
+    "destination": "EU"
+   },
+   "period": {
+    "start": "2023-01",
+    "end": "2023-01",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2023-01-31T23:59:59Z",
+    "origin": "observed",
+    "geography": "JP→EU",
+    "valueBasis": "nominal"
+   },
+   "value": 50
+  },
+  {
+   "metricId": "fx_eurjpy",
+   "dimensions": {
+    "pair": "EURJPY"
+   },
+   "period": {
+    "start": "2023-01",
+    "end": "2023-01",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2023-01-31T23:59:59Z",
+    "origin": "observed",
+    "geography": "EU/JP",
+    "valueBasis": "not_applicable"
+   },
+   "value": 140.0
+  },
+  {
+   "metricId": "export_value",
+   "dimensions": {
+    "origin": "JP",
+    "destination": "EU"
+   },
+   "period": {
+    "start": "2023-02",
+    "end": "2023-02",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2023-02-28T23:59:59Z",
+    "origin": "observed",
+    "geography": "JP→EU",
+    "valueBasis": "nominal"
+   },
+   "value": 102
+  },
+  {
+   "metricId": "export_volume",
+   "dimensions": {
+    "origin": "JP",
+    "destination": "EU"
+   },
+   "period": {
+    "start": "2023-02",
+    "end": "2023-02",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2023-02-28T23:59:59Z",
+    "origin": "observed",
+    "geography": "JP→EU",
+    "valueBasis": "nominal"
+   },
+   "value": 51
+  },
+  {
+   "metricId": "fx_eurjpy",
+   "dimensions": {
+    "pair": "EURJPY"
+   },
+   "period": {
+    "start": "2023-02",
+    "end": "2023-02",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2023-02-28T23:59:59Z",
+    "origin": "observed",
+    "geography": "EU/JP",
+    "valueBasis": "not_applicable"
+   },
+   "value": 140.8
+  },
+  {
+   "metricId": "export_value",
+   "dimensions": {
+    "origin": "JP",
+    "destination": "EU"
+   },
+   "period": {
+    "start": "2023-03",
+    "end": "2023-03",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2023-03-31T23:59:59Z",
+    "origin": "observed",
+    "geography": "JP→EU",
+    "valueBasis": "nominal"
+   },
+   "value": 104
+  },
+  {
+   "metricId": "export_volume",
+   "dimensions": {
+    "origin": "JP",
+    "destination": "EU"
+   },
+   "period": {
+    "start": "2023-03",
+    "end": "2023-03",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2023-03-31T23:59:59Z",
+    "origin": "observed",
+    "geography": "JP→EU",
+    "valueBasis": "nominal"
+   },
+   "value": 52
+  },
+  {
+   "metricId": "fx_eurjpy",
+   "dimensions": {
+    "pair": "EURJPY"
+   },
+   "period": {
+    "start": "2023-03",
+    "end": "2023-03",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2023-03-31T23:59:59Z",
+    "origin": "observed",
+    "geography": "EU/JP",
+    "valueBasis": "not_applicable"
+   },
+   "value": 141.6
+  },
+  {
+   "metricId": "export_value",
+   "dimensions": {
+    "origin": "JP",
+    "destination": "EU"
+   },
+   "period": {
+    "start": "2023-04",
+    "end": "2023-04",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2023-04-30T23:59:59Z",
+    "origin": "observed",
+    "geography": "JP→EU",
+    "valueBasis": "nominal"
+   },
+   "value": 106
+  },
+  {
+   "metricId": "export_volume",
+   "dimensions": {
+    "origin": "JP",
+    "destination": "EU"
+   },
+   "period": {
+    "start": "2023-04",
+    "end": "2023-04",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2023-04-30T23:59:59Z",
+    "origin": "observed",
+    "geography": "JP→EU",
+    "valueBasis": "nominal"
+   },
+   "value": 53
+  },
+  {
+   "metricId": "fx_eurjpy",
+   "dimensions": {
+    "pair": "EURJPY"
+   },
+   "period": {
+    "start": "2023-04",
+    "end": "2023-04",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2023-04-30T23:59:59Z",
+    "origin": "observed",
+    "geography": "EU/JP",
+    "valueBasis": "not_applicable"
+   },
+   "value": 142.4
+  },
+  {
+   "metricId": "export_value",
+   "dimensions": {
+    "origin": "JP",
+    "destination": "EU"
+   },
+   "period": {
+    "start": "2023-05",
+    "end": "2023-05",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2023-05-31T23:59:59Z",
+    "origin": "observed",
+    "geography": "JP→EU",
+    "valueBasis": "nominal"
+   },
+   "value": 108
+  },
+  {
+   "metricId": "export_volume",
+   "dimensions": {
+    "origin": "JP",
+    "destination": "EU"
+   },
+   "period": {
+    "start": "2023-05",
+    "end": "2023-05",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2023-05-31T23:59:59Z",
+    "origin": "observed",
+    "geography": "JP→EU",
+    "valueBasis": "nominal"
+   },
+   "value": 54
+  },
+  {
+   "metricId": "fx_eurjpy",
+   "dimensions": {
+    "pair": "EURJPY"
+   },
+   "period": {
+    "start": "2023-05",
+    "end": "2023-05",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2023-05-31T23:59:59Z",
+    "origin": "observed",
+    "geography": "EU/JP",
+    "valueBasis": "not_applicable"
+   },
+   "value": 143.2
+  },
+  {
+   "metricId": "export_value",
+   "dimensions": {
+    "origin": "JP",
+    "destination": "EU"
+   },
+   "period": {
+    "start": "2023-06",
+    "end": "2023-06",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2023-06-30T23:59:59Z",
+    "origin": "observed",
+    "geography": "JP→EU",
+    "valueBasis": "nominal"
+   },
+   "value": 110
+  },
+  {
+   "metricId": "export_volume",
+   "dimensions": {
+    "origin": "JP",
+    "destination": "EU"
+   },
+   "period": {
+    "start": "2023-06",
+    "end": "2023-06",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2023-06-30T23:59:59Z",
+    "origin": "observed",
+    "geography": "JP→EU",
+    "valueBasis": "nominal"
+   },
+   "value": 55
+  },
+  {
+   "metricId": "fx_eurjpy",
+   "dimensions": {
+    "pair": "EURJPY"
+   },
+   "period": {
+    "start": "2023-06",
+    "end": "2023-06",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2023-06-30T23:59:59Z",
+    "origin": "observed",
+    "geography": "EU/JP",
+    "valueBasis": "not_applicable"
+   },
+   "value": 144.0
+  },
+  {
+   "metricId": "export_value",
+   "dimensions": {
+    "origin": "JP",
+    "destination": "EU"
+   },
+   "period": {
+    "start": "2023-07",
+    "end": "2023-07",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2023-07-31T23:59:59Z",
+    "origin": "observed",
+    "geography": "JP→EU",
+    "valueBasis": "nominal"
+   },
+   "value": 400
+  },
+  {
+   "metricId": "export_volume",
+   "dimensions": {
+    "origin": "JP",
+    "destination": "EU"
+   },
+   "period": {
+    "start": "2023-07",
+    "end": "2023-07",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2023-07-31T23:59:59Z",
+    "origin": "observed",
+    "geography": "JP→EU",
+    "valueBasis": "nominal"
+   },
+   "value": 56
+  },
+  {
+   "metricId": "fx_eurjpy",
+   "dimensions": {
+    "pair": "EURJPY"
+   },
+   "period": {
+    "start": "2023-07",
+    "end": "2023-07",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2023-07-31T23:59:59Z",
+    "origin": "observed",
+    "geography": "EU/JP",
+    "valueBasis": "not_applicable"
+   },
+   "value": 144.8
+  },
+  {
+   "metricId": "export_value",
+   "dimensions": {
+    "origin": "JP",
+    "destination": "EU"
+   },
+   "period": {
+    "start": "2023-08",
+    "end": "2023-08",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2023-08-31T23:59:59Z",
+    "origin": "observed",
+    "geography": "JP→EU",
+    "valueBasis": "nominal"
+   },
+   "value": 114
+  },
+  {
+   "metricId": "export_volume",
+   "dimensions": {
+    "origin": "JP",
+    "destination": "EU"
+   },
+   "period": {
+    "start": "2023-08",
+    "end": "2023-08",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2023-08-31T23:59:59Z",
+    "origin": "observed",
+    "geography": "JP→EU",
+    "valueBasis": "nominal"
+   },
+   "value": 57
+  },
+  {
+   "metricId": "fx_eurjpy",
+   "dimensions": {
+    "pair": "EURJPY"
+   },
+   "period": {
+    "start": "2023-08",
+    "end": "2023-08",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2023-08-31T23:59:59Z",
+    "origin": "observed",
+    "geography": "EU/JP",
+    "valueBasis": "not_applicable"
+   },
+   "value": 145.6
+  },
+  {
+   "metricId": "export_value",
+   "dimensions": {
+    "origin": "JP",
+    "destination": "EU"
+   },
+   "period": {
+    "start": "2023-09",
+    "end": "2023-09",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2023-09-30T23:59:59Z",
+    "origin": "observed",
+    "geography": "JP→EU",
+    "valueBasis": "nominal"
+   },
+   "value": 116
+  },
+  {
+   "metricId": "export_volume",
+   "dimensions": {
+    "origin": "JP",
+    "destination": "EU"
+   },
+   "period": {
+    "start": "2023-09",
+    "end": "2023-09",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2023-09-30T23:59:59Z",
+    "origin": "observed",
+    "geography": "JP→EU",
+    "valueBasis": "nominal"
+   },
+   "value": 58
+  },
+  {
+   "metricId": "fx_eurjpy",
+   "dimensions": {
+    "pair": "EURJPY"
+   },
+   "period": {
+    "start": "2023-09",
+    "end": "2023-09",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2023-09-30T23:59:59Z",
+    "origin": "observed",
+    "geography": "EU/JP",
+    "valueBasis": "not_applicable"
+   },
+   "value": 146.4
+  },
+  {
+   "metricId": "export_value",
+   "dimensions": {
+    "origin": "JP",
+    "destination": "EU"
+   },
+   "period": {
+    "start": "2023-10",
+    "end": "2023-10",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2023-10-31T23:59:59Z",
+    "origin": "observed",
+    "geography": "JP→EU",
+    "valueBasis": "nominal"
+   },
+   "missing": true,
+   "qualityFlags": [
+    {
+     "code": "SOURCE_UNAVAILABLE"
+    }
+   ]
+  },
+  {
+   "metricId": "export_volume",
+   "dimensions": {
+    "origin": "JP",
+    "destination": "EU"
+   },
+   "period": {
+    "start": "2023-10",
+    "end": "2023-10",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2023-10-31T23:59:59Z",
+    "origin": "observed",
+    "geography": "JP→EU",
+    "valueBasis": "nominal"
+   },
+   "value": 59
+  },
+  {
+   "metricId": "fx_eurjpy",
+   "dimensions": {
+    "pair": "EURJPY"
+   },
+   "period": {
+    "start": "2023-10",
+    "end": "2023-10",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2023-10-31T23:59:59Z",
+    "origin": "observed",
+    "geography": "EU/JP",
+    "valueBasis": "not_applicable"
+   },
+   "value": 147.2
+  },
+  {
+   "metricId": "export_value",
+   "dimensions": {
+    "origin": "JP",
+    "destination": "EU"
+   },
+   "period": {
+    "start": "2023-11",
+    "end": "2023-11",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2023-11-30T23:59:59Z",
+    "origin": "observed",
+    "geography": "JP→EU",
+    "valueBasis": "nominal"
+   },
+   "value": 120
+  },
+  {
+   "metricId": "export_volume",
+   "dimensions": {
+    "origin": "JP",
+    "destination": "EU"
+   },
+   "period": {
+    "start": "2023-11",
+    "end": "2023-11",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2023-11-30T23:59:59Z",
+    "origin": "observed",
+    "geography": "JP→EU",
+    "valueBasis": "nominal"
+   },
+   "value": 60
+  },
+  {
+   "metricId": "fx_eurjpy",
+   "dimensions": {
+    "pair": "EURJPY"
+   },
+   "period": {
+    "start": "2023-11",
+    "end": "2023-11",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2023-11-30T23:59:59Z",
+    "origin": "observed",
+    "geography": "EU/JP",
+    "valueBasis": "not_applicable"
+   },
+   "value": 148.0
+  },
+  {
+   "metricId": "export_value",
+   "dimensions": {
+    "origin": "JP",
+    "destination": "EU"
+   },
+   "period": {
+    "start": "2023-12",
+    "end": "2023-12",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2023-12-31T23:59:59Z",
+    "origin": "observed",
+    "geography": "JP→EU",
+    "valueBasis": "nominal"
+   },
+   "value": 122
+  },
+  {
+   "metricId": "export_volume",
+   "dimensions": {
+    "origin": "JP",
+    "destination": "EU"
+   },
+   "period": {
+    "start": "2023-12",
+    "end": "2023-12",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2023-12-31T23:59:59Z",
+    "origin": "observed",
+    "geography": "JP→EU",
+    "valueBasis": "nominal"
+   },
+   "value": 61
+  },
+  {
+   "metricId": "fx_eurjpy",
+   "dimensions": {
+    "pair": "EURJPY"
+   },
+   "period": {
+    "start": "2023-12",
+    "end": "2023-12",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2023-12-31T23:59:59Z",
+    "origin": "observed",
+    "geography": "EU/JP",
+    "valueBasis": "not_applicable"
+   },
+   "value": 148.8
+  },
+  {
+   "metricId": "export_value",
+   "dimensions": {
+    "origin": "JP",
+    "destination": "EU"
+   },
+   "period": {
+    "start": "2024-01",
+    "end": "2024-01",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2024-01-31T23:59:59Z",
+    "origin": "observed",
+    "geography": "JP→EU",
+    "valueBasis": "nominal"
+   },
+   "value": 144
+  },
+  {
+   "metricId": "export_volume",
+   "dimensions": {
+    "origin": "JP",
+    "destination": "EU"
+   },
+   "period": {
+    "start": "2024-01",
+    "end": "2024-01",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2024-01-31T23:59:59Z",
+    "origin": "observed",
+    "geography": "JP→EU",
+    "valueBasis": "nominal"
+   },
+   "value": 62
+  },
+  {
+   "metricId": "fx_eurjpy",
+   "dimensions": {
+    "pair": "EURJPY"
+   },
+   "period": {
+    "start": "2024-01",
+    "end": "2024-01",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2024-01-31T23:59:59Z",
+    "origin": "observed",
+    "geography": "EU/JP",
+    "valueBasis": "not_applicable"
+   },
+   "value": 149.6
+  },
+  {
+   "metricId": "export_value",
+   "dimensions": {
+    "origin": "JP",
+    "destination": "EU"
+   },
+   "period": {
+    "start": "2024-02",
+    "end": "2024-02",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2024-02-29T23:59:59Z",
+    "origin": "observed",
+    "geography": "JP→EU",
+    "valueBasis": "nominal"
+   },
+   "value": 146
+  },
+  {
+   "metricId": "export_volume",
+   "dimensions": {
+    "origin": "JP",
+    "destination": "EU"
+   },
+   "period": {
+    "start": "2024-02",
+    "end": "2024-02",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2024-02-29T23:59:59Z",
+    "origin": "observed",
+    "geography": "JP→EU",
+    "valueBasis": "nominal"
+   },
+   "value": 63
+  },
+  {
+   "metricId": "fx_eurjpy",
+   "dimensions": {
+    "pair": "EURJPY"
+   },
+   "period": {
+    "start": "2024-02",
+    "end": "2024-02",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2024-02-29T23:59:59Z",
+    "origin": "observed",
+    "geography": "EU/JP",
+    "valueBasis": "not_applicable"
+   },
+   "value": 150.4
+  },
+  {
+   "metricId": "export_value",
+   "dimensions": {
+    "origin": "JP",
+    "destination": "EU"
+   },
+   "period": {
+    "start": "2024-03",
+    "end": "2024-03",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2024-03-31T23:59:59Z",
+    "origin": "observed",
+    "geography": "JP→EU",
+    "valueBasis": "nominal"
+   },
+   "value": 148
+  },
+  {
+   "metricId": "export_volume",
+   "dimensions": {
+    "origin": "JP",
+    "destination": "EU"
+   },
+   "period": {
+    "start": "2024-03",
+    "end": "2024-03",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2024-03-31T23:59:59Z",
+    "origin": "observed",
+    "geography": "JP→EU",
+    "valueBasis": "nominal"
+   },
+   "value": 64
+  },
+  {
+   "metricId": "fx_eurjpy",
+   "dimensions": {
+    "pair": "EURJPY"
+   },
+   "period": {
+    "start": "2024-03",
+    "end": "2024-03",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2024-03-31T23:59:59Z",
+    "origin": "observed",
+    "geography": "EU/JP",
+    "valueBasis": "not_applicable"
+   },
+   "value": 151.2
+  },
+  {
+   "metricId": "export_value",
+   "dimensions": {
+    "origin": "JP",
+    "destination": "EU"
+   },
+   "period": {
+    "start": "2024-04",
+    "end": "2024-04",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2024-04-30T23:59:59Z",
+    "origin": "observed",
+    "geography": "JP→EU",
+    "valueBasis": "nominal"
+   },
+   "value": 150
+  },
+  {
+   "metricId": "export_volume",
+   "dimensions": {
+    "origin": "JP",
+    "destination": "EU"
+   },
+   "period": {
+    "start": "2024-04",
+    "end": "2024-04",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2024-04-30T23:59:59Z",
+    "origin": "observed",
+    "geography": "JP→EU",
+    "valueBasis": "nominal"
+   },
+   "value": 65
+  },
+  {
+   "metricId": "fx_eurjpy",
+   "dimensions": {
+    "pair": "EURJPY"
+   },
+   "period": {
+    "start": "2024-04",
+    "end": "2024-04",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2024-04-30T23:59:59Z",
+    "origin": "observed",
+    "geography": "EU/JP",
+    "valueBasis": "not_applicable"
+   },
+   "value": 152.0
+  },
+  {
+   "metricId": "export_value",
+   "dimensions": {
+    "origin": "JP",
+    "destination": "EU"
+   },
+   "period": {
+    "start": "2024-06",
+    "end": "2024-06",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2024-06-30T23:59:59Z",
+    "origin": "observed",
+    "geography": "JP→EU",
+    "valueBasis": "nominal"
+   },
+   "value": 154
+  },
+  {
+   "metricId": "export_volume",
+   "dimensions": {
+    "origin": "JP",
+    "destination": "EU"
+   },
+   "period": {
+    "start": "2024-06",
+    "end": "2024-06",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2024-06-30T23:59:59Z",
+    "origin": "observed",
+    "geography": "JP→EU",
+    "valueBasis": "nominal"
+   },
+   "value": 67
+  },
+  {
+   "metricId": "fx_eurjpy",
+   "dimensions": {
+    "pair": "EURJPY"
+   },
+   "period": {
+    "start": "2024-06",
+    "end": "2024-06",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2024-06-30T23:59:59Z",
+    "origin": "observed",
+    "geography": "EU/JP",
+    "valueBasis": "not_applicable"
+   },
+   "value": 153.6
+  },
+  {
+   "metricId": "export_value",
+   "dimensions": {
+    "origin": "JP",
+    "destination": "EU"
+   },
+   "period": {
+    "start": "2024-07",
+    "end": "2024-07",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2024-07-31T23:59:59Z",
+    "origin": "observed",
+    "geography": "JP→EU",
+    "valueBasis": "nominal"
+   },
+   "value": 156
+  },
+  {
+   "metricId": "export_volume",
+   "dimensions": {
+    "origin": "JP",
+    "destination": "EU"
+   },
+   "period": {
+    "start": "2024-07",
+    "end": "2024-07",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2024-07-31T23:59:59Z",
+    "origin": "observed",
+    "geography": "JP→EU",
+    "valueBasis": "nominal"
+   },
+   "value": 68
+  },
+  {
+   "metricId": "fx_eurjpy",
+   "dimensions": {
+    "pair": "EURJPY"
+   },
+   "period": {
+    "start": "2024-07",
+    "end": "2024-07",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2024-07-31T23:59:59Z",
+    "origin": "observed",
+    "geography": "EU/JP",
+    "valueBasis": "not_applicable"
+   },
+   "value": 154.4
+  },
+  {
+   "metricId": "export_value",
+   "dimensions": {
+    "origin": "JP",
+    "destination": "EU"
+   },
+   "period": {
+    "start": "2024-08",
+    "end": "2024-08",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2024-08-31T23:59:59Z",
+    "origin": "observed",
+    "geography": "JP→EU",
+    "valueBasis": "nominal"
+   },
+   "value": 158
+  },
+  {
+   "metricId": "export_volume",
+   "dimensions": {
+    "origin": "JP",
+    "destination": "EU"
+   },
+   "period": {
+    "start": "2024-08",
+    "end": "2024-08",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2024-08-31T23:59:59Z",
+    "origin": "observed",
+    "geography": "JP→EU",
+    "valueBasis": "nominal"
+   },
+   "value": 69
+  },
+  {
+   "metricId": "fx_eurjpy",
+   "dimensions": {
+    "pair": "EURJPY"
+   },
+   "period": {
+    "start": "2024-08",
+    "end": "2024-08",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2024-08-31T23:59:59Z",
+    "origin": "observed",
+    "geography": "EU/JP",
+    "valueBasis": "not_applicable"
+   },
+   "value": 155.2
+  },
+  {
+   "metricId": "export_value",
+   "dimensions": {
+    "origin": "JP",
+    "destination": "EU"
+   },
+   "period": {
+    "start": "2024-09",
+    "end": "2024-09",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2024-09-30T23:59:59Z",
+    "origin": "observed",
+    "geography": "JP→EU",
+    "valueBasis": "nominal"
+   },
+   "value": 160
+  },
+  {
+   "metricId": "export_volume",
+   "dimensions": {
+    "origin": "JP",
+    "destination": "EU"
+   },
+   "period": {
+    "start": "2024-09",
+    "end": "2024-09",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2024-09-30T23:59:59Z",
+    "origin": "observed",
+    "geography": "JP→EU",
+    "valueBasis": "nominal"
+   },
+   "value": 70
+  },
+  {
+   "metricId": "fx_eurjpy",
+   "dimensions": {
+    "pair": "EURJPY"
+   },
+   "period": {
+    "start": "2024-09",
+    "end": "2024-09",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2024-09-30T23:59:59Z",
+    "origin": "observed",
+    "geography": "EU/JP",
+    "valueBasis": "not_applicable"
+   },
+   "value": 156.0
+  },
+  {
+   "metricId": "export_value",
+   "dimensions": {
+    "origin": "JP",
+    "destination": "EU"
+   },
+   "period": {
+    "start": "2024-10",
+    "end": "2024-10",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2024-10-31T23:59:59Z",
+    "origin": "observed",
+    "geography": "JP→EU",
+    "valueBasis": "nominal"
+   },
+   "value": 162
+  },
+  {
+   "metricId": "export_volume",
+   "dimensions": {
+    "origin": "JP",
+    "destination": "EU"
+   },
+   "period": {
+    "start": "2024-10",
+    "end": "2024-10",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2024-10-31T23:59:59Z",
+    "origin": "observed",
+    "geography": "JP→EU",
+    "valueBasis": "nominal"
+   },
+   "value": 71
+  },
+  {
+   "metricId": "fx_eurjpy",
+   "dimensions": {
+    "pair": "EURJPY"
+   },
+   "period": {
+    "start": "2024-10",
+    "end": "2024-10",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2024-10-31T23:59:59Z",
+    "origin": "observed",
+    "geography": "EU/JP",
+    "valueBasis": "not_applicable"
+   },
+   "value": 156.8
+  },
+  {
+   "metricId": "export_value",
+   "dimensions": {
+    "origin": "JP",
+    "destination": "EU"
+   },
+   "period": {
+    "start": "2024-11",
+    "end": "2024-11",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2024-11-30T23:59:59Z",
+    "origin": "observed",
+    "geography": "JP→EU",
+    "valueBasis": "nominal"
+   },
+   "value": 164
+  },
+  {
+   "metricId": "export_volume",
+   "dimensions": {
+    "origin": "JP",
+    "destination": "EU"
+   },
+   "period": {
+    "start": "2024-11",
+    "end": "2024-11",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2024-11-30T23:59:59Z",
+    "origin": "observed",
+    "geography": "JP→EU",
+    "valueBasis": "nominal"
+   },
+   "value": 72
+  },
+  {
+   "metricId": "fx_eurjpy",
+   "dimensions": {
+    "pair": "EURJPY"
+   },
+   "period": {
+    "start": "2024-11",
+    "end": "2024-11",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2024-11-30T23:59:59Z",
+    "origin": "observed",
+    "geography": "EU/JP",
+    "valueBasis": "not_applicable"
+   },
+   "value": 157.6
+  },
+  {
+   "metricId": "export_value",
+   "dimensions": {
+    "origin": "JP",
+    "destination": "EU"
+   },
+   "period": {
+    "start": "2024-12",
+    "end": "2024-12",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2024-12-31T23:59:59Z",
+    "origin": "observed",
+    "geography": "JP→EU",
+    "valueBasis": "nominal"
+   },
+   "value": 166
+  },
+  {
+   "metricId": "export_volume",
+   "dimensions": {
+    "origin": "JP",
+    "destination": "EU"
+   },
+   "period": {
+    "start": "2024-12",
+    "end": "2024-12",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2024-12-31T23:59:59Z",
+    "origin": "observed",
+    "geography": "JP→EU",
+    "valueBasis": "nominal"
+   },
+   "value": 73
+  },
+  {
+   "metricId": "fx_eurjpy",
+   "dimensions": {
+    "pair": "EURJPY"
+   },
+   "period": {
+    "start": "2024-12",
+    "end": "2024-12",
+    "basis": "calendar-month"
+   },
+   "temporal": {
+    "observedAt": "2024-12-31T23:59:59Z",
+    "origin": "observed",
+    "geography": "EU/JP",
+    "valueBasis": "not_applicable"
+   },
+   "value": 158.4
+  }
+ ],
+ "qualityFlags": [
+  {
+   "code": "SYNTHETIC_FIXTURE",
+   "message": "Synthetic values for contract tests; not real statistics."
+  }
+ ],
+ "computation": {
+  "engine": "generic-sql",
+  "engineVersion": "1",
+  "deterministic": true,
+  "timezone": "UTC"
+ },
+ "provenance": [
+  {
+   "datasetId": "customs-monthly",
+   "source": "urn:example:customs",
+   "retrievedAt": "2025-01-10T00:00:00Z"
+  },
+  {
+   "datasetId": "fx-monthly",
+   "source": "urn:example:fx",
+   "retrievedAt": "2025-01-10T00:00:00Z"
+  }
+ ]
+}
