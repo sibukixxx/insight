@@ -9,6 +9,7 @@ import (
 	"insight-lab/internal/buildinfo"
 	httpapi "insight-lab/internal/http"
 	"insight-lab/internal/http/handler"
+	"insight-lab/internal/llm"
 	"insight-lab/internal/publicengine"
 	"insight-lab/internal/repository/sqlite"
 	"insight-lab/internal/sampledata"
@@ -62,11 +63,20 @@ func Run(ctx context.Context, cfg *Config) error {
 		Analyses: analyses, Insights: insights, Evidence: evidence, Research: research,
 	})
 
+	publicEngine := publicengine.New(application, sqlite.NewPublicRepository(db), documents, jobManager, buildinfo.Get())
+	publicEngine.EnableTriage(sqlite.NewTriageRepository(db), func() (llm.Client, string, bool) {
+		current := settings.Get()
+		if !current.Configured() {
+			return nil, "", false
+		}
+		return service.DefaultLLMClientFactory(current), current.Model, true
+	})
+
 	router := httpapi.NewRouter(httpapi.Deps{
 		App:  application,
 		Demo: demoLoader, Settings: settings, JobManager: jobManager,
 		NewLLMClient: service.DefaultLLMClientFactory,
-		PublicEngine: publicengine.New(application, sqlite.NewPublicRepository(db), documents, jobManager, buildinfo.Get()),
+		PublicEngine: publicEngine,
 		Build: handler.BuildInfo{
 			DemoBuild:  sampledata.Embedded,
 			ClientName: cfg.ClientName,

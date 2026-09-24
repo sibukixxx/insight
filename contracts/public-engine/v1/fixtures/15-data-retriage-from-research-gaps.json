@@ -1,0 +1,210 @@
+{
+  "fixture": "15-data-retriage-from-research-gaps",
+  "contractVersion": "1",
+  "covers": "#92 re-triage: the unresolved ResearchGaps and DataRequirements of a research run become gap references, and variables they mention are re-proposed with linked gap IDs",
+  "engine": "model_backed",
+  "steps": [
+    {
+      "op": "createSubject",
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-subject",
+        "subject": {
+          "namespace": "public-data",
+          "id": "retriage-${uniq}"
+        }
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "subjectId": "subjectId"
+      }
+    },
+    {
+      "op": "addEvidence",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-evidence-1",
+        "documents": [
+          {
+            "externalRef": "treated-region",
+            "source": "dataset",
+            "content": "Treated region inquiries rose from 100 to 130 after the program started."
+          }
+        ]
+      },
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "op": "startAnalysis",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-analysis-1"
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "analysisId": "analysisId"
+      }
+    },
+    {
+      "op": "waitForAnalysis",
+      "params": {
+        "subjectId": "${subjectId}",
+        "analysisId": "${analysisId}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "status",
+          "equals": "completed"
+        },
+        {
+          "path": "engine.version",
+          "exists": true
+        },
+        {
+          "path": "executionFingerprint",
+          "exists": true
+        },
+        {
+          "path": "inputFingerprint",
+          "exists": true
+        },
+        {
+          "path": "provenance.execution",
+          "exists": true
+        },
+        {
+          "path": "provenance.input",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "op": "createResearchRun",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-research",
+        "question": "Did the program cause the increase?",
+        "analysisId": "${analysisId}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "researchRunId": "researchRunId",
+        "gapId": "artifact.researchGaps[0].id"
+      },
+      "assert": [
+        {
+          "path": "artifact.researchGaps",
+          "minLength": 1
+        },
+        {
+          "path": "artifact.nextDataRequirements",
+          "minLength": 1
+        },
+        {
+          "path": "artifact.whatWeCannotConclude",
+          "minLength": 1
+        }
+      ]
+    },
+    {
+      "op": "createDatasetProfile",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-profile",
+        "dataset": {
+          "id": "inquiries",
+          "version": "2026-02"
+        },
+        "csv": "month,region,inquiries,comparison_group_outcome\n2026-01,treated,100,200\n2026-02,treated,130,240\n"
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "profileId": "profileId"
+      }
+    },
+    {
+      "op": "triage",
+      "params": {
+        "subjectId": "${subjectId}",
+        "profileId": "${profileId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-retriage",
+        "question": "Did the program cause the increase in inquiries?",
+        "researchRunId": "${researchRunId}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "gaps",
+          "minLength": 1
+        },
+        {
+          "path": "gaps[0].gapId",
+          "equals": "${gapId}"
+        },
+        {
+          "path": "decisions",
+          "minLength": 4
+        },
+        {
+          "path": "decisions[3].name",
+          "equals": "comparison_group_outcome"
+        },
+        {
+          "path": "decisions[3].bucket",
+          "equals": "INCLUDE"
+        },
+        {
+          "path": "decisions[3].linkedGapIds",
+          "minLength": 1
+        }
+      ]
+    },
+    {
+      "op": "triage",
+      "params": {
+        "subjectId": "${subjectId}",
+        "profileId": "${profileId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-retriage-foreign",
+        "question": "q",
+        "researchRunId": "missing-run"
+      },
+      "expect": {
+        "errorCode": "NOT_FOUND",
+        "httpStatus": 404
+      }
+    }
+  ]
+}

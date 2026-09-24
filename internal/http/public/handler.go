@@ -27,6 +27,7 @@ func Router(engine *publicengine.Engine) http.Handler {
 	r.Post("/subjects/{subjectID}/research-runs", h.createResearchRun)
 	r.Post("/research-runs/{researchRunID}/iterations", h.appendIteration)
 	r.Get("/research-runs/{researchRunID}", h.getResearchRun)
+	registerTriageRoutes(r, h)
 	r.NotFound(func(w http.ResponseWriter, _ *http.Request) {
 		writeError(w, &publicengine.Error{Code: publicengine.CodeNotFound, Message: "no such public operation"})
 	})

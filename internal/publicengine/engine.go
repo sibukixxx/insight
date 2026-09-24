@@ -54,6 +54,7 @@ type Engine struct {
 	jobs      Enqueuer
 	build     buildinfo.Info
 	now       func() time.Time
+	triage    *triageDeps
 
 	// mu serializes mutating operations so an idempotency replay check and
 	// an identity check can never interleave with the write they guard.
