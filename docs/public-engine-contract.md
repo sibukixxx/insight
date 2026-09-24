@@ -81,6 +81,10 @@ The SDKs add `UNAVAILABLE` for an unreachable engine or a non-contract response.
 - The embedded research artifact keeps its own `artifactSchema` and `schemaVersion`. Its legacy `analysisMode` key means execution mode. The contract itself uses `executionMode`.
 - Standalone SDKs pin the contract version and record the upstream insight commit of the vendored schema/fixtures. They declare the contract versions they speak.
 
+## Model-backed capability
+
+`EngineInfo.modelBacked` reports whether analyses use a configured model (it follows live settings). A deterministic engine (`false`) analyzes evidence into observations but never forms hypotheses, so `createResearchRun` / `appendIteration` over its analyses fail with `ANALYSIS_HAS_NO_HYPOTHESES`. Consumers should check it before starting research work.
+
 ## Model bindings (#65 extension point)
 
 Routing policy (which model for which stage, cost budgets, escalation) belongs to consumers. The engine exposes only a minimal, provider-neutral extension point:
