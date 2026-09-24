@@ -75,9 +75,22 @@ func (a *Application) AppendResearchIteration(ctx context.Context, in AppendRese
 	if err != nil {
 		return nil, err
 	}
-	analysisID, insights, err := a.researchInsights(ctx, run.ProjectID, in.AnalysisID)
+	iteration, err := a.buildAppendedIteration(ctx, run, in)
 	if err != nil {
 		return nil, err
+	}
+	if err := a.repos.Research.AppendResearchIteration(ctx, run.ID, iteration); err != nil {
+		return nil, fmt.Errorf("append research iteration: %w", err)
+	}
+	return &iteration, nil
+}
+
+// buildAppendedIteration evaluates the next iteration of run without
+// persisting it.
+func (a *Application) buildAppendedIteration(ctx context.Context, run *domain.ResearchRun, in AppendResearchIterationInput) (domain.ResearchIteration, error) {
+	analysisID, insights, err := a.researchInsights(ctx, run.ProjectID, in.AnalysisID)
+	if err != nil {
+		return domain.ResearchIteration{}, err
 	}
 	question := strings.TrimSpace(in.Question)
 	if question == "" {
@@ -92,7 +105,7 @@ func (a *Application) AppendResearchIteration(ctx context.Context, in AppendRese
 	}
 	mode = mode.Normalize()
 	if err := domain.ValidateAnalysisModeInput(mode, in.InputSnapshot.Artifacts, in.Claims); err != nil {
-		return nil, err
+		return domain.ResearchIteration{}, err
 	}
 	iteration := service.BuildResearchIteration(len(run.Iterations)+1, question, in.InputReferences, insights, now)
 	iteration.AnalysisMode = mode
@@ -117,10 +130,7 @@ func (a *Application) AppendResearchIteration(ctx context.Context, in AppendRese
 			iteration.Delta.Explanation = append(iteration.Delta.Explanation, note)
 		}
 	}
-	if err := a.repos.Research.AppendResearchIteration(ctx, run.ID, iteration); err != nil {
-		return nil, fmt.Errorf("append research iteration: %w", err)
-	}
-	return &iteration, nil
+	return iteration, nil
 }
 
 // ApplyResearchHumanOverrideInput carries an explicit human decision about an
