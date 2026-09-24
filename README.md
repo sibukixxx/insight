@@ -342,6 +342,17 @@ Every analysis run is kept; re-running never deletes or overwrites an earlier ru
 
 Before this change, re-running an analysis listed insights and patterns from every run together, and `report.md` combined all runs' insights with the latest run's metrics.
 
+### What each run records
+
+Each run records two snapshots so a later reader can tell why two runs differ:
+
+- **Execution snapshot**, captured when the run is enqueued. It records engine version, git commit and dirty state, deterministic rule versions, prompt version and fingerprint, execution mode, and requested semantic analysis mode. A model-backed run also records provider host, model and client parameters. The run executes with exactly these settings even if Settings change while it waits in the queue. Such a change is flagged in the snapshot.
+- **Input snapshot**, captured when the run starts. It records a content hash and metadata hash per document, dataset hashes and manifests, and compatibility warnings.
+
+Each snapshot has a canonical `sha256:` fingerprint: sorted-key compact JSON, no HTML escaping, and null or empty collections omitted. The input fingerprint ignores document IDs and order, so the same evidence gives the same fingerprint. Two runs with the same input fingerprint and different execution fingerprints differ in the instrument, not the evidence. That difference is still not attributed as a cause automatically, because model output is non-deterministic.
+
+Snapshots never contain the API key, the full endpoint URL or its query string. Only the host is kept. Runs recorded before snapshots existed report `not recorded`. `GET /api/health` reports the running engine's version, commit and dirty state. `make build VERSION=v0.9.0` sets the version, which otherwise comes from a git tag and is `UNKNOWN` without one. Token usage reported by the provider is totalled per run in `metrics.usage`. Pass optional `label`, `note` and `semanticAnalysisMode` in the `POST /api/projects/{id}/analysis` body.
+
 ## Causal claims: intentionally conservative
 
 Insight Lab is **not a causal-effect estimator**.
