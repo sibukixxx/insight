@@ -251,7 +251,7 @@ func writeAnalysisRun(b *strings.Builder, analysis *domain.Analysis, metrics *se
 	}
 	fmt.Fprintf(b, "- Mode: %s\n", codeOrNotRecorded(string(prov.Mode)))
 	fmt.Fprintf(b, "- Model: %s\n", modelScopedValue(prov.Mode, markdownInline(prov.Model)))
-	fmt.Fprintf(b, "- Prompt fingerprint: %s\n", modelScopedValue(prov.Mode, codeOrEmpty(prov.PromptFingerprint)))
+	fmt.Fprintf(b, "- Prompt fingerprint (v1): %s\n", modelScopedValue(prov.Mode, codeOrEmpty(prov.PromptFingerprint)))
 	fmt.Fprintf(b, "- Rule version: %s\n", codeOrNotRecorded(prov.RuleVersion))
 	writeRunSnapshot(b, analysis)
 	b.WriteByte('\n')

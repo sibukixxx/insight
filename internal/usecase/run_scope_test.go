@@ -188,7 +188,7 @@ func TestProjectReportMarksMissingProvenanceAsNotRecorded(t *testing.T) {
 		t.Fatal(err)
 	}
 	report := string(got)
-	for _, s := range []string{"Analysis ID: `legacy`", "Mode: not recorded", "Model: not recorded", "Prompt fingerprint: not recorded", "Rule version: not recorded",
+	for _, s := range []string{"Analysis ID: `legacy`", "Mode: not recorded", "Model: not recorded", "Prompt fingerprint (v1): not recorded", "Rule version: not recorded",
 		"Engine version: not recorded", "Git commit: not recorded", "Execution fingerprint: not recorded", "Input fingerprint: not recorded"} {
 		if !strings.Contains(report, s) {
 			t.Errorf("legacy report is missing %q:\n%s", s, report)

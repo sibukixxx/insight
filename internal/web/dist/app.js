@@ -170,7 +170,10 @@
       const found = analyses.find((a) => a.id === runID);
       if (found) return { run: found, notice: "" };
     }
-    const latestCompleted = analyses.find((a) => a.status === "completed") || null;
+    // Same rule as the server: the most recently finished completed run.
+    const latestCompleted = analyses
+      .filter((a) => a.status === "completed")
+      .sort((a, b) => String(b.finishedAt || b.createdAt).localeCompare(String(a.finishedAt || a.createdAt)))[0] || null;
     return { run: latestCompleted, notice: runID ? "The selected run was not found in this project; showing the latest completed run." : "" };
   }
 
