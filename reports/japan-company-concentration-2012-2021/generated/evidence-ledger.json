@@ -1,0 +1,128 @@
+[
+  {
+    "claim_id": "C1",
+    "claim": "全国の企業数は2012年の3,863,530から2021年の3,375,255へ-488,275（-12.6%）変化した。",
+    "source": [
+      "https://www.chusho.meti.go.jp/pamflet/hakusyo/2025/chusho/f6.html"
+    ],
+    "dataset": [
+      "enterprises_private_non_primary:全国:2012",
+      "enterprises_private_non_primary:全国:2021"
+    ],
+    "calculation": "3375255 - 3863530 = -488275; -488275 / 3863530 * 100 = -12.6%",
+    "confidence": "HIGH for arithmetic and source transcription",
+    "counter_evidence": [
+      "この集計だけでは、減少が法人の減少だけを意味するとは言えない。対象には個人事業者を含む。"
+    ],
+    "limitations": [
+      "原表の企業数は法人番号を持つ法人だけを数えたものではなく、会社及び個人事業者を含むため、法人ストックとは定義が異なる。",
+      "原表は民営・非一次産業を対象とする。",
+      "農林漁業等を含む全経済主体の総数ではない。",
+      "このデータセットは全国及び主要5都府県の行を原表から転記した部分抽出であり、47都道府県の全行ではない。",
+      "2012年、2014年、2016年、2021年の離散時点であり、年次系列ではない。",
+      "時点間比較の解釈には、各調査の定義・母集団・調査方法の同等性を原典資料で継続確認する必要がある。",
+      "2012年と2021年の離散時点比較であり、その間の年次経路を直接示さない。",
+      "記述統計であり、企業数変化や地域差の因果要因を識別していない。"
+    ],
+    "comparison_ids": [
+      "national"
+    ],
+    "comparability": "COMPARABLE"
+  },
+  {
+    "claim_id": "C2",
+    "claim": "東京都の企業数も447,113から423,595へ-23,518（-5.3%）減少した。",
+    "source": [
+      "https://www.chusho.meti.go.jp/pamflet/hakusyo/2025/chusho/f6.html"
+    ],
+    "dataset": [
+      "enterprises_private_non_primary:東京都:2012",
+      "enterprises_private_non_primary:東京都:2021"
+    ],
+    "calculation": "423595 - 447113 = -23518; -23518 / 447113 * 100 = -5.3%",
+    "confidence": "HIGH for arithmetic and source transcription",
+    "counter_evidence": [
+      "東京都でも絶対数は増えていないため、「東京で企業が増えた」という説明はこのデータに反する。"
+    ],
+    "limitations": [
+      "原表の企業数は法人番号を持つ法人だけを数えたものではなく、会社及び個人事業者を含むため、法人ストックとは定義が異なる。",
+      "原表は民営・非一次産業を対象とする。",
+      "農林漁業等を含む全経済主体の総数ではない。",
+      "このデータセットは全国及び主要5都府県の行を原表から転記した部分抽出であり、47都道府県の全行ではない。",
+      "2012年、2014年、2016年、2021年の離散時点であり、年次系列ではない。",
+      "時点間比較の解釈には、各調査の定義・母集団・調査方法の同等性を原典資料で継続確認する必要がある。",
+      "2012年と2021年の離散時点比較であり、その間の年次経路を直接示さない。",
+      "記述統計であり、企業数変化や地域差の因果要因を識別していない。"
+    ],
+    "comparison_ids": [
+      "tokyo"
+    ],
+    "comparability": "COMPARABLE"
+  },
+  {
+    "claim_id": "C3",
+    "claim": "東京都の全国企業数に占める比率は11.57%から12.55%へ上昇し、差は+0.98ポイントだった。",
+    "source": [
+      "https://www.chusho.meti.go.jp/pamflet/hakusyo/2025/chusho/f6.html"
+    ],
+    "dataset": [
+      "enterprises_private_non_primary:東京都:2012",
+      "enterprises_private_non_primary:東京都:2021",
+      "enterprises_private_non_primary:全国:2012",
+      "enterprises_private_non_primary:全国:2021"
+    ],
+    "calculation": "447113 / 3863530 * 100 = 11.57%; 423595 / 3375255 * 100 = 12.55%; difference = +0.98pp (computed before rounding)",
+    "confidence": "HIGH for arithmetic and source transcription",
+    "counter_evidence": [
+      "東京都の企業数自体は同期間に減少している（C2）。",
+      "全国シェア上昇だけでは、本社移転・創業・廃業・人口移動などの因果メカニズムを特定できない。"
+    ],
+    "limitations": [
+      "原表の企業数は法人番号を持つ法人だけを数えたものではなく、会社及び個人事業者を含むため、法人ストックとは定義が異なる。",
+      "原表は民営・非一次産業を対象とする。",
+      "農林漁業等を含む全経済主体の総数ではない。",
+      "このデータセットは全国及び主要5都府県の行を原表から転記した部分抽出であり、47都道府県の全行ではない。",
+      "2012年、2014年、2016年、2021年の離散時点であり、年次系列ではない。",
+      "時点間比較の解釈には、各調査の定義・母集団・調査方法の同等性を原典資料で継続確認する必要がある。",
+      "2012年と2021年の離散時点比較であり、その間の年次経路を直接示さない。",
+      "記述統計であり、企業数変化や地域差の因果要因を識別していない。"
+    ],
+    "comparison_ids": [
+      "national",
+      "tokyo"
+    ],
+    "comparability": "COMPARABLE"
+  },
+  {
+    "claim_id": "C4",
+    "claim": "この期間については、「全国で企業数が減る」と「東京の相対的な比重が高まる」は同時に成立している。東京は企業数が増えたのではなく、全国より減り方が小さかった。",
+    "source": [
+      "https://www.chusho.meti.go.jp/pamflet/hakusyo/2025/chusho/f6.html"
+    ],
+    "dataset": [
+      "C1",
+      "C2",
+      "C3"
+    ],
+    "calculation": "tokyo pct_change -5.3% > national pct_change -12.6% implies a rising Tokyo share while both counts fall.",
+    "confidence": "HIGH for the arithmetic relationship; LOW for any causal reading",
+    "counter_evidence": [
+      "2014年・2016年を含む経路や、他の都道府県との比較はこの主張の範囲外である。"
+    ],
+    "limitations": [
+      "原表の企業数は法人番号を持つ法人だけを数えたものではなく、会社及び個人事業者を含むため、法人ストックとは定義が異なる。",
+      "原表は民営・非一次産業を対象とする。",
+      "農林漁業等を含む全経済主体の総数ではない。",
+      "このデータセットは全国及び主要5都府県の行を原表から転記した部分抽出であり、47都道府県の全行ではない。",
+      "2012年、2014年、2016年、2021年の離散時点であり、年次系列ではない。",
+      "時点間比較の解釈には、各調査の定義・母集団・調査方法の同等性を原典資料で継続確認する必要がある。",
+      "2012年と2021年の離散時点比較であり、その間の年次経路を直接示さない。",
+      "記述統計であり、企業数変化や地域差の因果要因を識別していない。"
+    ],
+    "comparison_ids": [
+      "national",
+      "tokyo"
+    ],
+    "comparability": "COMPARABLE"
+  }
+]
