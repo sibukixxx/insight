@@ -1,0 +1,254 @@
+{
+  "fixture": "10-run-comparison",
+  "contractVersion": "1",
+  "covers": "#83: two runs of one subject are compared on the input and execution axes; the same configuration is SAME_CONFIGURATION, added evidence is INPUT_CHANGE, the explanation always states differences are not causal, and no winner is reported",
+  "engine": "model_backed",
+  "steps": [
+    {
+      "op": "createSubject",
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-subject",
+        "subject": {
+          "namespace": "public-data",
+          "id": "compare-${uniq}"
+        }
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "subjectId": "subjectId"
+      }
+    },
+    {
+      "op": "addEvidence",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-evidence-1",
+        "documents": [
+          {
+            "externalRef": "region-a",
+            "source": "dataset",
+            "content": "Region A inquiries rose from 100 to 130."
+          }
+        ]
+      },
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "op": "startAnalysis",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-analysis-1"
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "a1": "analysisId"
+      }
+    },
+    {
+      "op": "waitForAnalysis",
+      "params": {
+        "subjectId": "${subjectId}",
+        "analysisId": "${a1}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "status",
+          "equals": "completed"
+        }
+      ]
+    },
+    {
+      "op": "startAnalysis",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-analysis-2"
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "a2": "analysisId"
+      }
+    },
+    {
+      "op": "waitForAnalysis",
+      "params": {
+        "subjectId": "${subjectId}",
+        "analysisId": "${a2}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "status",
+          "equals": "completed"
+        }
+      ]
+    },
+    {
+      "op": "compareAnalyses",
+      "params": {
+        "subjectId": "${subjectId}",
+        "analysisId": "${a1}",
+        "otherAnalysisId": "${a2}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "comparison.attribution",
+          "equals": "SAME_CONFIGURATION"
+        },
+        {
+          "path": "comparison.input.state",
+          "equals": "SAME"
+        },
+        {
+          "path": "comparison.execution.state",
+          "equals": "SAME"
+        },
+        {
+          "path": "comparison.explanation[0]",
+          "equals": "Differences between runs are not evidence of cause: a result delta records what changed, not why."
+        },
+        {
+          "path": "comparison.winner",
+          "exists": false
+        }
+      ]
+    },
+    {
+      "op": "addEvidence",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-evidence-2",
+        "documents": [
+          {
+            "externalRef": "region-b",
+            "source": "dataset",
+            "content": "Region B inquiries rose from 200 to 240."
+          }
+        ]
+      },
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "op": "startAnalysis",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-analysis-3"
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "a3": "analysisId"
+      }
+    },
+    {
+      "op": "waitForAnalysis",
+      "params": {
+        "subjectId": "${subjectId}",
+        "analysisId": "${a3}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "status",
+          "equals": "completed"
+        }
+      ]
+    },
+    {
+      "op": "compareAnalyses",
+      "params": {
+        "subjectId": "${subjectId}",
+        "analysisId": "${a1}",
+        "otherAnalysisId": "${a3}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "comparison.attribution",
+          "equals": "INPUT_CHANGE"
+        },
+        {
+          "path": "comparison.input.state",
+          "equals": "CHANGED"
+        },
+        {
+          "path": "comparison.input.documentsAdded",
+          "minLength": 1
+        },
+        {
+          "path": "comparison.explanation[0]",
+          "equals": "Differences between runs are not evidence of cause: a result delta records what changed, not why."
+        }
+      ]
+    },
+    {
+      "op": "listAnalyses",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "analyses",
+          "minLength": 3
+        },
+        {
+          "path": "analyses[0].analysisId",
+          "equals": "${a1}"
+        }
+      ]
+    },
+    {
+      "op": "compareAnalyses",
+      "params": {
+        "subjectId": "${subjectId}",
+        "analysisId": "${a1}",
+        "otherAnalysisId": "missing-analysis"
+      },
+      "expect": {
+        "errorCode": "NOT_FOUND",
+        "httpStatus": 404
+      }
+    }
+  ]
+}

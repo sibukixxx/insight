@@ -20,6 +20,13 @@ var wireTypes = map[string]any{
 	"CreateResearchRunRequest": CreateResearchRunRequest{}, "AddedEvidenceLink": AddedEvidenceLink{},
 	"AppendIterationRequest": AppendIterationRequest{}, "ResearchResult": ResearchResult{},
 	"ErrorBody": ErrorBody{}, "ErrorResponse": ErrorResponse{},
+	"AnalysisList": AnalysisList{}, "RunComparisonResult": RunComparisonResult{}, "RunComparison": RunComparison{},
+	"RunRef": RunRef{}, "FieldChange": FieldChange{}, "ExecutionAxisDiff": ExecutionAxisDiff{}, "InputAxisDiff": InputAxisDiff{},
+	"MetricDelta": MetricDelta{}, "InsightMatch": InsightMatch{}, "InsightResultDiff": InsightResultDiff{},
+	"MetricRange": MetricRange{}, "RepeatGroup": RepeatGroup{},
+	"ResearchRunSummary": ResearchRunSummary{}, "ResearchRunList": ResearchRunList{},
+	"ReEvaluationRequest": ReEvaluationRequest{}, "ReEvaluationTrigger": ReEvaluationTrigger{},
+	"EvidenceChanges": EvidenceChanges{}, "ReEvaluationRecord": ReEvaluationRecord{}, "ReEvaluationResult": ReEvaluationResult{},
 }
 
 type schemaDoc struct {

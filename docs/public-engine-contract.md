@@ -24,6 +24,10 @@ HTTP/JSON under `/api/public/v1` on the Insight Lab server. Both SDKs use this t
 | createResearchRun | `POST /subjects/{subjectId}/research-runs` | 201 `ResearchResult` |
 | appendIteration | `POST /research-runs/{researchRunId}/iterations` | 201 `ResearchResult` |
 | getResearchRun | `GET /research-runs/{researchRunId}` | 200 `ResearchResult` |
+| listAnalyses | `GET /subjects/{subjectId}/analyses` | 200 `AnalysisList` |
+| compareAnalyses | `GET /subjects/{subjectId}/analyses/{analysisId}/compare/{otherAnalysisId}` | 200 `RunComparisonResult` |
+| listResearchRuns | `GET /subjects/{subjectId}/research-runs` | 200 `ResearchRunList` |
+| reEvaluate | `POST /research-runs/{researchRunId}/re-evaluations` | 201 new iteration, 200 otherwise `ReEvaluationResult` |
 
 Every request and response carries `contractVersion`. Mutating requests also carry an `idempotencyKey`.
 
@@ -33,6 +37,8 @@ Every request and response carries `contractVersion`. Mutating requests also car
 - **Evidence.** A document is identified by its `externalRef` within its subject. An Analytical Artifact is identified by its `id`. Resending identical content returns `UNCHANGED`. Different content under the same identity is `IDENTITY_CONFLICT`. A request is all-or-nothing.
 - **Analysis run.** An analysis run reads the subject's current evidence. It records the execution and input snapshots and fingerprints from #82, which the contract returns verbatim in `provenance`. Results are always scoped to one run.
 - **Research run.** Research is built from one explicitly named, completed analysis run. `appendIteration` evaluates the same question on a newer completed run and records which added evidence targets which gap. Earlier iterations are never modified.
+- **Run comparison (#83).** `compareAnalyses` compares two runs of one subject. Each of the input and execution axes is `SAME`, `CHANGED` or `UNKNOWN`; a run without a recorded snapshot or fingerprint is `UNKNOWN`, never `SAME`. The attribution is `SAME_CONFIGURATION`, `EXECUTION_CHANGE`, `INPUT_CHANGE`, `CONFOUNDED` or `ATTRIBUTION_UNAVAILABLE`. The result also carries a field-level execution diff, the input document and dataset diff, numeric metric deltas, repeat groups of runs with identical fingerprints (with metric ranges; a single run has unknown variation), and insight matches with their method (`EXACT_EVIDENCE_SPANS`, `EVIDENCE_SPAN_OVERLAP`, `HYPOTHESIS_COMPARISON_KEY`) and score. It never names a winner or ranks runs, and its explanation always starts with "Differences between runs are not evidence of cause". When an appended iteration's run used a different or unrecorded execution than the previous iteration's run, its Insight Delta explanation records that the delta is confounded with an instrument change.
+- **Re-evaluation (#74).** `reEvaluate` is called by an external scheduler or a person after new evidence arrived and a new analysis run completed. It carries a `correlationKey`, the `previousIterationId` it is based on, a trigger (`MANUAL` or `SCHEDULED`), the added/removed/changed evidence refs and optional affected gap IDs. The engine appends one new iteration with an audit record (affected gaps and hypotheses, input and execution fingerprints before and after, scope) and returns `NEW_ITERATION`. A known, unchanged input fingerprint returns `NO_EVIDENCE_CHANGE` and appends nothing. The same correlation key with the same analysis returns `ALREADY_EVALUATED`; with another analysis it is `IDEMPOTENCY_CONFLICT`. A previous iteration that is not the latest is `STALE_ITERATION`. Earlier iterations are never modified. Partial re-evaluation is not yet proven safe, so the scope is always `FULL`.
 - **Result.** `ResearchResult.artifact` is the existing `insight-lab.research-artifact` v1 export, embedded verbatim rather than re-modelled. It carries hypotheses, supporting and counter evidence, gaps, data requirements, what cannot be concluded, readiness, the Insight Delta and provenance. It contains no consumer action such as buy, sell, launch or stop.
 
 ## Idempotency and identity
@@ -57,6 +63,7 @@ Errors use `{"contractVersion":"1","error":{"code","message"}}`.
 | `ANALYSIS_NOT_COMPLETED` | 409 |
 | `ANALYSIS_HAS_NO_HYPOTHESES` | 409 |
 | `MIXED_ANALYSIS_RUNS` | 409 |
+| `STALE_ITERATION` | 409 |
 | `INTERNAL` | 500 |
 
 The SDKs add `UNAVAILABLE` for an unreachable engine or a non-contract response. They raise `UNSUPPORTED_CONTRACT_VERSION` themselves when a response uses a version they do not speak. Internal error details are never returned.
@@ -97,6 +104,8 @@ The request body is at most 16 MiB. A request carries at most 500 documents and 
   5. counter-evidence
   6. contract version mismatch
   7. idempotent requests
+  10. run comparison (#83)
+  11. re-evaluation (#74)
 - `internal/http/public_conformance_test.go` starts a deterministic engine and a model-backed engine. It runs every fixture over plain HTTP with `internal/publicengine/conformance`. SDK repositories run the same fixture files against a live engine or recorded responses.
 - The model-backed engine in that test uses a scripted stand-in model defined only in the test. Production code has no fake-model mode. Fixtures 01, 02, 04 and 05 check contract behavior with that model. They do not measure the quality of a real model.
 
@@ -109,8 +118,8 @@ The request body is at most 16 MiB. A request carries at most 500 documents and 
 
 ### Re-evaluation (#74) scope
 
-- `appendIteration` covers the evaluation step of #74. It evaluates a named completed run in a new append-only iteration, links added evidence to gaps, and records the Insight Delta.
-- The rest of #74 is out of scope here: evidence-delta detection, partial re-evaluation, affected-scope tracking and scheduler invocation.
+- `reEvaluate` records evidence changes, affected scope and fingerprints and appends one audited iteration; `appendIteration` remains the plain evaluation step.
+- Out of scope: built-in scheduling, notifications, automatic publishing and partial re-evaluation. Scenario expectation evaluation will attach to the same record once Scenario semantics (#66) exist.
 
 ## Non-goals
 

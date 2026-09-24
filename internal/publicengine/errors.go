@@ -20,6 +20,7 @@ const (
 	CodeAnalysisNotCompleted       Code = "ANALYSIS_NOT_COMPLETED"
 	CodeAnalysisHasNoHypotheses    Code = "ANALYSIS_HAS_NO_HYPOTHESES"
 	CodeMixedAnalysisRuns          Code = "MIXED_ANALYSIS_RUNS"
+	CodeStaleIteration             Code = "STALE_ITERATION"
 	CodeInternal                   Code = "INTERNAL"
 )
 
@@ -32,6 +33,7 @@ var errorStatus = map[Code]int{
 	CodeAnalysisNotCompleted:       http.StatusConflict,
 	CodeAnalysisHasNoHypotheses:    http.StatusConflict,
 	CodeMixedAnalysisRuns:          http.StatusConflict,
+	CodeStaleIteration:             http.StatusConflict,
 	CodeInternal:                   http.StatusInternalServerError,
 }
 
@@ -63,6 +65,14 @@ func AsError(err error) *Error {
 		return newError(CodeAnalysisNotCompleted, "the analysis run has not completed")
 	case errors.Is(err, usecase.ErrAnalysisHasNoHypotheses):
 		return newError(CodeAnalysisHasNoHypotheses, "the analysis run produced no hypotheses to research; a model-backed run is required")
+	case errors.Is(err, usecase.ErrStaleIteration):
+		return newError(CodeStaleIteration, "previousIterationId is not the latest iteration of the research run")
+	case errors.Is(err, usecase.ErrReEvaluationConflict):
+		return newError(CodeIdempotencyConflict, "correlationKey was already used for a different analysis run")
+	case errors.Is(err, usecase.ErrInvalidInput):
+		return newError(CodeInvalidRequest, "%s", err.Error())
+	case errors.Is(err, usecase.ErrCrossProjectComparison):
+		return newError(CodeNotFound, "analysis not found for this subject")
 	case errors.Is(err, usecase.ErrMixedAnalysisRuns):
 		return newError(CodeMixedAnalysisRuns, "the research iteration spans more than one analysis run")
 	}

@@ -333,6 +333,9 @@ type ResearchIteration struct {
 	HypothesisChanges    []HypothesisChange             `json:"hypothesisChanges,omitempty"`
 	ValidationEvidence   []ValidationEvidenceProvenance `json:"validationEvidence,omitempty"`
 	Delta                *InsightDelta                  `json:"insightDelta,omitempty"`
+	// ReEvaluation is set when this iteration was created by the
+	// re-evaluation contract (#74).
+	ReEvaluation *ReEvaluation `json:"reEvaluation,omitempty"`
 	WhatWeCannotConclude []string                       `json:"whatWeCannotConclude,omitempty"`
 	Readiness            ReadinessAssessment            `json:"readiness"`
 	Stop                 *StopDecision                  `json:"stop,omitempty"`

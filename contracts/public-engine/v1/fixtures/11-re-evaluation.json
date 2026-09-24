@@ -1,0 +1,329 @@
+{
+  "fixture": "11-re-evaluation",
+  "contractVersion": "1",
+  "covers": "#74: re-evaluation after new evidence appends one audited iteration; unchanged input creates none; the same correlation key is idempotent; a stale previous iteration is rejected; history is never mutated",
+  "engine": "model_backed",
+  "steps": [
+    {
+      "op": "createSubject",
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-subject",
+        "subject": {
+          "namespace": "public-data",
+          "id": "reeval-${uniq}"
+        }
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "subjectId": "subjectId"
+      }
+    },
+    {
+      "op": "addEvidence",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-evidence-1",
+        "documents": [
+          {
+            "externalRef": "treated-region",
+            "source": "dataset",
+            "content": "Treated region inquiries rose from 100 to 130 after the program started."
+          }
+        ]
+      },
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "op": "startAnalysis",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-analysis-1"
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "a1": "analysisId"
+      }
+    },
+    {
+      "op": "waitForAnalysis",
+      "params": {
+        "subjectId": "${subjectId}",
+        "analysisId": "${a1}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "status",
+          "equals": "completed"
+        }
+      ]
+    },
+    {
+      "op": "createResearchRun",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-research",
+        "question": "Did the program cause the increase?",
+        "analysisId": "${a1}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "researchRunId": "researchRunId",
+        "firstIterationId": "iterationId",
+        "gapId": "artifact.researchGaps[0].id"
+      }
+    },
+    {
+      "op": "reEvaluate",
+      "params": {
+        "researchRunId": "${researchRunId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-reeval-0",
+        "correlationKey": "corr-unchanged",
+        "previousIterationId": "${firstIterationId}",
+        "analysisId": "${a1}",
+        "trigger": {
+          "kind": "SCHEDULED",
+          "source": "nightly-import"
+        },
+        "evidenceChanges": {
+          "added": [],
+          "removed": [],
+          "changed": []
+        }
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "status",
+          "equals": "NO_EVIDENCE_CHANGE"
+        },
+        {
+          "path": "result.iterationSequence",
+          "equals": 1
+        }
+      ]
+    },
+    {
+      "op": "addEvidence",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-evidence-2",
+        "documents": [
+          {
+            "externalRef": "comparison-region",
+            "source": "dataset",
+            "content": "Comparison region inquiries rose from 200 to 240 over the same period."
+          }
+        ]
+      },
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "op": "startAnalysis",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-analysis-2"
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "a2": "analysisId"
+      }
+    },
+    {
+      "op": "waitForAnalysis",
+      "params": {
+        "subjectId": "${subjectId}",
+        "analysisId": "${a2}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "status",
+          "equals": "completed"
+        }
+      ]
+    },
+    {
+      "op": "reEvaluate",
+      "params": {
+        "researchRunId": "${researchRunId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-reeval-1",
+        "correlationKey": "corr-1",
+        "previousIterationId": "${firstIterationId}",
+        "analysisId": "${a2}",
+        "trigger": {
+          "kind": "SCHEDULED",
+          "source": "nightly-import"
+        },
+        "evidenceChanges": {
+          "added": [
+            "comparison-region"
+          ],
+          "removed": [],
+          "changed": []
+        }
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "status",
+          "equals": "NEW_ITERATION"
+        },
+        {
+          "path": "result.iterationSequence",
+          "equals": 2
+        },
+        {
+          "path": "reEvaluation.previousIterationId",
+          "equals": "${firstIterationId}"
+        },
+        {
+          "path": "reEvaluation.scope",
+          "equals": "FULL"
+        },
+        {
+          "path": "reEvaluation.trigger.kind",
+          "equals": "SCHEDULED"
+        },
+        {
+          "path": "reEvaluation.evidenceChanges.added[0]",
+          "equals": "comparison-region"
+        },
+        {
+          "path": "reEvaluation.inputFingerprintBefore",
+          "exists": true
+        },
+        {
+          "path": "reEvaluation.inputFingerprintAfter",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "op": "reEvaluate",
+      "params": {
+        "researchRunId": "${researchRunId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-reeval-2",
+        "correlationKey": "corr-1",
+        "previousIterationId": "${firstIterationId}",
+        "analysisId": "${a2}",
+        "trigger": {
+          "kind": "SCHEDULED",
+          "source": "nightly-import"
+        },
+        "evidenceChanges": {
+          "added": [
+            "comparison-region"
+          ],
+          "removed": [],
+          "changed": []
+        }
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "status",
+          "equals": "ALREADY_EVALUATED"
+        },
+        {
+          "path": "result.iterationSequence",
+          "equals": 2
+        }
+      ]
+    },
+    {
+      "op": "reEvaluate",
+      "params": {
+        "researchRunId": "${researchRunId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-reeval-3",
+        "correlationKey": "corr-2",
+        "previousIterationId": "${firstIterationId}",
+        "analysisId": "${a2}",
+        "trigger": {
+          "kind": "SCHEDULED",
+          "source": "nightly-import"
+        },
+        "evidenceChanges": {
+          "added": [
+            "comparison-region"
+          ],
+          "removed": [],
+          "changed": []
+        }
+      },
+      "expect": {
+        "errorCode": "STALE_ITERATION",
+        "httpStatus": 409
+      }
+    },
+    {
+      "op": "listResearchRuns",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "researchRuns[0].researchRunId",
+          "equals": "${researchRunId}"
+        },
+        {
+          "path": "researchRuns[0].iterationCount",
+          "equals": 2
+        }
+      ]
+    }
+  ]
+}

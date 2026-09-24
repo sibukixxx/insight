@@ -22,7 +22,11 @@ func Router(engine *publicengine.Engine) http.Handler {
 	r.Post("/subjects", h.createSubject)
 	r.Post("/subjects/{subjectID}/evidence", h.addEvidence)
 	r.Post("/subjects/{subjectID}/analyses", h.startAnalysis)
+	r.Get("/subjects/{subjectID}/analyses", h.listAnalyses)
 	r.Get("/subjects/{subjectID}/analyses/{analysisID}", h.getAnalysis)
+	r.Get("/subjects/{subjectID}/analyses/{analysisID}/compare/{otherAnalysisID}", h.compareAnalyses)
+	r.Get("/subjects/{subjectID}/research-runs", h.listResearchRuns)
+	r.Post("/research-runs/{researchRunID}/re-evaluations", h.reEvaluate)
 	r.Get("/subjects/{subjectID}/analyses/{analysisID}/results", h.getAnalysisResults)
 	r.Post("/subjects/{subjectID}/research-runs", h.createResearchRun)
 	r.Post("/research-runs/{researchRunID}/iterations", h.appendIteration)
@@ -91,6 +95,28 @@ func (h *handler) appendIteration(w http.ResponseWriter, r *http.Request) {
 func (h *handler) getResearchRun(w http.ResponseWriter, r *http.Request) {
 	result, err := h.engine.GetResearchRun(r.Context(), chi.URLParam(r, "researchRunID"))
 	writeValue(w, result, err)
+}
+
+func (h *handler) listAnalyses(w http.ResponseWriter, r *http.Request) {
+	list, err := h.engine.ListAnalyses(r.Context(), chi.URLParam(r, "subjectID"))
+	writeValue(w, list, err)
+}
+
+func (h *handler) compareAnalyses(w http.ResponseWriter, r *http.Request) {
+	result, err := h.engine.CompareAnalyses(r.Context(), chi.URLParam(r, "subjectID"), chi.URLParam(r, "analysisID"), chi.URLParam(r, "otherAnalysisID"))
+	writeValue(w, result, err)
+}
+
+func (h *handler) listResearchRuns(w http.ResponseWriter, r *http.Request) {
+	list, err := h.engine.ListResearchRuns(r.Context(), chi.URLParam(r, "subjectID"))
+	writeValue(w, list, err)
+}
+
+func (h *handler) reEvaluate(w http.ResponseWriter, r *http.Request) {
+	var req publicengine.ReEvaluationRequest
+	if decode(w, r, &req) {
+		writeResult(w)(h.engine.ReEvaluate(r.Context(), chi.URLParam(r, "researchRunID"), req))
+	}
 }
 
 // decode reads a bounded JSON body. Unknown fields are tolerated so newer
