@@ -40,7 +40,7 @@ Raw / File / Stream / Dataset / Analytical Artifact / Evidence
 
 - `inputSources` on `addEvidence` accept `RAW_ARTIFACT` references. The engine measures sha256 and size itself; consumer-claimed hashes are only compared, never recorded as verified.
 - Raw references are prepared by a declarative spec (`csv-aggregate/v1`) into an Analytical Artifact. Missing stays missing, never zero.
-- Large input support does **not** mean loading arbitrary GB into memory: STANDARD streams, HEAVY partitions work through the Heavy Runtime port.
+- Large input support does **not** mean loading arbitrary GB into memory: STANDARD streams each raw artifact and prepares several of them with bounded concurrency (results never depend on the bound), HEAVY partitions work through the Heavy Runtime port.
 - For many-column datasets, [data triage](data-triage.md) produces an auditable Selection Plan before preparation. No column is silently dropped.
 
 ## Four independent axes
