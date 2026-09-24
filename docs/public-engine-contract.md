@@ -71,7 +71,7 @@ The SDKs add `UNAVAILABLE` for an unreachable engine or a non-contract response.
 
 ## Limits
 
-The request body is at most 16 MiB. A request carries at most 500 documents and 50 artifacts. Document content is limited to 200,000 characters and a question to 2,000 characters. Metadata is at most 32 string entries with keys matching `^[A-Za-z0-9._:-]{1,64}$` and values up to 1,024 characters. Document metadata keys starting with `public_` or `analytical_` are reserved.
+The request body is at most 16 MiB. A request carries at most 500 documents and 50 artifacts. Document content is limited to 200,000 characters and a question to 2,000 characters. Metadata is at most 32 string entries with keys matching `^[A-Za-z0-9._:-]{1,64}$` and values up to 1,024 characters. Document metadata keys starting with `public_` or `analytical_`, and the keys `dataset_hash` and `acquisition_manifest`, are reserved. The engine records that provenance itself, so a consumer cannot claim a file hash or acquisition manifest that the engine would then report as verified.
 
 ## Decisions
 

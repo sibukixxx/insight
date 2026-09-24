@@ -11,7 +11,7 @@ export type ContractVersion = "1";
 
 export type IdempotencyKey = string;
 
-/** Bounded opaque string metadata. Keys match ^[A-Za-z0-9._:-]{1,64}$. Keys starting with public_ or analytical_ are reserved. */
+/** Bounded opaque string metadata. Keys match ^[A-Za-z0-9._:-]{1,64}$. In document metadata, keys starting with public_ or analytical_ and the keys dataset_hash and acquisition_manifest are reserved: the engine records that provenance itself. */
 export type Metadata = Record<string, string>;
 
 /** Opaque external subject. Insight stores and echoes it but never interprets or branches on it. */
