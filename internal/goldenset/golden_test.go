@@ -7,12 +7,11 @@
 //
 // Run with: go test -tags=golden ./internal/goldenset/...
 //
-// This file currently covers the four cases that are deterministic and need
-// no LLM call: association-only, population/definition mismatch, the
-// post-hoc expectation (HARKing) guard, and valid inconclusive. The
-// remaining three cases from issue #14 (real Open Data reproducibility,
-// new-evidence re-analysis, competing-hypothesis/counter-evidence) need a
-// live research run and are tracked separately.
+// This file covers the original deterministic research-integrity cases.
+// Shared Eval Contract v1 cases for Insight Semantics v2, Insight Delta and
+// Multi-Mode boundaries live in semantic_golden_test.go. Domain fixtures stay
+// in Insight; the shared contract remains an exchange schema, not a runtime
+// dependency on TechVit Business.
 package goldenset
 
 import (
