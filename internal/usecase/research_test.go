@@ -24,6 +24,7 @@ func newResearchTestApp(t *testing.T) (*Application, context.Context) {
 		Observations: sqlite.NewObservationRepository(db), Patterns: sqlite.NewPatternRepository(db),
 		Analyses: sqlite.NewAnalysisRepository(db), Insights: sqlite.NewInsightRepository(db),
 		Evidence: sqlite.NewEvidenceRepository(db), Research: sqlite.NewResearchRepository(db),
+		Scenarios: sqlite.NewScenarioRepository(db),
 	})
 	return app, context.Background()
 }

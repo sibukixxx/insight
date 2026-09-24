@@ -506,6 +506,8 @@
         "evidenceChanges": {"$ref": "#/$defs/EvidenceChanges"},
         "affectedGapIds": {"type": "array", "items": {"type": "string"}},
         "affectedHypothesisIds": {"type": "array", "items": {"type": "string"}},
+        "affectedScenarioSetId": {"type": "string", "description": "Latest scenario set whose scenarios the change touches (#66)."},
+        "affectedScenarioIds": {"type": "array", "items": {"type": "string"}, "description": "Scenarios touched via affected hypotheses, gaps or removed/changed evidence. Refs only; status changes need an explicit scenario evaluation."},
         "scope": {"type": "string", "enum": ["FULL"], "description": "Partial re-evaluation is not yet proven safe, so the whole iteration is re-evaluated."},
         "scopeReason": {"type": "string"},
         "inputFingerprintBefore": {"type": "string"},

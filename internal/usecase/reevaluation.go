@@ -109,6 +109,9 @@ func (a *Application) ReEvaluate(ctx context.Context, in ReEvaluateInput) (*ReEv
 		return nil, err
 	}
 	record.AffectedHypothesisIDs = affectedHypotheses(latest, iteration, record.AffectedGapIDs)
+	if err := a.recordAffectedScenarios(ctx, run.ID, &record); err != nil {
+		return nil, err
+	}
 	iteration.ReEvaluation = &record
 	if err := a.repos.Research.AppendResearchIteration(ctx, run.ID, iteration); err != nil {
 		return nil, fmt.Errorf("append re-evaluation iteration: %w", err)
@@ -163,4 +166,57 @@ func sortedUnique(in []string) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// recordAffectedScenarios fills the scenario refs of record from the run's
+// latest scenario set. A run without scenarios (or without scenario storage)
+// records none.
+func (a *Application) recordAffectedScenarios(ctx context.Context, runID string, record *domain.ReEvaluation) error {
+	if a.repos.Scenarios == nil {
+		return nil
+	}
+	sets, err := a.repos.Scenarios.ListScenarioSets(ctx, runID)
+	if err != nil {
+		return fmt.Errorf("list scenario sets: %w", err)
+	}
+	var latest *domain.ScenarioSet
+	for _, s := range sets {
+		if latest == nil || s.Version > latest.Version {
+			latest = s
+		}
+	}
+	if latest == nil {
+		return nil
+	}
+	evidence := append(append([]string{}, record.EvidenceChanges.Removed...), record.EvidenceChanges.Changed...)
+	touches := func(sc domain.Scenario) bool {
+		if sc.DerivedFromHypothesisID != "" && slices.Contains(record.AffectedHypothesisIDs, sc.DerivedFromHypothesisID) {
+			return true
+		}
+		for _, g := range sc.UnresolvedGapIDs {
+			if slices.Contains(record.AffectedGapIDs, g) {
+				return true
+			}
+		}
+		refs := append([]string{}, sc.EvidenceRefs...)
+		for _, as := range sc.Assumptions {
+			refs = append(refs, as.EvidenceRefs...)
+		}
+		for _, r := range refs {
+			if slices.Contains(evidence, r) {
+				return true
+			}
+		}
+		return false
+	}
+	var ids []string
+	for _, sc := range latest.Scenarios {
+		if touches(sc) {
+			ids = append(ids, sc.ID)
+		}
+	}
+	if len(ids) > 0 {
+		record.AffectedScenarioSetID, record.AffectedScenarioIDs = latest.ID, sortedUnique(ids)
+	}
+	return nil
 }
