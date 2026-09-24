@@ -11,6 +11,14 @@ This directory contains three different kinds of documentation. Keeping them sep
 | [Project status](project-status.md) | What is implemented now, current limitations, and the next validation phase |
 | [Causal reasoning semantics](causal-reasoning.md) | Runtime contract for causal claims, statuses, evidence, and guardrails |
 | [Evaluation](evaluation/README.md) | How to run and inspect repeatable model-backed evaluation |
+| [Public Engine Contract](public-engine-contract.md) | HTTP/JSON boundary for downstream consumers, Go and TypeScript SDKs, conformance fixtures |
+
+## Contracts and workflows
+
+- [Analytical Artifact contract](analytical-artifact-contract.md) — provider-neutral import of deterministic calculations.
+- [Research loop](research-loop.md) — append-only research iterations over completed analyses.
+- [Publication workflow](publication-workflow.md) — human review and approved research artifacts.
+- [Corporate-event dogfooding](dogfooding-corporate-events.md) — reproducible dataset run from an external CSV.
 
 ## Architecture and implementation
 

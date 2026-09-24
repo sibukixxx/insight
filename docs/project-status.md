@@ -116,7 +116,7 @@ Current artifact content includes, where available:
 
 The publication workflow is implemented through domain/service/usecase/HTTP/report layers. Human review is required before `PUBLICATION_READY`. `approved-artifact.json` returns the exact persisted approved snapshot; later analyses do not rewrite those approved bytes.
 
-The exact public-vs-internal SDK field boundary is **not yet frozen** and is being audited in #59.
+Downstream consumers use the Public Engine Contract v1 (`docs/public-engine-contract.md`), which embeds this artifact verbatim.
 
 ### Evaluation
 
@@ -133,7 +133,7 @@ The exact public-vs-internal SDK field boundary is **not yet frozen** and is bei
 - Model-backed interpretation remains model- and data-dependent and requires human review.
 - The current UI is optimized for small interactive projects, not bulk asynchronous ingestion.
 - Results are scoped to one analysis run (latest completed by default, selectable by `analysisId`). Each run records execution and input snapshots with fingerprints; run-to-run comparison is not implemented yet.
-- Go and Node.js SDK repositories do not exist yet.
+- The Go SDK (`sdk/go`) and TypeScript SDK (`sdk/node`) are v0 and not yet published. The npm package is unreleased, and the Go module needs an `sdk/go/v*` tag before `go get` resolves a version.
 
 ## Current development priorities
 
@@ -160,15 +160,9 @@ The purpose is to find actual semantic/contract failures before expanding the en
 
 ### 2. Stable Public Engine contract
 
-Issue #59 defines the narrow boundary future Go and Node.js SDK repositories may depend on:
+The Public Engine Contract v1 is implemented (#59): an HTTP/JSON boundary under `/api/public/v1` with a JSON Schema as single source of truth, typed errors, idempotency, versioning rules and seven conformance fixtures. The Go SDK (#76) and TypeScript SDK (#77) pass the same fixtures against live engines. Remaining work: publish the SDKs, and the rest of the #74 re-evaluation contract beyond appending an iteration.
 
-- language-neutral input contracts;
-- stable Research Artifact output;
-- public vs internal fields;
-- HTTP / CLI / embedded boundaries;
-- error and versioning contracts.
-
-`internal/*` remains implementation detail unless a deliberately reviewed public façade says otherwise.
+`internal/*` remains implementation detail; consumers use the contract or the SDKs.
 
 ### 3. Failure-driven expansion
 

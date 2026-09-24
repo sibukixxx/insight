@@ -353,6 +353,15 @@ Each snapshot has a canonical `sha256:` fingerprint: sorted-key compact JSON, no
 
 Snapshots never contain the API key, the full endpoint URL or its query string. Only the host is kept. Runs recorded before snapshots existed report `not recorded`. `GET /api/health` reports the running engine's version, commit and dirty state. `make build VERSION=v0.9.0` sets the version, which otherwise comes from a git tag and is `UNKNOWN` without one. Token usage reported by the provider is totalled per run in `metrics.usage`. Pass optional `label`, `note` and `semanticAnalysisMode` in the `POST /api/projects/{id}/analysis` body.
 
+## Public Engine Contract and SDKs
+
+Downstream systems integrate through the [Public Engine Contract v1](docs/public-engine-contract.md), an HTTP/JSON boundary under `/api/public/v1`, rather than Insight's internal packages. The contract is domain-neutral. A consumer sends an opaque subject reference, evidence and Analytical Artifacts, starts analysis runs, and reads research results with gaps, data requirements, counter-evidence and provenance. It never receives a consumer action.
+
+- **Go SDK:** [`sdk/go`](sdk/go/README.md), module `github.com/sibukixxx/insight/sdk/go`, with no dependencies.
+- **TypeScript SDK:** [`sdk/node`](sdk/node/README.md), package `@sibukixxx/insight-sdk`, with types generated from the schema.
+
+Both SDKs pass the same seven conformance fixtures against live engines in `make test`. `make test-sdk` runs the SDK unit, drift and type checks.
+
 ## Causal claims: intentionally conservative
 
 Insight Lab is **not a causal-effect estimator**.

@@ -9,7 +9,7 @@ BINDIR  := bin
 VERSION ?= $(shell git describe --tags --dirty 2>/dev/null)
 LDFLAGS := $(if $(VERSION),-X insight-lab/internal/buildinfo.Version=$(VERSION))
 
-.PHONY: build build-demo build-delivery test test-golden vet clean cross-compile cross-compile-demo cross-compile-delivery eval-demo
+.PHONY: build build-demo build-delivery test test-sdk test-golden vet clean cross-compile cross-compile-demo cross-compile-delivery eval-demo
 
 build: build-delivery
 
@@ -24,6 +24,13 @@ build-demo:
 test:
 	go test ./...
 	go test -tags demo ./...
+
+# Go and TypeScript SDKs. The live conformance run against real engines is
+# part of `make test` (internal/http/public_conformance_test.go).
+test-sdk:
+	cd sdk/go && go vet ./... && go test ./...
+	cd sdk/node && node scripts/generate-types.mjs --check && node --test "test/*.test.ts"
+	@if [ -d sdk/node/node_modules ]; then cd sdk/node && npx tsc --noEmit; else echo "skipping TypeScript typecheck: run npm install in sdk/node"; fi
 
 test-golden:
 	python3 testdata/golden/harness/test_golden_eval.py
