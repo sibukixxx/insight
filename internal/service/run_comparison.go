@@ -72,6 +72,10 @@ type FieldChange struct {
 type ExecutionAxisDiff struct {
 	State   AxisState     `json:"state"`
 	Changes []FieldChange `json:"changes"`
+	// Informational lists recorded execution settings that are excluded from
+	// the execution fingerprint by design (the #91 execution profile): shown
+	// so a difference is visible, never counted as an instrument change.
+	Informational []FieldChange `json:"informational,omitempty"`
 }
 
 type InputAxisDiff struct {
@@ -142,7 +146,23 @@ func compareExecution(a, b *domain.Analysis) ExecutionAxisDiff {
 		return out
 	}
 	out.Changes = diffFields(fa, fb)
+	out.Informational = diffFields(profileFields(a.ExecutionSnapshot), profileFields(b.ExecutionSnapshot))
+	if len(out.Informational) == 0 {
+		out.Informational = nil
+	}
 	return out
+}
+
+// profileFields flattens the recorded execution profile resolution.
+func profileFields(raw string) map[string]string {
+	var s ExecutionSnapshot
+	if json.Unmarshal([]byte(raw), &s) != nil || s.ExecutionProfile == nil {
+		return map[string]string{}
+	}
+	return map[string]string{
+		"executionProfile.requested": string(s.ExecutionProfile.Requested),
+		"executionProfile.resolved":  string(s.ExecutionProfile.Resolved),
+	}
 }
 
 // executionFields flattens the recorded instrument into comparable fields.

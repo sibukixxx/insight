@@ -375,7 +375,8 @@
       "required": ["state", "changes"],
       "properties": {
         "state": {"$ref": "#/$defs/AxisState"},
-        "changes": {"type": "array", "items": {"$ref": "#/$defs/FieldChange"}, "description": "Field-level diff: engineVersion, gitCommit, gitDirty, executionMode, semanticAnalysisMode, ruleVersions.*, promptVersion, promptFingerprint, provider, models.*, parameters."}
+        "changes": {"type": "array", "items": {"$ref": "#/$defs/FieldChange"}, "description": "Field-level diff: engineVersion, gitCommit, gitDirty, executionMode, semanticAnalysisMode, ruleVersions.*, promptVersion, promptFingerprint, provider, models.*, parameters."},
+        "informational": {"type": "array", "items": {"$ref": "#/$defs/FieldChange"}, "description": "Recorded settings excluded from the execution fingerprint by design (executionProfile.requested / executionProfile.resolved). Visible, never an instrument change."}
       }
     },
     "InputAxisDiff": {
