@@ -19,6 +19,13 @@ var (
 	// one analysis run. A report built from it would blend runs, so callers
 	// fail closed instead of guessing which run is meant.
 	ErrMixedAnalysisRuns = errors.New("research iteration insights span more than one analysis run")
+	// ErrAnalysisNotCompleted means a queued, running or failed analysis run
+	// was asked for results it does not have.
+	ErrAnalysisNotCompleted = errors.New("analysis run has not completed")
+	// ErrAnalysisHasNoHypotheses means a completed run produced no
+	// hypotheses, e.g. a deterministic run without a model, so there is
+	// nothing a research iteration could evaluate.
+	ErrAnalysisHasNoHypotheses = errors.New("analysis run produced no hypotheses to research")
 )
 
 // ResolveAnalysis returns the analysis run a result view is bound to. An

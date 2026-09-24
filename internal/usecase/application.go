@@ -206,6 +206,18 @@ func (a *Application) GetInsightEvidence(ctx context.Context, id string) ([]*dom
 	return a.repos.Evidence.ListByInsight(ctx, id)
 }
 
+// ListObservations returns the observations one analysis run produced.
+func (a *Application) ListObservations(ctx context.Context, projectID, analysisID string) ([]*domain.Observation, error) {
+	analysis, err := a.ResolveAnalysis(ctx, projectID, analysisID)
+	if errors.Is(err, ErrNoCompletedAnalysis) {
+		return []*domain.Observation{}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return a.repos.Observations.ListByAnalysis(ctx, analysis.ID)
+}
+
 // ListPatterns returns the patterns of one analysis run (see ResolveAnalysis).
 func (a *Application) ListPatterns(ctx context.Context, projectID, analysisID string) ([]PatternDetail, error) {
 	analysis, err := a.ResolveAnalysis(ctx, projectID, analysisID)

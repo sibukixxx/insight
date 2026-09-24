@@ -90,6 +90,17 @@ func (r *ObservationRepository) ListByIDs(ctx context.Context, ids []string) ([]
 	return scanObservations(rows)
 }
 
+func (r *ObservationRepository) ListByAnalysis(ctx context.Context, analysisID string) ([]*domain.Observation, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT id, analysis_id, document_id, quote, start_offset, end_offset, behavior, topic, created_at
+		 FROM observations WHERE analysis_id = ? ORDER BY created_at ASC, document_id ASC, start_offset ASC`, analysisID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanObservations(rows)
+}
+
 func scanObservations(rows *sql.Rows) ([]*domain.Observation, error) {
 	var out []*domain.Observation
 	for rows.Next() {
