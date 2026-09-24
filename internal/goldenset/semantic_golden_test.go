@@ -14,7 +14,7 @@ type sharedEvalCase struct {
 	SchemaVersion string `json:"schemaVersion"`
 	CaseID        string `json:"caseId"`
 	Domain        string `json:"domain"`
-	Input struct {
+	Input         struct {
 		References        []string `json:"references"`
 		ContextReferences []string `json:"contextReferences"`
 	} `json:"input"`
@@ -53,15 +53,15 @@ func TestGoldenNonObviousConnectionCannotPromoteNarrativeCoherence(t *testing.T)
 	insight := domain.Insight{
 		ID: "i-1",
 		Connection: domain.InsightConnection{
-			Kind: domain.ConnectionMechanismCandidate,
+			Kind:      domain.ConnectionMechanismCandidate,
 			Statement: "A appears connected to C through B",
-			Sources: []domain.InsightReference{{Kind: domain.InsightRefObservation, ID: "obs-a"}},
-			Targets: []domain.InsightReference{{Kind: domain.InsightRefObservation, ID: "obs-b"}},
+			Sources:   []domain.InsightReference{{Kind: domain.InsightRefObservation, ID: "obs-a"}},
+			Targets:   []domain.InsightReference{{Kind: domain.InsightRefObservation, ID: "obs-b"}},
 		},
 		Mechanism: domain.MechanismCandidate{
 			Statement: "B may bridge A and C",
 			Steps: []domain.MechanismStep{{
-				Statement: "B transmits the effect",
+				Statement:       "B transmits the effect",
 				MissingEvidence: append([]string(nil), c.Expected.RequiredEvidence...),
 			}},
 		},
@@ -71,7 +71,7 @@ func TestGoldenNonObviousConnectionCannotPromoteNarrativeCoherence(t *testing.T)
 		t.Fatal("unsupported bridge must remain explicit")
 	}
 	in := domain.PromotionGateInput{
-		Contribution: domain.ContributionNovelMismatch,
+		Contribution:         domain.ContributionNovelMismatch,
 		HumanReviewCompleted: false,
 	}
 	err := domain.PromotionHumanReviewRequired.Transition(domain.PromotionPublicationReady, in)
@@ -88,7 +88,7 @@ func TestGoldenInsightDeltaChangeTracksInputAndResultWithoutCausalClaim(t *testi
 	before := domain.ResearchIteration{
 		ID: "it-1",
 		InputSnapshot: domain.InputSetSnapshot{
-			Variables: []string{"population"},
+			Variables:          []string{"population"},
 			EvidenceReferences: []string{"population.csv"},
 		},
 		HypothesisStates: []domain.HypothesisState{{
@@ -99,7 +99,7 @@ func TestGoldenInsightDeltaChangeTracksInputAndResultWithoutCausalClaim(t *testi
 	after := domain.ResearchIteration{
 		ID: "it-2",
 		InputSnapshot: domain.InputSetSnapshot{
-			Variables: []string{"population", "income"},
+			Variables:          []string{"population", "income"},
 			EvidenceReferences: []string{"population.csv", "income.csv"},
 		},
 		HypothesisStates: []domain.HypothesisState{{
@@ -123,14 +123,14 @@ func TestGoldenInsightDeltaChangeTracksInputAndResultWithoutCausalClaim(t *testi
 func TestGoldenInsightDeltaAllowsNoChange(t *testing.T) {
 	loadSharedEvalCase(t, "insight_delta_no_change.json")
 	before := domain.ResearchIteration{
-		ID: "it-1",
+		ID:            "it-1",
 		InputSnapshot: domain.InputSetSnapshot{Variables: []string{"population"}},
-		InsightIDs: []string{"h1"},
+		InsightIDs:    []string{"h1"},
 	}
 	after := domain.ResearchIteration{
-		ID: "it-2",
+		ID:            "it-2",
 		InputSnapshot: domain.InputSetSnapshot{Variables: []string{"population"}},
-		InsightIDs: []string{"h1"},
+		InsightIDs:    []string{"h1"},
 	}
 	delta := service.CompareResearchIterations(before, after)
 	if len(delta.Input.Variables.Added) != 0 || len(delta.Input.Variables.Removed) != 0 {
@@ -144,9 +144,9 @@ func TestGoldenInsightDeltaAllowsNoChange(t *testing.T) {
 func TestGoldenResearchReviewClaimStaysSeparateFromEvidence(t *testing.T) {
 	c := loadSharedEvalCase(t, "research_review_claim.json")
 	claim := domain.ResearchClaim{
-		ID: "claim-1",
-		Statement: "The policy caused the increase",
-		SourceReference: c.Input.References[0],
+		ID:                 "claim-1",
+		Statement:          "The policy caused the increase",
+		SourceReference:    c.Input.References[0],
 		EvidenceReferences: []string{c.Input.References[1]},
 	}
 	if err := domain.ValidateAnalysisModeInput(domain.AnalysisModeResearchReview, []domain.InputArtifact{

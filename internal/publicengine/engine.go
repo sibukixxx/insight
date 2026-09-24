@@ -58,8 +58,9 @@ type Engine struct {
 	now       func() time.Time
 	triage    *triageDeps
 
-	resolver    input.Resolver
-	maxRawBytes int64
+	resolver      input.Resolver
+	maxRawBytes   int64
+	allowedModels []string
 
 	// mu serializes mutating operations so an idempotency replay check and
 	// an identity check can never interleave with the write they guard.
@@ -84,6 +85,7 @@ func (e *Engine) Engine() EngineInfo {
 		AnalyticalArtifact:        SchemaRef{Schema: analytical.Schema, Version: analytical.Version},
 		ExecutionProfiles:         profileInfos(e.capabilities()),
 		InputSourceKinds:          input.Kinds(),
+		ModelRouting:              e.modelRouting(),
 	}
 }
 
@@ -335,7 +337,10 @@ func (e *Engine) StartAnalysis(ctx context.Context, subjectID string, req StartA
 		if err != nil {
 			return 0, nil, newError(CodeInvalidRequest, "%v", err)
 		}
-		analysis, err := e.jobs.Enqueue(ctx, service.EnqueueRequest{ProjectID: subject.ProjectID, Label: strings.TrimSpace(req.Label), Note: strings.TrimSpace(req.Note), SemanticAnalysisMode: mode, ExecutionProfile: profile})
+		if len(req.ModelBindings) > 16 {
+			return 0, nil, newError(CodeInvalidRequest, "modelBindings is limited to 16 stages")
+		}
+		analysis, err := e.jobs.Enqueue(ctx, service.EnqueueRequest{ProjectID: subject.ProjectID, Label: strings.TrimSpace(req.Label), Note: strings.TrimSpace(req.Note), SemanticAnalysisMode: mode, ExecutionProfile: profile, ModelBindings: req.ModelBindings})
 		if err != nil {
 			return 0, nil, err
 		}

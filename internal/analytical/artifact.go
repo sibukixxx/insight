@@ -14,8 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"insight-lab/internal/analytical/model"
 	"insight-lab/internal/domain"
- "insight-lab/internal/analytical/model"
 )
 
 const (
@@ -155,11 +155,11 @@ func (a Artifact) Validate() error {
 			return fail("%v", err)
 		}
 		if result.Temporal != nil {
-   if err := validateTemporalResult(result, a.Metrics, a.Period); err != nil {
-    return fail("results[%d]: %v", i, err)
-   }
-  }
-  if result.Missing && len(result.Value) != 0 {
+			if err := validateTemporalResult(result, a.Metrics, a.Period); err != nil {
+				return fail("results[%d]: %v", i, err)
+			}
+		}
+		if result.Missing && len(result.Value) != 0 {
 			return fail("results[%d] cannot have value when missing", i)
 		}
 		if !result.Missing && !validScalar(result.Value) {
@@ -291,8 +291,10 @@ func ToCandidates(artifact Artifact) ([]Candidate, error) {
 		id := fmt.Sprintf("%s:%s:%d", artifact.ID, result.MetricID, i)
 		quote := resultStatement(metric, result)
 		observationID := id
-  temporal, err := temporalProjection(artifact, metric, result, i)
-  if err != nil { return nil, err }
+		temporal, err := temporalProjection(artifact, metric, result, i)
+		if err != nil {
+			return nil, err
+		}
 		out = append(out, Candidate{
 			ArtifactID: artifact.ID, ResultIndex: i,
 			Evidence:    domain.Evidence{Temporal: temporal, ID: id, DocumentID: artifact.ID, ObservationID: &observationID, Quote: quote, Type: domain.EvidenceNeutral},

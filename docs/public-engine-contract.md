@@ -156,3 +156,12 @@ The request body is at most 16 MiB. A request carries at most 500 documents and 
 - Scheduler or orchestration.
 - Authentication for multi-tenant deployment. The server binds to localhost by default and rejects cross-origin browser requests.
 - Streaming progress. Both SDKs poll.
+
+## Model bindings (#65 extension point)
+
+Routing policy (which model for which stage, cost budgets, escalation) belongs to consumers. The engine exposes only a minimal, provider-neutral extension point:
+
+- `EngineInfo.modelRouting` lists the pipeline `stages` a caller may bind and the `allowedModels` the operator configured (`-allowed-models` / `INSIGHT_LAB_ALLOWED_MODELS`; the configured `-model` is always allowed).
+- `startAnalysis.modelBindings` maps stages to allowed models. Unknown stage → `INVALID_REQUEST`; a model the operator did not allow, or no model endpoint → `MODEL_BINDING_UNAVAILABLE` (422).
+- Bindings are execution configuration: they are recorded per stage in `provenance.execution.llm.models`, change the execution fingerprint (so run comparison attributes the difference to execution), and never change research semantics.
+- Conformance: `17-model-bindings`.

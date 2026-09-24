@@ -2,9 +2,9 @@
 package model
 
 import (
- "bytes"
- "encoding/json"
- "time"
+	"bytes"
+	"encoding/json"
+	"time"
 )
 
 type Hash struct {
@@ -44,7 +44,7 @@ type Population struct {
 }
 
 type MetricDefinition struct {
-	Version string `json:"version,omitempty"`
+	Version     string `json:"version,omitempty"`
 	ID          string `json:"id"`
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
@@ -58,7 +58,7 @@ type QualityFlag struct {
 }
 
 type Result struct {
-	Temporal *TemporalMetadata `json:"temporal,omitempty"`
+	Temporal   *TemporalMetadata `json:"temporal,omitempty"`
 	MetricID   string            `json:"metricId"`
 	Dimensions map[string]string `json:"dimensions,omitempty"`
 	Period     Period            `json:"period"`
@@ -82,43 +82,42 @@ type SourceProvenance struct {
 	TransformationRefs []string  `json:"transformationRefs,omitempty"`
 }
 
-
 type TemporalMetadata struct {
- ObservedAt time.Time `json:"observedAt"`
- Origin string `json:"origin"`
- Geography string `json:"geography"`
- ValueBasis string `json:"valueBasis"`
+	ObservedAt time.Time `json:"observedAt"`
+	Origin     string    `json:"origin"`
+	Geography  string    `json:"geography"`
+	ValueBasis string    `json:"valueBasis"`
 }
 
 // TemporalEvidence is an additive projection of an artifact result, not a
 // second observation identity. Period is event time; ObservedAt is measurement
 // time; RetrievedAt is acquisition time; GeneratedAt is analysis time.
 type TemporalEvidence struct {
- ArtifactID string `json:"artifactId"`
- ArtifactHash Hash `json:"artifactHash"`
- ResultIndex int `json:"resultIndex"`
- Metric MetricDefinition `json:"metric"`
- Result Result `json:"result"`
- Population Population `json:"population"`
- Datasets []DatasetRef `json:"datasets"`
- Spec SpecRef `json:"spec"`
- Parameters map[string]any `json:"parameters,omitempty"`
- Filters map[string]any `json:"filters,omitempty"`
- Provenance []SourceProvenance `json:"provenance"`
- Quality []QualityFlag `json:"qualityFlags,omitempty"`
- GeneratedAt time.Time `json:"generatedAt"`
+	ArtifactID   string             `json:"artifactId"`
+	ArtifactHash Hash               `json:"artifactHash"`
+	ResultIndex  int                `json:"resultIndex"`
+	Metric       MetricDefinition   `json:"metric"`
+	Result       Result             `json:"result"`
+	Population   Population         `json:"population"`
+	Datasets     []DatasetRef       `json:"datasets"`
+	Spec         SpecRef            `json:"spec"`
+	Parameters   map[string]any     `json:"parameters,omitempty"`
+	Filters      map[string]any     `json:"filters,omitempty"`
+	Provenance   []SourceProvenance `json:"provenance"`
+	Quality      []QualityFlag      `json:"qualityFlags,omitempty"`
+	GeneratedAt  time.Time          `json:"generatedAt"`
 }
 
 // UnmarshalJSON preserves numeric scope definitions without converting large
 // integers to float64. This applies both to snapshots and repository reads.
 func (e *TemporalEvidence) UnmarshalJSON(data []byte) error {
- type plain TemporalEvidence
- var decoded plain
- decoder := json.NewDecoder(bytes.NewReader(data))
- decoder.UseNumber()
- if err := decoder.Decode(&decoded); err != nil {
-  return err
- }
- *e = TemporalEvidence(decoded)
- return nil
+	type plain TemporalEvidence
+	var decoded plain
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.UseNumber()
+	if err := decoder.Decode(&decoded); err != nil {
+		return err
+	}
+	*e = TemporalEvidence(decoded)
+	return nil
 }

@@ -112,7 +112,7 @@ func BuildExecutionSnapshot(settings Settings, semantic domain.AnalysisMode, bui
 		}
 		config.LLM = &LLMExecution{
 			ProviderHost: providerHost(settings.BaseURL),
-			Models:       []ModelBinding{{Stage: "all", Provider: openAICompatibleProvider, Model: settings.Model}},
+			Models:       stageModelBindings(settings),
 			Parameters: LLMParameters{
 				Temperatures: temperatures, ContextRuneLimit: defaultContextRuneLimit, MaxChunkRunes: maxChunkRunes,
 				Client: llm.OpenAIClientPolicy(),

@@ -60,6 +60,8 @@ func Run(ctx context.Context, cfg *Config) error {
 	}
 	jobManager := service.NewJobManager(analyses, pipeline, settings, service.DefaultLLMClientFactory)
 	var engineOpts []publicengine.Option
+	jobManager.AllowedModels = cfg.AllowedModels
+	engineOpts = append(engineOpts, publicengine.WithAllowedModels(cfg.AllowedModels))
 	if cfg.InputRoot != "" {
 		prep := &service.Preparation{Resolver: input.Resolvers{"file": input.FileResolver{Root: cfg.InputRoot}}, MaxRawBytes: publicengine.DefaultMaxRawArtifactBytes}
 		if cfg.HeavyDir != "" {

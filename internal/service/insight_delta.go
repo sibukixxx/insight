@@ -10,8 +10,8 @@ import (
 func CompareResearchIterations(previous, current domain.ResearchIteration) domain.InsightDelta {
 	d := domain.InsightDelta{
 		FromIterationID: previous.ID,
-		ToIterationID: current.ID,
-		Input: compareInputSnapshots(previous.InputSnapshot, current.InputSnapshot),
+		ToIterationID:   current.ID,
+		Input:           compareInputSnapshots(previous.InputSnapshot, current.InputSnapshot),
 	}
 	d.Result.InsightIDsAdded, d.Result.InsightIDsRemoved = setDiff(previous.InsightIDs, current.InsightIDs)
 	prevGaps := map[string]domain.ResearchGap{}
