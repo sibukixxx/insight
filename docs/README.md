@@ -11,6 +11,7 @@ This directory contains three different kinds of documentation. Keeping them sep
 | [Project status](project-status.md) | What is implemented now, current limitations, and the next validation phase |
 | [Causal reasoning semantics](causal-reasoning.md) | Runtime contract for causal claims, statuses, evidence, and guardrails |
 | [Evaluation](evaluation/README.md) | How to run and inspect repeatable model-backed evaluation |
+| [Data Triage](data-triage.md) | Deterministic Dataset Profile and auditable, versioned Selection Plans that choose what deterministic processing looks at (#92) |
 
 ## Architecture and implementation
 
