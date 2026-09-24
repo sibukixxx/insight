@@ -255,6 +255,7 @@ type (
 	HypothesisEvent          = domain.HypothesisEvent
 	InsightVersion           = domain.InsightVersion
 	InstrumentChange         = domain.InstrumentChange
+	TimelineScenarioEvent    = domain.TimelineScenarioEvent
 )
 
 type ResearchTimeline struct {
@@ -269,6 +270,7 @@ type ResearchTimeline struct {
 	HypothesisEvents  []HypothesisEvent          `json:"hypothesisEvents"`
 	InsightVersions   []InsightVersion           `json:"insightVersions"`
 	InstrumentChanges []InstrumentChange         `json:"instrumentChanges"`
+	ScenarioEvents    []TimelineScenarioEvent    `json:"scenarioEvents,omitempty"`
 	Limitations       []string                   `json:"limitations"`
 }
 

@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"sort"
 	"context"
 	"fmt"
 	"strings"
@@ -410,5 +411,19 @@ func (a *Application) GetResearchTimeline(ctx context.Context, runID string) (*d
 		src.Analyses[it.AnalysisID], src.Observations[it.AnalysisID] = analysis, observations
 	}
 	timeline := service.BuildLongitudinalTimeline(*run, src)
+	if a.repos.Scenarios != nil {
+		evals, err := a.repos.Scenarios.ListScenarioEvaluations(ctx, run.ID)
+		if err != nil {
+			return nil, fmt.Errorf("load scenario evaluations: %w", err)
+		}
+		sort.SliceStable(evals, func(i, j int) bool { return evals[i].EvaluatedAt.Before(evals[j].EvaluatedAt) })
+		for _, e := range evals {
+			timeline.ScenarioEvents = append(timeline.ScenarioEvents, domain.TimelineScenarioEvent{
+				EvaluationID: e.ID, ScenarioSetID: e.ScenarioSetID, SetVersion: e.SetVersion, IterationID: e.IterationID, EvaluatedAt: e.EvaluatedAt,
+				Strengthened: e.Delta.Strengthened, Weakened: e.Delta.Weakened, Contradicted: e.Delta.Contradicted,
+				FalsificationsFired: e.Delta.FalsificationsFired, AssumptionsInvalidated: e.Delta.AssumptionsInvalidated,
+			})
+		}
+	}
 	return &timeline, nil
 }
