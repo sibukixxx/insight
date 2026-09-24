@@ -494,13 +494,40 @@ func (p *Pipeline) persistInsights(ctx context.Context, analysisID, projectID st
 
 // --- LLM step calls ---
 
-func (p *Pipeline) extractObservations(ctx context.Context, chunk string) (*observationExtractionOutput, error) {
-	resp, err := p.LLM.Generate(ctx, llm.GenerateRequest{
-		SystemPrompt: observationExtractionPrompt,
-		Messages:     []llm.Message{{Role: "user", Content: chunk}},
-		Schema:       observationExtractionSchema(),
-		Temperature:  0.2,
+// llmStep is everything that shapes one model call besides its input: the
+// system prompt, the response schema and the temperature. Keeping them in
+// one table lets the calls and the prompt fingerprint share a single source.
+type llmStep struct {
+	Name         string
+	SystemPrompt string
+	Schema       func() llm.Schema
+	Temperature  float64
+}
+
+var (
+	stepObservationExtraction = llmStep{"observation_extraction", observationExtractionPrompt, observationExtractionSchema, 0.2}
+	stepTraceDetection        = llmStep{"trace_detection", traceDetectionPrompt, traceDetectionSchema, 0.3}
+	stepPatternDetection      = llmStep{"pattern_detection", patternDetectionPrompt, patternDetectionSchema, 0.3}
+	stepHypothesis            = llmStep{"hypothesis_generation", hypothesisPrompt, hypothesisSchema, 0.4}
+	stepEvidenceRetrieval     = llmStep{"evidence_retrieval", evidenceRetrievalPrompt, evidenceRetrievalSchema, 0.2}
+	stepInsightWriteup        = llmStep{"insight_writeup", insightWriteupPrompt, insightWriteupSchema, 0.4}
+	stepDedupe                = llmStep{"dedupe", dedupePrompt, dedupeSchema, 0.1}
+)
+
+// pipelineLLMSteps lists every model step the pipeline can run, in the
+// order the pipeline runs them.
+func pipelineLLMSteps() []llmStep {
+	return []llmStep{stepObservationExtraction, stepTraceDetection, stepPatternDetection, stepHypothesis, stepEvidenceRetrieval, stepInsightWriteup, stepDedupe}
+}
+
+func (p *Pipeline) generate(ctx context.Context, step llmStep, messages []llm.Message) (*llm.GenerateResponse, error) {
+	return p.LLM.Generate(ctx, llm.GenerateRequest{
+		SystemPrompt: step.SystemPrompt, Messages: messages, Schema: step.Schema(), Temperature: step.Temperature,
 	})
+}
+
+func (p *Pipeline) extractObservations(ctx context.Context, chunk string) (*observationExtractionOutput, error) {
+	resp, err := p.generate(ctx, stepObservationExtraction, []llm.Message{{Role: "user", Content: chunk}})
 	if err != nil {
 		return nil, err
 	}
@@ -516,12 +543,7 @@ func (p *Pipeline) detectTraces(ctx context.Context, obs []*domain.Observation) 
 	if err != nil {
 		return nil, err
 	}
-	resp, err := p.LLM.Generate(ctx, llm.GenerateRequest{
-		SystemPrompt: traceDetectionPrompt,
-		Messages:     []llm.Message{{Role: "user", Content: string(payload)}},
-		Schema:       traceDetectionSchema(),
-		Temperature:  0.3,
-	})
+	resp, err := p.generate(ctx, stepTraceDetection, []llm.Message{{Role: "user", Content: string(payload)}})
 	if err != nil {
 		return nil, err
 	}
@@ -537,12 +559,7 @@ func (p *Pipeline) detectPatterns(ctx context.Context, obs []*domain.Observation
 	if err != nil {
 		return nil, err
 	}
-	resp, err := p.LLM.Generate(ctx, llm.GenerateRequest{
-		SystemPrompt: patternDetectionPrompt,
-		Messages:     []llm.Message{{Role: "user", Content: string(payload)}},
-		Schema:       patternDetectionSchema(),
-		Temperature:  0.3,
-	})
+	resp, err := p.generate(ctx, stepPatternDetection, []llm.Message{{Role: "user", Content: string(payload)}})
 	if err != nil {
 		return nil, err
 	}
@@ -558,12 +575,7 @@ func (p *Pipeline) generateHypotheses(ctx context.Context, patterns []*domain.Pa
 	if err != nil {
 		return nil, err
 	}
-	resp, err := p.LLM.Generate(ctx, llm.GenerateRequest{
-		SystemPrompt: hypothesisPrompt,
-		Messages:     []llm.Message{{Role: "user", Content: string(payload)}},
-		Schema:       hypothesisSchema(),
-		Temperature:  0.4,
-	})
+	resp, err := p.generate(ctx, stepHypothesis, []llm.Message{{Role: "user", Content: string(payload)}})
 	if err != nil {
 		return nil, err
 	}
@@ -585,12 +597,7 @@ func (p *Pipeline) retrieveEvidence(ctx context.Context, h hypothesisCandidate, 
 	if err != nil {
 		return nil, err
 	}
-	resp, err := p.LLM.Generate(ctx, llm.GenerateRequest{
-		SystemPrompt: evidenceRetrievalPrompt,
-		Messages:     []llm.Message{{Role: "user", Content: string(payload)}},
-		Schema:       evidenceRetrievalSchema(),
-		Temperature:  0.2,
-	})
+	resp, err := p.generate(ctx, stepEvidenceRetrieval, []llm.Message{{Role: "user", Content: string(payload)}})
 	if err != nil {
 		return nil, err
 	}
@@ -610,12 +617,7 @@ func (p *Pipeline) writeupInsight(ctx context.Context, h hypothesisCandidate, su
 	if err != nil {
 		return nil, err
 	}
-	resp, err := p.LLM.Generate(ctx, llm.GenerateRequest{
-		SystemPrompt: insightWriteupPrompt,
-		Messages:     []llm.Message{{Role: "user", Content: string(payload)}},
-		Schema:       insightWriteupSchema(),
-		Temperature:  0.4,
-	})
+	resp, err := p.generate(ctx, stepInsightWriteup, []llm.Message{{Role: "user", Content: string(payload)}})
 	if err != nil {
 		return nil, err
 	}
@@ -648,12 +650,7 @@ func (p *Pipeline) dedupeDrafts(ctx context.Context, drafts []draftInsight) (kee
 		return nil, 0, err
 	}
 
-	resp, err := p.LLM.Generate(ctx, llm.GenerateRequest{
-		SystemPrompt: dedupePrompt,
-		Messages:     []llm.Message{{Role: "user", Content: string(payload)}},
-		Schema:       dedupeSchema(),
-		Temperature:  0.1,
-	})
+	resp, err := p.generate(ctx, stepDedupe, []llm.Message{{Role: "user", Content: string(payload)}})
 	if err != nil {
 		return nil, 0, err
 	}
