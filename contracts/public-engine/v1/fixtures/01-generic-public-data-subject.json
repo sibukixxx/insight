@@ -1,0 +1,273 @@
+{
+  "fixture": "01-generic-public-data-subject",
+  "contractVersion": "1",
+  "covers": "#59 conformance 1: generic public-data research subject, end to end",
+  "engine": "model_backed",
+  "steps": [
+    {
+      "op": "getEngine",
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "contractSchema",
+          "equals": "insight-lab.public-engine"
+        },
+        {
+          "path": "contractVersion",
+          "equals": "1"
+        },
+        {
+          "path": "supportedContractVersions",
+          "minLength": 1
+        },
+        {
+          "path": "engine.commit",
+          "exists": true
+        },
+        {
+          "path": "researchArtifact.schema",
+          "equals": "insight-lab.research-artifact"
+        }
+      ]
+    },
+    {
+      "op": "createSubject",
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-subject",
+        "subject": {
+          "namespace": "public-data",
+          "id": "municipality-${uniq}",
+          "type": "geography"
+        },
+        "title": "Example municipality",
+        "metadata": {
+          "portal": "open-data"
+        }
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "subjectId": "subjectId"
+      },
+      "assert": [
+        {
+          "path": "subject.namespace",
+          "equals": "public-data"
+        },
+        {
+          "path": "metadata.portal",
+          "equals": "open-data"
+        }
+      ]
+    },
+    {
+      "op": "addEvidence",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-evidence",
+        "documents": [
+          {
+            "externalRef": "survey-2024",
+            "source": "survey",
+            "title": "Resident survey 2024",
+            "content": "In 2024, 62 percent of movers named housing cost as the main reason."
+          },
+          {
+            "externalRef": "survey-2025",
+            "source": "survey",
+            "title": "Resident survey 2025",
+            "content": "In 2025, 58 percent of movers named housing cost as the main reason."
+          }
+        ]
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "documents",
+          "minLength": 2
+        },
+        {
+          "path": "documents[0].status",
+          "equals": "CREATED"
+        },
+        {
+          "path": "documents[0].externalRef",
+          "equals": "survey-2024"
+        }
+      ]
+    },
+    {
+      "op": "startAnalysis",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-analysis",
+        "label": "baseline",
+        "semanticAnalysisMode": "DISCOVERY"
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "analysisId": "analysisId"
+      },
+      "assert": [
+        {
+          "path": "label",
+          "equals": "baseline"
+        },
+        {
+          "path": "executionFingerprint",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "op": "waitForAnalysis",
+      "params": {
+        "subjectId": "${subjectId}",
+        "analysisId": "${analysisId}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "status",
+          "equals": "completed"
+        },
+        {
+          "path": "engine.version",
+          "exists": true
+        },
+        {
+          "path": "executionFingerprint",
+          "exists": true
+        },
+        {
+          "path": "inputFingerprint",
+          "exists": true
+        },
+        {
+          "path": "provenance.execution",
+          "exists": true
+        },
+        {
+          "path": "provenance.input",
+          "exists": true
+        },
+        {
+          "path": "executionMode",
+          "equals": "model_backed"
+        },
+        {
+          "path": "semanticAnalysisMode",
+          "equals": "DISCOVERY"
+        }
+      ]
+    },
+    {
+      "op": "getAnalysisResults",
+      "params": {
+        "subjectId": "${subjectId}",
+        "analysisId": "${analysisId}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "observations",
+          "minLength": 1
+        },
+        {
+          "path": "observations[0].externalRef",
+          "exists": true
+        },
+        {
+          "path": "metrics",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "op": "createResearchRun",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-research",
+        "question": "Why did the housing-cost share change?",
+        "analysisId": "${analysisId}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "researchRunId": "researchRunId",
+        "iterationId": "iterationId"
+      },
+      "assert": [
+        {
+          "path": "iterationSequence",
+          "equals": 1
+        },
+        {
+          "path": "analysis.analysisId",
+          "equals": "${analysisId}"
+        },
+        {
+          "path": "artifact.artifactSchema",
+          "equals": "insight-lab.research-artifact"
+        },
+        {
+          "path": "artifact.analysisId",
+          "equals": "${analysisId}"
+        },
+        {
+          "path": "artifact.insights",
+          "minLength": 1
+        },
+        {
+          "path": "artifact.researchGaps",
+          "minLength": 1
+        },
+        {
+          "path": "artifact.provenance.execution",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "op": "getResearchRun",
+      "params": {
+        "researchRunId": "${researchRunId}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "iterationId",
+          "equals": "${iterationId}"
+        },
+        {
+          "path": "subjectId",
+          "equals": "${subjectId}"
+        }
+      ]
+    }
+  ]
+}

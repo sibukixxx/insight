@@ -1,0 +1,444 @@
+{
+  "fixture": "03-deterministic-analytical-artifact",
+  "contractVersion": "1",
+  "covers": "#59 conformance 3 / #69: a deterministic Analytical Artifact producer; results become grounded observations without a model and never become hypotheses",
+  "engine": "deterministic",
+  "steps": [
+    {
+      "op": "createSubject",
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-subject",
+        "subject": {
+          "namespace": "analytics",
+          "id": "trade-${uniq}"
+        }
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "subjectId": "subjectId"
+      }
+    },
+    {
+      "op": "addEvidence",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-artifact",
+        "analyticalArtifacts": [
+          {
+            "artifactSchema": "insight-lab.analytical-artifact",
+            "schemaVersion": "1",
+            "id": "trade-jp-eu-2022-2024",
+            "artifactHash": {
+              "algorithm": "sha256",
+              "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            "producer": "example-trade-analysis",
+            "producerVersion": "1.0.0",
+            "generatedAt": "2026-09-22T03:30:00Z",
+            "datasets": [
+              {
+                "id": "trade",
+                "uri": "file:trade.csv",
+                "version": "2024-final",
+                "hash": {
+                  "algorithm": "sha256",
+                  "value": "1111111111111111111111111111111111111111111111111111111111111111"
+                }
+              },
+              {
+                "id": "fx",
+                "uri": "file:fx.csv",
+                "version": "2024-final",
+                "hash": {
+                  "algorithm": "sha256",
+                  "value": "2222222222222222222222222222222222222222222222222222222222222222"
+                }
+              }
+            ],
+            "spec": {
+              "kind": "sql",
+              "reference": "queries/export_value_by_year.sql",
+              "hash": {
+                "algorithm": "sha256",
+                "value": "3333333333333333333333333333333333333333333333333333333333333333"
+              }
+            },
+            "parameters": {
+              "origin": "JP",
+              "destination": "EU"
+            },
+            "dimensions": [
+              "year",
+              "origin",
+              "destination"
+            ],
+            "filters": {
+              "hsChapter": "09"
+            },
+            "period": {
+              "start": "2022",
+              "end": "2024",
+              "basis": "calendar-year"
+            },
+            "population": {
+              "description": "Recorded Japan-to-EU commodity exports",
+              "unit": "customs declarations"
+            },
+            "metrics": [
+              {
+                "id": "export_value",
+                "name": "Export value",
+                "description": "Annual customs value",
+                "unit": "JPY",
+                "aggregation": "sum"
+              }
+            ],
+            "results": [
+              {
+                "metricId": "export_value",
+                "dimensions": {
+                  "year": "2022"
+                },
+                "period": {
+                  "start": "2022",
+                  "end": "2022"
+                },
+                "value": 100
+              },
+              {
+                "metricId": "export_value",
+                "dimensions": {
+                  "year": "2023"
+                },
+                "period": {
+                  "start": "2023",
+                  "end": "2023"
+                },
+                "value": 115
+              },
+              {
+                "metricId": "export_value",
+                "dimensions": {
+                  "year": "2024"
+                },
+                "period": {
+                  "start": "2024",
+                  "end": "2024"
+                },
+                "value": 121,
+                "qualityFlags": [
+                  {
+                    "code": "PROVISIONAL",
+                    "message": "Latest year is provisional"
+                  }
+                ]
+              }
+            ],
+            "qualityFlags": [
+              {
+                "code": "NOMINAL_VALUE",
+                "message": "Not adjusted for inflation or exchange-rate effects"
+              }
+            ],
+            "computation": {
+              "engine": "external-sql-runner",
+              "engineVersion": "2.1.0",
+              "deterministic": true,
+              "timezone": "UTC"
+            },
+            "provenance": [
+              {
+                "datasetId": "trade",
+                "source": "https://example.invalid/trade",
+                "retrievedAt": "2026-09-20T00:00:00Z",
+                "license": "example",
+                "transformationRefs": [
+                  "normalize-trade-v1"
+                ]
+              },
+              {
+                "datasetId": "fx",
+                "source": "https://example.invalid/fx",
+                "retrievedAt": "2026-09-20T00:00:00Z",
+                "license": "example"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "analyticalArtifacts[0].artifactId",
+          "equals": "trade-jp-eu-2022-2024"
+        },
+        {
+          "path": "analyticalArtifacts[0].status",
+          "equals": "CREATED"
+        },
+        {
+          "path": "analyticalArtifacts[0].reproducibilityKey",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "op": "addEvidence",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-artifact-again",
+        "analyticalArtifacts": [
+          {
+            "artifactSchema": "insight-lab.analytical-artifact",
+            "schemaVersion": "1",
+            "id": "trade-jp-eu-2022-2024",
+            "artifactHash": {
+              "algorithm": "sha256",
+              "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            "producer": "example-trade-analysis",
+            "producerVersion": "1.0.0",
+            "generatedAt": "2026-09-22T03:30:00Z",
+            "datasets": [
+              {
+                "id": "trade",
+                "uri": "file:trade.csv",
+                "version": "2024-final",
+                "hash": {
+                  "algorithm": "sha256",
+                  "value": "1111111111111111111111111111111111111111111111111111111111111111"
+                }
+              },
+              {
+                "id": "fx",
+                "uri": "file:fx.csv",
+                "version": "2024-final",
+                "hash": {
+                  "algorithm": "sha256",
+                  "value": "2222222222222222222222222222222222222222222222222222222222222222"
+                }
+              }
+            ],
+            "spec": {
+              "kind": "sql",
+              "reference": "queries/export_value_by_year.sql",
+              "hash": {
+                "algorithm": "sha256",
+                "value": "3333333333333333333333333333333333333333333333333333333333333333"
+              }
+            },
+            "parameters": {
+              "origin": "JP",
+              "destination": "EU"
+            },
+            "dimensions": [
+              "year",
+              "origin",
+              "destination"
+            ],
+            "filters": {
+              "hsChapter": "09"
+            },
+            "period": {
+              "start": "2022",
+              "end": "2024",
+              "basis": "calendar-year"
+            },
+            "population": {
+              "description": "Recorded Japan-to-EU commodity exports",
+              "unit": "customs declarations"
+            },
+            "metrics": [
+              {
+                "id": "export_value",
+                "name": "Export value",
+                "description": "Annual customs value",
+                "unit": "JPY",
+                "aggregation": "sum"
+              }
+            ],
+            "results": [
+              {
+                "metricId": "export_value",
+                "dimensions": {
+                  "year": "2022"
+                },
+                "period": {
+                  "start": "2022",
+                  "end": "2022"
+                },
+                "value": 100
+              },
+              {
+                "metricId": "export_value",
+                "dimensions": {
+                  "year": "2023"
+                },
+                "period": {
+                  "start": "2023",
+                  "end": "2023"
+                },
+                "value": 115
+              },
+              {
+                "metricId": "export_value",
+                "dimensions": {
+                  "year": "2024"
+                },
+                "period": {
+                  "start": "2024",
+                  "end": "2024"
+                },
+                "value": 121,
+                "qualityFlags": [
+                  {
+                    "code": "PROVISIONAL",
+                    "message": "Latest year is provisional"
+                  }
+                ]
+              }
+            ],
+            "qualityFlags": [
+              {
+                "code": "NOMINAL_VALUE",
+                "message": "Not adjusted for inflation or exchange-rate effects"
+              }
+            ],
+            "computation": {
+              "engine": "external-sql-runner",
+              "engineVersion": "2.1.0",
+              "deterministic": true,
+              "timezone": "UTC"
+            },
+            "provenance": [
+              {
+                "datasetId": "trade",
+                "source": "https://example.invalid/trade",
+                "retrievedAt": "2026-09-20T00:00:00Z",
+                "license": "example",
+                "transformationRefs": [
+                  "normalize-trade-v1"
+                ]
+              },
+              {
+                "datasetId": "fx",
+                "source": "https://example.invalid/fx",
+                "retrievedAt": "2026-09-20T00:00:00Z",
+                "license": "example"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "analyticalArtifacts[0].status",
+          "equals": "UNCHANGED"
+        }
+      ]
+    },
+    {
+      "op": "startAnalysis",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-analysis",
+        "semanticAnalysisMode": "DATASET_ANALYSIS"
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "analysisId": "analysisId"
+      }
+    },
+    {
+      "op": "waitForAnalysis",
+      "params": {
+        "subjectId": "${subjectId}",
+        "analysisId": "${analysisId}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "status",
+          "equals": "completed"
+        },
+        {
+          "path": "engine.version",
+          "exists": true
+        },
+        {
+          "path": "executionFingerprint",
+          "exists": true
+        },
+        {
+          "path": "inputFingerprint",
+          "exists": true
+        },
+        {
+          "path": "provenance.execution",
+          "exists": true
+        },
+        {
+          "path": "provenance.input",
+          "exists": true
+        },
+        {
+          "path": "executionMode",
+          "equals": "deterministic"
+        }
+      ]
+    },
+    {
+      "op": "getAnalysisResults",
+      "params": {
+        "subjectId": "${subjectId}",
+        "analysisId": "${analysisId}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "observations",
+          "minLength": 3
+        }
+      ]
+    },
+    {
+      "op": "createResearchRun",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-research",
+        "question": "What does the series show?",
+        "analysisId": "${analysisId}"
+      },
+      "expect": {
+        "errorCode": "ANALYSIS_HAS_NO_HYPOTHESES",
+        "httpStatus": 409
+      }
+    }
+  ]
+}

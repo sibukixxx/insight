@@ -1,0 +1,258 @@
+{
+  "fixture": "04-missing-evidence-re-evaluation",
+  "contractVersion": "1",
+  "covers": "#59 conformance 4 / #74 subset: missing evidence becomes a ResearchGap and DataRequirement; added evidence linked to the gap is evaluated in a new, append-only iteration",
+  "engine": "model_backed",
+  "steps": [
+    {
+      "op": "createSubject",
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-subject",
+        "subject": {
+          "namespace": "public-data",
+          "id": "program-${uniq}"
+        }
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "subjectId": "subjectId"
+      }
+    },
+    {
+      "op": "addEvidence",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-evidence-1",
+        "documents": [
+          {
+            "externalRef": "treated-region",
+            "source": "dataset",
+            "content": "Treated region inquiries rose from 100 to 130 after the program started."
+          }
+        ]
+      },
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "op": "startAnalysis",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-analysis-1"
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "analysisId": "analysisId"
+      }
+    },
+    {
+      "op": "waitForAnalysis",
+      "params": {
+        "subjectId": "${subjectId}",
+        "analysisId": "${analysisId}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "status",
+          "equals": "completed"
+        },
+        {
+          "path": "engine.version",
+          "exists": true
+        },
+        {
+          "path": "executionFingerprint",
+          "exists": true
+        },
+        {
+          "path": "inputFingerprint",
+          "exists": true
+        },
+        {
+          "path": "provenance.execution",
+          "exists": true
+        },
+        {
+          "path": "provenance.input",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "op": "createResearchRun",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-research",
+        "question": "Did the program cause the increase?",
+        "analysisId": "${analysisId}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "researchRunId": "researchRunId",
+        "gapId": "artifact.researchGaps[0].id"
+      },
+      "assert": [
+        {
+          "path": "artifact.researchGaps",
+          "minLength": 1
+        },
+        {
+          "path": "artifact.nextDataRequirements",
+          "minLength": 1
+        },
+        {
+          "path": "artifact.whatWeCannotConclude",
+          "minLength": 1
+        }
+      ]
+    },
+    {
+      "op": "addEvidence",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-evidence-2",
+        "documents": [
+          {
+            "externalRef": "comparison-region",
+            "source": "dataset",
+            "content": "Comparison region inquiries rose from 200 to 240 over the same period."
+          }
+        ]
+      },
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "op": "startAnalysis",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-analysis-2"
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "analysisId": "analysisId"
+      }
+    },
+    {
+      "op": "waitForAnalysis",
+      "params": {
+        "subjectId": "${subjectId}",
+        "analysisId": "${analysisId}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "status",
+          "equals": "completed"
+        },
+        {
+          "path": "engine.version",
+          "exists": true
+        },
+        {
+          "path": "executionFingerprint",
+          "exists": true
+        },
+        {
+          "path": "inputFingerprint",
+          "exists": true
+        },
+        {
+          "path": "provenance.execution",
+          "exists": true
+        },
+        {
+          "path": "provenance.input",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "op": "appendIteration",
+      "params": {
+        "researchRunId": "${researchRunId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-iteration-2",
+        "analysisId": "${analysisId}",
+        "addedEvidence": [
+          {
+            "reference": "comparison-region",
+            "gapIds": [
+              "${gapId}"
+            ],
+            "note": "untreated comparison"
+          }
+        ]
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "iterationSequence",
+          "equals": 2
+        },
+        {
+          "path": "artifact.analysisId",
+          "equals": "${analysisId}"
+        },
+        {
+          "path": "artifact.addedEvidenceLinks[0].gapIds[0]",
+          "equals": "${gapId}"
+        },
+        {
+          "path": "artifact.insightDelta",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "op": "getResearchRun",
+      "params": {
+        "researchRunId": "${researchRunId}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "iterationSequence",
+          "equals": 2
+        }
+      ]
+    }
+  ]
+}

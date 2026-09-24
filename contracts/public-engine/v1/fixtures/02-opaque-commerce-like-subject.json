@@ -1,0 +1,150 @@
+{
+  "fixture": "02-opaque-commerce-like-subject",
+  "contractVersion": "1",
+  "covers": "#59 conformance 2: a commerce-like consumer uses only opaque refs; the engine returns generic research output and no consumer action",
+  "engine": "model_backed",
+  "steps": [
+    {
+      "op": "createSubject",
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-subject",
+        "subject": {
+          "namespace": "acme-commerce",
+          "id": "candidate-${uniq}",
+          "type": "commerce_candidate"
+        },
+        "title": "Opaque candidate",
+        "metadata": {
+          "listing": "L-1"
+        }
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "subjectId": "subjectId"
+      },
+      "assert": [
+        {
+          "path": "subject.type",
+          "equals": "commerce_candidate"
+        },
+        {
+          "path": "subject.id",
+          "equals": "candidate-${uniq}"
+        }
+      ]
+    },
+    {
+      "op": "addEvidence",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-evidence",
+        "documents": [
+          {
+            "externalRef": "review-1",
+            "source": "review",
+            "content": "I bought a second unit because the first one arrived damaged."
+          },
+          {
+            "externalRef": "review-2",
+            "source": "review",
+            "content": "I reordered after the first package was lost in transit."
+          }
+        ]
+      },
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "op": "startAnalysis",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-analysis"
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "analysisId": "analysisId"
+      }
+    },
+    {
+      "op": "waitForAnalysis",
+      "params": {
+        "subjectId": "${subjectId}",
+        "analysisId": "${analysisId}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "status",
+          "equals": "completed"
+        },
+        {
+          "path": "engine.version",
+          "exists": true
+        },
+        {
+          "path": "executionFingerprint",
+          "exists": true
+        },
+        {
+          "path": "inputFingerprint",
+          "exists": true
+        },
+        {
+          "path": "provenance.execution",
+          "exists": true
+        },
+        {
+          "path": "provenance.input",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "op": "createResearchRun",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-research",
+        "question": "What explains repeat orders?",
+        "analysisId": "${analysisId}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "artifact.insights",
+          "minLength": 1
+        },
+        {
+          "path": "artifact.recommendation",
+          "exists": false
+        },
+        {
+          "path": "artifact.action",
+          "exists": false
+        },
+        {
+          "path": "artifact.decision",
+          "exists": false
+        }
+      ]
+    }
+  ]
+}

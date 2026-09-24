@@ -1,0 +1,59 @@
+{
+  "fixture": "06-contract-version-mismatch",
+  "contractVersion": "1",
+  "covers": "#59 conformance 6: an unsupported contract version and an unknown resource fail explicitly with typed errors",
+  "engine": "deterministic",
+  "steps": [
+    {
+      "op": "createSubject",
+      "request": {
+        "contractVersion": "2",
+        "idempotencyKey": "${uniq}-v2",
+        "subject": {
+          "namespace": "any",
+          "id": "v2-${uniq}"
+        }
+      },
+      "expect": {
+        "errorCode": "UNSUPPORTED_CONTRACT_VERSION",
+        "httpStatus": 400
+      }
+    },
+    {
+      "op": "createSubject",
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-invalid",
+        "subject": {
+          "namespace": "",
+          "id": "x"
+        }
+      },
+      "expect": {
+        "errorCode": "INVALID_REQUEST",
+        "httpStatus": 400
+      }
+    },
+    {
+      "op": "getAnalysis",
+      "params": {
+        "subjectId": "missing-subject-${uniq}",
+        "analysisId": "missing-analysis"
+      },
+      "expect": {
+        "errorCode": "NOT_FOUND",
+        "httpStatus": 404
+      }
+    },
+    {
+      "op": "getResearchRun",
+      "params": {
+        "researchRunId": "missing-run-${uniq}"
+      },
+      "expect": {
+        "errorCode": "NOT_FOUND",
+        "httpStatus": 404
+      }
+    }
+  ]
+}
