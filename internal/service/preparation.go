@@ -3,8 +3,10 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"sync"
 	"time"
 
 	"insight-lab/internal/domain"
@@ -26,6 +28,10 @@ type Preparation struct {
 	Heavy       execution.Runtime
 	Partitions  int
 	MaxRawBytes int64
+	// Concurrency bounds how many raw artifacts are prepared at once
+	// (STANDARD bounded concurrency, #91). Zero means 2. Output order and
+	// content never depend on it.
+	Concurrency int
 }
 
 func (p *Preparation) Capabilities() execution.Capabilities {
@@ -34,14 +40,22 @@ func (p *Preparation) Capabilities() execution.Capabilities {
 
 // Prepare returns new artifact documents for raw references that have a
 // preparation spec and no prepared artifact yet. It never modifies docs.
+// Independent raw artifacts are prepared with bounded concurrency; results
+// keep input order, and the first failure cancels the rest.
 func (p *Preparation) Prepare(ctx context.Context, projectID string, docs []*domain.Document, profile execution.Profile, now time.Time) ([]*domain.Document, error) {
+	type task struct {
+		doc  *domain.Document
+		ref  input.RawArtifactRef
+		spec input.PreparationSpec
+		id   string
+	}
 	prepared := map[string]bool{}
 	for _, d := range docs {
 		if id := d.Metadata[MetadataAnalyticalArtifactID]; id != "" {
 			prepared[id] = true
 		}
 	}
-	var out []*domain.Document
+	var tasks []task
 	for _, d := range docs {
 		ref, ok := input.RefFromDocument(d)
 		if !ok || d.Metadata[input.MetadataPreparation] == "" {
@@ -58,24 +72,73 @@ func (p *Preparation) Prepare(ctx context.Context, projectID string, docs []*dom
 		if p == nil || p.Resolver == nil {
 			return nil, fmt.Errorf("%w: no input resolver is configured to read raw artifact %s", input.ErrUnavailable, d.ID)
 		}
-		agg, err := p.aggregate(ctx, id, ref, spec, profile)
-		if err != nil {
-			return nil, fmt.Errorf("prepare raw artifact %s: %w", d.ID, err)
+		prepared[id] = true
+		tasks = append(tasks, task{doc: d, ref: ref, spec: spec, id: id})
+	}
+	if len(tasks) == 0 {
+		return nil, nil
+	}
+
+	limit := p.Concurrency
+	if limit <= 0 {
+		limit = 2
+	}
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	out := make([]*domain.Document, len(tasks))
+	errs := make([]error, len(tasks))
+	sem := make(chan struct{}, limit)
+	var wg sync.WaitGroup
+	for i, t := range tasks {
+		wg.Add(1)
+		go func(i int, t task) {
+			defer wg.Done()
+			select {
+			case sem <- struct{}{}:
+			case <-ctx.Done():
+				errs[i] = ctx.Err()
+				return
+			}
+			defer func() { <-sem }()
+			doc, err := p.prepareOne(ctx, projectID, t.doc, t.ref, t.spec, t.id, profile, now)
+			if err != nil {
+				errs[i] = err
+				cancel()
+				return
+			}
+			out[i] = doc
+		}(i, t)
+	}
+	wg.Wait()
+	for _, err := range errs {
+		if err != nil && !errors.Is(err, context.Canceled) {
+			return nil, err
 		}
-		datasetID := firstNonEmptyString(d.Metadata["public_external_ref"], d.ID)
-		artifact, err := input.BuildPreparedArtifact(datasetID, ref, spec, agg, d.CreatedAt)
-		if err != nil {
-			return nil, fmt.Errorf("prepare raw artifact %s: %w", d.ID, err)
-		}
-		doc, err := AnalyticalArtifactDocument(projectID, artifact, now)
+	}
+	for _, err := range errs {
 		if err != nil {
 			return nil, err
 		}
-		doc.Metadata[MetadataPreparedFrom] = d.ID
-		prepared[id] = true
-		out = append(out, doc)
 	}
 	return out, nil
+}
+
+func (p *Preparation) prepareOne(ctx context.Context, projectID string, d *domain.Document, ref input.RawArtifactRef, spec input.PreparationSpec, id string, profile execution.Profile, now time.Time) (*domain.Document, error) {
+	agg, err := p.aggregate(ctx, id, ref, spec, profile)
+	if err != nil {
+		return nil, fmt.Errorf("prepare raw artifact %s: %w", d.ID, err)
+	}
+	datasetID := firstNonEmptyString(d.Metadata["public_external_ref"], d.ID)
+	artifact, err := input.BuildPreparedArtifact(datasetID, ref, spec, agg, d.CreatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("prepare raw artifact %s: %w", d.ID, err)
+	}
+	doc, err := AnalyticalArtifactDocument(projectID, artifact, now)
+	if err != nil {
+		return nil, err
+	}
+	doc.Metadata[MetadataPreparedFrom] = d.ID
+	return doc, nil
 }
 
 func (p *Preparation) aggregate(ctx context.Context, jobID string, ref input.RawArtifactRef, spec input.PreparationSpec, profile execution.Profile) (*input.Aggregate, error) {
