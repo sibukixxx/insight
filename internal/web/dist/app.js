@@ -147,6 +147,98 @@
       </div>`;
   }
 
+  // ---------- Analysis runs ----------
+  // Every result view is bound to exactly one analysis run. The run is named
+  // by ?run=<analysisId> in the hash; without it the latest completed run is
+  // shown. Queued, running and failed runs have no results to display.
+
+  const NOT_RECORDED = "not recorded";
+
+  function projectHash(projectID, page, runID) {
+    const base = `#/projects/${encodeURIComponent(projectID)}${page ? `/${page}` : ""}`;
+    return runID ? `${base}?run=${encodeURIComponent(runID)}` : base;
+  }
+
+  function runQuery(run) {
+    return run ? `?analysisId=${encodeURIComponent(run.id)}` : "";
+  }
+
+  // pickRun resolves the selected run from the project's analysis list. An
+  // unknown ?run= falls back to the latest completed run with a notice.
+  function pickRun(analyses, runID) {
+    if (runID) {
+      const found = analyses.find((a) => a.id === runID);
+      if (found) return { run: found, notice: "" };
+    }
+    const latestCompleted = analyses.find((a) => a.status === "completed") || null;
+    return { run: latestCompleted, notice: runID ? "The selected run was not found in this project; showing the latest completed run." : "" };
+  }
+
+  function runProvenance(run) {
+    return (run && run.metrics && run.metrics.provenance) || {};
+  }
+
+  function runLabel(run) {
+    const when = new Date(run.finishedAt || run.createdAt).toLocaleString();
+    const model = runProvenance(run).model;
+    return `${when} · ${run.status}${model ? ` · ${model}` : ""} · ${run.id}`;
+  }
+
+  // A deterministic run used no model; that is a recorded fact, not a gap.
+  function modelScoped(prov, value) {
+    if (value) return value;
+    if (prov.mode === "deterministic") return "none (deterministic)";
+    return NOT_RECORDED;
+  }
+
+  function provenanceChipsHTML(run) {
+    if (!run) return "";
+    const prov = runProvenance(run);
+    const fingerprint = prov.promptFingerprint ? prov.promptFingerprint.slice(0, 7) : "";
+    const chip = (label, value, full) => {
+      const missing = value === NOT_RECORDED;
+      return `<span class="chip${missing ? " chip-missing" : ""}" title="${escapeHtml(full || value)}">${escapeHtml(label)}: ${escapeHtml(value)}</span>`;
+    };
+    return `<div class="chips">
+        ${chip("mode", prov.mode || NOT_RECORDED)}
+        ${chip("model", modelScoped(prov, prov.model))}
+        ${chip("prompt", modelScoped(prov, fingerprint), prov.promptFingerprint)}
+        ${chip("rules", prov.ruleVersion || NOT_RECORDED)}
+      </div>`;
+  }
+
+  function runSelectorHTML(analyses, selected) {
+    if (!analyses.length) return "";
+    const options = analyses.map((a) => {
+      const disabled = a.status !== "completed" ? " disabled" : "";
+      const chosen = selected && a.id === selected.id ? " selected" : "";
+      return `<option value="${escapeHtml(a.id)}"${chosen}${disabled}>${escapeHtml(runLabel(a))}</option>`;
+    }).join("");
+    return `
+      <div class="run-selector">
+        <label for="run-select">Showing results of run</label>
+        <select id="run-select">${selected ? "" : `<option value="" selected>No completed run</option>`}${options}</select>
+      </div>`;
+  }
+
+  function runListHTML(projectID, analyses, selected) {
+    if (!analyses.length) return "";
+    const items = analyses.map((a) => {
+      const current = selected && a.id === selected.id;
+      const label = escapeHtml(runLabel(a));
+      const body = a.status === "completed" && !current
+        ? `<a href="${projectHash(projectID, "", a.id)}">${label}</a>`
+        : `<span>${label}</span>`;
+      return `<li class="run-item status-${escapeHtml(a.status)}${current ? " run-current" : ""}">${body}${current ? ` <strong>(shown)</strong>` : ""}${a.status === "failed" && a.error ? ` <span class="meta">${escapeHtml(a.error)}</span>` : ""}</li>`;
+    }).join("");
+    return `<details class="run-list"><summary>All runs (${analyses.length})</summary><ul>${items}</ul></details>`;
+  }
+
+  function runHeaderHTML(run) {
+    if (!run) return `<div class="empty">No completed analysis run yet.</div>`;
+    return `<div class="meta">Run <code>${escapeHtml(run.id)}</code> · finished ${escapeHtml(run.finishedAt ? new Date(run.finishedAt).toLocaleString() : NOT_RECORDED)}</div>${provenanceChipsHTML(run)}`;
+  }
+
   // ---------- Home ----------
 
   async function renderHome(errorMessage) {
@@ -279,21 +371,25 @@
     }
   }
 
-  async function renderProject(projectID, errorMessage) {
+  async function renderProject(projectID, errorMessage, runID) {
     closeActiveStream();
 
-    let project, documents, insights, analyses;
+    let project, documents, insights, analyses, selectedRun, runNotice;
     try {
-      [project, documents, insights, analyses] = await Promise.all([
+      [project, documents, analyses] = await Promise.all([
         api(`/api/projects/${encodeURIComponent(projectID)}`),
         api(`/api/projects/${encodeURIComponent(projectID)}/documents`),
-        api(`/api/projects/${encodeURIComponent(projectID)}/insights`),
         api(`/api/projects/${encodeURIComponent(projectID)}/analyses`),
       ]);
+      ({ run: selectedRun, notice: runNotice } = pickRun(analyses, runID));
+      insights = selectedRun
+        ? await api(`/api/projects/${encodeURIComponent(projectID)}/insights${runQuery(selectedRun)}`)
+        : [];
     } catch (e) {
       layout(`<a class="back-link" href="#/">&larr; Back to projects</a>${errorBox(e.message)}`);
       return;
     }
+    const selectedRunID = selectedRun ? selectedRun.id : "";
 
     const latestAnalysis = analyses[0] || null;
     const isRunning = latestAnalysis && (latestAnalysis.status === "running" || latestAnalysis.status === "queued");
@@ -325,27 +421,31 @@
       <div class="card">
         <div class="section-title">Project</div>
         <h2 style="margin:0 0 4px;">${escapeHtml(project.name)}</h2>
-        <div class="meta">${documents.length} documents / ${insights.length} insights</div>
+        <div class="meta">${documents.length} documents / ${analyses.length} runs / ${insights.length} insights in the shown run</div>
       </div>
 
       ${errorBox(errorMessage)}
+      ${runNotice ? `<div class="notice-box">${escapeHtml(runNotice)}</div>` : ""}
 
       <div class="card">
         <div class="section-title">Analysis</div>
         <div id="analysis-panel">
           ${analysisPanelHTML(latestAnalysis)}
         </div>
+        ${runSelectorHTML(analyses, selectedRun)}
+        ${provenanceChipsHTML(selectedRun)}
+        ${runListHTML(projectID, analyses, selectedRun)}
         <div class="analysis-actions">
           <button class="primary" id="run-analysis" ${isRunning || documents.length === 0 ? "disabled" : ""}>Run analysis</button>
-          <a class="btn" href="#/projects/${encodeURIComponent(projectID)}/patterns">View traces and patterns</a>
-          <a class="btn" href="#/projects/${encodeURIComponent(projectID)}/evaluation">View evaluation</a>
+          <a class="btn" href="${projectHash(projectID, "patterns", selectedRunID)}">View traces and patterns</a>
+          <a class="btn" href="${projectHash(projectID, "evaluation", selectedRunID)}">View evaluation</a>
           <a class="btn" href="#/projects/${encodeURIComponent(projectID)}/research">Research publications</a>
-          <a class="btn" href="/api/projects/${encodeURIComponent(projectID)}/report.md" download>Download report</a>
+          ${selectedRun ? `<a class="btn" href="/api/projects/${encodeURIComponent(projectID)}/report.md${runQuery(selectedRun)}" download>Download report</a>` : ""}
         </div>
       </div>
 
       <div class="card">
-        <div class="section-title">Insights</div>
+        <div class="section-title">Insights${selectedRun ? ` — run ${escapeHtml(selectedRun.id)}` : ""}</div>
         ${insightsHtml}
       </div>
 
@@ -447,6 +547,13 @@
 	  }
 	});
 
+    const runSelect = document.getElementById("run-select");
+    if (runSelect) {
+      runSelect.addEventListener("change", () => {
+        if (runSelect.value) location.hash = projectHash(projectID, "", runSelect.value);
+      });
+    }
+
     const runBtn = document.getElementById("run-analysis");
     runBtn.addEventListener("click", async () => {
       runBtn.disabled = true;
@@ -499,7 +606,9 @@
 
     es.addEventListener("completed", () => {
       closeActiveStream();
-      renderProject(projectID);
+      const latest = projectHash(projectID);
+      if (location.hash !== latest) location.hash = latest;
+      else renderProject(projectID);
     });
 
     // A server-sent named "error" event and the browser's own
@@ -698,15 +807,19 @@
 
   // ---------- Evaluation ----------
 
-  async function renderEvaluation(projectID) {
-    let metrics, project;
+  async function renderEvaluation(projectID, runID) {
+    let metrics, project, run;
     try {
-      [project, metrics] = await Promise.all([
+      let analyses;
+      [project, analyses] = await Promise.all([
         api(`/api/projects/${encodeURIComponent(projectID)}`),
-        api(`/api/projects/${encodeURIComponent(projectID)}/evaluation`),
+        api(`/api/projects/${encodeURIComponent(projectID)}/analyses`),
       ]);
+      run = pickRun(analyses, runID).run;
+      if (!run) throw new Error("No completed analysis run yet.");
+      metrics = await api(`/api/projects/${encodeURIComponent(projectID)}/evaluation${runQuery(run)}`);
     } catch (e) {
-      layout(`<a class="back-link" href="#/projects/${encodeURIComponent(projectID)}">&larr; Back to project</a>${errorBox(e.message)}`);
+      layout(`<a class="back-link" href="${projectHash(projectID, "", runID)}">&larr; Back to project</a>${errorBox(e.message)}`);
       return;
     }
 
@@ -725,9 +838,10 @@
       .join(" / ");
 
     layout(`
-      <a class="back-link" href="#/projects/${encodeURIComponent(projectID)}">&larr; Back to project</a>
+      <a class="back-link" href="${projectHash(projectID, "", run.id)}">&larr; Back to project</a>
       <div class="card">
         <div class="section-title">Evaluation — ${escapeHtml(project.name)}</div>
+        ${runHeaderHTML(run)}
         <div class="metric-grid">
           ${rows.map(([label, value, desc]) => `
             <div class="metric-tile">
@@ -752,15 +866,18 @@
 
   // ---------- Patterns ----------
 
-  async function renderPatterns(projectID) {
-    let project, patterns;
+  async function renderPatterns(projectID, runID) {
+    let project, patterns, run;
     try {
-      [project, patterns] = await Promise.all([
+      let analyses;
+      [project, analyses] = await Promise.all([
         api(`/api/projects/${encodeURIComponent(projectID)}`),
-        api(`/api/projects/${encodeURIComponent(projectID)}/patterns`),
+        api(`/api/projects/${encodeURIComponent(projectID)}/analyses`),
       ]);
+      run = pickRun(analyses, runID).run;
+      patterns = run ? await api(`/api/projects/${encodeURIComponent(projectID)}/patterns${runQuery(run)}`) : [];
     } catch (e) {
-      layout(`<a class="back-link" href="#/projects/${encodeURIComponent(projectID)}">&larr; Back to project</a>${errorBox(e.message)}`);
+      layout(`<a class="back-link" href="${projectHash(projectID, "", runID)}">&larr; Back to project</a>${errorBox(e.message)}`);
       return;
     }
 
@@ -768,10 +885,11 @@
     const repetitions = patterns.filter((p) => p.kind !== "deviation");
 
     layout(`
-      <a class="back-link" href="#/projects/${encodeURIComponent(projectID)}">&larr; Back to project</a>
+      <a class="back-link" href="${projectHash(projectID, "", run ? run.id : "")}">&larr; Back to project</a>
       <div class="card">
         <div class="section-title">Traces and patterns — ${escapeHtml(project.name)}</div>
-        <p class="hint">Everything detected during analysis, including findings that did not become final insights.</p>
+        ${runHeaderHTML(run)}
+        <p class="hint">Everything this run detected, including findings that did not become final insights.</p>
       </div>
       <div class="card">
         <div class="section-title">Behavioral traces (deviations) ${traces.length}</div>
@@ -865,7 +983,8 @@
 
   function route() {
     closeActiveStream();
-    const hash = location.hash || "#/";
+    const [hash, query = ""] = (location.hash || "#/").split("?");
+    const runID = new URLSearchParams(query).get("run") || "";
 
     const researchMatch = hash.match(/^#\/projects\/([^/]+)\/research$/);
     if (researchMatch) { renderResearchRuns(decodeURIComponent(researchMatch[1])); return; }
@@ -873,13 +992,13 @@
     if (promotionMatch) { renderPromotion(decodeURIComponent(promotionMatch[1])); return; }
 
     const patternsMatch = hash.match(/^#\/projects\/([^/]+)\/patterns$/);
-    if (patternsMatch) { renderPatterns(decodeURIComponent(patternsMatch[1])); return; }
+    if (patternsMatch) { renderPatterns(decodeURIComponent(patternsMatch[1]), runID); return; }
 
     const evalMatch = hash.match(/^#\/projects\/([^/]+)\/evaluation$/);
-    if (evalMatch) { renderEvaluation(decodeURIComponent(evalMatch[1])); return; }
+    if (evalMatch) { renderEvaluation(decodeURIComponent(evalMatch[1]), runID); return; }
 
     const projectMatch = hash.match(/^#\/projects\/([^/]+)$/);
-    if (projectMatch) { renderProject(decodeURIComponent(projectMatch[1])); return; }
+    if (projectMatch) { renderProject(decodeURIComponent(projectMatch[1]), undefined, runID); return; }
 
     const insightMatch = hash.match(/^#\/insights\/([^/]+)$/);
     if (insightMatch) { renderInsight(decodeURIComponent(insightMatch[1])); return; }
