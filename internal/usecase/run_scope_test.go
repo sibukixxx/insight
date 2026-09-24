@@ -2,11 +2,13 @@ package usecase
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
 	"time"
 
+	"insight-lab/internal/buildinfo"
 	"insight-lab/internal/domain"
 	"insight-lab/internal/service"
 )
@@ -186,7 +188,8 @@ func TestProjectReportMarksMissingProvenanceAsNotRecorded(t *testing.T) {
 		t.Fatal(err)
 	}
 	report := string(got)
-	for _, s := range []string{"Analysis ID: `legacy`", "Mode: not recorded", "Model: not recorded", "Prompt fingerprint: not recorded", "Rule version: not recorded"} {
+	for _, s := range []string{"Analysis ID: `legacy`", "Mode: not recorded", "Model: not recorded", "Prompt fingerprint: not recorded", "Rule version: not recorded",
+		"Engine version: not recorded", "Git commit: not recorded", "Execution fingerprint: not recorded", "Input fingerprint: not recorded"} {
 		if !strings.Contains(report, s) {
 			t.Errorf("legacy report is missing %q:\n%s", s, report)
 		}
@@ -237,4 +240,112 @@ func insightIDs(list []*domain.Insight) []string {
 		out = append(out, i.ID)
 	}
 	return out
+}
+
+func TestResearchIterationRecordsTheAnalysisItWasBuiltFrom(t *testing.T) {
+	app, ctx, _ := seedRunScopeProject(t)
+	run, err := app.CreateResearchRun(ctx, CreateResearchRunInput{ProjectID: "p1", Question: "q"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := run.Iterations[0].AnalysisID; got != "a2" {
+		t.Fatalf("iteration analysisId = %q, want a2", got)
+	}
+}
+
+func TestResearchArtifactCarriesTheRunSnapshotsAdditively(t *testing.T) {
+	app, ctx, _ := seedRunScopeProject(t)
+	analysis, err := app.repos.Analyses.Get(ctx, "a2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	analysis.ExecutionSnapshot = `{"engineVersion":"v0.9.0","executionFingerprint":"sha256:exec"}`
+	analysis.InputSnapshot = `{"documentCount":3,"inputFingerprint":"sha256:input"}`
+	analysis.ExecutionFingerprint, analysis.InputFingerprint = "sha256:exec", "sha256:input"
+	if err := app.repos.Analyses.Update(ctx, analysis); err != nil {
+		t.Fatal(err)
+	}
+	run, err := app.CreateResearchRun(ctx, CreateResearchRunInput{ProjectID: "p1", Question: "q"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	artifact, err := app.GetResearchArtifact(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if artifact.AnalysisID != "a2" || artifact.Provenance == nil ||
+		string(artifact.Provenance.Execution) != analysis.ExecutionSnapshot || string(artifact.Provenance.Input) != analysis.InputSnapshot {
+		t.Fatalf("artifact run binding = %q %+v", artifact.AnalysisID, artifact.Provenance)
+	}
+	if artifact.PromptFingerprint != "fp_a2" || artifact.ModelVersion != "model-two" {
+		t.Fatalf("existing v1 provenance keys changed: %q/%q", artifact.ModelVersion, artifact.PromptFingerprint)
+	}
+}
+
+func TestResearchArtifactOmitsSnapshotsForALegacyRun(t *testing.T) {
+	app, ctx, _ := seedRunScopeProject(t)
+	run, err := app.CreateResearchRun(ctx, CreateResearchRunInput{ProjectID: "p1", Question: "q"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	artifact, err := app.GetResearchArtifact(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if artifact.AnalysisID != "a2" || artifact.Provenance != nil {
+		t.Fatalf("a run without snapshots must not export empty ones: %q %+v", artifact.AnalysisID, artifact.Provenance)
+	}
+}
+
+func TestIterationBoundToOneAnalysisRejectsAnInsightFromAnother(t *testing.T) {
+	app, ctx, base := seedRunScopeProject(t)
+	run := &domain.ResearchRun{ID: "run_guard", ProjectID: "p1", Question: "guard", CreatedAt: base,
+		Iterations: []domain.ResearchIteration{{ID: "it_1", Sequence: 1, Question: "guard", AnalysisID: "a2", InsightIDs: []string{"ins_a1"}, CreatedAt: base}}}
+	if err := app.repos.Research.CreateRun(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := app.ExportResearchMarkdown(ctx, run.ID); !errors.Is(err, ErrMixedAnalysisRuns) {
+		t.Fatalf("err = %v, want ErrMixedAnalysisRuns", err)
+	}
+}
+
+func TestProjectReportShowsTheRunSnapshot(t *testing.T) {
+	app, ctx, _ := seedRunScopeProject(t)
+	analysis, err := app.repos.Analyses.Get(ctx, "a2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	execution, err := service.BuildExecutionSnapshot(service.Settings{BaseURL: "https://api.example.com/v1", Model: "model-two", APIKey: "sk-report-secret"}, "", buildinfo.Info{Version: "v0.9.0", Commit: "abc123", Dirty: "true"}, time.Unix(1, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	input := service.BuildInputSnapshot([]*domain.Document{{ID: "d1", Source: domain.SourceInterview, Content: "x"}}, time.Unix(1, 0))
+	executionJSON, _ := json.Marshal(execution)
+	inputJSON, _ := json.Marshal(input)
+	analysis.ExecutionSnapshot, analysis.InputSnapshot = string(executionJSON), string(inputJSON)
+	analysis.ExecutionFingerprint, analysis.InputFingerprint = execution.ExecutionFingerprint, input.InputFingerprint
+	if err := app.repos.Analyses.Update(ctx, analysis); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := app.ExportProjectMarkdown(ctx, "p1", "a2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	report := string(got)
+	for _, want := range []string{
+		"- Engine version: `v0.9.0`",
+		"- Git commit: `abc123` (uncommitted changes)",
+		"- Execution fingerprint: `" + execution.ExecutionFingerprint + "`",
+		"- Prompt version: `prompts/v1` (fingerprint v2 `" + execution.PromptFingerprint + "`)",
+		"- Provider host: `api.example.com`",
+		"- Input fingerprint: `" + input.InputFingerprint + "` (1 documents)",
+	} {
+		if !strings.Contains(report, want) {
+			t.Errorf("report is missing %q:\n%s", want, report)
+		}
+	}
+	if strings.Contains(report, "sk-report-secret") || strings.Contains(report, "https://api.example.com") {
+		t.Fatalf("report leaks a credential or the full provider URL:\n%s", report)
+	}
 }

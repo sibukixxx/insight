@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -251,7 +252,9 @@ func writeAnalysisRun(b *strings.Builder, analysis *domain.Analysis, metrics *se
 	fmt.Fprintf(b, "- Mode: %s\n", codeOrNotRecorded(string(prov.Mode)))
 	fmt.Fprintf(b, "- Model: %s\n", modelScopedValue(prov.Mode, markdownInline(prov.Model)))
 	fmt.Fprintf(b, "- Prompt fingerprint: %s\n", modelScopedValue(prov.Mode, codeOrEmpty(prov.PromptFingerprint)))
-	fmt.Fprintf(b, "- Rule version: %s\n\n", codeOrNotRecorded(prov.RuleVersion))
+	fmt.Fprintf(b, "- Rule version: %s\n", codeOrNotRecorded(prov.RuleVersion))
+	writeRunSnapshot(b, analysis)
+	b.WriteByte('\n')
 	writeStringList(b, "Dataset file hashes", prov.DatasetHashes)
 
 	for _, d := range prov.Datasets {
@@ -280,6 +283,47 @@ func writeAnalysisRun(b *strings.Builder, analysis *domain.Analysis, metrics *se
 		b.WriteByte('\n')
 	}
 	writeStringList(b, "Pre-analysis notes", prov.Notes)
+}
+
+// writeRunSnapshot prints which engine build, prompt set and provider ran
+// the analysis and which input it read. A run recorded before snapshots
+// existed prints "not recorded" for each value.
+func writeRunSnapshot(b *strings.Builder, analysis *domain.Analysis) {
+	var execution service.ExecutionSnapshot
+	hasExecution := json.Unmarshal([]byte(analysis.ExecutionSnapshot), &execution) == nil
+	var input service.InputSnapshot
+	hasInput := json.Unmarshal([]byte(analysis.InputSnapshot), &input) == nil
+
+	if !hasExecution {
+		for _, label := range []string{"Engine version", "Git commit", "Execution fingerprint"} {
+			fmt.Fprintf(b, "- %s: %s\n", label, notRecorded)
+		}
+	} else {
+		fmt.Fprintf(b, "- Engine version: %s\n", codeOrNotRecorded(execution.EngineVersion))
+		commit := codeOrNotRecorded(execution.GitCommit)
+		switch execution.GitDirty {
+		case "true":
+			commit += " (uncommitted changes)"
+		case "false":
+			commit += " (clean)"
+		}
+		fmt.Fprintf(b, "- Git commit: %s\n", commit)
+		fmt.Fprintf(b, "- Execution fingerprint: %s\n", codeOrNotRecorded(execution.ExecutionFingerprint))
+		if execution.PromptVersion != "" {
+			fmt.Fprintf(b, "- Prompt version: `%s` (fingerprint v2 %s)\n", execution.PromptVersion, codeOrNotRecorded(execution.PromptFingerprint))
+		}
+		if execution.LLM != nil {
+			fmt.Fprintf(b, "- Provider host: %s\n", codeOrNotRecorded(execution.LLM.ProviderHost))
+		}
+		if execution.SettingsChangedBeforeStart {
+			b.WriteString("- Settings changed while this run was queued; it ran with the settings captured at enqueue time.\n")
+		}
+	}
+	if !hasInput {
+		fmt.Fprintf(b, "- Input fingerprint: %s\n", notRecorded)
+		return
+	}
+	fmt.Fprintf(b, "- Input fingerprint: %s (%d documents)\n", codeOrNotRecorded(input.InputFingerprint), input.DocumentCount)
 }
 
 func reportTime(t *time.Time) string {

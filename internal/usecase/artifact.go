@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -60,6 +61,13 @@ type ResearchArtifact struct {
 	// already part of the versioned v1 wire contract (Issue #17); renaming
 	// the wire field would be a breaking change. When #18 lands, it must
 	// introduce its own field rather than repurpose this one.
+	// AnalysisID is the analysis run the latest iteration was built from, and
+	// Provenance carries that run's execution and input snapshots verbatim.
+	// Both are additive v1 fields. Provenance is omitted for runs recorded
+	// before snapshots existed rather than exported empty.
+	AnalysisID string              `json:"analysisId,omitempty"`
+	Provenance *ArtifactProvenance `json:"provenance,omitempty"`
+
 	ExecutionMode     service.ExecutionMode `json:"analysisMode,omitempty"`
 	ModelVersion      string                `json:"modelVersion,omitempty"`
 	PromptFingerprint string                `json:"promptFingerprint,omitempty"`
@@ -94,6 +102,14 @@ type ResearchArtifact struct {
 
 	CreatedAt  time.Time `json:"iterationCreatedAt"`
 	ExportedAt time.Time `json:"exportedAt"`
+}
+
+// ArtifactProvenance is the execution and input snapshot of the analysis run
+// an artifact was built from (see service.ExecutionSnapshot and
+// service.InputSnapshot). A snapshot the run never recorded is omitted.
+type ArtifactProvenance struct {
+	Execution json.RawMessage `json:"execution,omitempty"`
+	Input     json.RawMessage `json:"input,omitempty"`
 }
 
 // ArtifactInsight is the export-facing subset of an Insight and its
@@ -174,6 +190,10 @@ func (a *Application) GetResearchArtifact(ctx context.Context, runID string) (*R
 		artifact.HumanEvaluation = evaluation
 	}
 
+	if analysis, ok, err := a.iterationAnalysis(ctx, run.ProjectID, iteration); err == nil && ok {
+		artifact.AnalysisID = analysis.ID
+		artifact.Provenance = runSnapshots(analysis)
+	}
 	if metrics, ok := a.iterationMetrics(ctx, run.ProjectID, iteration); ok {
 		prov := metrics.Provenance
 		artifact.ExecutionMode = prov.Mode
@@ -233,4 +253,20 @@ func (a *Application) GetApprovedResearchArtifact(ctx context.Context, runID str
 		return nil, fmt.Errorf("latest iteration has no approved research artifact")
 	}
 	return iteration.ApprovedArtifact, nil
+}
+
+// runSnapshots returns the recorded snapshots of analysis, or nil when it
+// recorded none.
+func runSnapshots(analysis *domain.Analysis) *ArtifactProvenance {
+	var out ArtifactProvenance
+	if json.Valid([]byte(analysis.ExecutionSnapshot)) {
+		out.Execution = json.RawMessage(analysis.ExecutionSnapshot)
+	}
+	if json.Valid([]byte(analysis.InputSnapshot)) {
+		out.Input = json.RawMessage(analysis.InputSnapshot)
+	}
+	if out.Execution == nil && out.Input == nil {
+		return nil
+	}
+	return &out
 }

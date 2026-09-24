@@ -304,8 +304,12 @@ type HumanOverride struct {
 // ResearchIteration is append-only research history. Callers create a new
 // value for re-analysis instead of mutating an earlier iteration.
 type ResearchIteration struct {
-	ID               string            `json:"id"`
-	Sequence         int               `json:"sequence"`
+	ID       string `json:"id"`
+	Sequence int    `json:"sequence"`
+	// AnalysisID is the analysis run whose insights this iteration was built
+	// from. It is empty for iterations recorded before runs were referenced
+	// directly; those are resolved through their InsightIDs.
+	AnalysisID       string            `json:"analysisId,omitempty"`
 	Stage            ResearchStage     `json:"stage,omitempty"`
 	AnalysisMode     AnalysisMode      `json:"semanticAnalysisMode,omitempty"`
 	Question         string            `json:"question"`

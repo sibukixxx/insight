@@ -12,6 +12,10 @@ import (
 	"unicode"
 )
 
+// groundingRuleVersion is recorded in every run's execution snapshot. Bump it
+// whenever quote matching or normalization changes in a way that can change results.
+const groundingRuleVersion = "grounding/v1"
+
 type Grounded struct {
 	Quote       string // the exact substring as it appears in the source (not the LLM's version)
 	StartOffset int

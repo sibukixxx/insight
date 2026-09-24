@@ -3,10 +3,12 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
 
+	"insight-lab/internal/buildinfo"
 	"insight-lab/internal/domain"
 	"insight-lab/internal/llm"
 	"insight-lab/internal/repository"
@@ -29,9 +31,13 @@ type JobManager struct {
 	pipeline     *Pipeline
 	settings     *SettingsStore
 	newLLMClient func(Settings) llm.Client
+	build        buildinfo.Info
 
 	mu          sync.Mutex
 	subscribers map[string]map[chan SSEEvent]struct{}
+	// pending holds, in memory only, the settings each queued run was
+	// enqueued with. The API key never leaves this map.
+	pending map[string]Settings
 
 	queue chan string
 	wg    sync.WaitGroup
@@ -43,7 +49,9 @@ func NewJobManager(analyses repository.AnalysisRepository, pipeline *Pipeline, s
 		pipeline:     pipeline,
 		settings:     settings,
 		newLLMClient: newClient,
+		build:        buildinfo.Get(),
 		subscribers:  map[string]map[chan SSEEvent]struct{}{},
+		pending:      map[string]Settings{},
 		queue:        make(chan string, 32),
 	}
 }
@@ -83,16 +91,51 @@ func (m *JobManager) worker(ctx context.Context) {
 	}
 }
 
-// Enqueue creates the analysis row (status "queued") and schedules it for
-// a worker to pick up.
-func (m *JobManager) Enqueue(ctx context.Context, projectID string) (*domain.Analysis, error) {
-	a := &domain.Analysis{ID: newID("ana"), ProjectID: projectID, Status: domain.AnalysisQueued, CreatedAt: time.Now().UTC()}
+// EnqueueRequest describes a run to schedule. Label, Note and
+// SemanticAnalysisMode are optional.
+type EnqueueRequest struct {
+	ProjectID            string
+	Label                string
+	Note                 string
+	SemanticAnalysisMode domain.AnalysisMode
+}
+
+// Enqueue creates the analysis row (status "queued") with the execution
+// snapshot of the current settings, and schedules it for a worker. The run
+// later executes with exactly these settings, even if they change while it
+// waits in the queue.
+func (m *JobManager) Enqueue(ctx context.Context, req EnqueueRequest) (*domain.Analysis, error) {
+	if req.SemanticAnalysisMode != "" && !req.SemanticAnalysisMode.Valid() {
+		return nil, fmt.Errorf("invalid semantic analysis mode %q", req.SemanticAnalysisMode)
+	}
+	now := time.Now().UTC()
+	settings := m.settings.Get()
+	execution, err := BuildExecutionSnapshot(settings, req.SemanticAnalysisMode, m.build, now)
+	if err != nil {
+		return nil, fmt.Errorf("capture execution snapshot: %w", err)
+	}
+	executionJSON, err := json.Marshal(execution)
+	if err != nil {
+		return nil, fmt.Errorf("encode execution snapshot: %w", err)
+	}
+	a := &domain.Analysis{
+		ID: newID("ana"), ProjectID: req.ProjectID, Status: domain.AnalysisQueued, CreatedAt: now,
+		Label: req.Label, Note: req.Note, SemanticAnalysisMode: req.SemanticAnalysisMode,
+		ExecutionSnapshot: string(executionJSON), ExecutionFingerprint: execution.ExecutionFingerprint,
+	}
 	if err := m.analyses.Create(ctx, a); err != nil {
 		return nil, err
 	}
+	m.mu.Lock()
+	m.pending[a.ID] = settings
+	m.mu.Unlock()
 	m.queue <- a.ID
 	return a, nil
 }
+
+// errSettingsUnavailable means a queued run lost its enqueue-time settings,
+// which only happens if it was not enqueued by this process.
+var errSettingsUnavailable = errors.New("the settings this run was enqueued with are no longer available; enqueue it again")
 
 func (m *JobManager) run(ctx context.Context, analysisID string) {
 	a, err := m.analyses.Get(ctx, analysisID)
@@ -100,10 +143,22 @@ func (m *JobManager) run(ctx context.Context, analysisID string) {
 		return // analysis row is gone (e.g. project was deleted); nothing to run
 	}
 
+	m.mu.Lock()
+	settings, ok := m.pending[analysisID]
+	delete(m.pending, analysisID)
+	m.mu.Unlock()
+	if !ok {
+		m.fail(ctx, a, errSettingsUnavailable)
+		return
+	}
+	if err := m.recordSettingsDrift(a, settings); err != nil {
+		m.fail(ctx, a, err)
+		return
+	}
+
 	// Without a configured model the pipeline still runs its deterministic
 	// dataset pre-analysis (Issue #16); it fails itself, with guidance, when
 	// the project has nothing a rule can analyze.
-	settings := m.settings.Get()
 	var client llm.Client
 	if settings.Configured() {
 		client = m.newLLMClient(settings)
@@ -116,12 +171,24 @@ func (m *JobManager) run(ctx context.Context, analysisID string) {
 	}
 
 	now := time.Now().UTC()
+	docs, err := m.pipeline.Documents.ListByProject(ctx, a.ProjectID)
+	if err != nil {
+		m.fail(ctx, a, fmt.Errorf("list documents: %w", err))
+		return
+	}
+	input := BuildInputSnapshot(docs, now)
+	inputJSON, err := json.Marshal(input)
+	if err != nil {
+		m.fail(ctx, a, fmt.Errorf("encode input snapshot: %w", err))
+		return
+	}
+	a.InputSnapshot, a.InputFingerprint = string(inputJSON), input.InputFingerprint
 	a.Status = domain.AnalysisRunning
 	a.StartedAt = &now
 	_ = m.analyses.Update(ctx, a)
 	m.broadcast(a.ID, SSEEvent{Event: "progress", Data: progressJSON("starting", 0, "Starting analysis...")})
 
-	metrics, err := pipeline.Run(ctx, a.ID, a.ProjectID, func(step string, progress int, message string) {
+	metrics, err := pipeline.RunDocuments(ctx, a.ID, a.ProjectID, docs, func(step string, progress int, message string) {
 		a.CurrentStep = step
 		a.Progress = progress
 		_ = m.analyses.Update(ctx, a)
@@ -141,6 +208,27 @@ func (m *JobManager) run(ctx context.Context, analysisID string) {
 	a.FinishedAt = &finished
 	_ = m.analyses.Update(ctx, a)
 	m.broadcast(a.ID, SSEEvent{Event: "completed", Data: fmt.Sprintf(`{"progress":100,"insightCount":%d}`, metrics.FinalInsightCount)})
+}
+
+// recordSettingsDrift marks the snapshot when the live settings no longer
+// match the ones the run was enqueued with. The run still executes with the
+// enqueued settings, which the snapshot already describes.
+func (m *JobManager) recordSettingsDrift(a *domain.Analysis, enqueued Settings) error {
+	live := m.settings.Get()
+	if live.BaseURL == enqueued.BaseURL && live.Model == enqueued.Model && live.Configured() == enqueued.Configured() {
+		return nil
+	}
+	var execution ExecutionSnapshot
+	if err := json.Unmarshal([]byte(a.ExecutionSnapshot), &execution); err != nil {
+		return fmt.Errorf("decode execution snapshot: %w", err)
+	}
+	execution.SettingsChangedBeforeStart = true
+	encoded, err := json.Marshal(execution)
+	if err != nil {
+		return fmt.Errorf("encode execution snapshot: %w", err)
+	}
+	a.ExecutionSnapshot = string(encoded)
+	return nil
 }
 
 func (m *JobManager) fail(ctx context.Context, a *domain.Analysis, runErr error) {

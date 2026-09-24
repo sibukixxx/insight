@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"insight-lab/internal/buildinfo"
 	httpapi "insight-lab/internal/http"
 	"insight-lab/internal/http/handler"
 	"insight-lab/internal/repository/sqlite"
@@ -67,6 +68,7 @@ func Run(ctx context.Context, cfg *Config) error {
 		Build: handler.BuildInfo{
 			DemoBuild:  sampledata.Embedded,
 			ClientName: cfg.ClientName,
+			Engine:     buildinfo.Get(),
 		},
 	})
 

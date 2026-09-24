@@ -19,6 +19,19 @@ const (
 	maxTotalIterations = 10 // hard safety belt against any looping bug above
 )
 
+// Policy is the retry and timeout behavior of the OpenAI-compatible client.
+// Run snapshots record it because it can change which response is kept.
+type Policy struct {
+	StepTimeoutSeconds   int `json:"stepTimeoutSeconds"`
+	MaxValidationRetries int `json:"maxValidationRetries"`
+	MaxTransientRetries  int `json:"maxTransientRetries"`
+}
+
+// OpenAIClientPolicy returns the policy NewOpenAIClient uses.
+func OpenAIClientPolicy() Policy {
+	return Policy{StepTimeoutSeconds: int(stepTimeout / time.Second), MaxValidationRetries: maxValidationRetry, MaxTransientRetries: maxTransientRetry}
+}
+
 type OpenAIClient struct {
 	BaseURL string
 	APIKey  string

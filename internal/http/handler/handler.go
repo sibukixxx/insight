@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"insight-lab/internal/buildinfo"
 	"insight-lab/internal/llm"
 	"insight-lab/internal/service"
 	"insight-lab/internal/usecase"
@@ -16,6 +17,9 @@ import (
 type BuildInfo struct {
 	DemoBuild  bool
 	ClientName string
+	// Engine identifies the running Insight Lab build (version, commit,
+	// dirty); every value it does not carry is reported as UNKNOWN.
+	Engine buildinfo.Info
 }
 
 type Handler struct {
