@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"insight-lab/internal/execution"
 	"net/url"
 	"sort"
 	"strings"
@@ -76,6 +77,11 @@ type ExecutionSnapshot struct {
 	// this snapshot when the run started. The run still executed with the
 	// snapshot's configuration.
 	SettingsChangedBeforeStart bool `json:"settingsChangedBeforeStart,omitempty"`
+	// ExecutionProfile is the resolved LIGHT/STANDARD/HEAVY strategy (#91).
+	// It is recorded but deliberately not part of ExecutionConfig: a profile
+	// changes how inputs are prepared and executed, never research meaning,
+	// so it does not change the execution fingerprint.
+	ExecutionProfile *execution.Resolution `json:"executionProfile,omitempty"`
 }
 
 // BuildExecutionSnapshot captures the configuration a run will execute with.

@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"insight-lab/internal/execution"
+	"insight-lab/internal/input"
 	"sync"
 	"time"
 
@@ -41,6 +43,24 @@ type JobManager struct {
 
 	queue chan string
 	wg    sync.WaitGroup
+
+	// planner and preparation implement ExecutionProfile (#91). Without
+	// ConfigureExecution only LIGHT/STANDARD are available and raw artifact
+	// preparation fails for lack of a resolver.
+	planner     execution.Planner
+	preparation *Preparation
+}
+
+// ConfigureExecution enables raw artifact preparation and, when prep.Heavy is
+// set, the HEAVY profile.
+func (m *JobManager) ConfigureExecution(prep *Preparation) {
+	m.preparation = prep
+	m.planner = execution.DefaultPlanner(prep.Capabilities())
+}
+
+// ExecutionCapabilities reports what this engine can execute.
+func (m *JobManager) ExecutionCapabilities() execution.Capabilities {
+	return m.planner.Capabilities
 }
 
 func NewJobManager(analyses repository.AnalysisRepository, pipeline *Pipeline, settings *SettingsStore, newClient func(Settings) llm.Client) *JobManager {
@@ -53,6 +73,7 @@ func NewJobManager(analyses repository.AnalysisRepository, pipeline *Pipeline, s
 		subscribers:  map[string]map[chan SSEEvent]struct{}{},
 		pending:      map[string]Settings{},
 		queue:        make(chan string, 32),
+		planner:      execution.DefaultPlanner(execution.Capabilities{}),
 	}
 }
 
@@ -98,6 +119,8 @@ type EnqueueRequest struct {
 	Label                string
 	Note                 string
 	SemanticAnalysisMode domain.AnalysisMode
+	// ExecutionProfile is the requested strategy; empty means AUTO.
+	ExecutionProfile execution.Profile
 }
 
 // Enqueue creates the analysis row (status "queued") with the execution
@@ -110,10 +133,15 @@ func (m *JobManager) Enqueue(ctx context.Context, req EnqueueRequest) (*domain.A
 	}
 	now := time.Now().UTC()
 	settings := m.settings.Get()
+	resolution, err := m.resolveProfile(ctx, req)
+	if err != nil {
+		return nil, err
+	}
 	execution, err := BuildExecutionSnapshot(settings, req.SemanticAnalysisMode, m.build, now)
 	if err != nil {
 		return nil, fmt.Errorf("capture execution snapshot: %w", err)
 	}
+	execution.ExecutionProfile = &resolution
 	executionJSON, err := json.Marshal(execution)
 	if err != nil {
 		return nil, fmt.Errorf("encode execution snapshot: %w", err)
@@ -176,19 +204,24 @@ func (m *JobManager) run(ctx context.Context, analysisID string) {
 		m.fail(ctx, a, fmt.Errorf("list documents: %w", err))
 		return
 	}
-	input := BuildInputSnapshot(docs, now)
-	inputJSON, err := json.Marshal(input)
+	analyzed, docs, err := m.prepareInputs(ctx, a, docs)
+	if err != nil {
+		m.fail(ctx, a, fmt.Errorf("prepare inputs: %w", err))
+		return
+	}
+	inputSnap := BuildInputSnapshot(docs, now)
+	inputJSON, err := json.Marshal(inputSnap)
 	if err != nil {
 		m.fail(ctx, a, fmt.Errorf("encode input snapshot: %w", err))
 		return
 	}
-	a.InputSnapshot, a.InputFingerprint = string(inputJSON), input.InputFingerprint
+	a.InputSnapshot, a.InputFingerprint = string(inputJSON), inputSnap.InputFingerprint
 	a.Status = domain.AnalysisRunning
 	a.StartedAt = &now
 	_ = m.analyses.Update(ctx, a)
 	m.broadcast(a.ID, SSEEvent{Event: "progress", Data: progressJSON("starting", 0, "Starting analysis...")})
 
-	metrics, err := pipeline.RunDocuments(ctx, a.ID, a.ProjectID, docs, func(step string, progress int, message string) {
+	metrics, err := pipeline.RunDocuments(ctx, a.ID, a.ProjectID, analyzed, func(step string, progress int, message string) {
 		a.CurrentStep = step
 		a.Progress = progress
 		_ = m.analyses.Update(ctx, a)
@@ -282,4 +315,60 @@ func (m *JobManager) broadcast(analysisID string, ev SSEEvent) {
 		default: // a slow subscriber must never block the pipeline
 		}
 	}
+}
+
+// resolveProfile measures the project's input shape and resolves the
+// requested profile. An unavailable profile fails the enqueue explicitly.
+func (m *JobManager) resolveProfile(ctx context.Context, req EnqueueRequest) (execution.Resolution, error) {
+	requested := req.ExecutionProfile
+	if requested == "" {
+		requested = execution.ProfileAuto
+	}
+	docs, err := m.pipeline.Documents.ListByProject(ctx, req.ProjectID)
+	if err != nil {
+		return execution.Resolution{}, fmt.Errorf("list documents: %w", err)
+	}
+	shape, err := input.MeasureShape(ctx, input.NewDocumentSource(docs))
+	if err != nil {
+		return execution.Resolution{}, err
+	}
+	return m.planner.Resolve(requested, shape)
+}
+
+// resolvedProfile reads the profile recorded at enqueue time.
+func resolvedProfile(a *domain.Analysis) execution.Profile {
+	var snap ExecutionSnapshot
+	if json.Unmarshal([]byte(a.ExecutionSnapshot), &snap) != nil || snap.ExecutionProfile == nil {
+		return execution.ProfileLight
+	}
+	return snap.ExecutionProfile.Resolved
+}
+
+// prepareInputs creates prepared Analytical Artifacts for referenced raw
+// inputs, then returns the documents the pipeline analyzes (raw references
+// excluded: their content is a descriptor, not evidence text) and the full
+// set for the input snapshot.
+func (m *JobManager) prepareInputs(ctx context.Context, a *domain.Analysis, docs []*domain.Document) (analyzed, all []*domain.Document, err error) {
+	shape, err := input.MeasureShape(ctx, input.NewDocumentSource(docs))
+	if err != nil {
+		return nil, nil, err
+	}
+	if shape.RawToPrepare > 0 {
+		created, err := m.preparation.Prepare(ctx, a.ProjectID, docs, resolvedProfile(a), time.Now().UTC())
+		if err != nil {
+			return nil, nil, err
+		}
+		if len(created) > 0 {
+			if err := m.pipeline.Documents.CreateBatch(ctx, created); err != nil {
+				return nil, nil, fmt.Errorf("save prepared artifacts: %w", err)
+			}
+			docs = append(append([]*domain.Document{}, docs...), created...)
+		}
+	}
+	for _, d := range docs {
+		if !input.IsRawReference(d) {
+			analyzed = append(analyzed, d)
+		}
+	}
+	return analyzed, docs, nil
 }
