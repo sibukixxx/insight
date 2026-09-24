@@ -79,7 +79,27 @@ The request body is at most 16 MiB. A request carries at most 500 documents and 
 
 - **Go SDK: module `github.com/sibukixxx/insight/sdk/go`, nested in this repository.** It has no dependencies and cannot import Insight's `internal/*` packages because it is a different module. The core module path is `insight-lab`, which cannot be fetched with `go get`, so a nested module with a hosted path is the only way to make the SDK installable without renaming the core. Split into its own repository only if its release cadence diverges from the contract.
 - **TypeScript SDK: package `@sibukixxx/insight-sdk` in `sdk/node`.** Types are generated from the schema by `scripts/generate-types.mjs`. The source uses erasable TypeScript only, so Node 22.18+ runs it directly and `tsc` builds `dist/` for publishing. The package is not published yet.
-- **Why stay in the core repository.** Keeping both SDKs next to the schema lets one change update the contract, the server and both SDKs, with the drift checks failing on any mismatch. The constraint that matters is independent versioning without semantic drift, not repository count.
+- **Why start in the core repository.** Keeping both SDKs next to the schema lets one change update the contract, the server and both SDKs, with the drift checks failing on any mismatch. The constraint that matters is independent versioning without semantic drift, not repository count. See the next section for how to split them later.
+
+### SDKs are separable
+
+Keeping the SDKs in this repository is a starting point, not a commitment. They are built so they can move to their own repositories without changing the contract.
+
+What already keeps them separable:
+
+- **No dependency on the core.** Neither SDK imports or requires anything from the Insight core. `sdk/go/drift_test.go` fails if the Go module gains any `require`.
+- **Shared inputs are only contract files.** Both SDKs read two things from this repository: `schema.json` and the fixtures. Both are versioned under `contracts/public-engine/v1/`.
+- **The core depends on the Go SDK only in tests.** The root `go.mod` references the SDK through a local `replace`, used by the conformance test alone. Production code never imports it.
+
+Steps to split:
+
+1. **Go SDK.** Decide the final module path before the first tag. After `sdk/go/v0.1.0` a path change is breaking. A separate repository would use a path such as `github.com/sibukixxx/insight-sdk-go`.
+2. **Contract files.** Pin the SDK to a contract version. Copy, submodule or download `contracts/public-engine/v1/` at a pinned commit, and point the drift tests and the Node generator at that copy.
+3. **Core conformance test.** Switch the core to a tagged SDK version instead of the local `replace`. Alternatively, keep a runner in the core that reads the same fixtures.
+4. **Node SDK.** Move `sdk/node` as is. Only its paths to `schema.json` and the fixtures change.
+5. **Versioning.** Keep one rule: an SDK release declares which contract versions it supports (`insightContractVersions` for npm, the `ContractVersion` constant for Go). The engine reports its supported versions in `EngineInfo`.
+
+When to split: when an SDK needs a release cadence independent of the engine, when the SDK gets external contributors or its own issue flow, or when consumers need a module path that does not live under the engine repository.
 
 ### Single source of truth and drift checks
 
