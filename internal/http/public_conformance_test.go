@@ -5,21 +5,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http/httptest"
-	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	insight "github.com/sibukixxx/insight/sdk/go"
-	"github.com/sibukixxx/insight/sdk/go/conformance"
-
 	"insight-lab/internal/buildinfo"
 	httpapi "insight-lab/internal/http"
 	"insight-lab/internal/llm"
 	"insight-lab/internal/publicengine"
+	"insight-lab/internal/publicengine/conformance"
 	"insight-lab/internal/repository/sqlite"
 	"insight-lab/internal/service"
 	"insight-lab/internal/usecase"
@@ -61,8 +57,8 @@ func newPublicServer(t *testing.T, modelBacked bool) *httptest.Server {
 	return server
 }
 
-// TestPublicContractConformance runs every shared fixture through the Go SDK
-// and then through the Node SDK against the same live engines.
+// TestPublicContractConformance runs every shared fixture over plain HTTP
+// against live engines. Standalone SDK repositories run the same fixtures.
 func TestPublicContractConformance(t *testing.T) {
 	fixtures, err := conformance.Load(fixtureDir)
 	if err != nil {
@@ -74,46 +70,20 @@ func TestPublicContractConformance(t *testing.T) {
 	servers := map[string]*httptest.Server{"deterministic": newPublicServer(t, false), "model_backed": newPublicServer(t, true)}
 
 	for _, f := range fixtures {
-		t.Run("go/"+f.Name, func(t *testing.T) {
+		t.Run(f.Name, func(t *testing.T) {
 			server, ok := servers[f.Engine]
 			if !ok {
 				t.Fatalf("fixture %s names unknown engine %q", f.Name, f.Engine)
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
-			client := insight.NewClient(server.URL, insight.WithPollInterval(20*time.Millisecond))
+			client := &conformance.Client{BaseURL: server.URL, PollInterval: 20 * time.Millisecond}
 			if err := conformance.Run(ctx, client, f); err != nil {
 				t.Fatal(err)
 			}
 		})
 	}
 
-	t.Run("node", func(t *testing.T) {
-		node, err := exec.LookPath("node")
-		if err != nil {
-			t.Skip("node is not installed; the Node SDK conformance run is skipped")
-		}
-		cmd := exec.Command(node, "--test", "test/*.test.ts")
-		cmd.Dir = "../../sdk/node"
-		cmd.Env = append(os.Environ(),
-			"INSIGHT_DETERMINISTIC_URL="+servers["deterministic"].URL,
-			"INSIGHT_MODEL_BACKED_URL="+servers["model_backed"].URL,
-			"INSIGHT_REQUIRE_CONFORMANCE=1",
-		)
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			t.Fatalf("node SDK conformance failed: %v\n%s", err, out)
-		}
-		t.Logf("node SDK conformance:\n%s", tail(string(out), 12))
-	})
-}
-
-func tail(s string, n int) string {
-	lines := strings.Split(strings.TrimRight(s, "\n"), "\n")
-	if len(lines) > n {
-		lines = lines[len(lines)-n:]
-	}
-	return strings.Join(lines, "\n")
 }
 
 // scriptedModel is a deterministic stand-in for an LLM, used only by this

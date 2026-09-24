@@ -95,7 +95,7 @@ func (r *ObservationRepository) ListByIDs(ctx context.Context, ids []string) ([]
 
 func (r *ObservationRepository) ListByAnalysis(ctx context.Context, analysisID string) ([]*domain.Observation, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, analysis_id, document_id, quote, start_offset, end_offset, behavior, topic, created_at
+		`SELECT id, analysis_id, document_id, quote, start_offset, end_offset, behavior, topic, created_at, temporal_evidence
 		 FROM observations WHERE analysis_id = ? ORDER BY created_at ASC, document_id ASC, start_offset ASC`, analysisID)
 	if err != nil {
 		return nil, err
