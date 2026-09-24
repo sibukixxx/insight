@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"insight-lab/internal/domain"
 	"insight-lab/internal/usecase"
 )
 
@@ -57,6 +58,8 @@ func AsError(err error) *Error {
 	switch {
 	case errors.As(err, &contractErr):
 		return contractErr
+	case errors.Is(err, domain.ErrInvalidObservationWindow):
+		return newError(CodeInvalidRequest, "%s", err.Error())
 	case errors.Is(err, usecase.ErrNotFound):
 		return newError(CodeNotFound, "resource not found")
 	case errors.Is(err, usecase.ErrAnalysisNotCompleted):

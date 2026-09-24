@@ -20,6 +20,9 @@ var wireTypes = map[string]any{
 	"CreateResearchRunRequest": CreateResearchRunRequest{}, "AddedEvidenceLink": AddedEvidenceLink{},
 	"AppendIterationRequest": AppendIterationRequest{}, "ResearchResult": ResearchResult{},
 	"ErrorBody": ErrorBody{}, "ErrorResponse": ErrorResponse{},
+	"ObservationWindow": ObservationWindow{}, "ResearchTimeline": ResearchTimeline{}, "TimelineIteration": TimelineIteration{},
+	"EvidenceEvent": EvidenceEvent{}, "TimelineObservationDelta": TimelineObservationDelta{}, "HypothesisEvent": HypothesisEvent{},
+	"InsightVersion": InsightVersion{}, "InstrumentChange": InstrumentChange{},
 }
 
 type schemaDoc struct {

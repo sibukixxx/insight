@@ -151,15 +151,16 @@ type Client struct {
 type route struct{ method, path string }
 
 var routes = map[string]route{
-	"getEngine":          {http.MethodGet, "/api/public/v1/engine"},
-	"createSubject":      {http.MethodPost, "/api/public/v1/subjects"},
-	"addEvidence":        {http.MethodPost, "/api/public/v1/subjects/{subjectId}/evidence"},
-	"startAnalysis":      {http.MethodPost, "/api/public/v1/subjects/{subjectId}/analyses"},
-	"getAnalysis":        {http.MethodGet, "/api/public/v1/subjects/{subjectId}/analyses/{analysisId}"},
-	"getAnalysisResults": {http.MethodGet, "/api/public/v1/subjects/{subjectId}/analyses/{analysisId}/results"},
-	"createResearchRun":  {http.MethodPost, "/api/public/v1/subjects/{subjectId}/research-runs"},
-	"appendIteration":    {http.MethodPost, "/api/public/v1/research-runs/{researchRunId}/iterations"},
-	"getResearchRun":     {http.MethodGet, "/api/public/v1/research-runs/{researchRunId}"},
+	"getEngine":           {http.MethodGet, "/api/public/v1/engine"},
+	"createSubject":       {http.MethodPost, "/api/public/v1/subjects"},
+	"addEvidence":         {http.MethodPost, "/api/public/v1/subjects/{subjectId}/evidence"},
+	"startAnalysis":       {http.MethodPost, "/api/public/v1/subjects/{subjectId}/analyses"},
+	"getAnalysis":         {http.MethodGet, "/api/public/v1/subjects/{subjectId}/analyses/{analysisId}"},
+	"getAnalysisResults":  {http.MethodGet, "/api/public/v1/subjects/{subjectId}/analyses/{analysisId}/results"},
+	"createResearchRun":   {http.MethodPost, "/api/public/v1/subjects/{subjectId}/research-runs"},
+	"appendIteration":     {http.MethodPost, "/api/public/v1/research-runs/{researchRunId}/iterations"},
+	"getResearchRun":      {http.MethodGet, "/api/public/v1/research-runs/{researchRunId}"},
+	"getResearchTimeline": {http.MethodGet, "/api/public/v1/research-runs/{researchRunId}/timeline"},
 }
 
 // RegisterRoute lets later contract operations extend the runner.

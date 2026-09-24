@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -18,20 +19,24 @@ type ObservationWindow struct {
 	Note  string    `json:"note,omitempty"`
 }
 
+// ErrInvalidObservationWindow wraps every window validation failure so
+// transports can report it as a client error.
+var ErrInvalidObservationWindow = errors.New("invalid observation window")
+
 // Validate checks the window itself. Ordering against earlier iterations is
 // checked by ValidateNextWindow.
 func (w ObservationWindow) Validate() error {
 	if w.AsOf.IsZero() {
-		return fmt.Errorf("observation window asOf is required")
+		return fmt.Errorf("%w: asOf is required", ErrInvalidObservationWindow)
 	}
 	if (w.Start == "") != (w.End == "") {
-		return fmt.Errorf("observation window start and end must be given together")
+		return fmt.Errorf("%w: start and end must be given together", ErrInvalidObservationWindow)
 	}
 	if w.Start != "" && strings.TrimSpace(w.Basis) == "" {
-		return fmt.Errorf("observation window basis is required with start/end")
+		return fmt.Errorf("%w: basis is required with start/end", ErrInvalidObservationWindow)
 	}
 	if w.Start > w.End {
-		return fmt.Errorf("observation window start must not be after end")
+		return fmt.Errorf("%w: start must not be after end", ErrInvalidObservationWindow)
 	}
 	return nil
 }
@@ -52,8 +57,8 @@ func ValidateNextWindow(run ResearchRun, next *ObservationWindow) error {
 			continue
 		}
 		if next.AsOf.Before(prev.AsOf) {
-			return fmt.Errorf("observation window asOf %s is earlier than iteration %d asOf %s; historical iterations are not rewritten",
-				next.AsOf.Format(time.RFC3339), run.Iterations[i].Sequence, prev.AsOf.Format(time.RFC3339))
+			return fmt.Errorf("%w: asOf %s is earlier than iteration %d asOf %s; historical iterations are not rewritten",
+				ErrInvalidObservationWindow, next.AsOf.Format(time.RFC3339), run.Iterations[i].Sequence, prev.AsOf.Format(time.RFC3339))
 		}
 		return nil
 	}
