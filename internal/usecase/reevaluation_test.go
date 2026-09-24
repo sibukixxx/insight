@@ -97,3 +97,37 @@ func TestReEvaluateRejectsStalePreviousIterationAndMissingFields(t *testing.T) {
 		t.Fatalf("bad trigger = %v", err)
 	}
 }
+
+func TestReEvaluateRecordsScenariosTouchedByAffectedGapsAndChangedEvidence(t *testing.T) {
+	app, ctx, run := startReEvaluationRun(t)
+	set := &domain.ScenarioSet{ID: "set-1", ResearchRunID: run.ID, Version: 1, Question: "q", Origin: domain.ScenarioOriginHuman,
+		Scenarios: []domain.Scenario{
+			{ID: "by-gap", Title: "gap", UnresolvedGapIDs: []string{"g-affected"}},
+			{ID: "by-evidence", Title: "evidence", EvidenceRefs: []string{"dataset@v2"}},
+			{ID: "untouched", Title: "other", UnresolvedGapIDs: []string{"g-other"}},
+		}}
+	if err := app.repos.Scenarios.CreateScenarioSet(ctx, set); err != nil {
+		t.Fatal(err)
+	}
+	in := reEvalInput(run, "corr-scn", "a2")
+	in.AffectedGapIDs = []string{"g-affected"}
+	out, err := app.ReEvaluate(ctx, in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := out.Record
+	if rec.AffectedScenarioSetID != "set-1" || len(rec.AffectedScenarioIDs) != 2 || rec.AffectedScenarioIDs[0] != "by-evidence" || rec.AffectedScenarioIDs[1] != "by-gap" {
+		t.Fatalf("affected scenarios = %q in %q", rec.AffectedScenarioIDs, rec.AffectedScenarioSetID)
+	}
+}
+
+func TestReEvaluateLeavesScenarioRefsEmptyWhenRunHasNoScenarios(t *testing.T) {
+	app, ctx, run := startReEvaluationRun(t)
+	out, err := app.ReEvaluate(ctx, reEvalInput(run, "corr-none", "a2"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.Record.AffectedScenarioSetID != "" || len(out.Record.AffectedScenarioIDs) != 0 {
+		t.Fatalf("no scenario set exists, got %+v", out.Record)
+	}
+}
