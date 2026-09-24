@@ -24,6 +24,8 @@ HTTP/JSON under `/api/public/v1` on the Insight Lab server. Both SDKs use this t
 | createResearchRun | `POST /subjects/{subjectId}/research-runs` | 201 `ResearchResult` |
 | appendIteration | `POST /research-runs/{researchRunId}/iterations` | 201 `ResearchResult` |
 | getResearchRun | `GET /research-runs/{researchRunId}` | 200 `ResearchResult` |
+| getResearchTimeline | `GET /research-runs/{researchRunId}/timeline` | 200 `ResearchTimeline` (#71) |
+| applyTemporalOperation | `POST /temporal-operations` | 200 `TemporalOperationResult` (#73, stateless) |
 
 Every request and response carries `contractVersion`. Mutating requests also carry an `idempotencyKey`.
 
