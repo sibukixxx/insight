@@ -19,6 +19,8 @@ func TestTemporalEvidencePersistenceAndLegacy(t *testing.T) {
  b,err:=os.ReadFile("../../../contracts/analytical-artifact/v1/fixtures/temporal-japan-eu.json")
  if err!=nil {t.Fatal(err)}
  artifact,err:=analytical.Import(b);if err!=nil {t.Fatal(err)}
+ artifact.Parameters["cohortId"] = json.Number("9007199254740993")
+ artifact.Filters["threshold"] = json.Number("9007199254740993")
  candidates,err:=analytical.ToCandidatesForAnalysis(*artifact,analysis.ID);if err!=nil {t.Fatal(err)}
  observations:=NewObservationRepository(db)
  var batch []*domain.Observation

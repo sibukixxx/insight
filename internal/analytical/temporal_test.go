@@ -170,3 +170,25 @@ func TestTemporalSnapshotRejectsUnserializableProvenance(t *testing.T) {
  a.Parameters["invalid"]=make(chan int)
  if _,err:=ToCandidatesForAnalysis(a,"analysis");err==nil {t.Fatal("snapshot silently discarded provenance")}
 }
+
+func TestTemporalScopeNumbersPreservePrecision(t *testing.T) {
+ a := temporalFixture(t)
+ a.Parameters["cohortId"] = json.Number("9007199254740993")
+ a.Filters["threshold"] = json.Number("9007199254740993")
+ first, err := ToCandidatesForAnalysis(a, "analysis-1")
+ if err != nil { t.Fatal(err) }
+ p := first[0].Observation.Temporal
+ if p.Parameters["cohortId"] != json.Number("9007199254740993") ||
+  p.Filters["threshold"] != json.Number("9007199254740993") {
+  t.Fatal("scope definition was rounded in snapshot")
+ }
+ a.Parameters["cohortId"] = json.Number("9007199254740992")
+ a.Filters["threshold"] = json.Number("9007199254740992")
+ second, err := ToCandidatesForAnalysis(a, "analysis-2")
+ if err != nil { t.Fatal(err) }
+ d := CompareObservations(first[0].Observation, second[1].Observation)
+ if d.Valid || d.Absolute != nil || !hasWarning(d, "INCOMPATIBLE_PARAMETERS") ||
+  !hasWarning(d, "INCOMPATIBLE_FILTERS") {
+  t.Fatal("rounded scope definitions concealed an incompatible comparison")
+ }
+}

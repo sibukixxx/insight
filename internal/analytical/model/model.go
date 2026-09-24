@@ -2,6 +2,7 @@
 package model
 
 import (
+ "bytes"
  "encoding/json"
  "time"
 )
@@ -106,4 +107,18 @@ type TemporalEvidence struct {
  Provenance []SourceProvenance `json:"provenance"`
  Quality []QualityFlag `json:"qualityFlags,omitempty"`
  GeneratedAt time.Time `json:"generatedAt"`
+}
+
+// UnmarshalJSON preserves numeric scope definitions without converting large
+// integers to float64. This applies both to snapshots and repository reads.
+func (e *TemporalEvidence) UnmarshalJSON(data []byte) error {
+ type plain TemporalEvidence
+ var decoded plain
+ decoder := json.NewDecoder(bytes.NewReader(data))
+ decoder.UseNumber()
+ if err := decoder.Decode(&decoded); err != nil {
+  return err
+ }
+ *e = TemporalEvidence(decoded)
+ return nil
 }
