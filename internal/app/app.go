@@ -3,6 +3,8 @@ package app
 import (
 	"context"
 	"fmt"
+	"insight-lab/internal/execution"
+	"insight-lab/internal/input"
 	"net/http"
 	"time"
 
@@ -57,6 +59,15 @@ func Run(ctx context.Context, cfg *Config) error {
 		Insights: insights, Evidence: evidence,
 	}
 	jobManager := service.NewJobManager(analyses, pipeline, settings, service.DefaultLLMClientFactory)
+	var engineOpts []publicengine.Option
+	if cfg.InputRoot != "" {
+		prep := &service.Preparation{Resolver: input.Resolvers{"file": input.FileResolver{Root: cfg.InputRoot}}, MaxRawBytes: publicengine.DefaultMaxRawArtifactBytes}
+		if cfg.HeavyDir != "" {
+			prep.Heavy = execution.NewLocalRuntime(cfg.HeavyDir, 4)
+		}
+		jobManager.ConfigureExecution(prep)
+		engineOpts = append(engineOpts, publicengine.WithInputResolver(prep.Resolver, prep.MaxRawBytes))
+	}
 	jobManager.Start(ctx, analysisWorkers)
 	application := usecase.New(usecase.Repositories{
 		Projects: projects, Documents: documents, Observations: observations, Patterns: patterns,
@@ -64,7 +75,7 @@ func Run(ctx context.Context, cfg *Config) error {
 		Scenarios: sqlite.NewScenarioRepository(db),
 	})
 
-	publicEngine := publicengine.New(application, sqlite.NewPublicRepository(db), documents, jobManager, buildinfo.Get())
+	publicEngine := publicengine.New(application, sqlite.NewPublicRepository(db), documents, jobManager, buildinfo.Get(), engineOpts...)
 	publicEngine.EnableTriage(sqlite.NewTriageRepository(db), func() (llm.Client, string, bool) {
 		current := settings.Get()
 		if !current.Configured() {

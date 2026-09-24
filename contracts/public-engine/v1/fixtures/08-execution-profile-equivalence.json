@@ -1,0 +1,535 @@
+{
+  "fixture": "08-execution-profile-equivalence",
+  "contractVersion": "1",
+  "covers": "#59 conformance 8 / #91 #93: the same prepared input yields the same research results on LIGHT, STANDARD and HEAVY. STANDARD streams in-process, HEAVY prepares through the Heavy Execution Adapter in partitions, LIGHT receives the equivalent prepared Analytical Artifact. Requires an input root containing fixtures/data and a configured HEAVY adapter.",
+  "engine": "deterministic",
+  "steps": [
+    {
+      "op": "getEngine",
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "executionProfiles",
+          "minLength": 4
+        },
+        {
+          "path": "inputSourceKinds",
+          "minLength": 3
+        }
+      ]
+    },
+    {
+      "op": "createSubject",
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-subject-standard",
+        "subject": {
+          "namespace": "conformance",
+          "id": "standard-${uniq}"
+        }
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "standard": "subjectId"
+      }
+    },
+    {
+      "op": "addEvidence",
+      "params": {
+        "subjectId": "${standard}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-standard-raw",
+        "inputSources": [
+          {
+            "externalRef": "raw-1",
+            "kind": "RAW_ARTIFACT",
+            "title": "raw sample",
+            "rawArtifact": {
+              "uri": "file:raw-sample.csv",
+              "mediaType": "text/csv",
+              "name": "raw-sample.csv",
+              "sha256": "d072590d19771e9941b5848895664887cb78a11fe34d4d95e5ccebddc008f5b5"
+            },
+            "preparation": {
+              "kind": "csv-aggregate/v1",
+              "metrics": [
+                {
+                  "id": "amount_sum",
+                  "name": "Amount",
+                  "column": "amount",
+                  "aggregation": "sum",
+                  "unit": "units"
+                }
+              ],
+              "dimensionColumns": [
+                "region"
+              ],
+              "periodColumn": "year",
+              "population": {
+                "description": "sample rows"
+              }
+            }
+          }
+        ]
+      },
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "op": "startAnalysis",
+      "params": {
+        "subjectId": "${standard}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-standard-run",
+        "semanticAnalysisMode": "DATASET_ANALYSIS",
+        "executionProfile": "STANDARD"
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "standardRun": "analysisId"
+      }
+    },
+    {
+      "op": "waitForAnalysis",
+      "params": {
+        "subjectId": "${standard}",
+        "analysisId": "${standardRun}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "status",
+          "equals": "completed"
+        },
+        {
+          "path": "executionProfile.requested",
+          "equals": "STANDARD"
+        },
+        {
+          "path": "executionProfile.resolved",
+          "equals": "STANDARD"
+        },
+        {
+          "path": "executionProfile.reason",
+          "exists": true
+        },
+        {
+          "path": "executionProfile.strategyVersion",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "op": "getAnalysisResults",
+      "params": {
+        "subjectId": "${standard}",
+        "analysisId": "${standardRun}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "observations",
+          "minLength": 5
+        }
+      ],
+      "save": {
+        "q0": "observations[0].quote",
+        "q1": "observations[1].quote",
+        "q2": "observations[2].quote",
+        "q3": "observations[3].quote",
+        "q4": "observations[4].quote"
+      }
+    },
+    {
+      "op": "createSubject",
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-subject-heavy",
+        "subject": {
+          "namespace": "conformance",
+          "id": "heavy-${uniq}"
+        }
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "heavy": "subjectId"
+      }
+    },
+    {
+      "op": "addEvidence",
+      "params": {
+        "subjectId": "${heavy}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-heavy-raw",
+        "inputSources": [
+          {
+            "externalRef": "raw-1",
+            "kind": "RAW_ARTIFACT",
+            "title": "raw sample",
+            "rawArtifact": {
+              "uri": "file:raw-sample.csv",
+              "mediaType": "text/csv",
+              "name": "raw-sample.csv",
+              "sha256": "d072590d19771e9941b5848895664887cb78a11fe34d4d95e5ccebddc008f5b5"
+            },
+            "preparation": {
+              "kind": "csv-aggregate/v1",
+              "metrics": [
+                {
+                  "id": "amount_sum",
+                  "name": "Amount",
+                  "column": "amount",
+                  "aggregation": "sum",
+                  "unit": "units"
+                }
+              ],
+              "dimensionColumns": [
+                "region"
+              ],
+              "periodColumn": "year",
+              "population": {
+                "description": "sample rows"
+              }
+            }
+          }
+        ]
+      },
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "op": "startAnalysis",
+      "params": {
+        "subjectId": "${heavy}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-heavy-run",
+        "semanticAnalysisMode": "DATASET_ANALYSIS",
+        "executionProfile": "HEAVY"
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "heavyRun": "analysisId"
+      }
+    },
+    {
+      "op": "waitForAnalysis",
+      "params": {
+        "subjectId": "${heavy}",
+        "analysisId": "${heavyRun}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "status",
+          "equals": "completed"
+        },
+        {
+          "path": "executionProfile.requested",
+          "equals": "HEAVY"
+        },
+        {
+          "path": "executionProfile.resolved",
+          "equals": "HEAVY"
+        },
+        {
+          "path": "executionProfile.reason",
+          "exists": true
+        },
+        {
+          "path": "executionProfile.strategyVersion",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "op": "getAnalysisResults",
+      "params": {
+        "subjectId": "${heavy}",
+        "analysisId": "${heavyRun}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "observations[0].quote",
+          "equals": "${q0}"
+        },
+        {
+          "path": "observations[1].quote",
+          "equals": "${q1}"
+        },
+        {
+          "path": "observations[2].quote",
+          "equals": "${q2}"
+        },
+        {
+          "path": "observations[3].quote",
+          "equals": "${q3}"
+        },
+        {
+          "path": "observations[4].quote",
+          "equals": "${q4}"
+        }
+      ]
+    },
+    {
+      "op": "createSubject",
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-subject-light",
+        "subject": {
+          "namespace": "conformance",
+          "id": "light-${uniq}"
+        }
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "light": "subjectId"
+      }
+    },
+    {
+      "op": "addEvidence",
+      "params": {
+        "subjectId": "${light}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-light-artifact",
+        "analyticalArtifacts": [
+          {
+            "artifactSchema": "insight-lab.analytical-artifact",
+            "schemaVersion": "1",
+            "id": "prepared-equivalent-sample",
+            "artifactHash": {
+              "algorithm": "sha256",
+              "value": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            },
+            "producer": "conformance-fixture",
+            "producerVersion": "1",
+            "generatedAt": "2026-09-24T00:00:00Z",
+            "datasets": [
+              {
+                "id": "raw-1",
+                "uri": "file:raw-sample.csv",
+                "version": "1",
+                "hash": {
+                  "algorithm": "sha256",
+                  "value": "d072590d19771e9941b5848895664887cb78a11fe34d4d95e5ccebddc008f5b5"
+                }
+              }
+            ],
+            "spec": {
+              "kind": "csv-aggregate/v1",
+              "reference": "inline:preparation",
+              "hash": {
+                "algorithm": "sha256",
+                "value": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+              }
+            },
+            "dimensions": [
+              "region"
+            ],
+            "period": {
+              "start": "2024",
+              "end": "2025"
+            },
+            "population": {
+              "description": "sample rows"
+            },
+            "metrics": [
+              {
+                "id": "amount_sum",
+                "name": "Amount",
+                "unit": "units",
+                "aggregation": "sum"
+              }
+            ],
+            "results": [
+              {
+                "metricId": "amount_sum",
+                "dimensions": {
+                  "region": "east"
+                },
+                "period": {
+                  "start": "2024",
+                  "end": "2024"
+                },
+                "value": 10
+              },
+              {
+                "metricId": "amount_sum",
+                "dimensions": {
+                  "region": "north"
+                },
+                "period": {
+                  "start": "2024",
+                  "end": "2024"
+                },
+                "missing": true
+              },
+              {
+                "metricId": "amount_sum",
+                "dimensions": {
+                  "region": "west"
+                },
+                "period": {
+                  "start": "2024",
+                  "end": "2024"
+                },
+                "value": 5
+              },
+              {
+                "metricId": "amount_sum",
+                "dimensions": {
+                  "region": "east"
+                },
+                "period": {
+                  "start": "2025",
+                  "end": "2025"
+                },
+                "value": 12.5
+              },
+              {
+                "metricId": "amount_sum",
+                "dimensions": {
+                  "region": "west"
+                },
+                "period": {
+                  "start": "2025",
+                  "end": "2025"
+                },
+                "value": 7
+              }
+            ],
+            "computation": {
+              "engine": "conformance-fixture",
+              "engineVersion": "1",
+              "deterministic": true
+            },
+            "provenance": [
+              {
+                "datasetId": "raw-1",
+                "source": "file:raw-sample.csv",
+                "retrievedAt": "2026-09-24T00:00:00Z"
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "op": "startAnalysis",
+      "params": {
+        "subjectId": "${light}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-light-run",
+        "semanticAnalysisMode": "DATASET_ANALYSIS",
+        "executionProfile": "AUTO"
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "lightRun": "analysisId"
+      }
+    },
+    {
+      "op": "waitForAnalysis",
+      "params": {
+        "subjectId": "${light}",
+        "analysisId": "${lightRun}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "status",
+          "equals": "completed"
+        },
+        {
+          "path": "executionProfile.requested",
+          "equals": "AUTO"
+        },
+        {
+          "path": "executionProfile.resolved",
+          "equals": "LIGHT"
+        },
+        {
+          "path": "executionProfile.reason",
+          "exists": true
+        },
+        {
+          "path": "executionProfile.strategyVersion",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "op": "getAnalysisResults",
+      "params": {
+        "subjectId": "${light}",
+        "analysisId": "${lightRun}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "observations[0].quote",
+          "equals": "${q0}"
+        },
+        {
+          "path": "observations[1].quote",
+          "equals": "${q1}"
+        },
+        {
+          "path": "observations[2].quote",
+          "equals": "${q2}"
+        },
+        {
+          "path": "observations[3].quote",
+          "equals": "${q3}"
+        },
+        {
+          "path": "observations[4].quote",
+          "equals": "${q4}"
+        }
+      ]
+    }
+  ]
+}

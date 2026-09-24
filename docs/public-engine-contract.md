@@ -66,6 +66,9 @@ Errors use `{"contractVersion":"1","error":{"code","message"}}`.
 | `ANALYSIS_HAS_NO_HYPOTHESES` | 409 |
 | `MIXED_ANALYSIS_RUNS` | 409 |
 | `STALE_ITERATION` | 409 |
+| `EXECUTION_PROFILE_UNAVAILABLE` | 422 |
+| `INPUT_SOURCE_UNAVAILABLE` | 422 |
+| `INPUT_VERIFICATION_FAILED` | 400 |
 | `INTERNAL` | 500 |
 
 The SDKs add `UNAVAILABLE` for an unreachable engine or a non-contract response. They raise `UNSUPPORTED_CONTRACT_VERSION` themselves when a response uses a version they do not speak. Internal error details are never returned.
@@ -98,7 +101,7 @@ The request body is at most 16 MiB. A request carries at most 500 documents and 
 
 ### Conformance
 
-- `contracts/public-engine/v1/fixtures/` holds the seven #59 scenarios:
+- `contracts/public-engine/v1/fixtures/` holds the #59 scenarios:
   1. generic public-data subject
   2. commerce-like opaque subject
   3. deterministic Analytical Artifact
@@ -108,6 +111,9 @@ The request body is at most 16 MiB. A request carries at most 500 documents and 
   7. idempotent requests
   10. run comparison (#83)
   11. re-evaluation (#74)
+  8. same research results across LIGHT / STANDARD / HEAVY (`08-execution-profile-equivalence`)
+  9. raw/ref input path (`09-raw-artifact-input`)
+- Fixtures 08 and 09 need an engine started with an input root containing `fixtures/data` and, for 08, a HEAVY adapter (`-input-root` and `-heavy-dir`).
 - `internal/http/public_conformance_test.go` starts a deterministic engine and a model-backed engine. It runs every fixture over plain HTTP with `internal/publicengine/conformance`. SDK repositories run the same fixture files against a live engine or recorded responses.
 - The model-backed engine in that test uses a scripted stand-in model defined only in the test. Production code has no fake-model mode. Fixtures 01, 02, 04 and 05 check contract behavior with that model. They do not measure the quality of a real model.
 
@@ -117,6 +123,26 @@ The request body is at most 16 MiB. A request carries at most 500 documents and 
 - Deterministic pre-analysis grounds each result statement and turns it into an observation, without a model (rule `analytical-artifact/v1`).
 - A result stays a calculation output to interpret. It is never a hypothesis, claim or insight, and no evidence rows are created from it.
 - A deterministic run over artifacts has no hypotheses, so research on it returns `ANALYSIS_HAS_NO_HYPOTHESES`. Research needs a model-backed run.
+
+### InputSource / RawArtifact (#90)
+
+- Inputs have three kinds, advertised in `EngineInfo.inputSourceKinds`: inline documents (`documents`), prepared Analytical Artifacts (`analyticalArtifacts`) and references to raw bytes (`inputSources` with kind `RAW_ARTIFACT`).
+- A raw reference names `uri` and `mediaType`, optionally `name`, `version`, `sizeBytes`, `sha256`. The size and hash are claims. The engine streams the bytes once when the reference is added, measures sha256 and size itself and records only its own measurement. A claim that does not match is `INPUT_VERIFICATION_FAILED`. The receipt says `verifiedBy: "engine"`.
+- URIs are read through resolvers configured on the engine. Core ships one: `file:<relative path>` under the directory given by `-input-root` (`INSIGHT_LAB_INPUT_ROOT`). Absolute paths, `..` and unknown schemes are `INPUT_SOURCE_UNAVAILABLE`, and host paths are never echoed. Object stores or other sources are adapters outside Core.
+- Raw bytes are never stored in SQLite and never loaded whole into memory. The stored document holds the verified reference in reserved `public_raw_*` metadata; a caller cannot set those keys. Its text is a descriptor and is never analyzed.
+- With `preparation` (kind `csv-aggregate/v1`: metrics, dimension columns, a period column or a fixed period, and a population), an analysis on STANDARD or HEAVY prepares the bytes into an Analytical Artifact before the pipeline runs. Memory grows with the number of groups, not rows. Sums are exact rationals, so partition order cannot change a value. Missing values stay missing, never zero. The bytes are hashed again during preparation; if they changed since registration the run fails.
+- The prepared artifact id is derived from the raw sha256 and the spec, so preparing again (after a restart, or on another profile) finds the existing artifact instead of creating a second one. Its document links back with `public_prepared_from`.
+- Without `preparation` a reference is recorded for provenance only (`preparation: "NOT_REQUESTED"`).
+- The input snapshot fingerprints the reference document, including the verified hash, so a changed raw artifact changes `inputFingerprint`.
+
+### ExecutionProfile (#91, #93)
+
+- `StartAnalysisRequest.executionProfile` is `LIGHT`, `STANDARD`, `HEAVY` or `AUTO` (default). It is a resource/runtime strategy, separate from `semanticAnalysisMode` (how input is read), research stage and `executionMode` (deterministic or model-backed).
+- LIGHT runs in-process on inline documents and prepared artifacts only; it refuses raw references that still need preparation. STANDARD additionally streams and prepares raw references in-process. HEAVY prepares them through the Heavy Execution Adapter: partitions with persistent job identity, per-partition progress, retry and cancellation, resumable after a restart. LIGHT never depends on that adapter.
+- AUTO resolves deterministically from input shape (document count, inline bytes, raw bytes to prepare). It never downgrades: if the chosen profile is not available, the request fails with `EXECUTION_PROFILE_UNAVAILABLE`. Explicit HEAVY without a configured adapter fails the same way.
+- `AnalysisRun.executionProfile` reports `requested`, `resolved`, `reason` and `strategyVersion`. The same record is in `provenance.execution`. It is deliberately not part of the execution fingerprint, because a profile changes how inputs are prepared and executed, never what the results mean.
+- All profiles run the same canonical pipeline over the same prepared input. Fixture 08 checks that STANDARD, HEAVY and LIGHT (given the equivalent prepared artifact) produce identical observations.
+- `EngineInfo.executionProfiles` lists each profile with `available`. HEAVY is available only when the engine is started with `-heavy-dir` (and `-input-root`). The local adapter persists job state as JSON in that directory; distributed runtimes implement the same `execution.Runtime` port.
 
 ### Re-evaluation (#74) scope
 

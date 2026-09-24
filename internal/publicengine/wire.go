@@ -47,6 +47,55 @@ type EngineInfo struct {
 	Engine                    EngineBuild `json:"engine"`
 	ResearchArtifact          SchemaRef   `json:"researchArtifact"`
 	AnalyticalArtifact        SchemaRef   `json:"analyticalArtifact"`
+	// ExecutionProfiles and InputSourceKinds advertise capabilities (#90/#91).
+	ExecutionProfiles []ExecutionProfileInfo `json:"executionProfiles,omitempty"`
+	InputSourceKinds  []string               `json:"inputSourceKinds,omitempty"`
+}
+
+type ExecutionProfileInfo struct {
+	Profile     string `json:"profile"`
+	Available   bool   `json:"available"`
+	Description string `json:"description"`
+}
+
+// ExecutionProfileResolution records which profile a run used and why.
+type ExecutionProfileResolution struct {
+	Requested       string `json:"requested"`
+	Resolved        string `json:"resolved"`
+	Reason          string `json:"reason"`
+	StrategyVersion string `json:"strategyVersion"`
+}
+
+// RawArtifactRef references raw bytes outside the engine. sha256 and
+// sizeBytes are claims the engine verifies by streaming the bytes itself.
+type RawArtifactRef struct {
+	URI       string `json:"uri"`
+	MediaType string `json:"mediaType"`
+	Name      string `json:"name,omitempty"`
+	Version   string `json:"version,omitempty"`
+	SizeBytes int64  `json:"sizeBytes,omitempty"`
+	SHA256    string `json:"sha256,omitempty"`
+}
+
+// InputSource is an additive input variant (#90).
+type InputSource struct {
+	ExternalRef string            `json:"externalRef"`
+	Kind        string            `json:"kind"`
+	Title       string            `json:"title,omitempty"`
+	RawArtifact RawArtifactRef    `json:"rawArtifact"`
+	Preparation json.RawMessage   `json:"preparation,omitempty"`
+	Metadata    map[string]string `json:"metadata,omitempty"`
+}
+
+type InputSourceReceipt struct {
+	ExternalRef        string `json:"externalRef"`
+	DocumentID         string `json:"documentId"`
+	Status             string `json:"status"`
+	SHA256             string `json:"sha256"`
+	SizeBytes          int64  `json:"sizeBytes"`
+	VerifiedBy         string `json:"verifiedBy"`
+	Preparation        string `json:"preparation"`
+	PreparedArtifactID string `json:"preparedArtifactId,omitempty"`
 }
 
 type CreateSubjectRequest struct {
@@ -79,6 +128,7 @@ type AddEvidenceRequest struct {
 	IdempotencyKey      string             `json:"idempotencyKey"`
 	Documents           []EvidenceDocument `json:"documents,omitempty"`
 	AnalyticalArtifacts []json.RawMessage  `json:"analyticalArtifacts,omitempty"`
+	InputSources        []InputSource      `json:"inputSources,omitempty"`
 }
 
 type EvidenceItemReceipt struct {
@@ -94,6 +144,7 @@ type EvidenceReceipt struct {
 	SubjectID           string                `json:"subjectId"`
 	Documents           []EvidenceItemReceipt `json:"documents"`
 	AnalyticalArtifacts []EvidenceItemReceipt `json:"analyticalArtifacts"`
+	InputSources        []InputSourceReceipt  `json:"inputSources,omitempty"`
 }
 
 type StartAnalysisRequest struct {
@@ -102,6 +153,7 @@ type StartAnalysisRequest struct {
 	Label                string `json:"label,omitempty"`
 	Note                 string `json:"note,omitempty"`
 	SemanticAnalysisMode string `json:"semanticAnalysisMode,omitempty"`
+	ExecutionProfile     string `json:"executionProfile,omitempty"`
 }
 
 type AnalysisProvenance struct {
@@ -110,22 +162,23 @@ type AnalysisProvenance struct {
 }
 
 type AnalysisRun struct {
-	ContractVersion      string              `json:"contractVersion"`
-	SubjectID            string              `json:"subjectId"`
-	AnalysisID           string              `json:"analysisId"`
-	Status               string              `json:"status"`
-	Error                string              `json:"error,omitempty"`
-	Label                string              `json:"label,omitempty"`
-	Note                 string              `json:"note,omitempty"`
-	SemanticAnalysisMode string              `json:"semanticAnalysisMode,omitempty"`
-	ExecutionMode        string              `json:"executionMode,omitempty"`
-	Engine               *EngineBuild        `json:"engine,omitempty"`
-	ExecutionFingerprint string              `json:"executionFingerprint,omitempty"`
-	InputFingerprint     string              `json:"inputFingerprint,omitempty"`
-	Provenance           *AnalysisProvenance `json:"provenance,omitempty"`
-	CreatedAt            string              `json:"createdAt"`
-	StartedAt            string              `json:"startedAt,omitempty"`
-	FinishedAt           string              `json:"finishedAt,omitempty"`
+	ContractVersion      string                      `json:"contractVersion"`
+	SubjectID            string                      `json:"subjectId"`
+	AnalysisID           string                      `json:"analysisId"`
+	Status               string                      `json:"status"`
+	Error                string                      `json:"error,omitempty"`
+	Label                string                      `json:"label,omitempty"`
+	Note                 string                      `json:"note,omitempty"`
+	SemanticAnalysisMode string                      `json:"semanticAnalysisMode,omitempty"`
+	ExecutionMode        string                      `json:"executionMode,omitempty"`
+	ExecutionProfile     *ExecutionProfileResolution `json:"executionProfile,omitempty"`
+	Engine               *EngineBuild                `json:"engine,omitempty"`
+	ExecutionFingerprint string                      `json:"executionFingerprint,omitempty"`
+	InputFingerprint     string                      `json:"inputFingerprint,omitempty"`
+	Provenance           *AnalysisProvenance         `json:"provenance,omitempty"`
+	CreatedAt            string                      `json:"createdAt"`
+	StartedAt            string                      `json:"startedAt,omitempty"`
+	FinishedAt           string                      `json:"finishedAt,omitempty"`
 }
 
 type Observation struct {

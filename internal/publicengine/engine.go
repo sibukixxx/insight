@@ -17,6 +17,8 @@ import (
 	"insight-lab/internal/analytical"
 	"insight-lab/internal/buildinfo"
 	"insight-lab/internal/domain"
+	"insight-lab/internal/execution"
+	"insight-lab/internal/input"
 	"insight-lab/internal/repository"
 	"insight-lab/internal/service"
 	"insight-lab/internal/usecase"
@@ -56,13 +58,20 @@ type Engine struct {
 	now       func() time.Time
 	triage    *triageDeps
 
+	resolver    input.Resolver
+	maxRawBytes int64
+
 	// mu serializes mutating operations so an idempotency replay check and
 	// an identity check can never interleave with the write they guard.
 	mu sync.Mutex
 }
 
-func New(app *usecase.Application, public repository.PublicRepository, documents repository.DocumentRepository, jobs Enqueuer, build buildinfo.Info) *Engine {
-	return &Engine{app: app, public: public, documents: documents, jobs: jobs, build: build, now: func() time.Time { return time.Now().UTC() }}
+func New(app *usecase.Application, public repository.PublicRepository, documents repository.DocumentRepository, jobs Enqueuer, build buildinfo.Info, opts ...Option) *Engine {
+	e := &Engine{app: app, public: public, documents: documents, jobs: jobs, build: build, now: func() time.Time { return time.Now().UTC() }}
+	for _, opt := range opts {
+		opt(e)
+	}
+	return e
 }
 
 // Engine returns the contract and build identity of this engine.
@@ -73,6 +82,8 @@ func (e *Engine) Engine() EngineInfo {
 		Engine:                    EngineBuild{Version: e.build.Version, Commit: e.build.Commit, Dirty: e.build.Dirty},
 		ResearchArtifact:          SchemaRef{Schema: usecase.ResearchArtifactSchema, Version: usecase.ResearchArtifactVersion},
 		AnalyticalArtifact:        SchemaRef{Schema: analytical.Schema, Version: analytical.Version},
+		ExecutionProfiles:         profileInfos(e.capabilities()),
+		InputSourceKinds:          input.Kinds(),
 	}
 }
 
@@ -197,8 +208,8 @@ func (e *Engine) AddEvidence(ctx context.Context, subjectID string, req AddEvide
 		if err != nil {
 			return 0, nil, err
 		}
-		if len(req.Documents) == 0 && len(req.AnalyticalArtifacts) == 0 {
-			return 0, nil, newError(CodeInvalidRequest, "at least one document or analytical artifact is required")
+		if len(req.Documents) == 0 && len(req.AnalyticalArtifacts) == 0 && len(req.InputSources) == 0 {
+			return 0, nil, newError(CodeInvalidRequest, "at least one document, analytical artifact or input source is required")
 		}
 		if len(req.Documents) > maxDocumentsPerRequest || len(req.AnalyticalArtifacts) > maxArtifactsPerRequest {
 			return 0, nil, newError(CodeInvalidRequest, "at most %d documents and %d analytical artifacts per request", maxDocumentsPerRequest, maxArtifactsPerRequest)
@@ -276,6 +287,14 @@ func (e *Engine) AddEvidence(ctx context.Context, subjectID string, req AddEvide
 			item.DocumentID, item.Status = doc.ID, "CREATED"
 			receipt.AnalyticalArtifacts = append(receipt.AnalyticalArtifacts, item)
 		}
+		if len(req.InputSources) > 0 {
+			refs, receipts, err := e.addInputSources(ctx, subject.ProjectID, byRef, req.InputSources, seen)
+			if err != nil {
+				return 0, nil, err
+			}
+			created = append(created, refs...)
+			receipt.InputSources = receipts
+		}
 		if err := e.documents.CreateBatch(ctx, created); err != nil {
 			return 0, nil, err
 		}
@@ -312,7 +331,11 @@ func (e *Engine) StartAnalysis(ctx context.Context, subjectID string, req StartA
 		if len(req.Label) > 256 || len(req.Note) > 2000 {
 			return 0, nil, newError(CodeInvalidRequest, "label is limited to 256 and note to 2000 characters")
 		}
-		analysis, err := e.jobs.Enqueue(ctx, service.EnqueueRequest{ProjectID: subject.ProjectID, Label: strings.TrimSpace(req.Label), Note: strings.TrimSpace(req.Note), SemanticAnalysisMode: mode})
+		profile, err := execution.Parse(req.ExecutionProfile)
+		if err != nil {
+			return 0, nil, newError(CodeInvalidRequest, "%v", err)
+		}
+		analysis, err := e.jobs.Enqueue(ctx, service.EnqueueRequest{ProjectID: subject.ProjectID, Label: strings.TrimSpace(req.Label), Note: strings.TrimSpace(req.Note), SemanticAnalysisMode: mode, ExecutionProfile: profile})
 		if err != nil {
 			return 0, nil, err
 		}
@@ -399,6 +422,9 @@ func toAnalysisRun(subjectID string, a *domain.Analysis) AnalysisRun {
 	if json.Unmarshal([]byte(a.ExecutionSnapshot), &execution) == nil {
 		run.ExecutionMode = string(execution.ExecutionMode)
 		run.Engine = &EngineBuild{Version: execution.EngineVersion, Commit: execution.GitCommit, Dirty: execution.GitDirty}
+		if p := execution.ExecutionProfile; p != nil {
+			run.ExecutionProfile = &ExecutionProfileResolution{Requested: string(p.Requested), Resolved: string(p.Resolved), Reason: p.Reason, StrategyVersion: p.StrategyVersion}
+		}
 	}
 	provenance := AnalysisProvenance{}
 	if json.Valid([]byte(a.ExecutionSnapshot)) {

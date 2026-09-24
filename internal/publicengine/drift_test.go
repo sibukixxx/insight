@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"insight-lab/internal/input"
 )
 
 // wireTypes maps every schema $def that describes an object to the Go type
@@ -31,6 +33,9 @@ var wireTypes = map[string]any{
 	"EvidenceEvent": EvidenceEvent{}, "TimelineObservationDelta": TimelineObservationDelta{}, "HypothesisEvent": HypothesisEvent{},
 	"InsightVersion": InsightVersion{}, "InstrumentChange": InstrumentChange{},
 	"TemporalOperationRequest": TemporalOperationRequest{}, "TemporalOperationResult": TemporalOperationResult{},
+	"ExecutionProfileInfo": ExecutionProfileInfo{}, "ExecutionProfileResolution": ExecutionProfileResolution{},
+	"RawArtifactRef": RawArtifactRef{}, "InputSource": InputSource{}, "InputSourceReceipt": InputSourceReceipt{},
+	"PreparationSpec": input.PreparationSpec{},
 }
 
 func init() {
