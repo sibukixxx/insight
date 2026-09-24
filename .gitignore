@@ -13,3 +13,7 @@
 
 # Python bytecode from scripts/
 __pycache__/
+
+# Node SDK build and dependencies
+sdk/node/node_modules/
+sdk/node/dist/

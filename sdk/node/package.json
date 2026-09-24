@@ -1,0 +1,24 @@
+{
+  "name": "@sibukixxx/insight-sdk",
+  "version": "0.1.0",
+  "description": "Thin TypeScript client for the Insight Lab Public Engine Contract v1",
+  "license": "Apache-2.0",
+  "type": "module",
+  "repository": {"type": "git", "url": "git+https://github.com/sibukixxx/insight.git", "directory": "sdk/node"},
+  "engines": {"node": ">=22.18"},
+  "exports": {".": {"types": "./dist/index.d.ts", "default": "./dist/index.js"}},
+  "files": ["dist", "src", "README.md"],
+  "insightContractVersions": ["1"],
+  "scripts": {
+    "generate": "node scripts/generate-types.mjs",
+    "check-generated": "node scripts/generate-types.mjs --check",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json",
+    "test": "node --test \"test/*.test.ts\"",
+    "prepack": "npm run check-generated && npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "typescript": "^5.9.0"
+  }
+}
