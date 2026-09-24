@@ -2,7 +2,7 @@
 
 `insight-lab.analytical-artifact` v1 is the provider-neutral import/export contract for deterministic calculations produced outside Insight. The producer may be DuckDB, another SQL engine, a dataframe tool, BI export, or custom code; Insight does not embed or select that engine.
 
-The JSON Schema is the language-neutral source of truth at `contracts/analytical-artifact/v1/schema.json`. Go consumers use `contracts/analytical`; they never import Insight internal packages. The Evidence boundary adapter remains internal.
+The JSON Schema is the language-neutral source of truth at `contracts/analytical-artifact/v1/schema.json`; the declarative temporal operation spec `temporal-operation.schema.json` lives beside it (see [temporal-evidence.md](temporal-evidence.md)). Inside this repository Go code uses `contracts/analytical`. External producers use the standalone SDKs — `insight-sdk-go/analytical` or the `analytical` module of `@sibukixxx/insight-sdk` — which pin a copy of this directory and submit artifacts through the Public Engine Contract (`addEvidence.analyticalArtifacts`). Consumers never import Insight internal packages. The Evidence boundary adapter remains internal.
 
 ## Trust boundary
 
@@ -41,7 +41,7 @@ An external analytical producer can:
 2. store and checksum its versioned query or declarative spec;
 3. execute with pinned parameters;
 4. emit either fixture under `contracts/analytical-artifact/v1/fixtures/`;
-5. call `analytical.Import` and pass the validated artifact to the internal Evidence/Observation adapter.
+5. validate and seal it (`analytical` in an SDK, or `contracts/analytical` inside this repository) and submit it through the Public Engine Contract (`addEvidence.analyticalArtifacts`); the internal Evidence/Observation adapter takes over from there.
 
 `trade-time-series.json` demonstrates a SQL-style time series. `external-consumer.json` demonstrates a domain-neutral producer, opaque subject correlation, and an explicitly missing result.
 
