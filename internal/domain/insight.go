@@ -1,6 +1,9 @@
 package domain
 
-import "time"
+import (
+ "time"
+ "insight-lab/internal/analytical/model"
+)
 
 type EvidenceType string
 
@@ -11,6 +14,7 @@ const (
 )
 
 type Evidence struct {
+ Temporal *model.TemporalEvidence `json:"temporal,omitempty"`
 	ID             string
 	InsightID      string
 	DocumentID     string

@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"insight-lab/internal/domain"
+ "insight-lab/internal/analytical/model"
 )
 
 const (
@@ -27,78 +28,19 @@ var (
 	ErrIdentityConflict = errors.New("analytical artifact identity conflict")
 )
 
-type Hash struct {
-	Algorithm string `json:"algorithm"`
-	Value     string `json:"value"`
-}
-
-type DatasetRef struct {
-	ID      string `json:"id"`
-	URI     string `json:"uri,omitempty"`
-	Version string `json:"version"`
-	Hash    Hash   `json:"hash"`
-}
-
-type SpecRef struct {
-	Kind      string `json:"kind"`
-	Reference string `json:"reference"`
-	Hash      Hash   `json:"hash"`
-}
-
-// ExternalSubjectRef is an opaque producer-owned identity. Insight never
-// interprets Namespace or ID as domain state or an instruction to act.
-type ExternalSubjectRef struct {
-	Namespace string `json:"namespace"`
-	ID        string `json:"id"`
-}
-
-type Period struct {
-	Start string `json:"start"`
-	End   string `json:"end"`
-	Basis string `json:"basis,omitempty"`
-}
-
-type Population struct {
-	Description string `json:"description"`
-	Unit        string `json:"unit,omitempty"`
-}
-
-type MetricDefinition struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description,omitempty"`
-	Unit        string `json:"unit"`
-	Aggregation string `json:"aggregation,omitempty"`
-}
-
-type QualityFlag struct {
-	Code    string `json:"code"`
-	Message string `json:"message,omitempty"`
-}
-
-type Result struct {
-	MetricID   string            `json:"metricId"`
-	Dimensions map[string]string `json:"dimensions,omitempty"`
-	Period     Period            `json:"period"`
-	Value      json.RawMessage   `json:"value,omitempty"`
-	Missing    bool              `json:"missing,omitempty"`
-	Quality    []QualityFlag     `json:"qualityFlags,omitempty"`
-}
-
-type Computation struct {
-	Engine        string `json:"engine"`
-	EngineVersion string `json:"engineVersion"`
-	Deterministic bool   `json:"deterministic"`
-	Timezone      string `json:"timezone,omitempty"`
-}
-
-type SourceProvenance struct {
-	DatasetID          string    `json:"datasetId"`
-	Source             string    `json:"source"`
-	RetrievedAt        time.Time `json:"retrievedAt"`
-	License            string    `json:"license,omitempty"`
-	TransformationRefs []string  `json:"transformationRefs,omitempty"`
-}
+type Hash = model.Hash
+type DatasetRef = model.DatasetRef
+type SpecRef = model.SpecRef
+type ExternalSubjectRef = model.ExternalSubjectRef
+type Period = model.Period
+type Population = model.Population
+type MetricDefinition = model.MetricDefinition
+type QualityFlag = model.QualityFlag
+type Result = model.Result
+type Computation = model.Computation
+type SourceProvenance = model.SourceProvenance
+type TemporalMetadata = model.TemporalMetadata
+type TemporalEvidence = model.TemporalEvidence
 
 type Artifact struct {
 	ArtifactSchema  string              `json:"artifactSchema"`
@@ -212,7 +154,12 @@ func (a Artifact) Validate() error {
 		if err := validatePeriod(fmt.Sprintf("results[%d].period", i), result.Period); err != nil {
 			return fail("%v", err)
 		}
-		if result.Missing && len(result.Value) != 0 {
+		if result.Temporal != nil {
+   if err := validateTemporalResult(result, a.Metrics, a.Period); err != nil {
+    return fail("results[%d]: %v", i, err)
+   }
+  }
+  if result.Missing && len(result.Value) != 0 {
 			return fail("results[%d] cannot have value when missing", i)
 		}
 		if !result.Missing && !validScalar(result.Value) {
@@ -344,10 +291,11 @@ func ToCandidates(artifact Artifact) ([]Candidate, error) {
 		id := fmt.Sprintf("%s:%s:%d", artifact.ID, result.MetricID, i)
 		quote := resultStatement(metric, result)
 		observationID := id
+  temporal := temporalProjection(artifact, metric, result, i)
 		out = append(out, Candidate{
 			ArtifactID: artifact.ID, ResultIndex: i,
-			Evidence:    domain.Evidence{ID: id, DocumentID: artifact.ID, ObservationID: &observationID, Quote: quote, Type: domain.EvidenceNeutral},
-			Observation: domain.Observation{ID: observationID, DocumentID: artifact.ID, Quote: quote, Behavior: "deterministic analytical result; interpretation required", Topic: metric.Name, CreatedAt: artifact.GeneratedAt},
+			Evidence:    domain.Evidence{Temporal: temporal, ID: id, DocumentID: artifact.ID, ObservationID: &observationID, Quote: quote, Type: domain.EvidenceNeutral},
+			Observation: domain.Observation{Temporal: temporal, ID: observationID, DocumentID: artifact.ID, Quote: quote, Behavior: "deterministic analytical result; interpretation required", Topic: metric.Name, CreatedAt: artifact.GeneratedAt},
 		})
 	}
 	return out, nil
