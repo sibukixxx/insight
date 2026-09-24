@@ -30,18 +30,8 @@ HTTP/JSON under `/api/public/v1` on the Insight Lab server. Both SDKs use this t
 | reEvaluate | `POST /research-runs/{researchRunId}/re-evaluations` | 201 new iteration, 200 otherwise `ReEvaluationResult` |
 | getResearchTimeline | `GET /research-runs/{researchRunId}/timeline` | 200 `ResearchTimeline` (#71) |
 | applyTemporalOperation | `POST /temporal-operations` | 200 `TemporalOperationResult` (#73, stateless) |
-| getScenarios | `GET /research-runs/{researchRunId}/scenarios` | 200 `ScenarioAnalysis` (#66) |
-| createScenarioSet | `POST /research-runs/{researchRunId}/scenario-sets` | 201 `ScenarioSetResult` (#66) |
-| scaffoldScenarioSet | `POST /research-runs/{researchRunId}/scenario-sets/scaffold` | 201 `ScenarioSetResult` (#66) |
-| evaluateScenarios | `POST /research-runs/{researchRunId}/scenario-sets/{scenarioSetId}/evaluations` | 201 `ScenarioEvaluationResult` (#66) |
-| createDatasetProfile | `POST /subjects/{subjectId}/dataset-profiles` | 201 `DatasetProfile` (#92) |
-| getDatasetProfile | `GET /subjects/{subjectId}/dataset-profiles/{profileId}` | 200 `DatasetProfile` (#92) |
-| triage | `POST /subjects/{subjectId}/dataset-profiles/{profileId}/triage` | 201 `SelectionPlan` (#92) |
-| listSelectionPlans | `GET /subjects/{subjectId}/dataset-profiles/{profileId}/selection-plans` | 200 `SelectionPlanList` (#92) |
-| getSelectionPlan | `GET /selection-plans/{planId}` | 200 `SelectionPlan` (#92) |
-| reviseSelectionPlan | `POST /selection-plans/{planId}/revisions` | 201 `SelectionPlan` (#92) |
 
-Every request and response carries `contractVersion`. Mutating requests also carry an `idempotencyKey`. The operation names are the keys of the conformance fixtures and the method names of both SDKs; `internal/publicengine/conformance` maps them to the paths above.
+Every request and response carries `contractVersion`. Mutating requests also carry an `idempotencyKey`.
 
 ## Semantics
 
@@ -77,7 +67,6 @@ Errors use `{"contractVersion":"1","error":{"code","message"}}`.
 | `MIXED_ANALYSIS_RUNS` | 409 |
 | `STALE_ITERATION` | 409 |
 | `EXECUTION_PROFILE_UNAVAILABLE` | 422 |
-| `MODEL_BINDING_UNAVAILABLE` | 422 |
 | `INPUT_SOURCE_UNAVAILABLE` | 422 |
 | `INPUT_VERIFICATION_FAILED` | 400 |
 | `INTERNAL` | 500 |
@@ -103,8 +92,7 @@ Routing policy (which model for which stage, cost budgets, escalation) belongs t
 - `EngineInfo.modelRouting` lists the pipeline `stages` a caller may bind and the `allowedModels` the operator configured (`-allowed-models` / `INSIGHT_LAB_ALLOWED_MODELS`; the configured `-model` is always allowed).
 - `startAnalysis.modelBindings` maps stages to allowed models. Unknown stage → `INVALID_REQUEST`; a model the operator did not allow, or no model endpoint → `MODEL_BINDING_UNAVAILABLE` (422).
 - Bindings are execution configuration: they are recorded per stage in `provenance.execution.llm.models`, change the execution fingerprint (so run comparison attributes the difference to execution), and never change research semantics.
-- Conformance: `17-model-bindings` (requires an engine started with `-model scripted-model -allowed-models scripted-model-large`, see below).
-- `EngineInfo.modelBacked` (#104) is true when analyses use a configured model and can form hypotheses. False means deterministic only: research runs are refused with `ANALYSIS_HAS_NO_HYPOTHESES`, so a consumer that needs research checks this flag before starting an analysis instead of failing afterwards.
+- Conformance: `17-model-bindings`.
 
 ## Limits
 
@@ -126,27 +114,21 @@ The request body is at most 16 MiB. A request carries at most 500 documents and 
 
 ### Conformance
 
-- `contracts/public-engine/v1/fixtures/` holds 17 fixtures. Each names its `engine` (`deterministic` or `model_backed`):
-  1. generic public-data subject (model-backed)
-  2. commerce-like opaque subject (model-backed)
+- `contracts/public-engine/v1/fixtures/` holds the #59 scenarios:
+  1. generic public-data subject
+  2. commerce-like opaque subject
   3. deterministic Analytical Artifact
-  4. missing evidence to added evidence to a new iteration (model-backed)
-  5. counter-evidence (model-backed)
+  4. missing evidence to added evidence to a new iteration
+  5. counter-evidence
   6. contract version mismatch
   7. idempotent requests
-  8. same research results across LIGHT / STANDARD / HEAVY (`08-execution-profile-equivalence`, #91)
-  9. raw/ref input path (`09-raw-artifact-input`, #90)
-  10. run comparison (#83, model-backed)
-  11. re-evaluation (#74, model-backed)
-  12. longitudinal timeline (#71, model-backed)
-  13. scenarios (#66, model-backed)
-  14. data triage (#92)
-  15. re-triage from research gaps (#92, model-backed)
-  16. temporal operation pack (#73)
-  17. model bindings (#65, model-backed; needs `-allowed-models scripted-model-large`)
+  10. run comparison (#83)
+  11. re-evaluation (#74)
+  8. same research results across LIGHT / STANDARD / HEAVY (`08-execution-profile-equivalence`)
+  9. raw/ref input path (`09-raw-artifact-input`)
 - Fixtures 08 and 09 need an engine started with an input root containing `fixtures/data` and, for 08, a HEAVY adapter (`-input-root` and `-heavy-dir`).
 - `internal/http/public_conformance_test.go` starts a deterministic engine and a model-backed engine. It runs every fixture over plain HTTP with `internal/publicengine/conformance`. SDK repositories run the same fixture files against a live engine or recorded responses.
-- The model-backed engine in that test uses the scripted stand-in model from `internal/llm/scripted`, the same one `cmd/insight-scripted-llm` serves over HTTP for SDK repositories. Production code has no fake-model mode: the engine only ever talks to an OpenAI-compatible endpoint. Model-backed fixtures check contract behavior with that model. They do not measure the quality of a real model.
+- The model-backed engine in that test uses a scripted stand-in model defined only in the test. Production code has no fake-model mode. Fixtures 01, 02, 04 and 05 check contract behavior with that model. They do not measure the quality of a real model.
 
 ### Analytical Artifact boundary (#69)
 
@@ -194,8 +176,7 @@ The request body is at most 16 MiB. A request carries at most 500 documents and 
 
 ```sh
 go run ./cmd/insight-scripted-llm -addr 127.0.0.1:8788 &
-go run ./cmd/insight-lab -port 8787 -no-browser -db /tmp/insight-model.db -base-url http://127.0.0.1:8788 \
-  -model scripted-model -allowed-models scripted-model-large -api-key scripted
+go run ./cmd/insight-lab -port 8787 -base-url http://127.0.0.1:8788 -model scripted -api-key scripted -no-browser
 ```
 
-Fixture 17 asserts `modelRouting.allowedModels[0] == "scripted-model-large"` and binds `scripted-model`, so both flags are required as written. Standalone SDK repositories point `INSIGHT_MODEL_BACKED_URL` at that engine to run fixtures whose `engine` is `model_backed`, and `INSIGHT_DETERMINISTIC_URL` at a second engine started with `-input-root <fixtures/data> -heavy-dir <dir>` and its own `-db`. This section is the canonical copy of the setup; the SDK READMEs repeat it and defer to it.
+Standalone SDK repositories point `INSIGHT_MODEL_BACKED_URL` at that engine to run fixtures whose `engine` is `model_backed`.
