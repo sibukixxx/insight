@@ -160,6 +160,10 @@ var routes = map[string]route{
 	"createResearchRun":  {http.MethodPost, "/api/public/v1/subjects/{subjectId}/research-runs"},
 	"appendIteration":    {http.MethodPost, "/api/public/v1/research-runs/{researchRunId}/iterations"},
 	"getResearchRun":     {http.MethodGet, "/api/public/v1/research-runs/{researchRunId}"},
+	"listAnalyses":       {http.MethodGet, "/api/public/v1/subjects/{subjectId}/analyses"},
+	"compareAnalyses":    {http.MethodGet, "/api/public/v1/subjects/{subjectId}/analyses/{analysisId}/compare/{otherAnalysisId}"},
+	"listResearchRuns":   {http.MethodGet, "/api/public/v1/subjects/{subjectId}/research-runs"},
+	"reEvaluate":         {http.MethodPost, "/api/public/v1/research-runs/{researchRunId}/re-evaluations"},
 }
 
 // RegisterRoute lets later contract operations extend the runner.

@@ -14,7 +14,11 @@
     "getAnalysisResults": {"method": "GET", "path": "/api/public/v1/subjects/{subjectId}/analyses/{analysisId}/results", "response": "AnalysisResults", "status": 200},
     "createResearchRun": {"method": "POST", "path": "/api/public/v1/subjects/{subjectId}/research-runs", "request": "CreateResearchRunRequest", "response": "ResearchResult", "status": 201},
     "appendIteration": {"method": "POST", "path": "/api/public/v1/research-runs/{researchRunId}/iterations", "request": "AppendIterationRequest", "response": "ResearchResult", "status": 201},
-    "getResearchRun": {"method": "GET", "path": "/api/public/v1/research-runs/{researchRunId}", "response": "ResearchResult", "status": 200}
+    "getResearchRun": {"method": "GET", "path": "/api/public/v1/research-runs/{researchRunId}", "response": "ResearchResult", "status": 200},
+    "listAnalyses": {"method": "GET", "path": "/api/public/v1/subjects/{subjectId}/analyses", "response": "AnalysisList", "status": 200},
+    "compareAnalyses": {"method": "GET", "path": "/api/public/v1/subjects/{subjectId}/analyses/{analysisId}/compare/{otherAnalysisId}", "response": "RunComparisonResult", "status": 200},
+    "listResearchRuns": {"method": "GET", "path": "/api/public/v1/subjects/{subjectId}/research-runs", "response": "ResearchRunList", "status": 200},
+    "reEvaluate": {"method": "POST", "path": "/api/public/v1/research-runs/{researchRunId}/re-evaluations", "request": "ReEvaluationRequest", "response": "ReEvaluationResult", "status": 201}
   },
   "x-errorCodes": {
     "INVALID_REQUEST": 400,
@@ -25,6 +29,7 @@
     "ANALYSIS_NOT_COMPLETED": 409,
     "ANALYSIS_HAS_NO_HYPOTHESES": 409,
     "MIXED_ANALYSIS_RUNS": 409,
+    "STALE_ITERATION": 409,
     "INTERNAL": 500
   },
   "x-limits": {
@@ -273,11 +278,224 @@
         "artifact": {"type": "object", "description": "The insight-lab.research-artifact v1 export of the latest iteration, verbatim. Its legacy analysisMode key means execution mode."}
       }
     },
+    "AnalysisList": {
+      "type": "object",
+      "required": ["contractVersion", "subjectId", "analyses"],
+      "properties": {
+        "contractVersion": {"$ref": "#/$defs/ContractVersion"},
+        "subjectId": {"type": "string"},
+        "analyses": {"type": "array", "items": {"$ref": "#/$defs/AnalysisRun"}, "description": "Every analysis run of the subject, oldest first."}
+      }
+    },
+    "RunComparisonResult": {
+      "type": "object",
+      "required": ["contractVersion", "subjectId", "comparison"],
+      "properties": {
+        "contractVersion": {"$ref": "#/$defs/ContractVersion"},
+        "subjectId": {"type": "string"},
+        "comparison": {"$ref": "#/$defs/RunComparison"}
+      }
+    },
+    "RunComparison": {
+      "type": "object",
+      "description": "Non-persistent comparison of two analysis runs of one subject (#83). It attributes a result delta to the input or execution axis. It never judges which run is better and never claims a cause.",
+      "required": ["from", "to", "input", "execution", "attribution", "repeatGroups", "metrics", "insights", "explanation"],
+      "properties": {
+        "from": {"$ref": "#/$defs/RunRef"},
+        "to": {"$ref": "#/$defs/RunRef"},
+        "input": {"$ref": "#/$defs/InputAxisDiff"},
+        "execution": {"$ref": "#/$defs/ExecutionAxisDiff"},
+        "attribution": {"type": "string", "enum": ["SAME_CONFIGURATION", "EXECUTION_CHANGE", "INPUT_CHANGE", "CONFOUNDED", "ATTRIBUTION_UNAVAILABLE"]},
+        "repeatGroups": {"type": "array", "items": {"$ref": "#/$defs/RepeatGroup"}},
+        "metrics": {"type": "array", "items": {"$ref": "#/$defs/MetricDelta"}},
+        "insights": {"$ref": "#/$defs/InsightResultDiff"},
+        "explanation": {"type": "array", "items": {"type": "string"}, "minItems": 1, "description": "The first entry always states that differences are not evidence of cause."}
+      }
+    },
+    "RunRef": {
+      "type": "object",
+      "required": ["analysisId", "status", "createdAt"],
+      "properties": {
+        "analysisId": {"type": "string"},
+        "status": {"type": "string"},
+        "createdAt": {"type": "string", "format": "date-time"},
+        "inputFingerprint": {"type": "string", "description": "Absent when not recorded; never read as the same as another run."},
+        "executionFingerprint": {"type": "string", "description": "Absent when not recorded; never read as the same as another run."}
+      }
+    },
+    "AxisState": {"type": "string", "enum": ["SAME", "CHANGED", "UNKNOWN"]},
+    "FieldChange": {
+      "type": "object",
+      "required": ["field", "from", "to"],
+      "properties": {
+        "field": {"type": "string"},
+        "from": {"type": "string", "description": "Empty when the field was absent."},
+        "to": {"type": "string", "description": "Empty when the field was absent."}
+      }
+    },
+    "ExecutionAxisDiff": {
+      "type": "object",
+      "required": ["state", "changes"],
+      "properties": {
+        "state": {"$ref": "#/$defs/AxisState"},
+        "changes": {"type": "array", "items": {"$ref": "#/$defs/FieldChange"}, "description": "Field-level diff: engineVersion, gitCommit, gitDirty, executionMode, semanticAnalysisMode, ruleVersions.*, promptVersion, promptFingerprint, provider, models.*, parameters."}
+      }
+    },
+    "InputAxisDiff": {
+      "type": "object",
+      "required": ["state", "documentsAdded", "documentsRemoved", "datasetHashesAdded", "datasetHashesRemoved", "datasetsAdded", "datasetsRemoved"],
+      "properties": {
+        "state": {"$ref": "#/$defs/AxisState"},
+        "documentsAdded": {"type": "array", "items": {"type": "string"}, "description": "source:contentHash:metadataHash identities."},
+        "documentsRemoved": {"type": "array", "items": {"type": "string"}},
+        "datasetHashesAdded": {"type": "array", "items": {"type": "string"}},
+        "datasetHashesRemoved": {"type": "array", "items": {"type": "string"}},
+        "datasetsAdded": {"type": "array", "items": {"type": "string"}, "description": "datasetId@schemaVersion:fileHash identities."},
+        "datasetsRemoved": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "MetricDelta": {
+      "type": "object",
+      "required": ["metric", "from", "to", "delta"],
+      "properties": {
+        "metric": {"type": "string"},
+        "from": {"type": ["number", "null"]},
+        "to": {"type": ["number", "null"]},
+        "delta": {"type": ["number", "null"], "description": "Null unless both runs recorded the metric."}
+      }
+    },
+    "InsightMatch": {
+      "type": "object",
+      "required": ["fromInsightId", "toInsightId", "method", "score", "changes"],
+      "properties": {
+        "fromInsightId": {"type": "string"},
+        "toInsightId": {"type": "string"},
+        "method": {"type": "string", "enum": ["EXACT_EVIDENCE_SPANS", "EVIDENCE_SPAN_OVERLAP", "HYPOTHESIS_COMPARISON_KEY"]},
+        "score": {"type": "number", "minimum": 0, "maximum": 1},
+        "changes": {"type": "array", "items": {"$ref": "#/$defs/FieldChange"}}
+      }
+    },
+    "InsightResultDiff": {
+      "type": "object",
+      "required": ["added", "removed", "matched"],
+      "properties": {
+        "added": {"type": "array", "items": {"type": "string"}},
+        "removed": {"type": "array", "items": {"type": "string"}},
+        "matched": {"type": "array", "items": {"$ref": "#/$defs/InsightMatch"}}
+      }
+    },
+    "MetricRange": {
+      "type": "object",
+      "required": ["metric", "min", "max"],
+      "properties": {
+        "metric": {"type": "string"},
+        "min": {"type": "number"},
+        "max": {"type": "number"}
+      }
+    },
+    "RepeatGroup": {
+      "type": "object",
+      "required": ["key", "analysisIds", "runs", "variationKnown", "metrics"],
+      "properties": {
+        "key": {"type": "string", "description": "inputFingerprint|executionFingerprint."},
+        "analysisIds": {"type": "array", "items": {"type": "string"}},
+        "runs": {"type": "integer"},
+        "variationKnown": {"type": "boolean", "description": "False for a single run: variation is unknown, not zero."},
+        "metrics": {"type": "array", "items": {"$ref": "#/$defs/MetricRange"}}
+      }
+    },
+    "ResearchRunSummary": {
+      "type": "object",
+      "required": ["researchRunId", "question", "iterationCount", "latestIterationId", "latestIterationSequence", "createdAt"],
+      "properties": {
+        "researchRunId": {"type": "string"},
+        "question": {"type": "string"},
+        "iterationCount": {"type": "integer"},
+        "latestIterationId": {"type": "string"},
+        "latestIterationSequence": {"type": "integer"},
+        "createdAt": {"type": "string", "format": "date-time"}
+      }
+    },
+    "ResearchRunList": {
+      "type": "object",
+      "required": ["contractVersion", "subjectId", "researchRuns"],
+      "properties": {
+        "contractVersion": {"$ref": "#/$defs/ContractVersion"},
+        "subjectId": {"type": "string"},
+        "researchRuns": {"type": "array", "items": {"$ref": "#/$defs/ResearchRunSummary"}}
+      }
+    },
+    "ReEvaluationTrigger": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": {
+        "kind": {"type": "string", "enum": ["MANUAL", "SCHEDULED"]},
+        "source": {"type": "string", "maxLength": 128, "description": "Opaque name of the scheduler or person; never interpreted."}
+      }
+    },
+    "EvidenceChanges": {
+      "type": "object",
+      "required": ["added", "removed", "changed"],
+      "properties": {
+        "added": {"type": "array", "items": {"type": "string"}, "maxItems": 500},
+        "removed": {"type": "array", "items": {"type": "string"}, "maxItems": 500},
+        "changed": {"type": "array", "items": {"type": "string"}, "maxItems": 500}
+      }
+    },
+    "ReEvaluationRequest": {
+      "type": "object",
+      "description": "Re-evaluate a research run because new evidence arrived (#74). analysisId names a completed analysis run over the new evidence. The engine schedules nothing itself.",
+      "required": ["contractVersion", "idempotencyKey", "correlationKey", "previousIterationId", "analysisId", "trigger", "evidenceChanges"],
+      "properties": {
+        "contractVersion": {"$ref": "#/$defs/ContractVersion"},
+        "idempotencyKey": {"$ref": "#/$defs/IdempotencyKey"},
+        "correlationKey": {"type": "string", "minLength": 1, "maxLength": 128, "description": "Caller correlation id. Reusing it with the same analysisId returns ALREADY_EVALUATED; with another analysisId it is IDEMPOTENCY_CONFLICT."},
+        "previousIterationId": {"type": "string", "description": "Must be the latest iteration, otherwise STALE_ITERATION."},
+        "analysisId": {"type": "string"},
+        "trigger": {"$ref": "#/$defs/ReEvaluationTrigger"},
+        "evidenceChanges": {"$ref": "#/$defs/EvidenceChanges"},
+        "affectedGapIds": {"type": "array", "items": {"type": "string"}, "maxItems": 500},
+        "note": {"type": "string", "maxLength": 2000}
+      }
+    },
+    "ReEvaluationRecord": {
+      "type": "object",
+      "description": "Audit record attached to the iteration a re-evaluation created. Earlier iterations are never modified.",
+      "required": ["correlationKey", "previousIterationId", "trigger", "evidenceChanges", "affectedGapIds", "affectedHypothesisIds", "scope", "scopeReason", "recordedAt"],
+      "properties": {
+        "correlationKey": {"type": "string"},
+        "previousIterationId": {"type": "string"},
+        "trigger": {"$ref": "#/$defs/ReEvaluationTrigger"},
+        "evidenceChanges": {"$ref": "#/$defs/EvidenceChanges"},
+        "affectedGapIds": {"type": "array", "items": {"type": "string"}},
+        "affectedHypothesisIds": {"type": "array", "items": {"type": "string"}},
+        "scope": {"type": "string", "enum": ["FULL"], "description": "Partial re-evaluation is not yet proven safe, so the whole iteration is re-evaluated."},
+        "scopeReason": {"type": "string"},
+        "inputFingerprintBefore": {"type": "string"},
+        "inputFingerprintAfter": {"type": "string"},
+        "executionFingerprintBefore": {"type": "string"},
+        "executionFingerprintAfter": {"type": "string"},
+        "note": {"type": "string"},
+        "recordedAt": {"type": "string", "format": "date-time"}
+      }
+    },
+    "ReEvaluationResult": {
+      "type": "object",
+      "required": ["contractVersion", "subjectId", "researchRunId", "status", "reEvaluation", "result"],
+      "properties": {
+        "contractVersion": {"$ref": "#/$defs/ContractVersion"},
+        "subjectId": {"type": "string"},
+        "researchRunId": {"type": "string"},
+        "status": {"type": "string", "enum": ["NEW_ITERATION", "NO_EVIDENCE_CHANGE", "ALREADY_EVALUATED"], "description": "NEW_ITERATION returns 201; the others return 200 and append nothing."},
+        "reEvaluation": {"$ref": "#/$defs/ReEvaluationRecord"},
+        "result": {"$ref": "#/$defs/ResearchResult"}
+      }
+    },
     "ErrorBody": {
       "type": "object",
       "required": ["code", "message"],
       "properties": {
-        "code": {"type": "string", "enum": ["INVALID_REQUEST", "UNSUPPORTED_CONTRACT_VERSION", "NOT_FOUND", "IDEMPOTENCY_CONFLICT", "IDENTITY_CONFLICT", "ANALYSIS_NOT_COMPLETED", "ANALYSIS_HAS_NO_HYPOTHESES", "MIXED_ANALYSIS_RUNS", "INTERNAL"]},
+        "code": {"type": "string", "enum": ["INVALID_REQUEST", "UNSUPPORTED_CONTRACT_VERSION", "NOT_FOUND", "IDEMPOTENCY_CONFLICT", "IDENTITY_CONFLICT", "ANALYSIS_NOT_COMPLETED", "ANALYSIS_HAS_NO_HYPOTHESES", "MIXED_ANALYSIS_RUNS", "STALE_ITERATION", "INTERNAL"]},
         "message": {"type": "string"}
       }
     },
