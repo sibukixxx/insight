@@ -136,4 +136,4 @@ not verified trade statistics. There is no UI or application-specific behavior.
 Synthetic trade+FX fixture for the pack:
 contracts/analytical-artifact/v1/fixtures/trade-fx-temporal.json (monthly,
 with a missing window, an unreported window and a spike; not real statistics).
-Conformance: contracts/public-engine/v1/fixtures/12-temporal-operation-pack.json.
+Conformance: contracts/public-engine/v1/fixtures/16-temporal-operation-pack.json.

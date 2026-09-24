@@ -1,5 +1,5 @@
 {
- "fixture": "12-temporal-operation-pack",
+ "fixture": "16-temporal-operation-pack",
  "contractVersion": "1",
  "covers": "#73 temporal analytics pack: a declarative, versioned operation over temporal trade+FX results returns a reproducible derived Analytical Artifact; unknown operations are rejected",
  "engine": "deterministic",
