@@ -67,7 +67,7 @@ The SDKs add `UNAVAILABLE` for an unreachable engine or a non-contract response.
 - Adding an optional field is additive and does not change the version. Receivers ignore unknown fields.
 - Renaming or removing a field, changing its meaning, or adding a required field needs a new contract version.
 - The embedded research artifact keeps its own `artifactSchema` and `schemaVersion`. Its legacy `analysisMode` key means execution mode. The contract itself uses `executionMode`.
-- Go SDK tags follow `sdk/go/vX.Y.Z`. The npm package declares supported contract versions in `insightContractVersions`.
+- Standalone SDKs pin the contract version and record the upstream insight commit of the vendored schema/fixtures. They declare the contract versions they speak.
 
 ## Limits
 
@@ -75,17 +75,17 @@ The request body is at most 16 MiB. A request carries at most 500 documents and 
 
 ## Decisions
 
-### Packaging (#76, #77)
+### Packaging (#59, #94)
 
-- **Go SDK: module `github.com/sibukixxx/insight/sdk/go`, nested in this repository.** It has no dependencies and cannot import Insight's `internal/*` packages because it is a different module. The core module path is `insight-lab`, which cannot be fetched with `go get`, so a nested module with a hosted path is the only way to make the SDK installable without renaming the core. Split into its own repository only if its release cadence diverges from the contract.
-- **TypeScript SDK: package `@sibukixxx/insight-sdk` in `sdk/node`.** Types are generated from the schema by `scripts/generate-types.mjs`. The source uses erasable TypeScript only, so Node 22.18+ runs it directly and `tsc` builds `dist/` for publishing. The package is not published yet.
-- **Why stay in the core repository.** Keeping both SDKs next to the schema lets one change update the contract, the server and both SDKs, with the drift checks failing on any mismatch. The constraint that matters is independent versioning without semantic drift, not repository count.
+- This repository owns the contract, schema, fixtures and server. It contains **no SDK implementation** and never depends on an SDK repository.
+- **Go SDK:** standalone repository [`sibukixxx/insight-sdk-go`](https://github.com/sibukixxx/insight-sdk-go), module `github.com/sibukixxx/insight-sdk-go`.
+- **TypeScript SDK:** standalone repository [`sibukixxx/insight-sdk-js`](https://github.com/sibukixxx/insight-sdk-js).
+- Both started as the v0 implementation from PR #87 (`feat/public-engine-sdk`) and were extracted rather than rewritten. SDKs are optional: the engine is fully usable through this HTTP contract alone.
 
 ### Single source of truth and drift checks
 
 - `internal/publicengine/drift_test.go` checks server wire types against the schema.
-- `sdk/go/drift_test.go` checks the Go SDK against the schema.
-- `sdk/node/test/drift.test.ts` fails when `src/contract.gen.ts` is stale or a fixture uses an unknown operation or error code.
+- Each SDK repository runs its own drift check against its vendored copy of `schema.json`.
 
 ### Conformance
 
@@ -97,7 +97,7 @@ The request body is at most 16 MiB. A request carries at most 500 documents and 
   5. counter-evidence
   6. contract version mismatch
   7. idempotent requests
-- `internal/http/public_conformance_test.go` starts a deterministic engine and a model-backed engine. It runs every fixture through the Go SDK, then runs the Node SDK suite against the same engines.
+- `internal/http/public_conformance_test.go` starts a deterministic engine and a model-backed engine. It runs every fixture over plain HTTP with `internal/publicengine/conformance`. SDK repositories run the same fixture files against a live engine or recorded responses.
 - The model-backed engine in that test uses a scripted stand-in model defined only in the test. Production code has no fake-model mode. Fixtures 01, 02, 04 and 05 check contract behavior with that model. They do not measure the quality of a real model.
 
 ### Analytical Artifact boundary (#69)
