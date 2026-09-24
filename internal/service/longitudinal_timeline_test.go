@@ -201,3 +201,23 @@ func TestValidateNextWindowRejectsRetroactiveAsOf(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestBuildLongitudinalTimelineDoesNotTreatIncrementalEvidenceAsRemoval(t *testing.T) {
+	run := domain.ResearchRun{ID: "r", Iterations: []domain.ResearchIteration{
+		{ID: "i1", Sequence: 1},
+		{ID: "i2", Sequence: 2, AddedEvidence: []string{"e-2023"}},
+		{ID: "i3", Sequence: 3, AddedEvidence: []string{"e-2024"}},
+	}}
+	tl := BuildLongitudinalTimeline(run, TimelineSources{})
+	if len(tl.EvidenceEvents) != 2 {
+		t.Fatalf("events = %+v", tl.EvidenceEvents)
+	}
+	for _, e := range tl.EvidenceEvents {
+		if e.Kind != domain.EvidenceAdded {
+			t.Fatalf("incremental evidence produced %s for %s", e.Kind, e.Reference)
+		}
+	}
+	if tl.InsightVersions[0].Attribution != domain.AttributedToEvidence || tl.InsightVersions[1].Attribution != domain.AttributedToEvidence {
+		t.Fatalf("attribution = %+v", tl.InsightVersions)
+	}
+}

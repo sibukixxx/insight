@@ -34,6 +34,7 @@ func BuildLongitudinalTimeline(run domain.ResearchRun, src TimelineSources) doma
 		},
 	}
 	unwindowed := false
+	seen := map[string]bool{}
 	for i, it := range its {
 		var prev *domain.ResearchIteration
 		if i > 0 {
@@ -47,7 +48,7 @@ func BuildLongitudinalTimeline(run domain.ResearchRun, src TimelineSources) doma
 		}
 		t.Iterations = append(t.Iterations, timelineIteration(it, prev))
 
-		events := evidenceEvents(it, prev, src)
+		events := evidenceEvents(it, prev, src, seen)
 		deltas, defEvents := observationDeltas(it, prev, src)
 		events = append(events, defEvents...)
 		t.EvidenceEvents = append(t.EvidenceEvents, events...)
@@ -133,22 +134,30 @@ func setOf(list []string) map[string]bool {
 	return out
 }
 
-func iterationRefs(it domain.ResearchIteration) []string {
+// declaredRefs is the full input set a caller declared for an iteration.
+// Removal can only be observed against a declared set; incremental
+// addedEvidence never implies that earlier evidence was removed.
+func declaredRefs(it domain.ResearchIteration) []string {
+	return uniqueRefs(it.InputSnapshot.ArtifactReferences)
+}
+
+// addedRefs is evidence supplied incrementally for an iteration.
+func addedRefs(it domain.ResearchIteration) []string {
+	refs := append([]string(nil), it.AddedEvidence...)
+	for _, l := range it.AddedEvidenceLinks {
+		refs = append(refs, l.Reference)
+	}
+	return uniqueRefs(append(refs, it.InputSnapshot.EvidenceReferences...))
+}
+
+func uniqueRefs(list []string) []string {
 	var out []string
 	seen := map[string]bool{}
-	add := func(list ...string) {
-		for _, r := range list {
-			if r = strings.TrimSpace(r); r != "" && !seen[r] {
-				seen[r] = true
-				out = append(out, r)
-			}
+	for _, r := range list {
+		if r = strings.TrimSpace(r); r != "" && !seen[r] {
+			seen[r] = true
+			out = append(out, r)
 		}
-	}
-	add(it.InputSnapshot.ArtifactReferences...)
-	add(it.InputSnapshot.EvidenceReferences...)
-	add(it.AddedEvidence...)
-	for _, l := range it.AddedEvidenceLinks {
-		add(l.Reference)
 	}
 	return out
 }
@@ -163,28 +172,28 @@ func gapIDsFor(it domain.ResearchIteration, ref string) []string {
 	return out
 }
 
-func evidenceEvents(it domain.ResearchIteration, prev *domain.ResearchIteration, src TimelineSources) []domain.EvidenceEvent {
-	current := iterationRefs(it)
+func evidenceEvents(it domain.ResearchIteration, prev *domain.ResearchIteration, src TimelineSources, seen map[string]bool) []domain.EvidenceEvent {
 	var events []domain.EvidenceEvent
 	add := func(kind domain.EvidenceChangeKind, ref, detail string) {
 		events = append(events, domain.EvidenceEvent{IterationID: it.ID, Sequence: it.Sequence, Kind: kind, Reference: ref, GapIDs: gapIDsFor(it, ref), Detail: detail})
 	}
-	if prev == nil {
-		for _, r := range current {
+	declared := declaredRefs(it)
+	for _, r := range uniqueRefs(append(append([]string(nil), declared...), addedRefs(it)...)) {
+		if !seen[r] {
+			seen[r] = true
 			add(domain.EvidenceAdded, r, "")
 		}
+	}
+	if prev == nil {
 		return events
 	}
-	before := setOf(iterationRefs(*prev))
-	after := setOf(current)
-	for _, r := range current {
-		if !before[r] {
-			add(domain.EvidenceAdded, r, "")
-		}
-	}
-	for _, r := range iterationRefs(*prev) {
-		if !after[r] {
-			add(domain.EvidenceRemoved, r, "")
+	if len(declared) > 0 {
+		current := setOf(declared)
+		for _, r := range declaredRefs(*prev) {
+			if !current[r] {
+				delete(seen, r)
+				add(domain.EvidenceRemoved, r, "")
+			}
 		}
 	}
 	if it.AnalysisID != "" && prev.AnalysisID != "" && it.AnalysisID != prev.AnalysisID {
