@@ -40,3 +40,23 @@ func TestPublicAnalysisRejectsOverlongResearchQuestion(t *testing.T) {
 		t.Fatalf("code = %s (%s), want %s", got.Code, got.Message, CodeInvalidRequest)
 	}
 }
+
+
+func TestStartAnalysisReturnsNormalizedResearchQuestion(t *testing.T) {
+	e := newTestEngine(t)
+	subjectID := createTestSubject(t, e)
+	_, body, err := e.StartAnalysis(context.Background(), subjectID, StartAnalysisRequest{
+		ContractVersion: "1", IdempotencyKey: "question-analysis",
+		ResearchQuestion: "  Which explanation best accounts for the recorded change?  ",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var run AnalysisRun
+	if err := json.Unmarshal(body, &run); err != nil {
+		t.Fatal(err)
+	}
+	if run.ResearchQuestion != "Which explanation best accounts for the recorded change?" {
+		t.Fatalf("researchQuestion = %q", run.ResearchQuestion)
+	}
+}
