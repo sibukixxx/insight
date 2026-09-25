@@ -30,6 +30,8 @@ type Deps struct {
 	// PublicEngine serves the Public Engine Contract under /api/public/v1.
 	// It is not mounted when nil.
 	PublicEngine *publicengine.Engine
+	// NoWeb disables the embedded Reference Web; only the APIs are served.
+	NoWeb bool
 
 	Build handler.BuildInfo
 }
@@ -112,6 +114,8 @@ func NewRouter(deps Deps) http.Handler {
 		r.Get("/insights/{insightID}/evidence", h.GetInsightEvidence)
 	})
 
-	r.Handle("/*", web.Handler())
+	if !deps.NoWeb {
+		r.Handle("/*", web.Handler())
+	}
 	return r
 }

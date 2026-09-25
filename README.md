@@ -396,6 +396,33 @@ See [Research Loop dogfooding](docs/research-loop.md).
 - Go 1.25+
 - An OpenAI-compatible API only when model-backed interpretation is required
 
+### Ways to use Insight
+
+| Surface | For | How |
+|---|---|---|
+| **Headless CLI** | local operators, scripts, CI | `insight-lab <command>` — JSON on stdout, JSON errors + exit codes, no server, no browser |
+| **API / SDK** | applications and automation over HTTP | `insight-lab serve -no-web` exposes `/api/public/v1`; optional clients [`insight-sdk-go`](https://github.com/sibukixxx/insight-sdk-go) / [`insight-sdk-js`](https://github.com/sibukixxx/insight-sdk-js) |
+| **Reference Web** | inspecting engine operations by hand | `insight-lab serve` (default) serves the embedded UI; `-no-web` turns it off |
+| **Downstream product UI** | managed/business workflows (e.g. TechVit Insight) | lives in the consumer's own repository and talks to the API; not part of this project |
+
+All four use the same engine wiring and Public Engine Contract operations; none adds research semantics.
+
+### Headless research flow
+
+```bash
+make build
+DB=./research.db
+MODEL="-base-url https://api.example/v1 -model my-model -api-key $KEY"   # needed for hypotheses
+S=$(./bin/insight-lab subject create -db $DB -namespace my-app -id item-1 | jq -r .subjectId)
+./bin/insight-lab evidence add -db $DB -subject $S -document interview.txt          # or -artifact a.json / -request req.json
+A=$(./bin/insight-lab analysis start -db $DB $MODEL -subject $S -research-question "Why did churn rise?" | jq -r .analysisId)
+R=$(./bin/insight-lab research start -db $DB $MODEL -subject $S -analysis $A -question "Why did churn rise?" | jq -r .researchRunId)
+./bin/insight-lab research export -db $DB -run $R -out artifact.json                 # versioned Research Artifact
+./bin/insight-lab status -db $DB -subject $S
+```
+
+Exit codes: `0` ok, `1` internal, `2` usage, `3` not found, `4` rejected request, `5` conflict/refused (e.g. `ANALYSIS_HAS_NO_HYPOTHESES`), `6` capability unavailable (profile/model binding/input source), `7` analysis failed. `insight-lab help` lists every command; the existing `insight-lab [flags]` invocation still starts the server.
+
 ### Run the fictional demo
 
 ```bash

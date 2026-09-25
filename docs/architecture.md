@@ -58,9 +58,13 @@ They never substitute for each other. ExecutionProfile must not change hypothesi
 
 ```sh
 make build
-./bin/insight-lab -no-browser                    # UI + /api + /api/public/v1 on 127.0.0.1:8787
-./bin/insight-lab -input-root ./data -heavy-dir ./heavy   # enable raw references and HEAVY
+./bin/insight-lab serve -no-browser              # UI + /api + /api/public/v1 on 127.0.0.1:8787
+./bin/insight-lab serve -no-web                  # API only, no Reference Web
+./bin/insight-lab serve -input-root ./data -heavy-dir ./heavy   # enable raw references and HEAVY
+./bin/insight-lab engine                         # headless: engine capabilities as JSON
 ```
+
+Headless commands (`subject`, `evidence`, `analysis`, `research`, `status`) run the same engine in-process without HTTP or a browser; see the README "Headless research flow".
 
 ```sh
 # create a subject over the public contract

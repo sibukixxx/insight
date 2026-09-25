@@ -407,6 +407,19 @@ Evidence
 
 ## Quick Start
 
+### 利用面（CLI / API・SDK / Reference Web / 下流プロダクト UI）
+
+| 利用面 | 用途 | 使い方 |
+|---|---|---|
+| **Headless CLI** | ローカル運用・スクリプト・CI | `insight-lab <command>`。stdout に JSON、エラーは stderr に JSON と終了コード。サーバもブラウザも起動しない |
+| **API / SDK** | HTTP 経由のアプリ・自動化 | `insight-lab serve -no-web` で `/api/public/v1` を提供。任意で `insight-sdk-go` / `insight-sdk-js` |
+| **Reference Web** | engine 操作の手動確認 | `insight-lab serve`（既定）で同梱 UI を提供。`-no-web` で無効化 |
+| **下流プロダクト UI** | 管理・業務ワークフロー（例: TechVit Insight） | consumer 側のリポジトリにあり API を使う。本プロジェクトには含まない |
+
+どれも同じ engine の配線と Public Engine Contract の操作を使い、研究の意味論を追加しない。
+Headless の一連の流れ（subject → evidence → analysis → research → export → status）と終了コードは英語版 README の "Headless research flow" を参照。従来の `insight-lab [flags]` はこれまでどおりサーバを起動する。
+
+
 ### 必要環境
 
 - Go 1.25+

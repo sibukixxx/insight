@@ -6,6 +6,7 @@ import (
 	"insight-lab/internal/execution"
 	"insight-lab/internal/input"
 	"net/http"
+	"os"
 	"time"
 
 	"insight-lab/internal/buildinfo"
@@ -21,12 +22,29 @@ import (
 
 const analysisWorkers = 2
 
-func Run(ctx context.Context, cfg *Config) error {
+// Engine is the wired engine shared by the HTTP server and the headless
+// CLI: the same repositories, use cases, job manager and Public Engine.
+type Engine struct {
+	DB         *sqlite.DB
+	App        *usecase.Application
+	Settings   *service.SettingsStore
+	JobManager *service.JobManager
+	Public     *publicengine.Engine
+	Demo       *service.DemoLoader
+}
+
+// Close stops the analysis workers (after ctx is cancelled) and closes the DB.
+func (e *Engine) Close() error {
+	e.JobManager.Wait()
+	return e.DB.Close()
+}
+
+// Open wires the engine and starts analysis workers bound to ctx.
+func Open(ctx context.Context, cfg *Config) (*Engine, error) {
 	db, err := sqlite.Open(cfg.DBPath)
 	if err != nil {
-		return fmt.Errorf("open database: %w", err)
+		return nil, fmt.Errorf("open database: %w", err)
 	}
-	defer db.Close()
 
 	projects := sqlite.NewProjectRepository(db)
 	documents := sqlite.NewDocumentRepository(db)
@@ -40,17 +58,17 @@ func Run(ctx context.Context, cfg *Config) error {
 	demoLoader := &service.DemoLoader{Projects: projects, Documents: documents}
 	if cfg.Demo {
 		if !sampledata.Embedded {
-			return fmt.Errorf("this is a delivery build with no demo dataset embedded; build with `make build-demo` to get one")
+			return nil, fmt.Errorf("this is a delivery build with no demo dataset embedded; build with `make build-demo` to get one")
 		}
 		if _, err := demoLoader.Ensure(ctx); err != nil {
-			return fmt.Errorf("load demo dataset: %w", err)
+			return nil, fmt.Errorf("load demo dataset: %w", err)
 		}
 	}
 
 	if n, err := analyses.FailInterrupted(ctx); err != nil {
-		return fmt.Errorf("recover interrupted analyses: %w", err)
+		return nil, fmt.Errorf("recover interrupted analyses: %w", err)
 	} else if n > 0 {
-		fmt.Printf("Marked %d unfinished analyses from the previous run as failed.\n", n)
+		fmt.Fprintf(os.Stderr, "Marked %d unfinished analyses from the previous run as failed.\n", n)
 	}
 
 	settings := service.NewSettingsStore(service.Settings{APIKey: cfg.APIKey, Model: cfg.Model, BaseURL: cfg.BaseURL})
@@ -85,12 +103,26 @@ func Run(ctx context.Context, cfg *Config) error {
 		}
 		return service.DefaultLLMClientFactory(current), current.Model, true
 	})
+	return &Engine{DB: db, App: application, Settings: settings, JobManager: jobManager, Public: publicEngine, Demo: demoLoader}, nil
+}
+
+// Run serves the API and, unless NoWeb, the embedded Reference Web.
+func Run(ctx context.Context, cfg *Config) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	eng, err := Open(ctx, cfg)
+	if err != nil {
+		return err
+	}
+	defer func() { cancel(); eng.DB.Close() }()
+	application, settings, jobManager, publicEngine, demoLoader := eng.App, eng.Settings, eng.JobManager, eng.Public, eng.Demo
 
 	router := httpapi.NewRouter(httpapi.Deps{
 		App:  application,
 		Demo: demoLoader, Settings: settings, JobManager: jobManager,
 		NewLLMClient: service.DefaultLLMClientFactory,
 		PublicEngine: publicEngine,
+		NoWeb:        cfg.NoWeb,
 		Build: handler.BuildInfo{
 			DemoBuild:  sampledata.Embedded,
 			ClientName: cfg.ClientName,
@@ -127,7 +159,7 @@ func Run(ctx context.Context, cfg *Config) error {
 		}
 	}()
 
-	if !cfg.NoBrowser {
+	if !cfg.NoBrowser && !cfg.NoWeb {
 		fmt.Println("Opening browser...")
 		go openBrowser(displayURL)
 	}
