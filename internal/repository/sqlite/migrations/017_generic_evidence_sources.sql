@@ -1,5 +1,5 @@
 -- Expand the document source vocabulary for domain-neutral research.
-//
+--
 -- The original schema reflected the project's customer-research roots.
 -- Preserve every existing row and dependent observation/evidence relationship
 -- while rebuilding the CHECK constraint with generic evidence categories.
