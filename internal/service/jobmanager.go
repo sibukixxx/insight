@@ -161,14 +161,13 @@ func (m *JobManager) Enqueue(ctx context.Context, req EnqueueRequest) (*domain.A
 		return nil, fmt.Errorf("capture execution snapshot: %w", err)
 	}
 	execution.ExecutionProfile = &resolution
-	execution.ResearchQuestion = req.ResearchQuestion
 	executionJSON, err := json.Marshal(execution)
 	if err != nil {
 		return nil, fmt.Errorf("encode execution snapshot: %w", err)
 	}
 	a := &domain.Analysis{
 		ID: newID("ana"), ProjectID: req.ProjectID, Status: domain.AnalysisQueued, CreatedAt: now,
-		Label: req.Label, Note: req.Note, SemanticAnalysisMode: req.SemanticAnalysisMode,
+		Label: req.Label, Note: req.Note, SemanticAnalysisMode: req.SemanticAnalysisMode, ResearchQuestion: req.ResearchQuestion,
 		ExecutionSnapshot: string(executionJSON), ExecutionFingerprint: execution.ExecutionFingerprint,
 	}
 	if err := m.analyses.Create(ctx, a); err != nil {
@@ -212,12 +211,10 @@ func (m *JobManager) run(ctx context.Context, analysisID string) {
 		client = newStageRouter(settings, m.newLLMClient)
 	}
 
-	var executionSnapshot ExecutionSnapshot
-	_ = json.Unmarshal([]byte(a.ExecutionSnapshot), &executionSnapshot)
 	pipeline := &Pipeline{
 		Documents: m.pipeline.Documents, Observations: m.pipeline.Observations,
 		Patterns: m.pipeline.Patterns, Insights: m.pipeline.Insights, Evidence: m.pipeline.Evidence,
-		LLM: client, Model: settings.Model, ResearchQuestion: executionSnapshot.ResearchQuestion,
+		LLM: client, Model: settings.Model, ResearchQuestion: a.ResearchQuestion,
 	}
 
 	now := time.Now().UTC()
