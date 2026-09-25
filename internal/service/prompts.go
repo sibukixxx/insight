@@ -161,10 +161,10 @@ The supplied evidence is being examined as customer/user research. Apply this sp
 		}
 	default:
 		if step == "insight_writeup" {
-			return "
+			return `
 
 Reasoning profile: GENERAL_RESEARCH.
-- productOpportunity and monetizationAngle must be empty strings. Commercial projections belong to an explicit specialization or downstream consumer."
+- productOpportunity and monetizationAngle must be empty strings. Commercial projections belong to an explicit specialization or downstream consumer.`
 		}
 		return ""
 	}
