@@ -33,37 +33,35 @@
     completed: "Complete",
   };
 
-  // Two kinds of "noticing" the pipeline records (see docs/detailed-design.md §23):
-  // a deviation is a behavior that broke a common-sense expectation (the
-  // trace an unconscious desire leaves behind); a repetition is a behavior
-  // seen across several people.
+  // Two inspectable finding kinds: a mismatch against an expectation/baseline,
+  // and a repeated regularity across grounded observations.
   const DEVIATION_LABELS = {
     contradiction: "Words contradict actions",
     excess_effort: "Extra effort despite urgency",
     excess_payment: "Pays more than planned",
     persistence: "Continues despite dissatisfaction",
     absence: "Expected action is absent",
-    other: "Other unexpected behavior",
+    other: "Other expectation mismatch",
   };
 
   // App-side quality warnings. These are computed deterministically after
   // the model has spoken; they are hints for the researcher, not verdicts.
   const QUALITY_FLAG_LABELS = {
     stated_need_echo: {
-      label: "Restates the stated need",
-      desc: "The latent need closely matches the stated need. A need the participant already recognizes and expresses is not a hidden insight.",
+      label: "Restates the stated need (legacy)",
+      desc: "Legacy customer-research check; it applies only when a stated need exists.",
     },
     generic_term: {
-      label: "Generic language",
-      desc: "The latent need relies on a broad abstraction. Check whether it can name the specific desire that drove the behavior.",
+      label: "Generic need language (legacy)",
+      desc: "Legacy customer-research check; it applies only when a stated need exists.",
     },
     no_trace: {
-      label: "No behavioral trace",
-      desc: "This hypothesis comes only from repetition, not a deviation from expected behavior. It may be well supported but unsurprising.",
+      label: "No expectation mismatch",
+      desc: "This hypothesis comes only from repetition, not a grounded mismatch against a baseline or expectation.",
     },
     abduction_incomplete: {
       label: "Incomplete reasoning",
-      desc: "The expected behavior or surprising fact is missing, so the reader cannot audit the expectation-to-deviation-to-hypothesis chain.",
+      desc: "The baseline/expectation or surprising fact is missing, so the reader cannot audit the expectation-to-mismatch-to-hypothesis chain.",
     },
     insufficient_competing_hypotheses: {
       label: "Too few competing explanations",
@@ -780,9 +778,9 @@
       </div>`;
     return `
       <div class="abduction">
-        ${step("1", "Expected behavior", insight.expectation, "abduction-expect")}
-        ${step("2", "Surprising fact (the deviation)", insight.surprisingFact, "abduction-fact")}
-        ${step("3", "Hypothesis (the hidden need that makes step 2 reasonable)", insight.latentNeed, "abduction-hyp")}
+        ${step("1", "Expectation / baseline", insight.expectation, "abduction-expect")}
+        ${step("2", "Mismatch / surprising fact", insight.surprisingFact, "abduction-fact")}
+        ${step("3", "Explanatory hypothesis", insight.latentNeed, "abduction-hyp")}
         ${step("4", "Explanation", insight.rationale, "abduction-why")}
       </div>`;
   }
@@ -818,7 +816,7 @@
     const repetitions = patterns.filter((p) => p.kind !== "deviation");
     let html = "";
     if (traces.length) html += traces.map(patternBlockHTML).join("");
-    else html += `<div class="notice-box quality-notice">This insight is based on repetition only, not a deviation from expected behavior.</div>`;
+    else html += `<div class="notice-box quality-notice">This hypothesis is based on repetition only, not an expectation/baseline mismatch.</div>`;
     if (repetitions.length) html += repetitions.map(patternBlockHTML).join("");
     return html;
   }
@@ -930,8 +928,8 @@
         <p class="hint">Everything this run detected, including findings that did not become final insights.</p>
       </div>
       <div class="card">
-        <div class="section-title">Behavioral traces (deviations) ${traces.length}</div>
-        <p class="hint">Places where observed behavior differs from a reasonable expectation. Hidden needs are proposed as hypotheses that explain these deviations.</p>
+        <div class="section-title">Expectation / baseline mismatches ${traces.length}</div>
+        <p class="hint">Grounded observations that differ from a baseline, expectation, comparison, or expected sequence. Explanations remain hypotheses.</p>
         ${traces.length ? traces.map(patternBlockHTML).join("") : `<div class="empty">No deviations detected.</div>`}
       </div>
       <div class="card">
