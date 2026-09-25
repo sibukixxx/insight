@@ -88,8 +88,8 @@ func TestRunComparisonExplainsResearchQuestionInputChange(t *testing.T) {
 	aJSON, _ := json.Marshal(aSnap)
 	bJSON, _ := json.Marshal(bSnap)
 
-	from := &domain.Analysis{ID: "a", Status: domain.AnalysisCompleted, InputSnapshot: string(aJSON), InputFingerprint: aSnap.InputFingerprint, ExecutionFingerprint: "same", CreatedAt: at}
-	to := &domain.Analysis{ID: "b", Status: domain.AnalysisCompleted, InputSnapshot: string(bJSON), InputFingerprint: bSnap.InputFingerprint, ExecutionFingerprint: "same", CreatedAt: at}
+	from := &domain.Analysis{ID: "a", Status: domain.AnalysisCompleted, InputSnapshot: string(aJSON), InputFingerprint: aSnap.InputFingerprint, ExecutionSnapshot: "{}", ExecutionFingerprint: "same", CreatedAt: at}
+	to := &domain.Analysis{ID: "b", Status: domain.AnalysisCompleted, InputSnapshot: string(bJSON), InputFingerprint: bSnap.InputFingerprint, ExecutionSnapshot: "{}", ExecutionFingerprint: "same", CreatedAt: at}
 
 	got := CompareAnalysisRuns(RunComparisonInput{Analysis: from}, RunComparisonInput{Analysis: to}, []*domain.Analysis{from, to})
 	if got.Input.State != AxisChanged || got.Input.ResearchQuestion == nil {
