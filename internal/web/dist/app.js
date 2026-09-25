@@ -5,21 +5,28 @@
   let buildInfo = { demoBuild: false, clientName: "" };
 
   const SOURCE_LABELS = {
-    interview: "Interview",
-    review: "Review",
-    support: "Support conversation",
-    sales: "Sales call",
-    survey: "Survey",
-    job_posting: "Job posting",
-    social_post: "Social post",
+    document: "Document",
+    report: "Report",
+    paper: "Paper",
+    web: "Web-derived text",
+    record: "Record",
+    other: "Other",
+    dataset: "Dataset",
+    interview: "Interview (legacy)",
+    review: "Review (legacy)",
+    support: "Support conversation (legacy)",
+    sales: "Sales call (legacy)",
+    survey: "Survey (legacy)",
+    job_posting: "Job posting (legacy)",
+    social_post: "Social post (legacy)",
   };
 
   const STEP_LABELS = {
     starting: "Starting analysis",
     extracting_observations: "Reading documents",
-    detecting_traces: "Finding deviations from expected behavior",
+    detecting_traces: "Finding expectation / baseline mismatches",
     detecting_patterns: "Finding recurring patterns",
-    generating_hypotheses: "Generating hidden-need hypotheses",
+    generating_hypotheses: "Generating explanatory hypotheses",
     searching_evidence: "Searching for evidence and counter-evidence",
     deduplicating_insights: "Merging duplicate insights",
     scoring_confidence: "Calculating confidence",
@@ -117,7 +124,7 @@
   function layout(inner) {
     app.innerHTML = `
       <header class="top">
-        <div class="brand"><a href="#/">Insight Lab</a> <small>Hidden Needs Finder</small></div>
+        <div class="brand"><a href="#/">Insight Lab</a> <small>Evidence Research Engine</small></div>
         <div class="header-actions">
           ${buildBadge()}
           <a class="settings-link" href="#/settings" title="Settings">⚙ Settings</a>
@@ -210,6 +217,7 @@
         ${chip("engine", engineLabel(run.executionSnapshot), run.executionSnapshot && run.executionSnapshot.gitCommit)}
         ${chip("execution", shortFingerprint(run.executionFingerprint), run.executionFingerprint)}
         ${chip("input", shortFingerprint(run.inputFingerprint), run.inputFingerprint)}
+        ${run.researchQuestion ? chip("question", run.researchQuestion, run.researchQuestion) : ""}
       </div>`;
   }
 
@@ -283,7 +291,7 @@
     layout(`
       <div class="hero">
         <h1>Insight Lab</h1>
-        <p>Find the needs your customers do not put into words.</p>
+        <p>Turn supplied evidence into grounded observations, competing hypotheses, research gaps, and auditable next questions.</p>
         <div class="actions">
           <button class="primary" id="try-demo" ${buildInfo.demoBuild ? "" : "disabled"}>Try the demo</button>
           <button id="new-project">New project</button>
@@ -455,6 +463,7 @@
         ${provenanceChipsHTML(selectedRun)}
         ${runListHTML(projectID, analyses, selectedRun)}
         <div class="analysis-actions">
+          <input id="research-question" class="analysis-question" type="text" maxlength="2000" placeholder="Optional research question — blank = open-ended discovery" aria-label="Research question">
           <button class="primary" id="run-analysis" ${isRunning || documents.length === 0 ? "disabled" : ""}>Run analysis</button>
           <a class="btn" href="${projectHash(projectID, "patterns", selectedRunID)}">View traces and patterns</a>
           <a class="btn" href="${projectHash(projectID, "evaluation", selectedRunID)}">View evaluation</a>
@@ -474,17 +483,23 @@
           <div>
             <label>Source type</label>
             <select name="source">
-              <option value="interview">Interview</option>
-              <option value="review">Review</option>
-              <option value="support">Support conversation</option>
-              <option value="sales">Sales call</option>
-              <option value="survey">Survey</option>
-              <option value="job_posting">Job posting</option>
-              <option value="social_post">Social post</option>
-			  <option value="dataset">Dataset observation</option>
+              <option value="document">Document</option>
+              <option value="report">Report</option>
+              <option value="paper">Paper</option>
+              <option value="web">Web-derived text</option>
+              <option value="record">Record</option>
+              <option value="other">Other</option>
+              <option value="dataset">Dataset observation</option>
+              <option value="interview">Interview (legacy)</option>
+              <option value="review">Review (legacy)</option>
+              <option value="support">Support conversation (legacy)</option>
+              <option value="sales">Sales call (legacy)</option>
+              <option value="survey">Survey (legacy)</option>
+              <option value="job_posting">Job posting (legacy)</option>
+              <option value="social_post">Social post (legacy)</option>
             </select>
           </div>
-          <div><label>Title</label><input type="text" name="title" placeholder="Example: Interview #15"></div>
+          <div><label>Title</label><input type="text" name="title" placeholder="Example: Source document 15"></div>
           <div><label>Content</label><textarea name="content" placeholder="Paste the original text here" required></textarea></div>
           <div><button type="submit" class="primary">Add document</button></div>
         </form>
@@ -492,7 +507,7 @@
 
       <div class="card">
         <div class="section-title">Import CSV</div>
-		<p class="hint">Columns: id,source,title,content. Source must be interview, review, support, sales, survey, job_posting, social_post, or dataset.</p>
+		<p class="hint">Columns: id,source,title,content. Prefer document, report, paper, web, record, other, or dataset; legacy v1 source names remain accepted.</p>
         <form id="csv-form">
           <input type="file" name="file" accept=".csv,text/csv" required>
           <button type="submit" class="primary">Import</button>
@@ -577,7 +592,11 @@
     runBtn.addEventListener("click", async () => {
       runBtn.disabled = true;
       try {
-        const analysis = await api(`/api/projects/${encodeURIComponent(projectID)}/analysis`, { method: "POST" });
+        const researchQuestion = (document.getElementById("research-question")?.value || "").trim();
+        const analysis = await api(`/api/projects/${encodeURIComponent(projectID)}/analysis`, {
+          method: "POST",
+          body: JSON.stringify({ researchQuestion }),
+        });
         watchAnalysis(projectID, analysis.id);
       } catch (e) {
         renderProject(projectID, e.message);
@@ -661,7 +680,7 @@
 
       <div class="card reasoning-trail">
         <div class="section-title">Reasoning trail &mdash; expectation → deviation → hypothesis</div>
-        <p class="hint">An insight is a hypothesis that explains the gap between expected and observed behavior. The complete reasoning chain remains visible for review.</p>
+        <p class="hint">A synthesis is a testable explanation of grounded evidence. The complete observation → mismatch → hypothesis → evidence chain remains visible for review.</p>
         ${abductionHTML(insight)}
         <div class="trail-subtitle">Source observations</div>
         ${patternsSectionHTML(insight.patterns)}
@@ -678,15 +697,15 @@
           <div>${escapeHtml(insight.observation || "-")}</div>
         </div>
         <div class="field-block">
-          <div class="field-label">Stated need</div>
+          <div class="field-label">Stated need (legacy, when applicable)</div>
           <div>${escapeHtml(insight.statedNeed || "-")}</div>
         </div>
         <div class="field-block latent-block">
-          <div class="field-label">Latent need</div>
+          <div class="field-label">Explanatory hypothesis</div>
           <div>${escapeHtml(insight.latentNeed || "-")}</div>
         </div>
         <div class="field-block">
-          <div class="field-label">JTBD</div>
+          <div class="field-label">JTBD (legacy, when applicable)</div>
           <div>${escapeHtml(insight.jtbd || "-")}</div>
         </div>
         <div class="field-block interpretation-block">
