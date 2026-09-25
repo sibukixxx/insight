@@ -1,8 +1,8 @@
 -- Expand the document source vocabulary for domain-neutral research.
 //
-// The original schema reflected the project's customer-research roots.
-// Preserve every existing row and dependent observation/evidence relationship
-// while rebuilding the CHECK constraint with generic evidence categories.
+-- The original schema reflected the project's customer-research roots.
+-- Preserve every existing row and dependent observation/evidence relationship
+-- while rebuilding the CHECK constraint with generic evidence categories.
 
 CREATE TEMP TABLE _017_observations_backup AS
 SELECT id, analysis_id, document_id, quote, start_offset, end_offset, behavior, topic, created_at, temporal_evidence
