@@ -26,14 +26,10 @@ type Evidence struct {
 	EndOffset      int
 }
 
-// QualityFlagCode names an app-side check that an insight failed. These
-// checks encode what makes a "poor-quality insight" (粗悪品): a latent
-// need that merely restates the stated need, a latent need expressed
-// as a generic abstraction ("承認欲求", "コスパ"), or a hypothesis that is
-// not anchored to any deviation-from-expectation trace. They are
-// warnings for the human reader, computed deterministically by the app
-// (never self-reported by the model), and never cause an insight to be
-// silently dropped.
+// QualityFlagCode names deterministic warnings. Some codes are legacy
+// customer-research checks and are only applicable when a stated need exists;
+// generic research relies primarily on evidence anchoring, competing
+// hypotheses and abductive completeness.
 type QualityFlagCode string
 
 const (
@@ -172,15 +168,18 @@ type Insight struct {
 	Title      string
 	// Observation is the summary of directly verifiable facts.
 	Observation string
-	StatedNeed  string
-	LatentNeed  string
-	JTBD        string
-	// Expectation / SurprisingFact / Rationale form the abductive triad
-	// behind the hypothesis:
-	//   Expectation    - what common sense predicted the person would do
-	//   SurprisingFact - what they actually did that breaks the prediction
-	//   Rationale      - why, if LatentNeed were true, the surprising fact
-	//                    would become a matter of course
+	// StatedNeed / LatentNeed / JTBD are retained from the original
+	// customer-research schema for v1 compatibility. In generic research,
+	// LatentNeed carries the concise explanatory hypothesis; the other two
+	// are normally empty unless they genuinely apply.
+	StatedNeed string
+	LatentNeed string
+	JTBD       string
+	// Expectation / SurprisingFact / Rationale form the abductive triad:
+	//   Expectation    - the relevant baseline or prediction
+	//   SurprisingFact - the grounded observation that differs from it
+	//   Rationale      - why the explanatory hypothesis would make that fact
+	//                    less surprising
 	Expectation               string
 	ExpectationBasis          ExpectationBasis
 	SurprisingFact            string
