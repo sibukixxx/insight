@@ -21,7 +21,7 @@ import (
 type enqueueStub struct{ analyses *sqlite.AnalysisRepository }
 
 func (s enqueueStub) Enqueue(ctx context.Context, req service.EnqueueRequest) (*domain.Analysis, error) {
-	a := &domain.Analysis{ID: newID("ana"), ProjectID: req.ProjectID, Status: domain.AnalysisQueued, SemanticAnalysisMode: req.SemanticAnalysisMode, CreatedAt: time.Now().UTC()}
+	a := &domain.Analysis{ID: newID("ana"), ProjectID: req.ProjectID, Status: domain.AnalysisQueued, SemanticAnalysisMode: req.SemanticAnalysisMode, ResearchQuestion: req.ResearchQuestion, CreatedAt: time.Now().UTC()}
 	return a, s.analyses.Create(ctx, a)
 }
 
