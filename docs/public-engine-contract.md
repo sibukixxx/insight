@@ -92,6 +92,17 @@ The SDKs add `UNAVAILABLE` for an unreachable engine or a non-contract response.
 - The embedded research artifact keeps its own `artifactSchema` and `schemaVersion`. Its legacy `analysisMode` key means execution mode. The contract itself uses `executionMode`.
 - Standalone SDKs pin the contract version and record the upstream insight commit of the vendored schema/fixtures. They declare the contract versions they speak.
 
+## Question-conditioned analysis
+
+`startAnalysis.researchQuestion` is an optional, domain-neutral semantic input.
+
+- When present, the engine passes the question to every semantic LLM stage: observation selection, mismatch/pattern detection, hypothesis generation, evidence/counter-evidence retrieval, synthesis and dedupe.
+- The prompt explicitly tells the model not to assume the question's premise is true and to retain evidence or alternative explanations that can falsify or reframe it.
+- The question is part of the **input fingerprint**, not the execution fingerprint. Same evidence + different question is therefore an input change.
+- When omitted, analysis remains open-ended discovery.
+- A `createResearchRun.question` or appended iteration must match the analysis's recorded question when that analysis was question-conditioned. Analyses created before this field existed, or analyses with no question, remain compatible.
+- The field is additive in Public Engine Contract v1. Legacy hypothesis field/stage names such as `latentNeed` / `need_hypothesis` remain wire-compatible; they no longer imply that the research domain is customer needs.
+
 ## Model-backed capability
 
 `EngineInfo.modelBacked` reports whether analyses use a configured model (it follows live settings). A deterministic engine (`false`) analyzes evidence into observations but never forms hypotheses, so `createResearchRun` / `appendIteration` over its analyses fail with `ANALYSIS_HAS_NO_HYPOTHESES`. Consumers should check it before starting research work.
@@ -108,7 +119,7 @@ Routing policy (which model for which stage, cost budgets, escalation) belongs t
 
 ## Limits
 
-The request body is at most 16 MiB. A request carries at most 500 documents and 50 artifacts. Document content is limited to 200,000 characters and a question to 2,000 characters. Metadata is at most 32 string entries with keys matching `^[A-Za-z0-9._:-]{1,64}$` and values up to 1,024 characters. Document metadata keys starting with `public_` or `analytical_`, and the keys `dataset_hash` and `acquisition_manifest`, are reserved. The engine records that provenance itself, so a consumer cannot claim a file hash or acquisition manifest that the engine would then report as verified.
+The request body is at most 16 MiB. A request carries at most 500 documents and 50 artifacts. Document content is limited to 200,000 characters and both analysis/research questions to 2,000 characters. Metadata is at most 32 string entries with keys matching `^[A-Za-z0-9._:-]{1,64}$` and values up to 1,024 characters. Document metadata keys starting with `public_` or `analytical_`, and the keys `dataset_hash` and `acquisition_manifest`, are reserved. The engine records that provenance itself, so a consumer cannot claim a file hash or acquisition manifest that the engine would then report as verified.
 
 ## Decisions
 
