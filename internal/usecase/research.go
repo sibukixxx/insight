@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -345,14 +344,10 @@ func (a *Application) researchInsights(ctx context.Context, projectID, analysisI
 }
 
 func validateResearchQuestionForAnalysis(analysis *domain.Analysis, question string) error {
-	if analysis == nil || strings.TrimSpace(analysis.ExecutionSnapshot) == "" {
+	if analysis == nil {
 		return nil
 	}
-	var snapshot service.ExecutionSnapshot
-	if json.Unmarshal([]byte(analysis.ExecutionSnapshot), &snapshot) != nil {
-		return nil
-	}
-	analysisQuestion := strings.TrimSpace(snapshot.ResearchQuestion)
+	analysisQuestion := strings.TrimSpace(analysis.ResearchQuestion)
 	question = strings.TrimSpace(question)
 	if analysisQuestion != "" && analysisQuestion != question {
 		return fmt.Errorf("research question %q does not match analysis question %q", question, analysisQuestion)
