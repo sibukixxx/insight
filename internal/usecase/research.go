@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"encoding/json"
 	"sort"
 	"context"
 	"fmt"
@@ -49,8 +50,11 @@ func (a *Application) CreateResearchRun(ctx context.Context, in CreateResearchRu
 	if strings.TrimSpace(in.Question) == "" {
 		return nil, fmt.Errorf("question is required")
 	}
-	analysisID, insights, err := a.researchInsights(ctx, in.ProjectID, in.AnalysisID)
+	analysis, insights, err := a.researchInsights(ctx, in.ProjectID, in.AnalysisID)
 	if err != nil {
+		return nil, err
+	}
+	if err := validateResearchQuestionForAnalysis(analysis, in.Question); err != nil {
 		return nil, err
 	}
 	now := a.now()
@@ -63,7 +67,7 @@ func (a *Application) CreateResearchRun(ctx context.Context, in CreateResearchRu
 	}
 	iteration := service.BuildResearchIteration(1, in.Question, in.InputReferences, insights, now)
 	iteration.AnalysisMode = mode
-	iteration.AnalysisID = analysisID
+	iteration.AnalysisID = analysis.ID
 	iteration.ObservationWindow = in.ObservationWindow
 	if len(in.InputSnapshot.ArtifactReferences) == 0 {
 		in.InputSnapshot.ArtifactReferences = append([]string(nil), in.InputReferences...)
@@ -96,13 +100,16 @@ func (a *Application) AppendResearchIteration(ctx context.Context, in AppendRese
 // buildAppendedIteration evaluates the next iteration of run without
 // persisting it.
 func (a *Application) buildAppendedIteration(ctx context.Context, run *domain.ResearchRun, in AppendResearchIterationInput) (domain.ResearchIteration, error) {
-	analysisID, insights, err := a.researchInsights(ctx, run.ProjectID, in.AnalysisID)
+	analysis, insights, err := a.researchInsights(ctx, run.ProjectID, in.AnalysisID)
 	if err != nil {
 		return domain.ResearchIteration{}, err
 	}
 	question := strings.TrimSpace(in.Question)
 	if question == "" {
 		question = run.Question
+	}
+	if err := validateResearchQuestionForAnalysis(analysis, question); err != nil {
+		return domain.ResearchIteration{}, err
 	}
 	now := a.now()
 	mode := in.AnalysisMode
@@ -120,7 +127,7 @@ func (a *Application) buildAppendedIteration(ctx context.Context, run *domain.Re
 	}
 	iteration := service.BuildResearchIteration(len(run.Iterations)+1, question, in.InputReferences, insights, now)
 	iteration.AnalysisMode = mode
-	iteration.AnalysisID = analysisID
+	iteration.AnalysisID = analysis.ID
 	iteration.ObservationWindow = in.ObservationWindow
 	if latest, ok := run.LatestIteration(); ok {
 		iteration.PreviousIterationID = latest.ID
@@ -310,7 +317,7 @@ func (a *Application) GetHumanHandoff(ctx context.Context, runID string) (*domai
 // from and its insights. An explicit analysisID must belong to the project
 // and have completed. Without one, the project's latest run is used and must
 // have completed; an older completed run is never substituted silently.
-func (a *Application) researchInsights(ctx context.Context, projectID, analysisID string) (string, []*domain.Insight, error) {
+func (a *Application) researchInsights(ctx context.Context, projectID, analysisID string) (*domain.Analysis, []*domain.Insight, error) {
 	var analysis *domain.Analysis
 	var err error
 	if analysisID != "" {
@@ -322,19 +329,35 @@ func (a *Application) researchInsights(ctx context.Context, projectID, analysisI
 		}
 	}
 	if err != nil {
-		return "", nil, err
+		return nil, nil, err
 	}
 	if analysis.Status != domain.AnalysisCompleted {
-		return "", nil, fmt.Errorf("analysis %s: %w", analysis.ID, ErrAnalysisNotCompleted)
+		return nil, nil, fmt.Errorf("analysis %s: %w", analysis.ID, ErrAnalysisNotCompleted)
 	}
 	result, err := a.repos.Insights.ListByAnalysis(ctx, analysis.ID)
 	if err != nil {
-		return "", nil, err
+		return nil, nil, err
 	}
 	if len(result) == 0 {
-		return "", nil, fmt.Errorf("analysis %s: %w", analysis.ID, ErrAnalysisHasNoHypotheses)
+		return nil, nil, fmt.Errorf("analysis %s: %w", analysis.ID, ErrAnalysisHasNoHypotheses)
 	}
-	return analysis.ID, result, nil
+	return analysis, result, nil
+}
+
+func validateResearchQuestionForAnalysis(analysis *domain.Analysis, question string) error {
+	if analysis == nil || strings.TrimSpace(analysis.ExecutionSnapshot) == "" {
+		return nil
+	}
+	var snapshot service.ExecutionSnapshot
+	if json.Unmarshal([]byte(analysis.ExecutionSnapshot), &snapshot) != nil {
+		return nil
+	}
+	analysisQuestion := strings.TrimSpace(snapshot.ResearchQuestion)
+	question = strings.TrimSpace(question)
+	if analysisQuestion != "" && analysisQuestion != question {
+		return fmt.Errorf("research question %q does not match analysis question %q", question, analysisQuestion)
+	}
+	return nil
 }
 
 func (a *Application) GetResearchRun(ctx context.Context, id string) (*domain.ResearchRun, error) {
