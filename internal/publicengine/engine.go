@@ -335,6 +335,10 @@ func (e *Engine) StartAnalysis(ctx context.Context, subjectID string, req StartA
 		if len(req.Label) > 256 || len(req.Note) > 2000 {
 			return 0, nil, newError(CodeInvalidRequest, "label is limited to 256 and note to 2000 characters")
 		}
+		researchQuestion := strings.TrimSpace(req.ResearchQuestion)
+		if len(researchQuestion) > maxQuestionLength {
+			return 0, nil, newError(CodeInvalidRequest, "researchQuestion is limited to %d characters", maxQuestionLength)
+		}
 		profile, err := execution.Parse(req.ExecutionProfile)
 		if err != nil {
 			return 0, nil, newError(CodeInvalidRequest, "%v", err)
@@ -342,7 +346,7 @@ func (e *Engine) StartAnalysis(ctx context.Context, subjectID string, req StartA
 		if len(req.ModelBindings) > 16 {
 			return 0, nil, newError(CodeInvalidRequest, "modelBindings is limited to 16 stages")
 		}
-		analysis, err := e.jobs.Enqueue(ctx, service.EnqueueRequest{ProjectID: subject.ProjectID, Label: strings.TrimSpace(req.Label), Note: strings.TrimSpace(req.Note), SemanticAnalysisMode: mode, ExecutionProfile: profile, ModelBindings: req.ModelBindings})
+		analysis, err := e.jobs.Enqueue(ctx, service.EnqueueRequest{ProjectID: subject.ProjectID, Label: strings.TrimSpace(req.Label), Note: strings.TrimSpace(req.Note), SemanticAnalysisMode: mode, ResearchQuestion: researchQuestion, ExecutionProfile: profile, ModelBindings: req.ModelBindings})
 		if err != nil {
 			return 0, nil, err
 		}
@@ -425,6 +429,7 @@ func toAnalysisRun(subjectID string, a *domain.Analysis) AnalysisRun {
 		ExecutionFingerprint: a.ExecutionFingerprint, InputFingerprint: a.InputFingerprint,
 		CreatedAt: formatTime(a.CreatedAt), StartedAt: formatTimePtr(a.StartedAt), FinishedAt: formatTimePtr(a.FinishedAt),
 	}
+	run.ResearchQuestion = strings.TrimSpace(a.ResearchQuestion)
 	var execution service.ExecutionSnapshot
 	if json.Unmarshal([]byte(a.ExecutionSnapshot), &execution) == nil {
 		run.ExecutionMode = string(execution.ExecutionMode)
@@ -446,6 +451,13 @@ func toAnalysisRun(subjectID string, a *domain.Analysis) AnalysisRun {
 	return run
 }
 
+func analysisResearchQuestion(a *domain.Analysis) string {
+	if a == nil {
+		return ""
+	}
+	return strings.TrimSpace(a.ResearchQuestion)
+}
+
 // ---------- research ----------
 
 // CreateResearchRun starts research on one completed analysis run.
@@ -462,6 +474,13 @@ func (e *Engine) CreateResearchRun(ctx context.Context, subjectID string, req Cr
 		mode, err := semanticMode(req.SemanticAnalysisMode)
 		if err != nil {
 			return 0, nil, err
+		}
+		analysis, err := e.subjectAnalysis(ctx, subjectID, req.AnalysisID)
+		if err != nil {
+			return 0, nil, err
+		}
+		if analysisQuestion := analysisResearchQuestion(analysis); analysisQuestion != "" && analysisQuestion != question {
+			return 0, nil, newError(CodeInvalidRequest, "research question does not match the question-conditioned analysis")
 		}
 		run, err := e.app.CreateResearchRun(ctx, usecase.CreateResearchRunInput{
 			ProjectID: subject.ProjectID, AnalysisID: req.AnalysisID, Question: question,
@@ -487,6 +506,17 @@ func (e *Engine) AppendIteration(ctx context.Context, researchRunID string, req 
 		if req.AnalysisID == "" || len(req.Question) > maxQuestionLength {
 			return 0, nil, newError(CodeInvalidRequest, "analysisId is required and question is limited to %d characters", maxQuestionLength)
 		}
+		effectiveQuestion := strings.TrimSpace(req.Question)
+		if effectiveQuestion == "" {
+			effectiveQuestion = run.Question
+		}
+		analysis, err := e.subjectAnalysis(ctx, run.ProjectID, req.AnalysisID)
+		if err != nil {
+			return 0, nil, err
+		}
+		if analysisQuestion := analysisResearchQuestion(analysis); analysisQuestion != "" && analysisQuestion != effectiveQuestion {
+			return 0, nil, newError(CodeInvalidRequest, "research question does not match the question-conditioned analysis")
+		}
 		var references []string
 		var links []domain.AddedEvidenceLink
 		for i, link := range req.AddedEvidence {
@@ -497,7 +527,7 @@ func (e *Engine) AppendIteration(ctx context.Context, researchRunID string, req 
 			links = append(links, domain.AddedEvidenceLink{Reference: link.Reference, GapIDs: link.GapIDs, Note: link.Note})
 		}
 		if _, err := e.app.AppendResearchIteration(ctx, usecase.AppendResearchIterationInput{
-			RunID: run.ID, AnalysisID: req.AnalysisID, Question: strings.TrimSpace(req.Question),
+			RunID: run.ID, AnalysisID: req.AnalysisID, Question: effectiveQuestion,
 			AddedEvidence: references, AddedEvidenceLinks: links, ObservationWindow: req.ObservationWindow,
 		}); err != nil {
 			return 0, nil, err

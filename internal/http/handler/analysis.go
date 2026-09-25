@@ -33,6 +33,7 @@ type analysisDTO struct {
 	Label                string `json:"label,omitempty"`
 	Note                 string `json:"note,omitempty"`
 	SemanticAnalysisMode string `json:"semanticAnalysisMode,omitempty"`
+	ResearchQuestion     string `json:"researchQuestion,omitempty"`
 	// ExecutionSnapshot and InputSnapshot are absent for runs recorded before
 	// snapshots existed. A missing snapshot means "not recorded".
 	ExecutionSnapshot    json.RawMessage `json:"executionSnapshot,omitempty"`
@@ -58,7 +59,7 @@ func toAnalysisDTO(a *domain.Analysis) analysisDTO {
 	if a.Status == domain.AnalysisCompleted && json.Valid([]byte(a.Metrics)) {
 		dto.Metrics = json.RawMessage(a.Metrics)
 	}
-	dto.Label, dto.Note, dto.SemanticAnalysisMode = a.Label, a.Note, string(a.SemanticAnalysisMode)
+	dto.Label, dto.Note, dto.SemanticAnalysisMode, dto.ResearchQuestion = a.Label, a.Note, string(a.SemanticAnalysisMode), a.ResearchQuestion
 	if json.Valid([]byte(a.ExecutionSnapshot)) {
 		dto.ExecutionSnapshot = json.RawMessage(a.ExecutionSnapshot)
 	}
@@ -79,6 +80,7 @@ func (h *Handler) CreateAnalysis(w http.ResponseWriter, r *http.Request) {
 		Label                string              `json:"label"`
 		Note                 string              `json:"note"`
 		SemanticAnalysisMode domain.AnalysisMode `json:"semanticAnalysisMode"`
+		ResearchQuestion     string              `json:"researchQuestion"`
 	}
 	if r.ContentLength != 0 {
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil && !errors.Is(err, io.EOF) {
@@ -91,7 +93,7 @@ func (h *Handler) CreateAnalysis(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a, err := h.JobManager.Enqueue(r.Context(), service.EnqueueRequest{
-		ProjectID: projectID, Label: strings.TrimSpace(req.Label), Note: strings.TrimSpace(req.Note), SemanticAnalysisMode: req.SemanticAnalysisMode,
+		ProjectID: projectID, Label: strings.TrimSpace(req.Label), Note: strings.TrimSpace(req.Note), SemanticAnalysisMode: req.SemanticAnalysisMode, ResearchQuestion: strings.TrimSpace(req.ResearchQuestion),
 	})
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())

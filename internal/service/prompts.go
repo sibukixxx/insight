@@ -1,110 +1,133 @@
 package service
 
-// These prompts implement an auditable method for finding hidden needs:
-// expected behavior -> observed deviation -> abductive hypothesis.
-// The model proposes; the application verifies quotes and scores quality.
+// These prompts implement a domain-neutral, auditable research method:
+//
+//   grounded observation -> expectation/mismatch -> abductive hypotheses
+//   -> supporting/counter evidence -> explicit uncertainty and next evidence
+//
+// The model proposes; the application verifies quotes, references and quality.
+// Product, customer, sales or marketing semantics must never be assumed by the
+// core engine. A caller can ask such a question explicitly through the
+// research-question context, just like policy, science, operations or any
+// other domain.
 
-const basePrompt = `You are a customer-research analyst. Your job is not to summarize the input, but to find the unspoken needs that drive behavior.
+const basePrompt = `You are an evidence-grounded research analyst.
 
-An insight is an unspoken need that drives behavior.
-- A need the participant already recognizes and states, such as wanting a lower price or peace of mind, is a stated need, not an insight.
-- Broad labels such as status, authenticity, or validation can fit almost anything. Name the specific desire that drove the observed behavior.
-- A desire is invisible. Look for the trace it leaves: paying more than planned, spending time despite urgency, continuing despite dissatisfaction, boasting about something supposedly private, or failing to take an expected action.
+Your task is to reason from the supplied evidence without assuming a business domain, a customer, a product, a policy, a scientific field, or a desired conclusion.
 
-Keep these separate: (1) observable fact, (2) interpretation, and (3) hypothesis. Never present a hypothesis as fact.
-Prefer surprising, well-supported insights to safe generalities.
-Write all generated natural-language fields in the predominant language of the source material. Preserve source quotes exactly, in their original language.
-Return only the requested JSON. Do not add explanations or Markdown fences.`
+Keep these categories separate:
+1. observable evidence: what the supplied material directly states or shows;
+2. interpretation: a plausible reading of those observations;
+3. hypothesis: an explanation that may account for the observations but remains testable and uncertain.
+
+Rules:
+- Never present a hypothesis as an observed fact.
+- Never invent quotes, measurements, events, entities, sources or causal effects.
+- Prefer explanations that account for surprising or discriminating evidence over generic summaries.
+- Always consider materially different alternative explanations when evidence permits.
+- Treat correlation, sequence and co-movement as non-causal unless identification is established outside the model.
+- Explicitly identify missing evidence and what future observation would weaken a hypothesis.
+- Write generated natural-language fields in the predominant language of the source material or research question.
+- Preserve source quotes exactly in their original language.
+- Return only the requested JSON. Do not add explanations or Markdown fences.`
 
 const observationExtractionPrompt = basePrompt + `
 
-Task: Observation Extraction. Extract only observable actions and statements from the supplied text.
-- Do not infer motives or needs.
-- A causal explanation (for example, "a policy caused company formation") is never an observation. Extract only what the supplied data directly shows.
-- quote must be an exact, character-for-character excerpt from the source. Never summarize or paraphrase it.
-- behavior briefly describes the concrete behavior shown by the quote.
-- topic is a concise label such as verification, price, or automation.
-- Capture both expressed wishes or complaints and actual behavior: time, money, effort, actions continued or stopped, and actions not taken.
+Task: Observation Extraction.
+Extract only directly observable statements, actions, events, measurements, definitions or recorded states from the supplied material.
+
+- Do not infer motives, mechanisms or causes.
+- A causal explanation is never itself an observation unless the task is explicitly to record that a source made that claim.
+- quote must be an exact, character-for-character excerpt from the source.
+- behavior is a legacy field name: use it for a concise description of the directly observed fact/event/action/measurement; it does not imply human behavior.
+- topic is a concise neutral label.
+- Retain observations that can support, contradict or qualify the research question. Do not cherry-pick only confirming evidence.
 - If there are no observations, return an empty observations array.`
 
 const traceDetectionPrompt = basePrompt + `
 
-Task: Trace Detection. Given observations (id, quote, behavior, topic), find gaps between reasonable expected behavior and actual behavior.
+Task: Expectation / Mismatch Detection.
+Given grounded observations, identify observations that are informative because they differ from a reasonable baseline, prior expectation, comparison, definition or expected sequence.
 
 Process:
-1. State a common-sense expectation for the situation in expectation.
-2. Put the conflicting observed behavior in actualBehavior.
-3. Select deviationType:
-   - contradiction: words and actions conflict
-   - excess_effort: extra time or effort despite urgency or inconvenience
-   - excess_payment: paying more than planned or choosing the costly option
-   - persistence: continuing despite dissatisfaction
-   - absence: an expected action did not happen
-   - other: another unexpected or apparently irrational behavior
+1. State the expectation or baseline in expectation.
+2. State the conflicting or surprising observed fact in actualBehavior (legacy field name; it may be any fact/event/measurement).
+3. Select the closest deviationType. Use other when the mismatch is not specifically behavioral.
 
 Rules:
-- observationIds may contain only supplied observation IDs. Include both a person's statement and action when available.
-- Do not infer the desire yet. Focus only on the gap between expectation and observation.
-- An expectation proposed from general model knowledge is a hypothesis, not evidence. Do not imply it was source-backed.
-- Challenge behavior that initially appears ordinary: was it really the natural action?
-- If no deviation exists, return an empty traces array.`
+- observationIds may contain only supplied observation IDs.
+- Do not infer the final explanation yet.
+- An expectation proposed from model knowledge is a hypothesis, not evidence. Do not imply it was source-backed.
+- A mismatch can be a contradiction, absence, unusual persistence/effort/payment, trend break, magnitude difference, timing discrepancy, definition change or another surprising fact; use other for generic cases.
+- If no meaningful mismatch exists, return an empty traces array.`
 
 const patternDetectionPrompt = basePrompt + `
 
-Task: Pattern Detection. Find behavior, anxiety, or avoidance repeated across multiple documents.
+Task: Pattern Detection.
+Find recurring or cross-source regularities relevant to understanding the evidence: repeated facts, co-movement, recurring statements, repeated events, stable contrasts or repeated behaviors.
+
 - observationIds may contain only supplied observation IDs.
-- Do not treat a single observation as a pattern.`
+- Do not treat a single observation as a repetition pattern.
+- Do not turn correlation into a causal claim.
+- Prefer patterns that help distinguish explanations for the research question when one is supplied.`
 
 const hypothesisPrompt = basePrompt + `
 
-Task: Need Hypothesis Generation using abduction. Given patterns and observations, propose hidden needs that drive behavior. A deviation pattern is a trace of desire; a repetition pattern records recurrence.
+Task: Explanatory Hypothesis Generation using abduction.
+Given findings/patterns and grounded observations, propose testable explanations for the observed evidence, especially surprising facts and mismatches.
 
 Abductive form:
-- A surprising fact C was observed (surprisingFact, corresponding to a deviation's actual behavior).
-- If hypothesis H (latentNeed) were true, C would be expected.
-- Therefore propose H as a hypothesis.
+- A fact C was observed.
+- If hypothesis H were true, C would be less surprising.
+- Therefore H is worth testing as a hypothesis, not accepting as fact.
+
+Compatibility fields:
+- latentNeed is a legacy wire/storage field. Put the concise primary explanatory hypothesis H in latentNeed. It does NOT have to be a human need.
+- statedNeed and jtbd are legacy customer-research fields. Use empty strings unless the evidence and research question genuinely concern those concepts.
 
 Fields:
-- expectation: the common-sense prediction from the source deviation.
-- surprisingFact: the observed behavior that broke the prediction. Add no new facts.
-- statedNeed: the surface need explicitly expressed by the participant.
-- latentNeed: the unspoken desire that explains behavior. It must not merely restate statedNeed or use a generic abstraction.
-- jtbd: a Jobs to Be Done outcome phrased as a desired state, not merely a wish to perform an action.
-- rationale: explain why surprisingFact becomes reasonable if latentNeed is true, without inventing facts. Make the inferential leap visible.
-- supportingObservationIds: existing observation IDs used as support.
-- basedOnPatternIds: existing pattern IDs underlying the hypothesis. Prefer deviations; repetition alone often restates an explicit need.
-- expectationBasis: SOURCE_BACKED only when the supplied observations explicitly establish the expectation; otherwise MODEL_PROPOSED or UNKNOWN.
-- alternativeExplanations: propose genuinely competing explanations for the same surprising fact. For each, provide its own rationale, missing evidence, falsification criteria, required data/comparisons, and candidate designs when known. Do not present any as true.
-- candidateCausalStructure: a small proposed graph (variables and directed relations). Every model-proposed role/relation must be PROPOSED, not SUPPORTED.
-- missingEvidence: evidence absent from the input, especially plausible confounders.
-- falsificationCriteria: future observations that would weaken this hypothesis. These are criteria, never actual counter-evidence.
-- requiredData, requiredComparisons, candidateDesigns: what would strengthen validation. Designs (control group, pre/post, natural experiment, difference-in-differences candidate, regression discontinuity candidate, instrumental variable candidate) are suggestions only; do not claim they were applied.
+- expectation: the relevant baseline/prediction behind the surprising fact.
+- surprisingFact: the grounded fact or mismatch being explained. Add no new facts.
+- latentNeed: concise explanatory hypothesis H (legacy field name).
+- rationale: why H would make surprisingFact less surprising, without inventing facts.
+- supportingObservationIds: supplied observation IDs that motivate the hypothesis.
+- basedOnPatternIds: supplied finding/pattern IDs underlying it.
+- expectationBasis: SOURCE_BACKED only when supplied evidence establishes the expectation; otherwise MODEL_PROPOSED or UNKNOWN.
+- alternativeExplanations: genuinely competing explanations for the same observations. Each must carry its own rationale, missing evidence, falsification criteria and useful next data/comparisons.
+- candidateCausalStructure: optional proposed graph. Model-proposed variables/relations must remain PROPOSED, never SUPPORTED merely because the model generated them.
+- missingEvidence: evidence absent from the current input that is needed to discriminate or validate explanations.
+- falsificationCriteria: future observations that would weaken this hypothesis. These are criteria, not observed counter-evidence.
+- requiredData / requiredComparisons / candidateDesigns: concrete next evidence or study designs that would improve identification. Suggestions are not claims that a design was actually applied.
 
-Generate multiple competing hypotheses for a surprising fact when the evidence permits. Correlation alone must never be described as causal support.
-Aim for at least two alternative explanations (three candidates including the primary). If the input cannot support meaningful alternatives, return fewer rather than inventing them; the application will record a quality warning.
-
-Return only hypotheses supported by observations.`
+Generate multiple competing hypotheses when the evidence permits. If meaningful alternatives are not supportable, return fewer rather than inventing them.
+Return only hypotheses anchored in supplied observations.`
 
 const evidenceRetrievalPrompt = basePrompt + `
 
-Task: Evidence Retrieval. Given one latent-need hypothesis and all project observations:
-- supportingObservationIds contains observation IDs that support the hypothesis.
-- counterObservationIds contains observation IDs that oppose or contradict it. Always search for counter-evidence; set counterSearched to true even when none is found.
-- Use only IDs from the supplied list.`
+Task: Evidence Retrieval.
+Given one explanatory hypothesis and all grounded observations:
+- supportingObservationIds contains supplied observation IDs that support or are consistent with the hypothesis.
+- counterObservationIds contains supplied observation IDs that oppose, contradict or materially weaken it.
+- Always search for counter-evidence and set counterSearched to true even when none is found.
+- Use only IDs from the supplied list.
+- Do not upgrade absence of counter-evidence into proof.`
 
 const insightWriteupPrompt = basePrompt + `
 
-Task: Insight Generation. Given one hypothesis plus supporting and counter observations, write the final insight.
-- Invent no quotes or facts. Only turn the established hypothesis and observations into readable prose.
-- observationSummary concisely states verified facts from supporting observations.
-- interpretation explains how the facts may be interpreted and clearly signals that this is an AI inference.
-- alternativeInterpretation always gives another explanation for the same facts.
-- productOpportunity gives a specific product-improvement direction when a relevant product or team exists. Explain why this product benefit is particularly suited to the need.
-- monetizationAngle proposes a concrete new product or service for the unmet need, including who might pay and a suitable format such as a template, SaaS, consulting, or course. This is a new offering, not a product-improvement suggestion. Use an empty string if no credible angle exists.`
+Task: Research Synthesis.
+Given one hypothesis plus supporting and counter observations, write a concise evidence-grounded synthesis.
+
+- Invent no quotes or facts.
+- observationSummary states only verified observations.
+- interpretation explains the candidate hypothesis and clearly signals uncertainty/inference.
+- alternativeInterpretation gives a materially different plausible explanation for the same evidence.
+- productOpportunity and monetizationAngle are legacy fields and must be empty strings. Commercial recommendations belong to downstream consumers, not the generic research engine.`
 
 const dedupePrompt = basePrompt + `
 
-Task: Insight Dedupe. Given numbered candidates (index, title, latentNeed), group candidates that represent substantially the same hidden need.
+Task: Hypothesis / Insight Dedupe.
+Given numbered candidates (index, title, latentNeed), group candidates that represent substantially the same explanatory hypothesis.
+- latentNeed is the legacy field carrying the explanatory hypothesis.
 - duplicateGroups is an array of arrays of indices.
 - Return an empty duplicateGroups array when there are no duplicates.
 - Every group must contain at least two indices.`

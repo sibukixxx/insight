@@ -18,7 +18,7 @@ import (
 // promptVersion is the human-readable label for the current prompt set.
 // Bump it together with any change to prompts.go, the step schemas or
 // temperatures; the prompt fingerprint catches changes nobody labelled.
-const promptVersion = "prompts/v1"
+const promptVersion = "prompts/v2"
 
 // openAICompatibleProvider names the only client implementation. The
 // endpoint host distinguishes actual providers.
@@ -177,6 +177,7 @@ type InputDocument struct {
 // InputSnapshot is the evidence an analysis run read, captured when it
 // started.
 type InputSnapshot struct {
+	ResearchQuestion      string                        `json:"researchQuestion,omitempty"`
 	Documents             []InputDocument               `json:"documents"`
 	DocumentCount         int                           `json:"documentCount"`
 	DocumentSetHash       string                        `json:"documentSetHash"`
@@ -198,8 +199,18 @@ type documentIdentity struct {
 // the same fingerprint. Compatibility warnings are derived from the inputs
 // and rules, so they are recorded but not fingerprinted.
 func BuildInputSnapshot(docs []*domain.Document, at time.Time) InputSnapshot {
+	return BuildInputSnapshotForQuestion(docs, "", at)
+}
+
+// BuildInputSnapshotForQuestion treats the research question as semantic
+// input. The same evidence analyzed under two different questions therefore
+// has different input fingerprints, while the execution fingerprint remains
+// unchanged.
+func BuildInputSnapshotForQuestion(docs []*domain.Document, researchQuestion string, at time.Time) InputSnapshot {
+	researchQuestion = strings.TrimSpace(researchQuestion)
 	pre := RunDatasetPreAnalysis(docs, at)
 	snapshot := InputSnapshot{
+		ResearchQuestion: researchQuestion,
 		DocumentCount: len(docs), DatasetHashes: pre.DatasetHashes, Datasets: datasetProvenances(pre),
 		CompatibilityWarnings: pre.CompatibilityWarnings, CapturedAt: at.UTC(),
 	}
@@ -216,10 +227,11 @@ func BuildInputSnapshot(docs []*domain.Document, at time.Time) InputSnapshot {
 	})
 	snapshot.DocumentSetHash, _ = Fingerprint(identities)
 	snapshot.InputFingerprint, _ = Fingerprint(struct {
-		Documents     []documentIdentity  `json:"documents"`
-		DatasetHashes []string            `json:"datasetHashes"`
-		Datasets      []DatasetProvenance `json:"datasets"`
-	}{identities, pre.DatasetHashes, snapshot.Datasets})
+		ResearchQuestion string              `json:"researchQuestion,omitempty"`
+		Documents        []documentIdentity  `json:"documents"`
+		DatasetHashes    []string            `json:"datasetHashes"`
+		Datasets         []DatasetProvenance `json:"datasets"`
+	}{researchQuestion, identities, pre.DatasetHashes, snapshot.Datasets})
 	return snapshot
 }
 

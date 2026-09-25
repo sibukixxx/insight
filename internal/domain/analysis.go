@@ -44,6 +44,9 @@ type Analysis struct {
 	// SemanticAnalysisMode is how the requester asked the input to be read,
 	// or empty when the request did not say.
 	SemanticAnalysisMode AnalysisMode
+	// ResearchQuestion is optional semantic input. Empty means open-ended
+	// discovery. It is persisted independently from execution configuration.
+	ResearchQuestion string
 	// ExecutionSnapshot and InputSnapshot are the JSON snapshots captured at
 	// enqueue time and at run start. Both are empty for runs recorded before
 	// snapshots existed; that means "not recorded", never "same".

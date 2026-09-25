@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"insight-lab/internal/domain"
@@ -31,6 +32,10 @@ type Pipeline struct {
 	// Model is the configured model name, recorded in the run provenance so
 	// a report can be traced to the model version that wrote its narrative.
 	Model string
+	// ResearchQuestion optionally focuses every semantic LLM stage. Empty
+	// means open-ended discovery. The question is semantic input, not model
+	// configuration; callers must include it in the run input fingerprint.
+	ResearchQuestion string
 
 	// usage accumulates provider-reported tokens for the current run. A
 	// Pipeline value serves one run at a time and calls the model
@@ -102,9 +107,9 @@ type Metrics struct {
 	EvidenceCoverage          float64 `json:"evidenceCoverage"`
 	CounterEvidenceCoverage   float64 `json:"counterEvidenceCoverage"`
 	AverageEvidencePerInsight float64 `json:"averageEvidencePerInsight"`
-	// TraceBackedInsightRate is the share of final insights whose
-	// hypothesis cites at least one deviation pattern - i.e. insights
-	// anchored to a surprising fact rather than to repetition alone.
+	// TraceBackedInsightRate is the legacy metric name for the share of final
+	// hypotheses that cite at least one expectation-mismatch pattern rather
+	// than being based on repetition alone.
 	TraceBackedInsightRate float64 `json:"traceBackedInsightRate"`
 	// QualityFlaggedInsightRate is the share of final insights carrying
 	// at least one app-side quality warning (see quality.go).
@@ -197,18 +202,16 @@ func (p *Pipeline) RunDocuments(ctx context.Context, analysisID, projectID strin
 
 	obsByID := indexObservations(allObs)
 
-	// Step 1 of the method: predict how a person "should" behave, then
-	// treat behavior that breaks the prediction as the trace an unconscious
-	// desire left behind. This runs before repetition detection because an
-	// insight anchored to a surprising fact is much less likely to be a
-	// restatement of what customers already say.
-	progress("detecting_traces", 28, "Looking for deviations from expected behavior...")
+	// Detect expectation/baseline mismatches before repetition. A hypothesis
+	// anchored to a discriminating or surprising observation is easier to
+	// inspect and test than one derived from recurrence alone.
+	progress("detecting_traces", 28, "Looking for informative mismatches against expectations or baselines...")
 	traceCandidates, err := p.detectTraces(ctx, allObs)
 	if err != nil {
 		return nil, fmt.Errorf("trace detection: %w", err)
 	}
 	traces := buildTracePatterns(projectID, analysisID, traceCandidates, obsByID)
-	progress("detecting_traces", 33, fmt.Sprintf("Found %d behavioral deviations", len(traces)))
+	progress("detecting_traces", 33, fmt.Sprintf("Found %d expectation mismatches", len(traces)))
 
 	progress("detecting_patterns", 35, "Looking for recurring patterns...")
 	patternCandidates, err := p.detectPatterns(ctx, allObs)
@@ -225,7 +228,7 @@ func (p *Pipeline) RunDocuments(ctx context.Context, analysisID, projectID strin
 	metrics.TraceCount = len(traces)
 	progress("detecting_patterns", 40, fmt.Sprintf("Found %d recurring patterns and %d deterministic comparisons", len(repetitions), len(comparisons)))
 
-	progress("generating_hypotheses", 45, "Generating hidden-need hypotheses...")
+	progress("generating_hypotheses", 45, "Generating explanatory hypotheses...")
 	hypotheses, err := p.generateHypotheses(ctx, patterns, allObs)
 	if err != nil {
 		return nil, fmt.Errorf("hypothesis generation: %w", err)
@@ -549,8 +552,9 @@ func pipelineLLMSteps() []llmStep {
 }
 
 func (p *Pipeline) generate(ctx context.Context, step llmStep, messages []llm.Message) (*llm.GenerateResponse, error) {
+	systemPrompt := step.SystemPrompt + researchFocusInstruction(p.ResearchQuestion)
 	resp, err := p.LLM.Generate(ctx, llm.GenerateRequest{
-		SystemPrompt: step.SystemPrompt, Messages: messages, Schema: step.Schema(), Temperature: step.Temperature,
+		SystemPrompt: systemPrompt, Messages: messages, Schema: step.Schema(), Temperature: step.Temperature,
 	})
 	if err == nil && p.usage != nil {
 		p.usage.Calls++
@@ -559,6 +563,20 @@ func (p *Pipeline) generate(ctx context.Context, step llmStep, messages []llm.Me
 		p.usage.TotalTokens += resp.Usage.TotalTokens
 	}
 	return resp, err
+}
+
+// researchFocusInstruction makes a caller-supplied question first-class
+// semantic context without hard-coding any domain into the engine. It is
+// intentionally appended to every semantic stage so observation selection,
+// hypothesis generation and counter-evidence search optimize for the same
+// research problem. Empty means open-ended discovery.
+func researchFocusInstruction(question string) string {
+	question = strings.TrimSpace(question)
+	if question == "" {
+		return ""
+	}
+	return "\n\nResearch focus supplied by the caller:\n" + question +
+		"\nUse this question only to prioritize relevance. Do not assume its premise is true; actively retain evidence and alternative explanations that could falsify or reframe it."
 }
 
 func (p *Pipeline) extractObservations(ctx context.Context, chunk string) (*observationExtractionOutput, error) {

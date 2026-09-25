@@ -1,13 +1,11 @@
 // Quality gate for insights.
 //
-// An insight is "an unconscious desire that moves people". Two kinds of
-// output routinely get mislabeled as insights: needs the customer already
-// says out loud ("コスパ", "安心") and abstract labels that explain
-// everything and therefore nothing ("自分らしさ", "承認欲求"). Neither can be
-// caught by asking the model whether its own output is good. The checks
-// here are deterministic, run on the app side after the model has spoken,
-// and produce warnings for the human reader - they never silently drop
-// an insight, because the final judgment belongs to the researcher.
+// Quality checks are deterministic app-side guardrails after model output.
+// The generic core checks whether a hypothesis is anchored to a mismatch and
+// whether its abductive chain is inspectable. Legacy customer-research checks
+// (stated-need echo / generic need terms) run only when the model actually
+// supplied a statedNeed, so policy/science/operations hypotheses are not
+// judged by a customer-needs vocabulary.
 package service
 
 import (
@@ -18,7 +16,7 @@ import (
 
 // qualityRuleVersion is recorded in every run's execution snapshot. Bump it
 // whenever the quality flag rules or thresholds change in a way that can change results.
-const qualityRuleVersion = "quality/v1"
+const qualityRuleVersion = "quality/v2"
 
 // genericNeedTerms are labels that, on their own, are not insights: the
 // first group is what the customer already consciously wants (so it is a
@@ -56,11 +54,16 @@ type QualityInput struct {
 func AssessQuality(in QualityInput) []domain.QualityFlag {
 	var flags []domain.QualityFlag
 
-	if isStatedNeedEcho(in.StatedNeed, in.LatentNeed) {
-		flags = append(flags, domain.QualityFlag{Code: domain.QualityStatedNeedEcho})
-	}
-	if term := firstGenericTerm(in.LatentNeed); term != "" {
-		flags = append(flags, domain.QualityFlag{Code: domain.QualityGenericTerm, Detail: term})
+	// These two checks are compatibility checks for the original customer-
+	// research shape. Generic research leaves statedNeed empty and must not be
+	// penalized by a domain-specific needs vocabulary.
+	if strings.TrimSpace(in.StatedNeed) != "" {
+		if isStatedNeedEcho(in.StatedNeed, in.LatentNeed) {
+			flags = append(flags, domain.QualityFlag{Code: domain.QualityStatedNeedEcho})
+		}
+		if term := firstGenericTerm(in.LatentNeed); term != "" {
+			flags = append(flags, domain.QualityFlag{Code: domain.QualityGenericTerm, Detail: term})
+		}
 	}
 	if !citesTrace(in.Patterns) {
 		flags = append(flags, domain.QualityFlag{Code: domain.QualityNoTrace})

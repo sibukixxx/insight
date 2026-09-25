@@ -146,7 +146,7 @@
       "required": ["externalRef", "source", "content"],
       "properties": {
         "externalRef": {"type": "string", "minLength": 1, "maxLength": 256, "description": "Caller's stable reference, unique within a subject."},
-        "source": {"type": "string", "enum": ["interview", "review", "support", "sales", "survey", "job_posting", "social_post", "dataset"]},
+        "source": {"type": "string", "enum": ["interview", "review", "support", "sales", "survey", "job_posting", "social_post", "dataset", "document", "report", "paper", "web", "record", "other"], "description": "Evidence source category. Generic categories are preferred when no legacy domain-specific category applies."},
         "title": {"type": "string", "maxLength": 512},
         "content": {"type": "string", "minLength": 1, "maxLength": 200000},
         "metadata": {"$ref": "#/$defs/Metadata"}
@@ -195,6 +195,7 @@
         "label": {"type": "string", "maxLength": 256},
         "note": {"type": "string", "maxLength": 2000},
         "semanticAnalysisMode": {"type": "string", "enum": ["DISCOVERY", "DATASET_ANALYSIS", "RESEARCH_REVIEW"]},
+        "researchQuestion": {"type": "string", "maxLength": 2000, "description": "Optional domain-neutral research question that focuses model-backed semantic analysis. It is semantic input, not execution configuration; the input fingerprint changes when the question changes."},
         "executionProfile": {"$ref": "#/$defs/ExecutionProfile"},
         "modelBindings": {"type": "object", "maxProperties": 16, "additionalProperties": {"type": "string", "minLength": 1, "maxLength": 128}, "description": "Stage -> model. Unknown stage is INVALID_REQUEST; a model the operator did not allow (or no model endpoint) is MODEL_BINDING_UNAVAILABLE."}
       }
@@ -219,6 +220,7 @@
         "label": {"type": "string"},
         "note": {"type": "string"},
         "semanticAnalysisMode": {"type": "string"},
+        "researchQuestion": {"type": "string", "description": "The question that focused this analysis, when one was supplied."},
         "executionMode": {"type": "string", "enum": ["deterministic", "model_backed"]},
         "executionProfile": {"$ref": "#/$defs/ExecutionProfileResolution"},
         "engine": {"$ref": "#/$defs/EngineBuild"},
@@ -397,6 +399,7 @@
       "required": ["state", "documentsAdded", "documentsRemoved", "datasetHashesAdded", "datasetHashesRemoved", "datasetsAdded", "datasetsRemoved"],
       "properties": {
         "state": {"$ref": "#/$defs/AxisState"},
+        "researchQuestion": {"$ref": "#/$defs/FieldChange", "description": "Present when the semantic research question changed; this is an input change."},
         "documentsAdded": {"type": "array", "items": {"type": "string"}, "description": "source:contentHash:metadataHash identities."},
         "documentsRemoved": {"type": "array", "items": {"type": "string"}},
         "datasetHashesAdded": {"type": "array", "items": {"type": "string"}},

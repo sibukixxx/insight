@@ -13,7 +13,7 @@ Insight Lab is an open-source, local-first **evidence reasoning engine**.
 
 It is designed for research where the input already exists in some form:
 
-- customer interviews, reviews, support logs, sales notes, surveys, and other raw evidence;
+- papers, reports, records, web-derived text, interviews, reviews, operational notes, surveys, and other raw evidence;
 - structured data after normalization into Dataset Documents or a supported adapter contract, including operational metrics, public-data exports, and external adapter output;
 - existing research or analysis artifacts such as internal studies, consulting reports, market research, or AI-generated analysis.
 
@@ -43,6 +43,8 @@ Decision readiness / human handoff
 
 When evidence is insufficient, Insight Lab should say what is missing rather than manufacture certainty.
 
+A model-backed analysis may also receive an optional **research question**. The question is passed to every semantic LLM stage as a relevance focus, but its premise is never assumed true. The same evidence analyzed under a different question has a different input fingerprint. If no question is supplied, the engine performs open-ended discovery.
+
 
 ## What you can feed Insight Lab today
 
@@ -50,7 +52,7 @@ The table below describes the **input boundaries that current `main` actually ac
 
 | Input | How it is accepted today | What Insight analyzes | LLM |
 | --- | --- | --- | --- |
-| Interviews, reviews, support tickets, sales notes, survey free text, job postings, social posts | Create Documents through UI/API, or import Document CSV | Grounded Observations, patterns/mismatches, primary/competing hypotheses, supporting/counter/neutral evidence, ResearchGaps | Required for semantic analysis |
+| Papers, reports, records, web-derived text, interviews, reviews, operational notes and other text evidence | Create Documents through UI/API, or import Document CSV | Grounded Observations, patterns/mismatches, primary/competing hypotheses, supporting/counter/neutral evidence, ResearchGaps | Required for semantic analysis |
 | Multiple text evidence items | Fixed 4-column Document CSV | Each row becomes a Document and enters the same evidence-reasoning pipeline | Required for semantic analysis |
 | Pre-aggregated numeric series | API Documents with `source=dataset` | Grounded `record_count` observations, period comparison, delta, rate of change, baseline delta, share of series total | Not required for deterministic part |
 | corporate-event registry export | Dedicated Analysis CSV import | Deterministic grouping by month × event type × geography × provider/version, then Dataset Analysis | Aggregation does not require it; hypotheses do |
@@ -60,18 +62,19 @@ The table below describes the **input boundaries that current `main` actually ac
 
 ### Document input
 
-Documents created through the UI/API currently accept these `source` values:
+Documents created through the UI/API accept domain-neutral source categories:
 
 ```text
-interview
-review
-support
-sales
-survey
-job_posting
-social_post
+document
+report
+paper
+web
+record
+other
 dataset
 ```
+
+The legacy v1 categories `interview`, `review`, `support`, `sales`, `survey`, `job_posting`, and `social_post` remain valid for backward compatibility.
 
 The basic shape is `source / title / content / metadata`. For text evidence, Insight grounds quotable Observations in `content`, then reasons about mismatches, hypotheses, evidence, counter-evidence, and missing evidence.
 

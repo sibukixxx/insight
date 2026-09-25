@@ -2,19 +2,12 @@ package domain
 
 import "time"
 
-// PatternKind distinguishes the two ways a marketer "notices something"
-// while reading many voices at once.
+// PatternKind distinguishes repeated regularities from expectation mismatches.
 //
-//   - PatternRepetition: the same behavior, complaint or workaround shows up
-//     across multiple people. This is what the original Pattern Detection
-//     step found.
-//   - PatternDeviation: a single behavior that contradicts what common sense
-//     would predict - paying more than planned, taking time despite being in
-//     a hurry, keeping a product while complaining about it, or an expected
-//     behavior that conspicuously did not happen ("the dog that didn't
-//     bark"). These are the "traces of desire" (欲望の痕跡) that a hidden,
-//     unconscious need leaves behind; an insight built on one of these is
-//     far less likely to be a restatement of a stated need.
+// PatternRepetition represents a regularity supported by multiple grounded
+// observations. PatternDeviation represents an observation that differs from
+// a baseline, expectation, comparison or expected sequence. The vocabulary
+// originated in customer research but the semantics are now domain-neutral.
 type PatternKind string
 
 const (
@@ -26,9 +19,9 @@ func (k PatternKind) Valid() bool {
 	return k == PatternRepetition || k == PatternDeviation
 }
 
-// DeviationType classifies how the observed behavior diverged from the
-// expectation. It is a fixed vocabulary so the UI can label traces
-// consistently and so the app can count them without parsing prose.
+// DeviationType classifies how an observation diverged from an expectation.
+// Some legacy values are behavior-oriented; generic research uses OTHER when
+// a mismatch does not fit them.
 type DeviationType string
 
 const (
@@ -49,15 +42,12 @@ func (d DeviationType) Valid() bool {
 	return false
 }
 
-// Pattern is a "noticing" step a marketer does by hand when skimming
-// interviews. It sits between Observation (a single grounded quote) and
-// Insight (the final hypothesis, tested against evidence): visualizing
-// this layer is what turns insight generation from a black box into an
-// inspectable trail.
+// Pattern is an inspectable finding between grounded Observation and a
+// hypothesis. It makes the reasoning trail visible instead of hiding the
+// model's intermediate noticing step.
 //
-// For Kind == PatternDeviation, Expectation holds the common-sense
-// prediction ("忙しいなら出来合いの総菜を選ぶはず") and Description holds what
-// actually happened; the gap between the two is the trace.
+// For Kind == PatternDeviation, Expectation is the baseline/prediction and
+// Description is the observed fact that differs from it.
 type Pattern struct {
 	ID             string
 	ProjectID      string
@@ -71,8 +61,8 @@ type Pattern struct {
 	CreatedAt      time.Time
 }
 
-// IsTrace reports whether this pattern is a deviation-from-expectation
-// (a trace of an unconscious desire) rather than a mere repetition.
+// IsTrace reports whether this pattern is a deviation-from-expectation rather
+// than a repetition. The method name is retained for backward compatibility.
 func (p *Pattern) IsTrace() bool {
 	return p.Kind == PatternDeviation
 }

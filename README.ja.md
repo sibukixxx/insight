@@ -10,7 +10,7 @@ Insight Labは、**Bring Your Own Evidence（BYO Evidence）型のEvidence Reaso
 
 対象となる入力は、すでに何らかの形で存在している情報です。
 
-- 顧客インタビュー、レビュー、問い合わせ、商談ログ、アンケートなどの一次情報
+- 論文、レポート、記録、Web由来テキスト、インタビュー、レビュー、業務メモ、アンケートなどのEvidence
 - 業務データ、BI出力、オープンデータ、外部adapter出力などをDataset Documentまたは対応adapter contractへ正規化した構造化データ
 - 社内調査、外部調査会社レポート、コンサル資料、市場調査、AI分析などの既存Research Artifact
 
@@ -40,6 +40,8 @@ Decision Readiness / Human Handoff
 
 Evidenceが不足している場合は、もっともらしい結論を作るのではなく、**何が不足しているかを構造化して返す**ことを重視します。
 
+model-backed Analysisには任意で **research question** を渡せます。質問は全semantic LLM stageへ「何を見るか」の焦点として渡されますが、質問の前提を真とは扱いません。同じEvidenceでも質問が違えば別のsemantic inputとしてfingerprintが変わります。質問を省略した場合はopen-ended discoveryとして動きます。
+
 
 ## 何を入力でき、何を分析できるか
 
@@ -47,7 +49,7 @@ Evidenceが不足している場合は、もっともらしい結論を作るの
 
 | 入力 | 現在の受け付け方 | Insightが行う分析 | LLM |
 | --- | --- | --- | --- |
-| インタビュー、レビュー、問い合わせ、商談ログ、アンケート自由記述、求人文、SNS投稿 | UI/APIでDocument作成、またはDocument CSV | groundingされたObservation、Pattern/Mismatch、Primary/Competing Hypotheses、Supporting/Counter/Neutral Evidence、ResearchGap | 意味分析には必要 |
+| 論文、レポート、記録、Web由来テキスト、インタビュー、レビュー、業務メモなどのText Evidence | UI/APIでDocument作成、またはDocument CSV | groundingされたObservation、Pattern/Mismatch、Primary/Competing Hypotheses、Supporting/Counter/Neutral Evidence、ResearchGap | 意味分析には必要 |
 | 複数のテキストEvidence | 固定4列Document CSV | 各行をDocumentとして同じEvidence Reasoning pipelineへ投入 | 意味分析には必要 |
 | 集計済みの数値系列 | APIで `source=dataset` のDocumentとして登録 | `record_count` のgrounded Observation、期間比較、delta、rate of change、baseline差、series内share | deterministic部分は不要 |
 | 企業イベントregistry CSV | 専用Analysis CSV import | 月 × event type × 地域 × provider/versionに決定論的集計し、その後Dataset Analysis | 集計は不要、仮説生成等には必要 |
@@ -57,18 +59,19 @@ Evidenceが不足している場合は、もっともらしい結論を作るの
 
 ### Document入力
 
-API/UIから1件ずつ投入するDocumentは、現在次の `source` を受け付けます。
+API/UIから投入するDocumentは、汎用カテゴリとして次を受け付けます。
 
 ```text
-interview
-review
-support
-sales
-survey
-job_posting
-social_post
+document
+report
+paper
+web
+record
+other
 dataset
 ```
+
+v1互換のため、従来の `interview` / `review` / `support` / `sales` / `survey` / `job_posting` / `social_post` も引き続き利用できます。
 
 Documentの基本形は `source / title / content / metadata` です。Text系Documentでは `content` から引用可能なObservationをgroundingし、そこからMismatch・仮説・Evidence/Counter Evidenceへ進みます。
 

@@ -121,13 +121,12 @@ func patternDetectionSchema() llm.Schema {
 	}
 }
 
-// --- Trace Detection (予想とのズレ = 欲望の痕跡) ---
+// --- Expectation / Mismatch Detection ---
 
-// traceCandidate is one "surprising fact": a behavior that contradicts
-// what common sense predicted. expectation is the prediction, actualBehavior
-// what actually happened; the gap between them is the trace an unconscious
-// desire left behind. Like patterns, a trace is only kept if it cites at
-// least one observation that was actually grounded.
+// traceCandidate is one inspectable mismatch between an expectation/baseline
+// and grounded evidence. actualBehavior is a legacy wire field name; it can
+// contain any observed fact, event, action or measurement. The candidate is
+// only kept when it cites grounded observations.
 type traceCandidate struct {
 	Title          string   `json:"title"`
 	Expectation    string   `json:"expectation"`
@@ -189,12 +188,12 @@ func traceDetectionSchema() llm.Schema {
 	}
 }
 
-// --- Need Hypothesis Generation ---
-
-// hypothesisCandidate is one abduction: given a surprising fact C
-// (SurprisingFact, which broke Expectation), propose a hypothesis H
-// (LatentNeed) such that if H were true, C would be a matter of course
-// (Rationale explains that "if H then C is natural" step).
+// --- Explanatory Hypothesis Generation ---
+//
+// The v1 wire/storage fields StatedNeed, LatentNeed and JTBD predate the
+// domain-neutral Research Engine. They remain for compatibility. For generic
+// research, LatentNeed carries the concise explanatory hypothesis while
+// StatedNeed/JTBD are normally empty.
 type hypothesisCandidate struct {
 	Title                    string                          `json:"title"`
 	StatedNeed               string                          `json:"statedNeed"`
@@ -224,6 +223,8 @@ type hypothesisOutput struct {
 
 func hypothesisSchema() llm.Schema {
 	return llm.Schema{
+		// The schema/stage name is public through modelBindings in contract v1.
+		// Keep it stable even though the semantics are now generic.
 		Name: "need_hypothesis",
 		Schema: map[string]any{
 			"type": "object",
@@ -316,7 +317,7 @@ func evidenceRetrievalSchema() llm.Schema {
 	}
 }
 
-// --- Insight Generation (write-up only; never introduces new quotes) ---
+// --- Research Synthesis (legacy Insight write-up shape; never introduces new facts) ---
 
 type insightWriteup struct {
 	Title                     string `json:"title"`

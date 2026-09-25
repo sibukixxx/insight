@@ -79,8 +79,11 @@ type ExecutionAxisDiff struct {
 }
 
 type InputAxisDiff struct {
-	State                AxisState `json:"state"`
-	DocumentsAdded       []string  `json:"documentsAdded"`
+	State                AxisState    `json:"state"`
+	// ResearchQuestion is present when the semantic research focus changed.
+	// It is an input change, never an execution/instrument change.
+	ResearchQuestion     *FieldChange `json:"researchQuestion,omitempty"`
+	DocumentsAdded       []string     `json:"documentsAdded"`
 	DocumentsRemoved     []string  `json:"documentsRemoved"`
 	DatasetHashesAdded   []string  `json:"datasetHashesAdded"`
 	DatasetHashesRemoved []string  `json:"datasetHashesRemoved"`
@@ -220,6 +223,9 @@ func compareInput(a, b *domain.Analysis) InputAxisDiff {
 	if json.Unmarshal([]byte(a.InputSnapshot), &sa) != nil || json.Unmarshal([]byte(b.InputSnapshot), &sb) != nil {
 		out.State = AxisUnknown
 		return out
+	}
+	if sa.ResearchQuestion != sb.ResearchQuestion {
+		out.ResearchQuestion = &FieldChange{Field: "researchQuestion", From: sa.ResearchQuestion, To: sb.ResearchQuestion}
 	}
 	docKey := func(d InputDocument) string { return string(d.Source) + ":" + d.ContentHash + ":" + d.MetadataHash }
 	out.DocumentsAdded, out.DocumentsRemoved = keyDiff(sa.Documents, sb.Documents, docKey)
