@@ -71,8 +71,8 @@ func (Model) Generate(_ context.Context, req llm.GenerateRequest) (*llm.Generate
 		out = map[string]any{"patterns": []any{}}
 	case "need_hypothesis":
 		out = map[string]any{"hypotheses": []map[string]any{{
-			"title": "Primary explanation", "statedNeed": "understand the change", "latentNeed": "the intervention changed behavior",
-			"jtbd": "explain the outcome", "expectation": "the outcome stays flat", "surprisingFact": "the outcome changed",
+			"title": "Primary explanation", "statedNeed": "", "latentNeed": "the observed change has an explanatory mechanism that differs from the baseline",
+			"jtbd": "", "expectation": "the observed measure stays near its baseline", "surprisingFact": "the observed measure changed",
 			"rationale":                "if the intervention changed behavior, the change is expected",
 			"supportingObservationIds": nonNil(ids), "basedOnPatternIds": nonNil(patternIDs),
 			"expectationBasis":      "MODEL_PROPOSED_POST_HOC",
