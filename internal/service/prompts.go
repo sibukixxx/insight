@@ -1,5 +1,7 @@
 package service
 
+import "insight-lab/internal/domain"
+
 // These prompts implement a domain-neutral, auditable research method:
 //
 //   grounded observation -> expectation/mismatch -> abductive hypotheses
@@ -121,7 +123,7 @@ Given one hypothesis plus supporting and counter observations, write a concise e
 - observationSummary states only verified observations.
 - interpretation explains the candidate hypothesis and clearly signals uncertainty/inference.
 - alternativeInterpretation gives a materially different plausible explanation for the same evidence.
-- productOpportunity and monetizationAngle are legacy fields and must be empty strings. Commercial recommendations belong to downstream consumers, not the generic research engine.`
+- productOpportunity and monetizationAngle are legacy optional projection fields. They are never evidence, causal findings, readiness signals or validation results. Populate them only when the selected reasoning profile explicitly permits it.`
 
 const dedupePrompt = basePrompt + `
 
@@ -131,3 +133,39 @@ Given numbered candidates (index, title, latentNeed), group candidates that repr
 - duplicateGroups is an array of arrays of indices.
 - Return an empty duplicateGroups array when there are no duplicates.
 - Every group must contain at least two indices.`
+
+
+func reasoningProfileInstruction(profile domain.ReasoningProfile, step string) string {
+	switch profile.Normalize() {
+	case domain.ReasoningCustomerInsight:
+		base := `
+
+Reasoning profile: CUSTOMER_INSIGHT.
+The supplied evidence is being examined as customer/user research. Apply this specialization only because the caller explicitly selected it.
+- Distinguish what a participant explicitly says they want (stated need) from a plausible unspoken need that better explains observed behavior.
+- Give behavioral mismatches extra attention: excess effort/payment, persistence despite dissatisfaction, contradictions, and meaningful absence.
+- Keep alternative explanations, counter-evidence, missing evidence and causal uncertainty fully visible. A persuasive customer story is still only a hypothesis.`
+		switch step {
+		case "hypothesis_generation":
+			return base + `
+- Populate statedNeed when the evidence explicitly supports one.
+- Put the concise hidden/latent customer need in latentNeed.
+- Populate jtbd as the desired state/outcome when justified by evidence.
+- Do not fabricate a need or JTBD merely to fill the fields.`
+		case "insight_writeup":
+			return base + `
+- productOpportunity and monetizationAngle may be populated as optional descriptive projections when the evidence supports a credible customer problem.
+- They are downstream ideas, never evidence, causal findings, readiness signals or recommendations to launch/buy/sell.`
+		default:
+			return base
+		}
+	default:
+		if step == "insight_writeup" {
+			return "
+
+Reasoning profile: GENERAL_RESEARCH.
+- productOpportunity and monetizationAngle must be empty strings. Commercial projections belong to an explicit specialization or downstream consumer."
+		}
+		return ""
+	}
+}

@@ -18,7 +18,7 @@ import (
 // promptVersion is the human-readable label for the current prompt set.
 // Bump it together with any change to prompts.go, the step schemas or
 // temperatures; the prompt fingerprint catches changes nobody labelled.
-const promptVersion = "prompts/v2"
+const promptVersion = "prompts/v3"
 
 // openAICompatibleProvider names the only client implementation. The
 // endpoint host distinguishes actual providers.
@@ -33,7 +33,8 @@ type ExecutionConfig struct {
 	GitCommit            string              `json:"gitCommit"`
 	GitDirty             string              `json:"gitDirty"`
 	ExecutionMode        ExecutionMode       `json:"executionMode"`
-	SemanticAnalysisMode domain.AnalysisMode `json:"semanticAnalysisMode,omitempty"`
+	SemanticAnalysisMode domain.AnalysisMode      `json:"semanticAnalysisMode,omitempty"`
+	ReasoningProfile     domain.ReasoningProfile `json:"reasoningProfile,omitempty"`
 	RuleVersions         map[string]string   `json:"ruleVersions"`
 	PromptVersion        string              `json:"promptVersion,omitempty"`
 	// PromptFingerprint (v2) covers prompts, response schemas, temperatures
@@ -87,9 +88,17 @@ type ExecutionSnapshot struct {
 // BuildExecutionSnapshot captures the configuration a run will execute with.
 // A run without a configured model is deterministic and records no model.
 func BuildExecutionSnapshot(settings Settings, semantic domain.AnalysisMode, build buildinfo.Info, at time.Time) (ExecutionSnapshot, error) {
+	return BuildExecutionSnapshotForReasoningProfile(settings, semantic, domain.ReasoningGeneralResearch, build, at)
+}
+
+// BuildExecutionSnapshotForReasoningProfile captures semantic specialization
+// as execution/instrument configuration. It must not alter the evidence/input
+// fingerprint.
+func BuildExecutionSnapshotForReasoningProfile(settings Settings, semantic domain.AnalysisMode, profile domain.ReasoningProfile, build buildinfo.Info, at time.Time) (ExecutionSnapshot, error) {
+	profile = profile.Normalize()
 	config := ExecutionConfig{
 		EngineVersion: build.Version, GitCommit: build.Commit, GitDirty: build.Dirty,
-		ExecutionMode: ExecutionModeDeterministic, SemanticAnalysisMode: semantic,
+		ExecutionMode: ExecutionModeDeterministic, SemanticAnalysisMode: semantic, ReasoningProfile: profile,
 		RuleVersions: map[string]string{
 			"datasetPreanalysis": datasetPreAnalysisRuleVersion, "analyticalArtifact": analyticalArtifactRuleVersion, "grounding": groundingRuleVersion,
 		},
@@ -148,16 +157,23 @@ type promptProtocol struct {
 // wording used on fallback and retry.
 func promptFingerprintV2(steps []llmStep, protocol promptProtocol) (string, error) {
 	type stepIdentity struct {
-		Name         string         `json:"name"`
-		SystemPrompt string         `json:"systemPrompt"`
-		SchemaName   string         `json:"schemaName"`
+		Name                   string         `json:"name"`
+		SystemPrompt           string         `json:"systemPrompt"`
+		GeneralInstruction     string         `json:"generalInstruction,omitempty"`
+		CustomerInstruction    string         `json:"customerInsightInstruction,omitempty"`
+		SchemaName             string         `json:"schemaName"`
 		Schema       map[string]any `json:"schema"`
 		Temperature  float64        `json:"temperature"`
 	}
 	identities := make([]stepIdentity, 0, len(steps))
 	for _, step := range steps {
 		schema := step.Schema()
-		identities = append(identities, stepIdentity{Name: step.Name, SystemPrompt: step.SystemPrompt, SchemaName: schema.Name, Schema: schema.Schema, Temperature: step.Temperature})
+		identities = append(identities, stepIdentity{
+			Name: step.Name, SystemPrompt: step.SystemPrompt,
+			GeneralInstruction: reasoningProfileInstruction(domain.ReasoningGeneralResearch, step.Name),
+			CustomerInstruction: reasoningProfileInstruction(domain.ReasoningCustomerInsight, step.Name),
+			SchemaName: schema.Name, Schema: schema.Schema, Temperature: step.Temperature,
+		})
 	}
 	return Fingerprint(struct {
 		Steps    []stepIdentity `json:"steps"`

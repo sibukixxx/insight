@@ -434,7 +434,7 @@
       ? `<div class="insight-list">${insights.map((i) => `
           <a class="card insight-card${(i.qualityFlags || []).length ? " insight-card-flagged" : ""}" href="#/insights/${encodeURIComponent(i.id)}">
             <div class="insight-card-title">${escapeHtml(i.title)}</div>
-            <div class="insight-card-latent">${escapeHtml(i.latentNeed)}</div>
+            <div class="insight-card-latent">${escapeHtml(i.hypothesis || i.latentNeed)}</div>
             ${i.surprisingFact ? `<div class="insight-card-trace">Deviation: ${escapeHtml(i.surprisingFact)}</div>` : ""}
             ${confidenceBar(i.confidence)}
             ${qualityBadgesHTML(i.qualityFlags)}
@@ -462,6 +462,10 @@
         ${runListHTML(projectID, analyses, selectedRun)}
         <div class="analysis-actions">
           <input id="research-question" class="analysis-question" type="text" maxlength="2000" placeholder="Optional research question — blank = open-ended discovery" aria-label="Research question">
+          <select id="reasoning-profile" aria-label="Reasoning profile">
+            <option value="GENERAL_RESEARCH">General research</option>
+            <option value="CUSTOMER_INSIGHT">Customer insight</option>
+          </select>
           <button class="primary" id="run-analysis" ${isRunning || documents.length === 0 ? "disabled" : ""}>Run analysis</button>
           <a class="btn" href="${projectHash(projectID, "patterns", selectedRunID)}">View traces and patterns</a>
           <a class="btn" href="${projectHash(projectID, "evaluation", selectedRunID)}">View evaluation</a>
@@ -591,9 +595,10 @@
       runBtn.disabled = true;
       try {
         const researchQuestion = (document.getElementById("research-question")?.value || "").trim();
+        const reasoningProfile = document.getElementById("reasoning-profile")?.value || "GENERAL_RESEARCH";
         const analysis = await api(`/api/projects/${encodeURIComponent(projectID)}/analysis`, {
           method: "POST",
-          body: JSON.stringify({ researchQuestion }),
+          body: JSON.stringify({ researchQuestion, reasoningProfile }),
         });
         watchAnalysis(projectID, analysis.id);
       } catch (e) {

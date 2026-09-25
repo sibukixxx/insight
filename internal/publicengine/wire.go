@@ -48,8 +48,10 @@ type EngineInfo struct {
 	ResearchArtifact          SchemaRef   `json:"researchArtifact"`
 	AnalyticalArtifact        SchemaRef   `json:"analyticalArtifact"`
 	// ExecutionProfiles and InputSourceKinds advertise capabilities (#90/#91).
-	ExecutionProfiles []ExecutionProfileInfo `json:"executionProfiles,omitempty"`
-	InputSourceKinds  []string               `json:"inputSourceKinds,omitempty"`
+	ExecutionProfiles          []ExecutionProfileInfo `json:"executionProfiles,omitempty"`
+	InputSourceKinds           []string               `json:"inputSourceKinds,omitempty"`
+	SupportedReasoningProfiles []string               `json:"supportedReasoningProfiles,omitempty"`
+	DefaultReasoningProfile    string                 `json:"defaultReasoningProfile,omitempty"`
 	// ModelRouting advertises per-run model bindings (#65 extension point).
 	ModelRouting *ModelRouting `json:"modelRouting,omitempty"`
 	// ModelBacked is true when analyses use a configured model and can form
@@ -162,6 +164,7 @@ type StartAnalysisRequest struct {
 	// ResearchQuestion optionally focuses semantic analysis. Empty means
 	// open-ended discovery.
 	ResearchQuestion     string `json:"researchQuestion,omitempty"`
+	ReasoningProfile     string `json:"reasoningProfile,omitempty"`
 	ExecutionProfile     string `json:"executionProfile,omitempty"`
 	// ModelBindings maps pipeline stages (EngineInfo.modelRouting.stages) to
 	// operator-allowed models. Execution config only; never semantics.
@@ -183,6 +186,7 @@ type AnalysisRun struct {
 	Note                 string                      `json:"note,omitempty"`
 	SemanticAnalysisMode string                      `json:"semanticAnalysisMode,omitempty"`
 	ResearchQuestion     string                      `json:"researchQuestion,omitempty"`
+	ReasoningProfile     string                      `json:"reasoningProfile,omitempty"`
 	ExecutionMode        string                      `json:"executionMode,omitempty"`
 	ExecutionProfile     *ExecutionProfileResolution `json:"executionProfile,omitempty"`
 	Engine               *EngineBuild                `json:"engine,omitempty"`

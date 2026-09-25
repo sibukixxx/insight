@@ -126,6 +126,7 @@ type ArtifactInsight struct {
 	Observation               string                       `json:"observation,omitempty"`
 	StatedNeed                string                       `json:"statedNeed,omitempty"`
 	LatentNeed                string                       `json:"latentNeed,omitempty"`
+	Hypothesis                string                       `json:"hypothesis,omitempty"`
 	Expectation               string                       `json:"expectation,omitempty"`
 	ExpectationBasis          domain.ExpectationBasis      `json:"expectationBasis,omitempty"`
 	SurprisingFact            string                       `json:"surprisingFact,omitempty"`
@@ -232,7 +233,7 @@ func (a *Application) artifactInsights(ctx context.Context, insightIDs []string)
 		}
 		i := detail.Insight
 		artifactInsight := ArtifactInsight{
-			ID: i.ID, Title: i.Title, Observation: i.Observation, StatedNeed: i.StatedNeed, LatentNeed: i.LatentNeed,
+			ID: i.ID, Title: i.Title, Observation: i.Observation, StatedNeed: i.StatedNeed, LatentNeed: i.LatentNeed, Hypothesis: i.LatentNeed,
 			Expectation: i.Expectation, ExpectationBasis: i.ExpectationBasis, SurprisingFact: i.SurprisingFact,
 			Rationale: i.Rationale, AlternativeInterpretation: i.AlternativeInterpretation,
 			Connection: i.Connection, Mechanism: i.Mechanism, Generalization: i.Generalization,

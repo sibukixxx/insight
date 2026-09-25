@@ -36,6 +36,9 @@ type Pipeline struct {
 	// means open-ended discovery. The question is semantic input, not model
 	// configuration; callers must include it in the run input fingerprint.
 	ResearchQuestion string
+	// ReasoningProfile selects the explicit semantic specialization of the
+	// same shared pipeline. Empty normalizes to GENERAL_RESEARCH.
+	ReasoningProfile domain.ReasoningProfile
 
 	// usage accumulates provider-reported tokens for the current run. A
 	// Pipeline value serves one run at a time and calls the model
@@ -470,6 +473,7 @@ func (p *Pipeline) persistInsights(ctx context.Context, analysisID, projectID st
 		}
 
 		insight.QualityFlags = AssessQuality(QualityInput{
+			ReasoningProfile: p.ReasoningProfile.Normalize(),
 			StatedNeed: insight.StatedNeed, LatentNeed: insight.LatentNeed,
 			Expectation: insight.Expectation, SurprisingFact: insight.SurprisingFact,
 			Patterns: citedPatterns,
@@ -552,7 +556,7 @@ func pipelineLLMSteps() []llmStep {
 }
 
 func (p *Pipeline) generate(ctx context.Context, step llmStep, messages []llm.Message) (*llm.GenerateResponse, error) {
-	systemPrompt := step.SystemPrompt + researchFocusInstruction(p.ResearchQuestion)
+	systemPrompt := step.SystemPrompt + researchFocusInstruction(p.ResearchQuestion) + reasoningProfileInstruction(p.ReasoningProfile, step.Name)
 	resp, err := p.LLM.Generate(ctx, llm.GenerateRequest{
 		SystemPrompt: systemPrompt, Messages: messages, Schema: step.Schema(), Temperature: step.Temperature,
 	})

@@ -86,6 +86,8 @@ func (e *Engine) Engine() EngineInfo {
 		AnalyticalArtifact:        SchemaRef{Schema: analytical.Schema, Version: analytical.Version},
 		ExecutionProfiles:         profileInfos(e.capabilities()),
 		InputSourceKinds:          input.Kinds(),
+		SupportedReasoningProfiles: []string{string(domain.ReasoningGeneralResearch), string(domain.ReasoningCustomerInsight)},
+		DefaultReasoningProfile:    string(domain.ReasoningGeneralResearch),
 		ModelRouting:              e.modelRouting(),
 		ModelBacked:               e.modelBacked != nil && e.modelBacked(),
 	}
@@ -339,6 +341,10 @@ func (e *Engine) StartAnalysis(ctx context.Context, subjectID string, req StartA
 		if len(researchQuestion) > maxQuestionLength {
 			return 0, nil, newError(CodeInvalidRequest, "researchQuestion is limited to %d characters", maxQuestionLength)
 		}
+		reasoning := domain.ReasoningProfile(req.ReasoningProfile).Normalize()
+		if !reasoning.Valid() {
+			return 0, nil, newError(CodeInvalidRequest, "unknown reasoningProfile %q", req.ReasoningProfile)
+		}
 		profile, err := execution.Parse(req.ExecutionProfile)
 		if err != nil {
 			return 0, nil, newError(CodeInvalidRequest, "%v", err)
@@ -346,7 +352,7 @@ func (e *Engine) StartAnalysis(ctx context.Context, subjectID string, req StartA
 		if len(req.ModelBindings) > 16 {
 			return 0, nil, newError(CodeInvalidRequest, "modelBindings is limited to 16 stages")
 		}
-		analysis, err := e.jobs.Enqueue(ctx, service.EnqueueRequest{ProjectID: subject.ProjectID, Label: strings.TrimSpace(req.Label), Note: strings.TrimSpace(req.Note), SemanticAnalysisMode: mode, ResearchQuestion: researchQuestion, ExecutionProfile: profile, ModelBindings: req.ModelBindings})
+		analysis, err := e.jobs.Enqueue(ctx, service.EnqueueRequest{ProjectID: subject.ProjectID, Label: strings.TrimSpace(req.Label), Note: strings.TrimSpace(req.Note), SemanticAnalysisMode: mode, ResearchQuestion: researchQuestion, ReasoningProfile: reasoning, ExecutionProfile: profile, ModelBindings: req.ModelBindings})
 		if err != nil {
 			return 0, nil, err
 		}
@@ -425,7 +431,7 @@ func (e *Engine) GetAnalysisResults(ctx context.Context, subjectID, analysisID s
 func toAnalysisRun(subjectID string, a *domain.Analysis) AnalysisRun {
 	run := AnalysisRun{
 		ContractVersion: ContractVersion, SubjectID: subjectID, AnalysisID: a.ID, Status: string(a.Status), Error: a.Error,
-		Label: a.Label, Note: a.Note, SemanticAnalysisMode: string(a.SemanticAnalysisMode),
+		Label: a.Label, Note: a.Note, SemanticAnalysisMode: string(a.SemanticAnalysisMode), ReasoningProfile: string(a.ReasoningProfile.Normalize()),
 		ExecutionFingerprint: a.ExecutionFingerprint, InputFingerprint: a.InputFingerprint,
 		CreatedAt: formatTime(a.CreatedAt), StartedAt: formatTimePtr(a.StartedAt), FinishedAt: formatTimePtr(a.FinishedAt),
 	}

@@ -105,6 +105,8 @@
         "analyticalArtifact": {"$ref": "#/$defs/SchemaRef"},
         "executionProfiles": {"type": "array", "items": {"$ref": "#/$defs/ExecutionProfileInfo"}},
         "inputSourceKinds": {"type": "array", "items": {"type": "string", "enum": ["INLINE_DOCUMENT", "ANALYTICAL_ARTIFACT", "RAW_ARTIFACT"]}},
+        "supportedReasoningProfiles": {"type": "array", "items": {"type": "string", "enum": ["GENERAL_RESEARCH", "CUSTOMER_INSIGHT"]}, "description": "Semantic reasoning specializations supported by the same research core."},
+        "defaultReasoningProfile": {"type": "string", "enum": ["GENERAL_RESEARCH", "CUSTOMER_INSIGHT"], "description": "Profile used when startAnalysis omits reasoningProfile; currently GENERAL_RESEARCH."},
         "modelRouting": {"$ref": "#/$defs/ModelRouting"},
         "modelBacked": {"type": "boolean", "description": "True when analyses use a configured model and can form hypotheses. False means deterministic only: research runs are refused with ANALYSIS_HAS_NO_HYPOTHESES."}
       }
@@ -196,6 +198,7 @@
         "note": {"type": "string", "maxLength": 2000},
         "semanticAnalysisMode": {"type": "string", "enum": ["DISCOVERY", "DATASET_ANALYSIS", "RESEARCH_REVIEW"]},
         "researchQuestion": {"type": "string", "maxLength": 2000, "description": "Optional domain-neutral research question that focuses model-backed semantic analysis. It is semantic input, not execution configuration; the input fingerprint changes when the question changes."},
+        "reasoningProfile": {"type": "string", "enum": ["GENERAL_RESEARCH", "CUSTOMER_INSIGHT"], "description": "Optional semantic specialization of the shared research core. Omitted means GENERAL_RESEARCH. The profile is execution/semantic configuration and does not change evidence identity."},
         "executionProfile": {"$ref": "#/$defs/ExecutionProfile"},
         "modelBindings": {"type": "object", "maxProperties": 16, "additionalProperties": {"type": "string", "minLength": 1, "maxLength": 128}, "description": "Stage -> model. Unknown stage is INVALID_REQUEST; a model the operator did not allow (or no model endpoint) is MODEL_BINDING_UNAVAILABLE."}
       }
@@ -221,6 +224,7 @@
         "note": {"type": "string"},
         "semanticAnalysisMode": {"type": "string"},
         "researchQuestion": {"type": "string", "description": "The question that focused this analysis, when one was supplied."},
+        "reasoningProfile": {"type": "string", "enum": ["GENERAL_RESEARCH", "CUSTOMER_INSIGHT"], "description": "Resolved semantic reasoning profile used by this analysis."},
         "executionMode": {"type": "string", "enum": ["deterministic", "model_backed"]},
         "executionProfile": {"$ref": "#/$defs/ExecutionProfileResolution"},
         "engine": {"$ref": "#/$defs/EngineBuild"},

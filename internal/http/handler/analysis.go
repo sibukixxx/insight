@@ -34,6 +34,7 @@ type analysisDTO struct {
 	Note                 string `json:"note,omitempty"`
 	SemanticAnalysisMode string `json:"semanticAnalysisMode,omitempty"`
 	ResearchQuestion     string `json:"researchQuestion,omitempty"`
+	ReasoningProfile     string `json:"reasoningProfile,omitempty"`
 	// ExecutionSnapshot and InputSnapshot are absent for runs recorded before
 	// snapshots existed. A missing snapshot means "not recorded".
 	ExecutionSnapshot    json.RawMessage `json:"executionSnapshot,omitempty"`
@@ -59,7 +60,7 @@ func toAnalysisDTO(a *domain.Analysis) analysisDTO {
 	if a.Status == domain.AnalysisCompleted && json.Valid([]byte(a.Metrics)) {
 		dto.Metrics = json.RawMessage(a.Metrics)
 	}
-	dto.Label, dto.Note, dto.SemanticAnalysisMode, dto.ResearchQuestion = a.Label, a.Note, string(a.SemanticAnalysisMode), a.ResearchQuestion
+	dto.Label, dto.Note, dto.SemanticAnalysisMode, dto.ResearchQuestion, dto.ReasoningProfile = a.Label, a.Note, string(a.SemanticAnalysisMode), a.ResearchQuestion, string(a.ReasoningProfile.Normalize())
 	if json.Valid([]byte(a.ExecutionSnapshot)) {
 		dto.ExecutionSnapshot = json.RawMessage(a.ExecutionSnapshot)
 	}
@@ -80,7 +81,8 @@ func (h *Handler) CreateAnalysis(w http.ResponseWriter, r *http.Request) {
 		Label                string              `json:"label"`
 		Note                 string              `json:"note"`
 		SemanticAnalysisMode domain.AnalysisMode `json:"semanticAnalysisMode"`
-		ResearchQuestion     string              `json:"researchQuestion"`
+		ResearchQuestion     string                  `json:"researchQuestion"`
+		ReasoningProfile     domain.ReasoningProfile `json:"reasoningProfile"`
 	}
 	if r.ContentLength != 0 {
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil && !errors.Is(err, io.EOF) {
@@ -92,8 +94,12 @@ func (h *Handler) CreateAnalysis(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, fmt.Sprintf("invalid semanticAnalysisMode %q", req.SemanticAnalysisMode))
 		return
 	}
+	if req.ReasoningProfile != "" && !req.ReasoningProfile.Valid() {
+		writeError(w, http.StatusBadRequest, fmt.Sprintf("invalid reasoningProfile %q", req.ReasoningProfile))
+		return
+	}
 	a, err := h.JobManager.Enqueue(r.Context(), service.EnqueueRequest{
-		ProjectID: projectID, Label: strings.TrimSpace(req.Label), Note: strings.TrimSpace(req.Note), SemanticAnalysisMode: req.SemanticAnalysisMode, ResearchQuestion: strings.TrimSpace(req.ResearchQuestion),
+		ProjectID: projectID, Label: strings.TrimSpace(req.Label), Note: strings.TrimSpace(req.Note), SemanticAnalysisMode: req.SemanticAnalysisMode, ResearchQuestion: strings.TrimSpace(req.ResearchQuestion), ReasoningProfile: req.ReasoningProfile.Normalize(),
 	})
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
