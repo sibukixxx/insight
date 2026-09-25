@@ -195,6 +195,7 @@
         "label": {"type": "string", "maxLength": 256},
         "note": {"type": "string", "maxLength": 2000},
         "semanticAnalysisMode": {"type": "string", "enum": ["DISCOVERY", "DATASET_ANALYSIS", "RESEARCH_REVIEW"]},
+        "researchQuestion": {"type": "string", "maxLength": 2000, "description": "Optional domain-neutral research question that focuses model-backed semantic analysis. It is semantic input, not execution configuration; the input fingerprint changes when the question changes."},
         "executionProfile": {"$ref": "#/$defs/ExecutionProfile"},
         "modelBindings": {"type": "object", "maxProperties": 16, "additionalProperties": {"type": "string", "minLength": 1, "maxLength": 128}, "description": "Stage -> model. Unknown stage is INVALID_REQUEST; a model the operator did not allow (or no model endpoint) is MODEL_BINDING_UNAVAILABLE."}
       }
@@ -219,6 +220,7 @@
         "label": {"type": "string"},
         "note": {"type": "string"},
         "semanticAnalysisMode": {"type": "string"},
+        "researchQuestion": {"type": "string", "description": "The question that focused this analysis, when one was supplied."},
         "executionMode": {"type": "string", "enum": ["deterministic", "model_backed"]},
         "executionProfile": {"$ref": "#/$defs/ExecutionProfileResolution"},
         "engine": {"$ref": "#/$defs/EngineBuild"},
