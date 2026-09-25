@@ -98,7 +98,7 @@ The SDKs add `UNAVAILABLE` for an unreachable engine or a non-contract response.
 
 - When present, the engine passes the question to every semantic LLM stage: observation selection, mismatch/pattern detection, hypothesis generation, evidence/counter-evidence retrieval, synthesis and dedupe.
 - The prompt explicitly tells the model not to assume the question's premise is true and to retain evidence or alternative explanations that can falsify or reframe it.
-- The question is part of the **input fingerprint**, not the execution fingerprint. Same evidence + different question is therefore an input change.
+- The question is part of the **input fingerprint**, not the execution fingerprint. Same evidence + different question is therefore an input change. `compareAnalyses.input.researchQuestion` exposes the field-level question change when present.
 - When omitted, analysis remains open-ended discovery.
 - A `createResearchRun.question` or appended iteration must match the analysis's recorded question when that analysis was question-conditioned. Analyses created before this field existed, or analyses with no question, remain compatible.
 - The field is additive in Public Engine Contract v1. Legacy hypothesis field/stage names such as `latentNeed` / `need_hypothesis` remain wire-compatible; they no longer imply that the research domain is customer needs.
