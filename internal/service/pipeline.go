@@ -36,6 +36,9 @@ type Pipeline struct {
 	// means open-ended discovery. The question is semantic input, not model
 	// configuration; callers must include it in the run input fingerprint.
 	ResearchQuestion string
+	// ReasoningProfile selects profile-specific prompt extensions on top of
+	// the shared invariants. Empty means GENERAL_RESEARCH.
+	ReasoningProfile domain.ReasoningProfile
 
 	// usage accumulates provider-reported tokens for the current run. A
 	// Pipeline value serves one run at a time and calls the model
@@ -406,6 +409,7 @@ func (p *Pipeline) persistInsights(ctx context.Context, analysisID, projectID st
 
 	for _, idx := range keepIdx {
 		d := drafts[idx]
+		d.writeup = projectWriteup(d.writeup, p.ReasoningProfile)
 		insight := &domain.Insight{
 			ID: newID("ins"), ProjectID: projectID, AnalysisID: &aID, Title: d.writeup.Title,
 			Observation: d.writeup.ObservationSummary, StatedNeed: d.hypothesis.StatedNeed,
@@ -472,7 +476,7 @@ func (p *Pipeline) persistInsights(ctx context.Context, analysisID, projectID st
 		insight.QualityFlags = AssessQuality(QualityInput{
 			StatedNeed: insight.StatedNeed, LatentNeed: insight.LatentNeed,
 			Expectation: insight.Expectation, SurprisingFact: insight.SurprisingFact,
-			Patterns: citedPatterns,
+			Patterns: citedPatterns, Profile: p.ReasoningProfile,
 		})
 		if d.hypothesis.HypothesisSetSize < 3 {
 			insight.QualityFlags = append(insight.QualityFlags, domain.QualityFlag{
@@ -552,7 +556,7 @@ func pipelineLLMSteps() []llmStep {
 }
 
 func (p *Pipeline) generate(ctx context.Context, step llmStep, messages []llm.Message) (*llm.GenerateResponse, error) {
-	systemPrompt := step.SystemPrompt + researchFocusInstruction(p.ResearchQuestion)
+	systemPrompt := applyProfile(step, p.ReasoningProfile).SystemPrompt + researchFocusInstruction(p.ResearchQuestion)
 	resp, err := p.LLM.Generate(ctx, llm.GenerateRequest{
 		SystemPrompt: systemPrompt, Messages: messages, Schema: step.Schema(), Temperature: step.Temperature,
 	})

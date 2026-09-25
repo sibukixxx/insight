@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"insight-lab/internal/domain"
 	"insight-lab/internal/llm"
 )
 
@@ -36,5 +37,37 @@ func TestOpenAIClientReceivesGroundedAnswerFromScriptedServer(t *testing.T) {
 func TestScriptedServerRejectsUnknownStep(t *testing.T) {
 	if _, err := Answer("unknown_step", "x"); err == nil {
 		t.Fatal("unknown step must fail instead of inventing an answer")
+	}
+}
+
+// Model-backed conformance must exercise both reasoning profiles over HTTP:
+// the scripted model fills customer fields only when the system prompt
+// carries the explicitly selected CUSTOMER_INSIGHT profile.
+func TestScriptedServerAnswersCustomerFieldsOnlyUnderCustomerInsightProfile(t *testing.T) {
+	srv := httptest.NewServer(Handler())
+	defer srv.Close()
+	client := llm.NewOpenAIClient(srv.URL, "scripted", "scripted-model")
+	hypothesis := func(system string) map[string]string {
+		resp, err := client.Generate(context.Background(), llm.GenerateRequest{
+			SystemPrompt: system, Messages: []llm.Message{{Role: "user", Content: "{}"}},
+			Schema: llm.Schema{Name: "need_hypothesis", Schema: map[string]any{"type": "object"}, Validate: func(json.RawMessage) error { return nil }},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		var out struct {
+			Hypotheses []map[string]any `json:"hypotheses"`
+		}
+		if err := json.Unmarshal(resp.Content, &out); err != nil || len(out.Hypotheses) != 1 {
+			t.Fatalf("answer = %s (%v)", resp.Content, err)
+		}
+		return map[string]string{"statedNeed": out.Hypotheses[0]["statedNeed"].(string), "jtbd": out.Hypotheses[0]["jtbd"].(string)}
+	}
+	if got := hypothesis("generic"); got["statedNeed"] != "" || got["jtbd"] != "" {
+		t.Fatalf("GENERAL_RESEARCH answer carries customer fields: %v", got)
+	}
+	got := hypothesis("shared rules\n\n" + domain.ReasoningProfileCustomerInsight.PromptMarker())
+	if got["statedNeed"] == "" || got["jtbd"] == "" {
+		t.Fatalf("CUSTOMER_INSIGHT answer lacks customer fields: %v", got)
 	}
 }

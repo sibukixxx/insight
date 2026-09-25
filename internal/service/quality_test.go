@@ -33,6 +33,7 @@ func repetition() *domain.Pattern {
 
 func TestAssessQualityCleanInsightHasNoFlags(t *testing.T) {
 	flags := AssessQuality(QualityInput{
+		Profile:        domain.ReasoningProfileCustomerInsight,
 		StatedNeed:     "請求書作成を早く終わらせたい",
 		LatentNeed:     "多く請求して顧客に『この会社大丈夫か』と思われる事態を絶対に避けたい",
 		Expectation:    "忙しいなら自動計算を信じてそのまま送るはず",
@@ -91,6 +92,7 @@ func TestAssessQualityGenericTerm(t *testing.T) {
 	flags := AssessQuality(QualityInput{
 		StatedNeed: "早く終わらせたい", LatentNeed: "承認欲求を満たしたい",
 		Expectation: "x", SurprisingFact: "y", Patterns: []*domain.Pattern{trace()},
+		Profile: domain.ReasoningProfileCustomerInsight,
 	})
 	if len(flags) != 1 || flags[0].Code != domain.QualityGenericTerm || flags[0].Detail != "承認欲求" {
 		t.Fatalf("flags = %+v, want a single generic_term flag with detail 承認欲求", flags)
@@ -99,6 +101,7 @@ func TestAssessQualityGenericTerm(t *testing.T) {
 
 func TestAssessQualityNoTraceAndIncompleteAbduction(t *testing.T) {
 	flags := AssessQuality(QualityInput{
+		Profile:    domain.ReasoningProfileCustomerInsight,
 		StatedNeed: "早く終わらせたい",
 		LatentNeed: "失敗して信頼を失うことを避けたい",
 		Patterns:   []*domain.Pattern{repetition()},
@@ -116,6 +119,7 @@ func TestAssessQualityNoTraceAndIncompleteAbduction(t *testing.T) {
 	// A hypothesis citing at least one deviation pattern clears no_trace,
 	// even when repetition patterns are cited alongside it.
 	flags = AssessQuality(QualityInput{
+		Profile:    domain.ReasoningProfileCustomerInsight,
 		StatedNeed: "早く終わらせたい", LatentNeed: "失敗して信頼を失うことを避けたい",
 		Expectation: "x", SurprisingFact: "y",
 		Patterns: []*domain.Pattern{repetition(), trace()},
@@ -128,6 +132,7 @@ func TestAssessQualityNoTraceAndIncompleteAbduction(t *testing.T) {
 func TestAssessQualityFlagOrderIsStable(t *testing.T) {
 	flags := AssessQuality(QualityInput{
 		StatedNeed: "安心したい", LatentNeed: "安心したい",
+		Profile: domain.ReasoningProfileCustomerInsight,
 	})
 	want := []domain.QualityFlagCode{
 		domain.QualityStatedNeedEcho, domain.QualityGenericTerm, domain.QualityNoTrace, domain.QualityAbductionIncomplete,

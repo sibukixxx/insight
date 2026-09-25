@@ -43,6 +43,17 @@ type ExecutionConfig struct {
 	// so runs recorded before v2 can still be matched.
 	PromptFingerprintLegacy string        `json:"promptFingerprintLegacy,omitempty"`
 	LLM                     *LLMExecution `json:"llm,omitempty"`
+	// ReasoningProfile is set only for a non-default profile on a
+	// model-backed run: GENERAL_RESEARCH adds no field, while any other
+	// profile changes the fingerprint.
+	ReasoningProfile domain.ReasoningProfile `json:"reasoningProfile,omitempty"`
+}
+
+// ReasoningProfileResolution records the profile the caller requested (empty
+// when omitted) and the profile the run used.
+type ReasoningProfileResolution struct {
+	Requested domain.ReasoningProfile `json:"requested,omitempty"`
+	Resolved  domain.ReasoningProfile `json:"resolved"`
 }
 
 // LLMExecution is the model side of a model-backed run.
@@ -82,11 +93,22 @@ type ExecutionSnapshot struct {
 	// changes how inputs are prepared and executed, never research meaning,
 	// so it does not change the execution fingerprint.
 	ExecutionProfile *execution.Resolution `json:"executionProfile,omitempty"`
+	// ReasoningProfile is the audit record of the profile choice. The
+	// fingerprinted part lives in ExecutionConfig.ReasoningProfile.
+	ReasoningProfileResolution *ReasoningProfileResolution `json:"reasoningProfileResolution,omitempty"`
 }
 
 // BuildExecutionSnapshot captures the configuration a run will execute with.
 // A run without a configured model is deterministic and records no model.
 func BuildExecutionSnapshot(settings Settings, semantic domain.AnalysisMode, build buildinfo.Info, at time.Time) (ExecutionSnapshot, error) {
+	return BuildExecutionSnapshotFor(settings, semantic, "", build, at)
+}
+
+// BuildExecutionSnapshotFor is BuildExecutionSnapshot for an explicitly
+// requested reasoning profile. The caller must have validated the profile.
+func BuildExecutionSnapshotFor(settings Settings, semantic domain.AnalysisMode, profile domain.ReasoningProfile, build buildinfo.Info, at time.Time) (ExecutionSnapshot, error) {
+	resolved := profile.Normalize()
+	steps := pipelineLLMStepsFor(resolved)
 	config := ExecutionConfig{
 		EngineVersion: build.Version, GitCommit: build.Commit, GitDirty: build.Dirty,
 		ExecutionMode: ExecutionModeDeterministic, SemanticAnalysisMode: semantic,
@@ -95,7 +117,7 @@ func BuildExecutionSnapshot(settings Settings, semantic domain.AnalysisMode, bui
 		},
 	}
 	if settings.Configured() {
-		promptFP, err := promptFingerprintV2(pipelineLLMSteps(), promptProtocol{Fallback: llm.JSONObjectFallbackInstruction, Retry: llm.SchemaRetryTemplate})
+		promptFP, err := promptFingerprintV2(steps, promptProtocol{Fallback: llm.JSONObjectFallbackInstruction, Retry: llm.SchemaRetryTemplate})
 		if err != nil {
 			return ExecutionSnapshot{}, err
 		}
@@ -105,9 +127,13 @@ func BuildExecutionSnapshot(settings Settings, semantic domain.AnalysisMode, bui
 		config.RuleVersions["contextBudget"] = contextBudgetRuleVersion
 		config.PromptVersion = promptVersion
 		config.PromptFingerprint = promptFP
-		config.PromptFingerprintLegacy = promptFingerprint()
+		if resolved == domain.ReasoningProfileGeneralResearch {
+			config.PromptFingerprintLegacy = promptFingerprint()
+		} else {
+			config.ReasoningProfile = resolved
+		}
 		temperatures := map[string]float64{}
-		for _, step := range pipelineLLMSteps() {
+		for _, step := range steps {
 			temperatures[step.Name] = step.Temperature
 		}
 		config.LLM = &LLMExecution{
@@ -123,7 +149,10 @@ func BuildExecutionSnapshot(settings Settings, semantic domain.AnalysisMode, bui
 	if err != nil {
 		return ExecutionSnapshot{}, err
 	}
-	return ExecutionSnapshot{ExecutionConfig: config, ExecutionFingerprint: fp, CapturedAt: at.UTC()}, nil
+	return ExecutionSnapshot{
+		ExecutionConfig: config, ExecutionFingerprint: fp, CapturedAt: at.UTC(),
+		ReasoningProfileResolution: &ReasoningProfileResolution{Requested: profile, Resolved: resolved},
+	}, nil
 }
 
 // providerHost keeps only host[:port] of the endpoint. User info, path and
@@ -211,7 +240,7 @@ func BuildInputSnapshotForQuestion(docs []*domain.Document, researchQuestion str
 	pre := RunDatasetPreAnalysis(docs, at)
 	snapshot := InputSnapshot{
 		ResearchQuestion: researchQuestion,
-		DocumentCount: len(docs), DatasetHashes: pre.DatasetHashes, Datasets: datasetProvenances(pre),
+		DocumentCount:    len(docs), DatasetHashes: pre.DatasetHashes, Datasets: datasetProvenances(pre),
 		CompatibilityWarnings: pre.CompatibilityWarnings, CapturedAt: at.UTC(),
 	}
 	identities := make([]documentIdentity, 0, len(docs))

@@ -128,6 +128,9 @@ type EnqueueRequest struct {
 	ResearchQuestion string
 	// ExecutionProfile is the requested strategy; empty means AUTO.
 	ExecutionProfile execution.Profile
+	// ReasoningProfile is explicitly selected by the caller; empty means
+	// GENERAL_RESEARCH. It is never inferred from the input.
+	ReasoningProfile domain.ReasoningProfile
 	// ModelBindings optionally binds pipeline stages to operator-allowed
 	// models (ModelStages / AllowedModels).
 	ModelBindings map[string]string
@@ -145,6 +148,9 @@ func (m *JobManager) Enqueue(ctx context.Context, req EnqueueRequest) (*domain.A
 	if len(req.ResearchQuestion) > 2000 {
 		return nil, fmt.Errorf("research question is limited to 2000 characters")
 	}
+	if req.ReasoningProfile != "" && !req.ReasoningProfile.Valid() {
+		return nil, fmt.Errorf("invalid reasoning profile %q", req.ReasoningProfile)
+	}
 	now := time.Now().UTC()
 	settings := m.settings.Get()
 	bindings, err := ResolveModelBindings(settings, m.AllowedModels, req.ModelBindings)
@@ -156,7 +162,7 @@ func (m *JobManager) Enqueue(ctx context.Context, req EnqueueRequest) (*domain.A
 	if err != nil {
 		return nil, err
 	}
-	execution, err := BuildExecutionSnapshot(settings, req.SemanticAnalysisMode, m.build, now)
+	execution, err := BuildExecutionSnapshotFor(settings, req.SemanticAnalysisMode, req.ReasoningProfile, m.build, now)
 	if err != nil {
 		return nil, fmt.Errorf("capture execution snapshot: %w", err)
 	}
@@ -215,6 +221,7 @@ func (m *JobManager) run(ctx context.Context, analysisID string) {
 		Documents: m.pipeline.Documents, Observations: m.pipeline.Observations,
 		Patterns: m.pipeline.Patterns, Insights: m.pipeline.Insights, Evidence: m.pipeline.Evidence,
 		LLM: client, Model: settings.Model, ResearchQuestion: a.ResearchQuestion,
+		ReasoningProfile: AnalysisReasoningProfile(a),
 	}
 
 	now := time.Now().UTC()
@@ -361,6 +368,16 @@ func resolvedProfile(a *domain.Analysis) execution.Profile {
 		return execution.ProfileLight
 	}
 	return snap.ExecutionProfile.Resolved
+}
+
+// AnalysisReasoningProfile reads the reasoning profile recorded at enqueue
+// time. Runs recorded before profiles existed ran GENERAL_RESEARCH.
+func AnalysisReasoningProfile(a *domain.Analysis) domain.ReasoningProfile {
+	var snap ExecutionSnapshot
+	if json.Unmarshal([]byte(a.ExecutionSnapshot), &snap) != nil || snap.ReasoningProfileResolution == nil {
+		return domain.ReasoningProfileGeneralResearch
+	}
+	return snap.ReasoningProfileResolution.Resolved.Normalize()
 }
 
 // prepareInputs creates prepared Analytical Artifacts for referenced raw

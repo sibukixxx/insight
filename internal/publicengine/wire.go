@@ -56,6 +56,9 @@ type EngineInfo struct {
 	// hypotheses; false means deterministic only (research runs are refused
 	// with ANALYSIS_HAS_NO_HYPOTHESES).
 	ModelBacked bool `json:"modelBacked"`
+	// ReasoningProfiles advertises the explicitly selectable reasoning
+	// profiles (#109); the first is the default.
+	ReasoningProfiles []string `json:"reasoningProfiles,omitempty"`
 }
 
 type ExecutionProfileInfo struct {
@@ -161,8 +164,11 @@ type StartAnalysisRequest struct {
 	SemanticAnalysisMode string `json:"semanticAnalysisMode,omitempty"`
 	// ResearchQuestion optionally focuses semantic analysis. Empty means
 	// open-ended discovery.
-	ResearchQuestion     string `json:"researchQuestion,omitempty"`
-	ExecutionProfile     string `json:"executionProfile,omitempty"`
+	ResearchQuestion string `json:"researchQuestion,omitempty"`
+	ExecutionProfile string `json:"executionProfile,omitempty"`
+	// ReasoningProfile explicitly selects GENERAL_RESEARCH (default) or a
+	// specialization such as CUSTOMER_INSIGHT. It is never inferred.
+	ReasoningProfile string `json:"reasoningProfile,omitempty"`
 	// ModelBindings maps pipeline stages (EngineInfo.modelRouting.stages) to
 	// operator-allowed models. Execution config only; never semantics.
 	ModelBindings map[string]string `json:"modelBindings,omitempty"`
@@ -185,6 +191,7 @@ type AnalysisRun struct {
 	ResearchQuestion     string                      `json:"researchQuestion,omitempty"`
 	ExecutionMode        string                      `json:"executionMode,omitempty"`
 	ExecutionProfile     *ExecutionProfileResolution `json:"executionProfile,omitempty"`
+	ReasoningProfile     string                      `json:"reasoningProfile,omitempty"`
 	Engine               *EngineBuild                `json:"engine,omitempty"`
 	ExecutionFingerprint string                      `json:"executionFingerprint,omitempty"`
 	InputFingerprint     string                      `json:"inputFingerprint,omitempty"`

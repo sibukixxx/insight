@@ -103,6 +103,17 @@ The SDKs add `UNAVAILABLE` for an unreachable engine or a non-contract response.
 - A `createResearchRun.question` or appended iteration must match the analysis's recorded question when that analysis was question-conditioned. Analyses created before this field existed, or analyses with no question, remain compatible.
 - The field is additive in Public Engine Contract v1. Legacy hypothesis field/stage names such as `latentNeed` / `need_hypothesis` remain wire-compatible; they no longer imply that the research domain is customer needs.
 
+## Reasoning profiles (#109)
+
+`startAnalysis.reasoningProfile` explicitly selects how the engine reasons over the same evidence. See [reasoning-profiles.md](reasoning-profiles.md).
+
+- `GENERAL_RESEARCH` (default when omitted) is the domain-neutral, question-conditioned behavior above. Its prompts and prompt fingerprint are unchanged by this field (the execution fingerprint shifts once because `ruleVersions.quality` moved to `quality/v3`, which gates customer checks to CUSTOMER_INSIGHT).
+- `CUSTOMER_INSIGHT` is an explicit specialization: stated vs latent need, behavioral traces, JTBD, optional commercial projections and customer-specific quality checks, on top of the same grounding, evidence/counter-evidence, causal guardrails, ResearchGap, iteration and artifact semantics.
+- The profile is never inferred from source, namespace or wording. An unknown value is `INVALID_REQUEST`.
+- `AnalysisRun.reasoningProfile` reports the profile a run used (omitted for runs recorded before profiles existed; they ran `GENERAL_RESEARCH`). `EngineInfo.reasoningProfiles` lists the selectable profiles, default first.
+- The profile is execution configuration: a non-default profile changes the prompt and execution fingerprints, never the input fingerprint. `compareAnalyses` therefore attributes a profile-only difference to `EXECUTION_CHANGE` with a `reasoningProfile` field change.
+- Conformance: `18-reasoning-profiles` (model-backed).
+
 ## Model-backed capability
 
 `EngineInfo.modelBacked` reports whether analyses use a configured model (it follows live settings). A deterministic engine (`false`) analyzes evidence into observations but never forms hypotheses, so `createResearchRun` / `appendIteration` over its analyses fail with `ANALYSIS_HAS_NO_HYPOTHESES`. Consumers should check it before starting research work.

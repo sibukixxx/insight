@@ -405,8 +405,13 @@ func TestPipelineRunWithInterviewsOnlyRecordsModelBackedProvenance(t *testing.T)
 	}
 }
 
+// The scripted fixture is the original customer-insight use case (stated vs
+// latent need, commercial projections), so it runs under the explicit
+// CUSTOMER_INSIGHT profile (#109) and guards that specialization against
+// regression.
 func TestPipelineRunEndToEnd(t *testing.T) {
 	pipeline, db, project := newTestPipeline(t)
+	pipeline.ReasoningProfile = domain.ReasoningProfileCustomerInsight
 	ctx := context.Background()
 
 	var progressLog []string

@@ -113,3 +113,21 @@ func TestCreateAnalysisAcceptsAnEmptyBody(t *testing.T) {
 		t.Fatalf("status %d, want 202: %s", rec.Code, rec.Body.String())
 	}
 }
+
+func TestCreateAnalysisRecordsAnExplicitReasoningProfileAndRejectsUnknownOnes(t *testing.T) {
+	router, analyses := newJobRouter(t)
+	if rec := post(router, "/api/projects/p1/analysis", `{"reasoningProfile":"MARKETING"}`); rec.Code != http.StatusBadRequest {
+		t.Fatalf("unknown profile: status %d, want 400", rec.Code)
+	}
+	if list, _ := analyses.ListByProject(context.Background(), "p1"); len(list) != 0 {
+		t.Fatalf("a rejected request must not create a run, got %d", len(list))
+	}
+	rec := post(router, "/api/projects/p1/analysis", `{"reasoningProfile":"CUSTOMER_INSIGHT"}`)
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("create analysis: %d %s", rec.Code, rec.Body.String())
+	}
+	var run struct{ ReasoningProfile string }
+	if err := json.Unmarshal(rec.Body.Bytes(), &run); err != nil || run.ReasoningProfile != "CUSTOMER_INSIGHT" {
+		t.Fatalf("created run profile = %q (%v)", run.ReasoningProfile, err)
+	}
+}

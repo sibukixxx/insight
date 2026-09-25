@@ -1,0 +1,281 @@
+{
+  "fixture": "18-reasoning-profiles",
+  "contractVersion": "1",
+  "covers": "#109: GENERAL_RESEARCH is the default reasoning profile and CUSTOMER_INSIGHT is an explicit specialization over the same evidence; the profile is recorded on the run, changes only the execution instrument (never the input) and unknown profiles fail explicitly; comparison.execution.changes is sorted by field, so promptFingerprint precedes reasoningProfile",
+  "engine": "model_backed",
+  "steps": [
+    {
+      "op": "getEngine",
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "reasoningProfiles[0]",
+          "equals": "GENERAL_RESEARCH"
+        },
+        {
+          "path": "reasoningProfiles[1]",
+          "equals": "CUSTOMER_INSIGHT"
+        },
+        {
+          "path": "modelBacked",
+          "equals": true
+        }
+      ]
+    },
+    {
+      "op": "createSubject",
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-subject",
+        "subject": {
+          "namespace": "conformance",
+          "id": "profiles-${uniq}"
+        }
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "subjectId": "subjectId"
+      }
+    },
+    {
+      "op": "addEvidence",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-evidence",
+        "documents": [
+          {
+            "externalRef": "e1",
+            "source": "review",
+            "content": "Sales rose in March after the price change."
+          },
+          {
+            "externalRef": "e2",
+            "source": "review",
+            "content": "A regional report contradicts that the price change mattered."
+          }
+        ]
+      },
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "op": "startAnalysis",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-unknown",
+        "reasoningProfile": "MARKETING"
+      },
+      "expect": {
+        "errorCode": "INVALID_REQUEST",
+        "httpStatus": 400
+      }
+    },
+    {
+      "op": "startAnalysis",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-general"
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "general": "analysisId"
+      }
+    },
+    {
+      "op": "startAnalysis",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-customer",
+        "reasoningProfile": "CUSTOMER_INSIGHT"
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "customer": "analysisId"
+      }
+    },
+    {
+      "op": "waitForAnalysis",
+      "params": {
+        "subjectId": "${subjectId}",
+        "analysisId": "${general}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "status",
+          "equals": "completed"
+        },
+        {
+          "path": "executionMode",
+          "equals": "model_backed"
+        },
+        {
+          "path": "reasoningProfile",
+          "equals": "GENERAL_RESEARCH"
+        }
+      ]
+    },
+    {
+      "op": "waitForAnalysis",
+      "params": {
+        "subjectId": "${subjectId}",
+        "analysisId": "${customer}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "status",
+          "equals": "completed"
+        },
+        {
+          "path": "executionMode",
+          "equals": "model_backed"
+        },
+        {
+          "path": "reasoningProfile",
+          "equals": "CUSTOMER_INSIGHT"
+        }
+      ]
+    },
+    {
+      "op": "createResearchRun",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-research-general",
+        "question": "Why did sales change after the price change?",
+        "analysisId": "${general}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "artifact.insights",
+          "minLength": 1
+        },
+        {
+          "path": "artifact.insights[0].statedNeed",
+          "exists": false
+        },
+        {
+          "path": "artifact.insights[0].missingEvidence",
+          "minLength": 1
+        },
+        {
+          "path": "artifact.insights[0].alternativeInterpretation",
+          "exists": true
+        },
+        {
+          "path": "artifact.researchGaps",
+          "minLength": 1
+        }
+      ]
+    },
+    {
+      "op": "createResearchRun",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-research-customer",
+        "question": "Why did sales change after the price change?",
+        "analysisId": "${customer}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "artifact.insights",
+          "minLength": 1
+        },
+        {
+          "path": "artifact.insights[0].statedNeed",
+          "exists": true
+        },
+        {
+          "path": "artifact.insights[0].missingEvidence",
+          "minLength": 1
+        },
+        {
+          "path": "artifact.insights[0].alternativeInterpretation",
+          "exists": true
+        },
+        {
+          "path": "artifact.researchGaps",
+          "minLength": 1
+        }
+      ]
+    },
+    {
+      "op": "compareAnalyses",
+      "params": {
+        "subjectId": "${subjectId}",
+        "analysisId": "${general}",
+        "otherAnalysisId": "${customer}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "comparison.input.state",
+          "equals": "SAME"
+        },
+        {
+          "path": "comparison.execution.state",
+          "equals": "CHANGED"
+        },
+        {
+          "path": "comparison.attribution",
+          "equals": "EXECUTION_CHANGE"
+        },
+        {
+          "path": "comparison.execution.changes[1].field",
+          "equals": "reasoningProfile"
+        },
+        {
+          "path": "comparison.execution.changes[1].from",
+          "equals": "GENERAL_RESEARCH"
+        },
+        {
+          "path": "comparison.execution.changes[1].to",
+          "equals": "CUSTOMER_INSIGHT"
+        },
+        {
+          "path": "comparison.winner",
+          "exists": false
+        }
+      ]
+    }
+  ]
+}

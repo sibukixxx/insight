@@ -106,7 +106,8 @@
         "executionProfiles": {"type": "array", "items": {"$ref": "#/$defs/ExecutionProfileInfo"}},
         "inputSourceKinds": {"type": "array", "items": {"type": "string", "enum": ["INLINE_DOCUMENT", "ANALYTICAL_ARTIFACT", "RAW_ARTIFACT"]}},
         "modelRouting": {"$ref": "#/$defs/ModelRouting"},
-        "modelBacked": {"type": "boolean", "description": "True when analyses use a configured model and can form hypotheses. False means deterministic only: research runs are refused with ANALYSIS_HAS_NO_HYPOTHESES."}
+        "modelBacked": {"type": "boolean", "description": "True when analyses use a configured model and can form hypotheses. False means deterministic only: research runs are refused with ANALYSIS_HAS_NO_HYPOTHESES."},
+        "reasoningProfiles": {"type": "array", "items": {"$ref": "#/$defs/ReasoningProfile"}, "description": "Reasoning profiles a caller may select explicitly (#109). The first is the default."}
       }
     },
     "ModelRouting": {
@@ -197,6 +198,7 @@
         "semanticAnalysisMode": {"type": "string", "enum": ["DISCOVERY", "DATASET_ANALYSIS", "RESEARCH_REVIEW"]},
         "researchQuestion": {"type": "string", "maxLength": 2000, "description": "Optional domain-neutral research question that focuses model-backed semantic analysis. It is semantic input, not execution configuration; the input fingerprint changes when the question changes."},
         "executionProfile": {"$ref": "#/$defs/ExecutionProfile"},
+        "reasoningProfile": {"$ref": "#/$defs/ReasoningProfile"},
         "modelBindings": {"type": "object", "maxProperties": 16, "additionalProperties": {"type": "string", "minLength": 1, "maxLength": 128}, "description": "Stage -> model. Unknown stage is INVALID_REQUEST; a model the operator did not allow (or no model endpoint) is MODEL_BINDING_UNAVAILABLE."}
       }
     },
@@ -223,6 +225,7 @@
         "researchQuestion": {"type": "string", "description": "The question that focused this analysis, when one was supplied."},
         "executionMode": {"type": "string", "enum": ["deterministic", "model_backed"]},
         "executionProfile": {"$ref": "#/$defs/ExecutionProfileResolution"},
+        "reasoningProfile": {"$ref": "#/$defs/ReasoningProfile", "description": "The reasoning profile this run used. Omitted for runs recorded before profiles existed (they ran GENERAL_RESEARCH)."},
         "engine": {"$ref": "#/$defs/EngineBuild"},
         "executionFingerprint": {"type": "string"},
         "inputFingerprint": {"type": "string"},
@@ -680,6 +683,7 @@
       }
     },
     "ChangeAttribution": {"type": "string", "enum": ["EVIDENCE_DELTA", "INSTRUMENT_CHANGE", "EVIDENCE_AND_INSTRUMENT", "UNATTRIBUTED"]},
+    "ReasoningProfile": {"type": "string", "enum": ["GENERAL_RESEARCH", "CUSTOMER_INSIGHT"], "description": "Explicitly selected reasoning profile (#109). GENERAL_RESEARCH is the domain-neutral default. CUSTOMER_INSIGHT adds stated/latent need, JTBD and customer-specific quality checks on top of the same grounding, evidence, counter-evidence and causal guardrails. Never inferred from input. Changes the prompt and execution fingerprint, never the input fingerprint. Unknown values are INVALID_REQUEST."},
     "ExecutionProfile": {"type": "string", "enum": ["LIGHT", "STANDARD", "HEAVY", "AUTO"], "description": "Resource/runtime strategy (#91). Separate from semanticAnalysisMode, research stage and executionMode; it never changes hypothesis, validation or readiness semantics. Omitted means AUTO."},
     "ExecutionProfileInfo": {"type": "object", "required": ["profile", "available", "description"], "properties": {"profile": {"$ref": "#/$defs/ExecutionProfile"}, "available": {"type": "boolean"}, "description": {"type": "string"}}},
     "ExecutionProfileResolution": {

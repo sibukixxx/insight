@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 
+	"insight-lab/internal/domain"
 	"insight-lab/internal/llm"
 )
 
@@ -28,6 +29,15 @@ func (Model) Generate(_ context.Context, req llm.GenerateRequest) (*llm.Generate
 	mu.Lock()
 	defer mu.Unlock()
 	input := req.Messages[len(req.Messages)-1].Content
+	// Customer fields are answered only when the caller explicitly selected
+	// CUSTOMER_INSIGHT; the prompt marker is the only signal used.
+	customer := strings.Contains(req.SystemPrompt, domain.ReasoningProfileCustomerInsight.PromptMarker())
+	statedNeed, jtbd, opportunity := "", "", ""
+	if customer {
+		statedNeed = "people say they want the measure to return to its baseline"
+		jtbd = "When the measure changes, I want to understand why, so I can decide what to do next"
+		opportunity = "an untested idea: a comparison report for the affected group"
+	}
 	var payload struct {
 		Observations []struct {
 			ID    string `json:"id"`
@@ -71,8 +81,8 @@ func (Model) Generate(_ context.Context, req llm.GenerateRequest) (*llm.Generate
 		out = map[string]any{"patterns": []any{}}
 	case "need_hypothesis":
 		out = map[string]any{"hypotheses": []map[string]any{{
-			"title": "Primary explanation", "statedNeed": "", "latentNeed": "the observed change has an explanatory mechanism that differs from the baseline",
-			"jtbd": "", "expectation": "the observed measure stays near its baseline", "surprisingFact": "the observed measure changed",
+			"title": "Primary explanation", "statedNeed": statedNeed, "latentNeed": "the observed change has an explanatory mechanism that differs from the baseline",
+			"jtbd": jtbd, "expectation": "the observed measure stays near its baseline", "surprisingFact": "the observed measure changed",
 			"rationale":                "if the intervention changed behavior, the change is expected",
 			"supportingObservationIds": nonNil(ids), "basedOnPatternIds": nonNil(patternIDs),
 			"expectationBasis":      "MODEL_PROPOSED_POST_HOC",
@@ -87,7 +97,7 @@ func (Model) Generate(_ context.Context, req llm.GenerateRequest) (*llm.Generate
 		out = map[string]any{"supportingObservationIds": nonNil(supporting), "counterObservationIds": nonNil(counter), "counterSearched": true}
 	case "insight_writeup":
 		out = map[string]any{"title": "Scripted insight", "observationSummary": "grounded observations", "interpretation": "a candidate explanation",
-			"alternativeInterpretation": "a shared trend", "productOpportunity": "", "monetizationAngle": ""}
+			"alternativeInterpretation": "a shared trend", "productOpportunity": opportunity, "monetizationAngle": ""}
 	case "insight_dedupe":
 		out = map[string]any{"duplicateGroups": []any{}}
 	default:

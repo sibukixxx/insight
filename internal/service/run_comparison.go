@@ -189,6 +189,9 @@ func executionFields(raw string) (map[string]string, bool) {
 		}
 		params, _ := json.Marshal(s.LLM.Parameters)
 		f["parameters"] = string(params)
+		// The profile changes the prompts and therefore the execution
+		// fingerprint only on model-backed runs.
+		f["reasoningProfile"] = string(s.ExecutionConfig.ReasoningProfile.Normalize())
 	}
 	return f, true
 }

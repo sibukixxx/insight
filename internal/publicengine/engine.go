@@ -88,7 +88,16 @@ func (e *Engine) Engine() EngineInfo {
 		InputSourceKinds:          input.Kinds(),
 		ModelRouting:              e.modelRouting(),
 		ModelBacked:               e.modelBacked != nil && e.modelBacked(),
+		ReasoningProfiles:         reasoningProfileNames(),
 	}
+}
+
+func reasoningProfileNames() []string {
+	var out []string
+	for _, p := range domain.ReasoningProfiles() {
+		out = append(out, string(p))
+	}
+	return out
 }
 
 // ---------- idempotency ----------
@@ -343,10 +352,14 @@ func (e *Engine) StartAnalysis(ctx context.Context, subjectID string, req StartA
 		if err != nil {
 			return 0, nil, newError(CodeInvalidRequest, "%v", err)
 		}
+		reasoningProfile := domain.ReasoningProfile(req.ReasoningProfile)
+		if reasoningProfile != "" && !reasoningProfile.Valid() {
+			return 0, nil, newError(CodeInvalidRequest, "unknown reasoningProfile %q", req.ReasoningProfile)
+		}
 		if len(req.ModelBindings) > 16 {
 			return 0, nil, newError(CodeInvalidRequest, "modelBindings is limited to 16 stages")
 		}
-		analysis, err := e.jobs.Enqueue(ctx, service.EnqueueRequest{ProjectID: subject.ProjectID, Label: strings.TrimSpace(req.Label), Note: strings.TrimSpace(req.Note), SemanticAnalysisMode: mode, ResearchQuestion: researchQuestion, ExecutionProfile: profile, ModelBindings: req.ModelBindings})
+		analysis, err := e.jobs.Enqueue(ctx, service.EnqueueRequest{ProjectID: subject.ProjectID, Label: strings.TrimSpace(req.Label), Note: strings.TrimSpace(req.Note), SemanticAnalysisMode: mode, ResearchQuestion: researchQuestion, ExecutionProfile: profile, ReasoningProfile: reasoningProfile, ModelBindings: req.ModelBindings})
 		if err != nil {
 			return 0, nil, err
 		}
@@ -436,6 +449,9 @@ func toAnalysisRun(subjectID string, a *domain.Analysis) AnalysisRun {
 		run.Engine = &EngineBuild{Version: execution.EngineVersion, Commit: execution.GitCommit, Dirty: execution.GitDirty}
 		if p := execution.ExecutionProfile; p != nil {
 			run.ExecutionProfile = &ExecutionProfileResolution{Requested: string(p.Requested), Resolved: string(p.Resolved), Reason: p.Reason, StrategyVersion: p.StrategyVersion}
+		}
+		if execution.ReasoningProfileResolution != nil {
+			run.ReasoningProfile = string(service.AnalysisReasoningProfile(a))
 		}
 	}
 	provenance := AnalysisProvenance{}
