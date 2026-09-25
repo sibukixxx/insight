@@ -142,8 +142,8 @@ func (m *JobManager) Enqueue(ctx context.Context, req EnqueueRequest) (*domain.A
 		return nil, fmt.Errorf("invalid semantic analysis mode %q", req.SemanticAnalysisMode)
 	}
 	req.ResearchQuestion = strings.TrimSpace(req.ResearchQuestion)
-	if len(req.ResearchQuestion) > 4000 {
-		return nil, fmt.Errorf("research question is limited to 4000 characters")
+	if len(req.ResearchQuestion) > 2000 {
+		return nil, fmt.Errorf("research question is limited to 2000 characters")
 	}
 	now := time.Now().UTC()
 	settings := m.settings.Get()
