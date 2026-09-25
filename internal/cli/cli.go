@@ -142,7 +142,7 @@ Usage:
   insight-lab engine   [engine flags]         engine capabilities (JSON)
   insight-lab subject create  -namespace N -id ID [-title T]
   insight-lab evidence add    -subject S (-document FILE [-source document] | -artifact FILE | -request FILE)
-  insight-lab analysis start  -subject S [-research-question Q] [-execution-profile AUTO|LIGHT|STANDARD|HEAVY] [-label L]
+  insight-lab analysis start  -subject S [-research-question Q] [-reasoning-profile GENERAL_RESEARCH|CUSTOMER_INSIGHT] [-execution-profile AUTO|LIGHT|STANDARD|HEAVY] [-label L]
   insight-lab analysis get     -subject S -analysis A
   insight-lab analysis results -subject S -analysis A
   insight-lab research start    -subject S -analysis A -question Q
