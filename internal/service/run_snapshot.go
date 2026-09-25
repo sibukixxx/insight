@@ -71,10 +71,6 @@ type LLMParameters struct {
 // plus its fingerprint and audit fields that are not part of it.
 type ExecutionSnapshot struct {
 	ExecutionConfig
-	// ResearchQuestion is semantic input captured at enqueue time so a queued
-	// run cannot silently change focus. It is intentionally excluded from the
-	// execution fingerprint and is included in the input fingerprint instead.
-	ResearchQuestion     string    `json:"researchQuestion,omitempty"`
 	ExecutionFingerprint string    `json:"executionFingerprint"`
 	CapturedAt           time.Time `json:"capturedAt"`
 	// SettingsChangedBeforeStart is true when the live settings differed from
