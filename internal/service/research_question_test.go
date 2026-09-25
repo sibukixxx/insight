@@ -1,6 +1,7 @@
 package service
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
@@ -73,5 +74,29 @@ func TestGenericQualitySkipsLegacyNeedVocabularyWithoutStatedNeed(t *testing.T) 
 		if flag.Code == domain.QualityGenericTerm || flag.Code == domain.QualityStatedNeedEcho {
 			t.Fatalf("generic hypothesis was judged with legacy customer-needs rule: %+v", flags)
 		}
+	}
+}
+
+
+func TestRunComparisonExplainsResearchQuestionInputChange(t *testing.T) {
+	at := time.Date(2026, 9, 25, 0, 0, 0, 0, time.UTC)
+	docs := []*domain.Document{{ID: "d1", ProjectID: "p1", Source: domain.SourceDocument, Content: "Same evidence."}}
+	aSnap := BuildInputSnapshotForQuestion(docs, "What changed?", at)
+	bSnap := BuildInputSnapshotForQuestion(docs, "Why did it change?", at)
+	aJSON, _ := json.Marshal(aSnap)
+	bJSON, _ := json.Marshal(bSnap)
+
+	from := &domain.Analysis{ID: "a", Status: domain.AnalysisCompleted, InputSnapshot: string(aJSON), InputFingerprint: aSnap.InputFingerprint, ExecutionFingerprint: "same", CreatedAt: at}
+	to := &domain.Analysis{ID: "b", Status: domain.AnalysisCompleted, InputSnapshot: string(bJSON), InputFingerprint: bSnap.InputFingerprint, ExecutionFingerprint: "same", CreatedAt: at}
+
+	got := CompareAnalysisRuns(RunComparisonInput{Analysis: from}, RunComparisonInput{Analysis: to}, []*domain.Analysis{from, to})
+	if got.Input.State != AxisChanged || got.Input.ResearchQuestion == nil {
+		t.Fatalf("question change not exposed as input diff: %+v", got.Input)
+	}
+	if got.Input.ResearchQuestion.From != "What changed?" || got.Input.ResearchQuestion.To != "Why did it change?" {
+		t.Fatalf("unexpected question diff: %+v", got.Input.ResearchQuestion)
+	}
+	if got.Attribution != AttributionInputChange {
+		t.Fatalf("attribution = %s, want %s", got.Attribution, AttributionInputChange)
 	}
 }
