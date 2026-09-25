@@ -257,7 +257,7 @@ func newTestPipelineWith(t *testing.T, client llm.Client, docs []*domain.Documen
 	pipeline := &Pipeline{
 		Documents: documents, Observations: observations, Patterns: patterns,
 		Insights: insights, Evidence: evidence,
-		LLM: client, Model: "fake-model",
+		LLM: client, Model: "fake-model", ReasoningProfile: domain.ReasoningCustomerInsight,
 	}
 	return pipeline, db, p
 }
@@ -630,5 +630,31 @@ func TestPipelineRunNoDocumentsFails(t *testing.T) {
 	}
 	if _, err := pipeline.Run(ctx, "ana_empty", p.ID, nil); err == nil {
 		t.Fatal("expected an error for a project with no documents")
+	}
+}
+
+
+func TestGeneralResearchDropsCustomerAndCommercialProjections(t *testing.T) {
+	pipeline, db, project := newTestPipeline(t)
+	pipeline.ReasoningProfile = domain.ReasoningGeneralResearch
+	if _, err := pipeline.Run(context.Background(), testAnalysisID, project.ID, nil); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	list, err := sqlite.NewInsightRepository(db).ListByProject(context.Background(), project.ID)
+	if err != nil || len(list) == 0 {
+		t.Fatalf("insights = %v, err=%v", list, err)
+	}
+	for _, insight := range list {
+		if insight.StatedNeed != "" || insight.JTBD != "" || insight.ProductOpportunity != "" || insight.MonetizationAngle != "" {
+			t.Fatalf("GENERAL_RESEARCH leaked customer/commercial projection: %+v", insight)
+		}
+		for _, code := range []domain.QualityFlagCode{domain.QualityStatedNeedEcho, domain.QualityGenericTerm} {
+			if insight.HasQualityFlag(code) {
+				t.Fatalf("GENERAL_RESEARCH received customer-specific quality flag %s: %+v", code, insight.QualityFlags)
+			}
+		}
+		if strings.TrimSpace(insight.LatentNeed) == "" {
+			t.Fatal("generic explanatory hypothesis must remain available through the compatibility carrier")
+		}
 	}
 }

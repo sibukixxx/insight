@@ -426,6 +426,16 @@ func (p *Pipeline) persistInsights(ctx context.Context, analysisID, projectID st
 			CreatedAt:             time.Now().UTC(),
 		}
 
+		// CUSTOMER_INSIGHT projections are never trusted merely because a
+		// model emitted them. GENERAL_RESEARCH keeps only the generic
+		// explanatory hypothesis carried by the legacy LatentNeed field.
+		if p.ReasoningProfile.Normalize() != domain.ReasoningCustomerInsight {
+			insight.StatedNeed = ""
+			insight.JTBD = ""
+			insight.ProductOpportunity = ""
+			insight.MonetizationAngle = ""
+		}
+
 		supportRows := buildEvidenceRows(insight.ID, d.supporting, domain.EvidenceSupport)
 		counterRows := buildEvidenceRows(insight.ID, d.counter, domain.EvidenceCounter)
 		evidenceRows := append(supportRows, counterRows...)
