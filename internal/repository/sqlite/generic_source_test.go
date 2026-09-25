@@ -44,3 +44,34 @@ func TestFreshDatabaseAcceptsGenericEvidenceSources(t *testing.T) {
 		}
 	}
 }
+
+
+func TestAnalysisResearchQuestionRoundTrips(t *testing.T) {
+	db, err := Open(filepath.Join(t.TempDir(), "analysis-question.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	ctx := context.Background()
+	project := &domain.Project{ID: "p-question", Name: "Question research", CreatedAt: time.Now().UTC()}
+	if err := NewProjectRepository(db).Create(ctx, project); err != nil {
+		t.Fatal(err)
+	}
+	repo := NewAnalysisRepository(db)
+	analysis := &domain.Analysis{
+		ID: "a-question", ProjectID: project.ID, Status: domain.AnalysisQueued,
+		ResearchQuestion: "Which explanation best accounts for the observed change?",
+		CreatedAt: time.Now().UTC(),
+	}
+	if err := repo.Create(ctx, analysis); err != nil {
+		t.Fatal(err)
+	}
+	got, err := repo.Get(ctx, analysis.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.ResearchQuestion != analysis.ResearchQuestion {
+		t.Fatalf("research question = %q, want %q", got.ResearchQuestion, analysis.ResearchQuestion)
+	}
+}
