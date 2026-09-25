@@ -399,6 +399,7 @@
       "required": ["state", "documentsAdded", "documentsRemoved", "datasetHashesAdded", "datasetHashesRemoved", "datasetsAdded", "datasetsRemoved"],
       "properties": {
         "state": {"$ref": "#/$defs/AxisState"},
+        "researchQuestion": {"$ref": "#/$defs/FieldChange", "description": "Present when the semantic research question changed; this is an input change."},
         "documentsAdded": {"type": "array", "items": {"type": "string"}, "description": "source:contentHash:metadataHash identities."},
         "documentsRemoved": {"type": "array", "items": {"type": "string"}},
         "datasetHashesAdded": {"type": "array", "items": {"type": "string"}},
