@@ -107,9 +107,9 @@ type Metrics struct {
 	EvidenceCoverage          float64 `json:"evidenceCoverage"`
 	CounterEvidenceCoverage   float64 `json:"counterEvidenceCoverage"`
 	AverageEvidencePerInsight float64 `json:"averageEvidencePerInsight"`
-	// TraceBackedInsightRate is the share of final insights whose
-	// hypothesis cites at least one deviation pattern - i.e. insights
-	// anchored to a surprising fact rather than to repetition alone.
+	// TraceBackedInsightRate is the legacy metric name for the share of final
+	// hypotheses that cite at least one expectation-mismatch pattern rather
+	// than being based on repetition alone.
 	TraceBackedInsightRate float64 `json:"traceBackedInsightRate"`
 	// QualityFlaggedInsightRate is the share of final insights carrying
 	// at least one app-side quality warning (see quality.go).
@@ -202,11 +202,9 @@ func (p *Pipeline) RunDocuments(ctx context.Context, analysisID, projectID strin
 
 	obsByID := indexObservations(allObs)
 
-	// Step 1 of the method: predict how a person "should" behave, then
-	// treat behavior that breaks the prediction as the trace an unconscious
-	// desire left behind. This runs before repetition detection because an
-	// insight anchored to a surprising fact is much less likely to be a
-	// restatement of what customers already say.
+	// Detect expectation/baseline mismatches before repetition. A hypothesis
+	// anchored to a discriminating or surprising observation is easier to
+	// inspect and test than one derived from recurrence alone.
 	progress("detecting_traces", 28, "Looking for informative mismatches against expectations or baselines...")
 	traceCandidates, err := p.detectTraces(ctx, allObs)
 	if err != nil {
