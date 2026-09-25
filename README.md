@@ -3,556 +3,225 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Go Version](https://img.shields.io/badge/go-1.25%2B-00ADD8.svg)](go.mod)
 
-**Bring your own evidence. Insight Lab helps turn observations into auditable hypotheses, competing explanations, research gaps, and decision-ready handoffs — without pretending that correlation proves causation.**
+Open-source, local-first research and evidence reasoning engine.
 
-[日本語](README.ja.md) · [Documentation](docs/README.md) · [Causal reasoning semantics](docs/causal-reasoning.md) · [Project scope](docs/project-scope.md) · [Contributing](CONTRIBUTING.md)
+Insight Lab accepts supplied evidence, records analysis and research history, and produces auditable observations, hypotheses, gaps, timelines, and scenario evaluations. It can run deterministically or with an OpenAI-compatible model.
 
-## What Insight Lab is
+[日本語](README.ja.md) · [Documentation](docs/README.md) · [Architecture](docs/architecture.md) · [Public Engine Contract](docs/public-engine-contract.md)
 
-Insight Lab is an open-source, local-first **evidence reasoning engine**.
+## Quick start
 
-It is designed for research where the input already exists in some form:
+Requirements:
 
-- papers, reports, records, web-derived text, interviews, reviews, operational notes, surveys, and other raw evidence;
-- structured data after normalization into Dataset Documents or a supported adapter contract, including operational metrics, public-data exports, and external adapter output;
-- existing research or analysis artifacts such as internal studies, consulting reports, market research, or AI-generated analysis.
+- Go 1.25+
+- SQLite is embedded; no external database is required
 
-Insight Lab is not intended to be a general-purpose research chatbot. It does not autonomously search the web, authenticate to external data services, or acquire missing evidence on its own.
+Build and start the reference server:
 
-The core reasoning path is:
+```sh
+make build
+./bin/insight-lab serve -no-browser
+```
+
+Default endpoint:
 
 ```text
-Provided Evidence
+http://127.0.0.1:8787
+```
+
+API only:
+
+```sh
+./bin/insight-lab serve -no-web
+```
+
+Show engine capabilities without starting HTTP:
+
+```sh
+./bin/insight-lab engine
+```
+
+The headless CLI also provides `subject`, `evidence`, `analysis`, `research`, and `status` commands.
+
+For model-backed analysis, configure an OpenAI-compatible endpoint:
+
+```sh
+./bin/insight-lab serve \
+  -base-url https://example.invalid/v1 \
+  -model your-model \
+  -api-key "$API_KEY"
+```
+
+Without a model, deterministic ingestion, validation, temporal operations, and supported analytical processing remain available. Model-generated hypotheses require a configured model.
+
+## What it does
+
+The core research flow is:
+
+```text
+Evidence
   ↓
 Observation / Claim
   ↓
-Expectation + provenance
-  ↓
-Mismatch / surprise
+Expectation / Mismatch
   ↓
 Primary + competing hypotheses
   ↓
 Supporting / counter / neutral evidence
   ↓
-Research gaps / DataRequirements
+ResearchGap / DataRequirement
   ↓
-Validation + identification status
+ResearchIteration
   ↓
-Decision readiness / human handoff
+Re-evaluation / Timeline / Scenario
 ```
 
-When evidence is insufficient, Insight Lab should say what is missing rather than manufacture certainty.
+Research state is persisted by the engine. Re-running analysis does not overwrite previous runs.
 
-A model-backed analysis may also receive an optional **research question**. The question is passed to every semantic LLM stage as a relevance focus, but its premise is never assumed true. The same evidence analyzed under a different question has a different input fingerprint. If no question is supplied, the engine performs open-ended discovery.
+## Inputs
 
+| Input | Boundary |
+| --- | --- |
+| Text evidence | Documents or Document CSV |
+| Structured observations | Dataset Documents |
+| Deterministic external analysis | Analytical Artifact v1 |
+| Large/raw files | `RAW_ARTIFACT` references with supported preparation specs |
 
-## What you can feed Insight Lab today
+Large raw datasets are not stored in SQLite. Normalize or aggregate them externally, or use a supported raw-artifact preparation path, then pass the resulting evidence into Insight.
 
-The table below describes the **input boundaries that current `main` actually accepts**. It does not mean that any CSV, spreadsheet, PDF, or arbitrary table can be uploaded and analyzed directly. External data should be normalized into one of these boundaries first.
+Insight does not directly provide generic XLSX/PDF/Parquet ingestion, arbitrary SQL connectivity, web crawling, or SaaS connectors.
 
-| Input | How it is accepted today | What Insight analyzes | LLM |
-| --- | --- | --- | --- |
-| Papers, reports, records, web-derived text, interviews, reviews, operational notes and other text evidence | Create Documents through UI/API, or import Document CSV | Grounded Observations, patterns/mismatches, primary/competing hypotheses, supporting/counter/neutral evidence, ResearchGaps | Required for semantic analysis |
-| Multiple text evidence items | Fixed 4-column Document CSV | Each row becomes a Document and enters the same evidence-reasoning pipeline | Required for semantic analysis |
-| Pre-aggregated numeric series | API Documents with `source=dataset` | Grounded `record_count` observations, period comparison, delta, rate of change, baseline delta, share of series total | Not required for deterministic part |
-| corporate-event registry export | Dedicated Analysis CSV import | Deterministic grouping by month × event type × geography × provider/version, then Dataset Analysis | Aggregation does not require it; hypotheses do |
-| External research, internal analysis, consulting material, AI analysis | Convert content to text Documents, or submit structured Claims through the ResearchRun API | Keeps Claims separate from Observations and reviews evidence, counter-evidence, assumptions, and gaps | Usually required |
-| Acquisition Manifest | Optional JSON attached to CSV import | Preserves source/dataset/retrieval/unit/population/schema/hash provenance and emits compatibility warnings | Not required |
-| Additional evidence | Append a new ResearchIteration | Links evidence to `DataRequirement.gapId`, records validation provenance, computes Insight Delta | Depends on content |
+See [BYO-Evidence boundary](docs/byo-evidence-boundary.md) and [Analytical Artifact contract](docs/analytical-artifact-contract.md).
 
-### Document input
+## Research model
 
-Documents created through the UI/API accept domain-neutral source categories:
+Insight keeps five independent axes:
+
+| Axis | Values |
+| --- | --- |
+| AnalysisMode | Discovery / Dataset Analysis / Research Review |
+| ReasoningProfile | `GENERAL_RESEARCH` / `CUSTOMER_INSIGHT` |
+| ResearchStage | `DISCOVERY` / `EXPLORATORY` / `VALIDATION` / `SYNTHESIS` |
+| ExecutionMode | deterministic / model-backed |
+| ExecutionProfile | `LIGHT` / `STANDARD` / `HEAVY` / `AUTO` |
+
+`GENERAL_RESEARCH` is the default reasoning profile. Profiles are explicit and are not inferred from source type, namespace, or document wording.
+
+See [Architecture](docs/architecture.md) and [Causal reasoning semantics](docs/causal-reasoning.md).
+
+## Persistence
+
+SQLite is the default persistent store.
+
+The Core owns research state, including:
+
+- subjects and analyses;
+- observations and evidence;
+- insights and hypotheses;
+- research runs and append-only research iterations;
+- temporal evidence;
+- scenario sets and evaluations;
+- human research evaluations.
+
+Analysis input and execution snapshots are recorded so runs can be compared without treating configuration changes as evidence changes.
+
+Derived views such as longitudinal timelines and observation deltas are rebuilt from persisted state where possible instead of being maintained as independent sources of truth.
+
+Specify a database path with:
+
+```sh
+./bin/insight-lab serve -db ./insight.db
+```
+
+If `-db` is omitted, Insight uses the operating system's application data directory.
+
+## Public API and SDKs
+
+The language-neutral API is:
 
 ```text
-document
-report
-paper
-web
-record
-other
-dataset
+/api/public/v1
 ```
 
-The legacy v1 categories `interview`, `review`, `support`, `sales`, `survey`, `job_posting`, and `social_post` remain valid for backward compatibility.
-
-The basic shape is `source / title / content / metadata`. For text evidence, Insight grounds quotable Observations in `content`, then reasons about mismatches, hypotheses, evidence, counter-evidence, and missing evidence.
-
-### Document CSV
-
-The generic CSV importer accepts a **UTF-8 fixed four-column shape**. A UTF-8 BOM, commonly added by Excel, is stripped automatically.
-
-```csv
-id,source,title,content
-1,interview,Interview 01,"Onboarding was easy, but monthly reconciliation is painful"
-2,support,Ticket 42,"We manually align columns after exporting CSV"
-3,survey,Survey response,"Reporting takes two hours every week"
-```
-
-- The first four columns must be `id,source,title,content`.
-- `source` must be one of the eight values above.
-- `content` is required.
-- `id` is preserved for traceability; Insight generates its own internal Document ID.
-- Extra columns are not currently interpreted as analysis variables by the generic importer.
-
-So this is **not** a generic “upload any tabular CSV and automatically analyze every column” feature.
-
-### Dataset Documents
-
-To use deterministic numeric pre-analysis with your own data, aggregate/normalize it outside Insight and create Documents with `source=dataset`.
-
-Current pre-analysis uses metadata such as:
-
-```json
-{
-  "source": "dataset",
-  "title": "2026-01 Example City inquiries",
-  "content": "Dataset observation: 2026-01 Example City inquiries = 120.",
-  "metadata": {
-    "record_count": "120",
-    "period": "2026-01",
-    "event_type": "inquiry",
-    "location": "Example City",
-    "source_provider": "internal-export",
-    "source_version": "v1"
-  }
-}
-```
-
-A numeric `record_count` can be materialized into a grounded Observation deterministically. If the same series has at least two `period` values, Insight can calculate without an LLM:
-
-- consecutive-period delta;
-- rate of change;
-- delta from the first baseline period;
-- share of the series total.
-
-When acquisition manifests declare `unit` or `populationScope`, incompatible populations or units are not silently treated as the same comparable series.
-
-### Corporate-event Analysis CSV
-
-The currently implemented dedicated raw-tabular adapter is the corporate-event Analysis CSV importer. It requires at least:
+The canonical schema and conformance fixtures live in:
 
 ```text
-corporate_number
-event_type
-prefecture_name
-city_name
-assignment_date
-update_date
-change_date
-close_date
-source_provider
-source_version
-source_fetched_at
+contracts/public-engine/v1
 ```
 
-For `ASSIGNED / UPDATED / CHANGED / CLOSED`, the adapter chooses the corresponding event date and deterministically groups rows by month × event type × geography × provider/version.
+Optional standalone SDKs:
 
-Those values are **administrative record counts**. Insight does not silently relabel them as startup counts, business commencements, or policy effects.
+- [insight-sdk-go](https://github.com/sibukixxx/insight-sdk-go)
+- [insight-sdk-js](https://github.com/sibukixxx/insight-sdk-js)
 
-### Research Review inputs
+SDKs are thin clients. Insight Core does not depend on them.
 
-For already-interpreted material, the important boundary is semantic rather than file-format-specific.
+## Execution profiles
 
-If an external report says:
+- `LIGHT` — small/local workloads.
+- `STANDARD` — bounded streaming and concurrent preparation.
+- `HEAVY` — delegates heavy execution through a configured Heavy Runtime adapter.
+- `AUTO` — deterministic profile selection with the resolved profile recorded.
 
-> “Campaign A caused inquiries to increase.”
+Enable local raw-file references or a Heavy Runtime directory with:
 
-Insight does not promote that sentence into a primary Observation. Supply the report as text, or submit structured `claims` and `inputReferences` through the ResearchRun API, then inspect the underlying evidence, assumptions, counter-evidence, and ResearchGaps.
-
-### Inputs not directly supported today
-
-Current `main` does not provide a stable direct-file ingestion path for:
-
-- arbitrary-schema CSV as generic tabular analytics;
-- generic JSON / JSONL file import;
-- XLSX / Excel workbooks;
-- PDF / DOCX;
-- Parquet;
-- direct SQL database connections;
-- web crawling / URL scraping;
-- Google Drive / CRM / SaaS connectors;
-- image, audio, or video files themselves.
-
-Convert these outside Insight into **Text Documents, Document CSV, Dataset Documents, or a domain-adapter output** before ingestion. Large CSV files can also be referenced as `RAW_ARTIFACT` input sources over the public contract and prepared deterministically (see [Architecture map](docs/architecture.md#input-path)).
-
-
-## Product boundary: BYO Evidence
-
-Insight Lab follows a **Bring Your Own Evidence** boundary.
-
-Inside the OSS core:
-
-- ingestion through generic document / dataset boundaries;
-- deterministic dataset pre-analysis where possible;
-- grounded observations and claims;
-- expectation / mismatch reasoning;
-- competing hypotheses;
-- supporting, counter, and neutral evidence;
-- research gaps and provider-neutral `DataRequirement` values;
-- append-only research iterations;
-- validation, identification, and decision-readiness states;
-- Markdown reports and versioned JSON Research Artifacts.
-
-Outside the OSS core:
-
-- autonomous web search;
-- authenticated retrieval from e-Stat, registries, Drive, CRM, or other external systems;
-- customer-specific credential management;
-- continuous external monitoring;
-- autonomous evidence-acquisition agents;
-- pricing, proposals, estimates, or customer-specific commercial recommendations.
-
-A downstream/private orchestration layer may receive `DataRequirement` values, acquire additional evidence, and feed that evidence back into Insight Lab for a new research iteration.
-
-See [BYO-Evidence boundary](docs/byo-evidence-boundary.md).
-
-## Analysis modes
-
-The target architecture distinguishes **how an input should be interpreted** from **where the research currently is in its lifecycle**.
-
-### 1. Discovery
-
-For minimally interpreted primary evidence:
-
-- interviews;
-- reviews;
-- support and sales logs;
-- survey free text;
-- customer feedback.
-
-Typical flow:
-
-```text
-Raw Evidence
-→ Observation
-→ Pattern / latent need
-→ Hypothesis
-→ Evidence / counter-evidence
-→ Research gap
+```sh
+./bin/insight-lab serve -input-root ./data -heavy-dir ./heavy
 ```
 
-### 2. Dataset Analysis
+See [Architecture](docs/architecture.md).
 
-For structured data:
+## Operational responsibility
 
-- normalized Dataset Documents;
-- output from supported CSV adapters;
-- operational metrics normalized into Dataset Documents;
-- e-Stat or municipality Open Data normalized by an external adapter;
-- corporate-event Analysis CSV.
+Insight Lab is self-hosted software. The operator is responsible for:
 
-Typical flow:
+- deployment and access control;
+- database backup and restore;
+- model credentials and provider configuration;
+- external/raw data storage;
+- retention and privacy policy;
+- monitoring and availability.
 
-```text
-Structured Dataset
-→ schema / unit / period / population checks
-→ deterministic aggregation / delta / baseline
-→ candidate observations
-→ mismatch
-→ competing hypotheses
-→ evidence / counter-evidence
-→ research gap
-```
+Managed products may provide these functions around Insight Core, but they are not part of the OSS research semantics.
 
-Numeric source-of-truth calculations should remain deterministic. Model-backed interpretation is optional and must not silently recalculate authoritative values.
+## Non-goals
 
-### 3. Research Review
+Insight Core is not:
 
-For already-interpreted material:
+- an autonomous web-research agent;
+- a general-purpose data warehouse;
+- a causal-effect estimator;
+- a forecasting engine that selects a most-likely future;
+- a managed multi-tenant SaaS control plane.
 
-- internal analysis;
-- research-firm reports;
-- consultant reports;
-- BI narratives;
-- human memos;
-- AI / ChatGPT / Claude analysis.
+Unknown, insufficient evidence, and not-identified are valid research outcomes.
 
-The important rule is:
+## Build and test
 
-> An external claim is not automatically an Observation or primary evidence.
-
-Research Review should decompose artifacts into claims, evidence references, assumptions, methods, counter-evidence, and missing evidence before those claims influence stronger conclusions.
-
-**Current status:** first-class semantic Analysis Mode is implemented for `DISCOVERY`, `DATASET_ANALYSIS`, and `RESEARCH_REVIEW`. Research Review preserves imported claims as claims rather than silently upgrading them into observations or primary evidence. All modes converge on the same evidence-reasoning core; source-specific acquisition remains outside Insight Lab.
-
-**Analysis Mode vs. Execution Mode:** Analysis Mode describes how an input should be interpreted. `service.ExecutionMode` (`deterministic` / `model_backed`) only records whether a model participated in the run. The two concepts are orthogonal and are exported separately. The legacy Research Artifact v1 JSON key `analysisMode` remains the execution-mode field for compatibility, while semantic mode is exported separately.
-
-## Research stage is separate from analysis mode
-
-Analysis Mode answers:
-
-> How should this input be read?
-
-Research Stage answers:
-
-> How mature is the current knowledge?
-
-The research lifecycle is modeled separately:
-
-```text
-DISCOVERY
-→ EXPLORATORY
-→ VALIDATION
-→ SYNTHESIS
-```
-
-A hypothesis generated after looking at a dataset is exploratory. It must not be presented as if it had been fixed before the data was observed.
-
-Current `main` includes Research Stage plus first-class `Expectation` entities with provenance, explicit freeze-for-validation, guarded `EXPLORATORY → VALIDATION` transitions, cross-iteration carry-forward, and versioned Research Artifact export. That lifecycle was completed in [#31](https://github.com/sibukixxx/insight/issues/31).
-
-## Current capabilities
-
-Current `main` includes:
-
-- local-first projects backed by SQLite;
-- text and CSV ingestion through generic boundaries;
-- source-backed observation grounding;
-- deterministic dataset pre-analysis that can run without an LLM;
-- acquisition-manifest and dataset-hash provenance;
-- unit / population / period compatibility warnings;
-- OpenAI-compatible model-backed interpretation;
-- primary and competing hypotheses;
-- supporting, counter, and neutral evidence;
-- explicit causal / validation / identification states;
-- append-only `ResearchRun` / `ResearchIteration` history;
-- semantic Analysis Mode (`DISCOVERY` / `DATASET_ANALYSIS` / `RESEARCH_REVIEW`) and imported Research Claims;
-- first-class `Expectation` provenance, freeze-for-validation, and cross-iteration lineage;
-- persisted independent-validation evidence provenance;
-- prioritized research gaps and next-data requirements;
-- explicit `DataRequirement.gapId` → added-evidence linkage;
-- generic Insight Semantics v2: Connection, candidate Mechanism, and Generalization / boundary conditions;
-- iteration input snapshots and Insight Delta showing what changed between research iterations;
-- decision-readiness and stopping reasons;
-- human override and human handoff;
-- Markdown research reports;
-- versioned JSON Research Artifact export at
-  `GET /api/research-runs/{runID}/artifact.json`, including Research Stage, semantic mode, Expectations, Claims, validation evidence, gap linkage, Insight Delta, and promotion state;
-- persisted approved-artifact snapshots for reviewed publication-ready output;
-- deterministic quality guardrails;
-- Shared Eval / Golden evaluation infrastructure, including association-only, population-mismatch, real Open Data reproducibility, new-evidence re-analysis, inconclusive, competing-hypothesis, promotion, and human-review cases.
-
-The publication-promotion workflow is implemented through domain/service/usecase/HTTP/report layers. Human review is required before `PUBLICATION_READY`; publication is never automatic. `approved-artifact.json` returns the persisted reviewed snapshot rather than regenerating the artifact from later state.
-
-## Results are scoped to one analysis run
-
-Every analysis run is kept; re-running never deletes or overwrites an earlier run. Result views are bound to exactly one run so runs never blend together:
-
-- The project page, traces and patterns, evaluation, and `report.md` show the **latest completed run** by default. Queued, running and failed runs have no results and are never selected implicitly.
-- Choose another completed run from the run selector, or pass `?analysisId=<id>` to `GET /api/projects/{id}/insights`, `/patterns`, `/evaluation` and `/report.md`. A run that belongs to another project returns 404.
-- `report.md` states which run it describes (analysis ID, status, start/finish, mode, model, prompt fingerprint, rule version). Values a run never recorded are printed as `not recorded`, never as empty or default values.
-- A research report is bound to the run that produced its latest iteration, the same run `artifact.json` exports. A later analysis does not change it; an iteration whose insights span runs is rejected with 409.
-
-Before this change, re-running an analysis listed insights and patterns from every run together, and `report.md` combined all runs' insights with the latest run's metrics.
-
-### What each run records
-
-Each run records two snapshots so a later reader can tell why two runs differ:
-
-- **Execution snapshot**, captured when the run is enqueued. It records engine version, git commit and dirty state, deterministic rule versions, prompt version and fingerprint, execution mode, and requested semantic analysis mode. A model-backed run also records provider host, model and client parameters. The run executes with exactly these settings even if Settings change while it waits in the queue. Such a change is flagged in the snapshot.
-- **Input snapshot**, captured when the run starts. It records a content hash and metadata hash per document, dataset hashes and manifests, and compatibility warnings.
-
-Each snapshot has a canonical `sha256:` fingerprint: sorted-key compact JSON, no HTML escaping, and null or empty collections omitted. The input fingerprint ignores document IDs and order, so the same evidence gives the same fingerprint. Two runs with the same input fingerprint and different execution fingerprints differ in the instrument, not the evidence. That difference is still not attributed as a cause automatically, because model output is non-deterministic.
-
-Snapshots never contain the API key, the full endpoint URL or its query string. Only the host is kept. Runs recorded before snapshots existed report `not recorded`. `GET /api/health` reports the running engine's version, commit and dirty state. `make build VERSION=v0.9.0` sets the version, which otherwise comes from a git tag and is `UNKNOWN` without one. Token usage reported by the provider is totalled per run in `metrics.usage`. Pass optional `label`, `note` and `semanticAnalysisMode` in the `POST /api/projects/{id}/analysis` body.
-
-## Causal claims: intentionally conservative
-
-Insight Lab is **not a causal-effect estimator**.
-
-Model-generated prose, evidence counts, or an application confidence score cannot promote a hypothesis into a proven causal claim.
-
-Observational causal hypotheses remain `NOT_IDENTIFIED` unless an appropriate external research design supplies stronger evidence. The system may suggest control groups, pre/post comparisons, natural experiments, Difference-in-Differences, RDD, or IV as candidate validation designs; it must not imply that those analyses have already been executed.
-
-See [Causal reasoning semantics](docs/causal-reasoning.md).
-
-## Research loop
-
-Insight Lab does not stop at a one-shot report.
-
-```text
-Evidence
-→ analysis
-→ ResearchGap / DataRequirement
-→ external acquisition
-→ additional evidence
-→ new ResearchIteration
-→ re-analysis
-→ stop / continue
-```
-
-Only evidence acquisition leaves the OSS boundary. Research history and re-analysis remain inside Insight Lab.
-
-Additional evidence can be linked explicitly to the `DataRequirement.gapId` it addresses. The linkage is preserved in append-only iteration history and the Research Artifact, so a later reader can see which missing-evidence requirement an acquired item was intended to resolve.
-
-A run may stop because evidence converged, important uncertainty remains unresolved, no feasible source exists, evidence conflicts, or a human chooses to stop. Unresolved gaps remain visible after stopping.
-
-See [Research Loop dogfooding](docs/research-loop.md).
-
-## Quick start
-
-### Requirements
-
-- Go 1.25+
-- An OpenAI-compatible API only when model-backed interpretation is required
-
-### Ways to use Insight
-
-| Surface | For | How |
-|---|---|---|
-| **Headless CLI** | local operators, scripts, CI | `insight-lab <command>` — JSON on stdout, JSON errors + exit codes, no server, no browser |
-| **API / SDK** | applications and automation over HTTP | `insight-lab serve -no-web` exposes `/api/public/v1`; optional clients [`insight-sdk-go`](https://github.com/sibukixxx/insight-sdk-go) / [`insight-sdk-js`](https://github.com/sibukixxx/insight-sdk-js) |
-| **Reference Web** | inspecting engine operations by hand | `insight-lab serve` (default) serves the embedded UI; `-no-web` turns it off |
-| **Downstream product UI** | managed/business workflows (e.g. TechVit Insight) | lives in the consumer's own repository and talks to the API; not part of this project |
-
-All four use the same engine wiring and Public Engine Contract operations; none adds research semantics.
-
-### Headless research flow
-
-```bash
+```sh
 make build
-DB=./research.db
-MODEL="-base-url https://api.example/v1 -model my-model -api-key $KEY"   # needed for hypotheses
-S=$(./bin/insight-lab subject create -db $DB -namespace my-app -id item-1 | jq -r .subjectId)
-./bin/insight-lab evidence add -db $DB -subject $S -document interview.txt          # or -artifact a.json / -request req.json
-A=$(./bin/insight-lab analysis start -db $DB $MODEL -subject $S -research-question "Why did churn rise?" | jq -r .analysisId)
-R=$(./bin/insight-lab research start -db $DB $MODEL -subject $S -analysis $A -question "Why did churn rise?" | jq -r .researchRunId)
-./bin/insight-lab research export -db $DB -run $R -out artifact.json                 # versioned Research Artifact
-./bin/insight-lab status -db $DB -subject $S
-```
-
-Exit codes: `0` ok, `1` internal, `2` usage, `3` not found, `4` rejected request, `5` conflict/refused (e.g. `ANALYSIS_HAS_NO_HYPOTHESES`), `6` capability unavailable (profile/model binding/input source), `7` analysis failed. `insight-lab help` lists every command; the existing `insight-lab [flags]` invocation still starts the server.
-
-### Run the fictional demo
-
-```bash
-make build-demo
-./bin/insight-lab-demo --demo
-```
-
-Open `http://127.0.0.1:8787`.
-
-Configure the API base URL, model, and API key from Settings, or pass `--base-url`, `--model`, and `--api-key`.
-
-### Analyze primary text evidence
-
-1. Create a project.
-2. Paste text or import CSV with `id,source,title,content` columns.
-3. Run analysis.
-4. Inspect observations, hypotheses, evidence, counter-evidence, missing evidence, warnings, and identification status.
-5. Create or continue a Research Run when iterative investigation is needed.
-
-### Analyze a structured dataset
-
-External data should be acquired outside Insight Lab, normalized, and then imported with provenance.
-
-```text
-external source
-  ↓
-adapter / human / private acquisition
-  ↓
-normalized dataset + acquisition manifest
-  ↓
-Insight Lab
-```
-
-The deterministic pre-analysis path can complete without an LLM when the imported dataset supports it. Model-backed hypothesis or narrative generation requires a configured provider.
-
-For a reproducible example, see [corporate-event CSV dogfooding](docs/dogfooding-corporate-events.md).
-
-### Export a machine-readable Research Artifact
-
-```bash
-curl -o artifact.json \
-  http://127.0.0.1:8787/api/research-runs/<runID>/artifact.json
-```
-
-Downstream systems should consume this versioned artifact rather than parse `report.md`.
-
-## Architecture and current roadmap
-
-See the canonical [Architecture map](docs/architecture.md): consumers → optional standalone SDK → Public Engine Contract → Insight OSS, with LIGHT / STANDARD / HEAVY / AUTO execution profiles on one engine.
-
-- **Public Engine Contract v1** is served at `/api/public/v1` ([contract](docs/public-engine-contract.md), #59). It covers subjects, evidence (documents, Analytical Artifacts, raw artifact references), analyses with execution profiles, run listing and comparison (#83), research runs, re-evaluation (#74), longitudinal timelines (#71), temporal operations (#73), scenarios (#66) and data triage (#92).
-- **SDKs** live in standalone repositories — [`insight-sdk-go`](https://github.com/sibukixxx/insight-sdk-go) and [`insight-sdk-js`](https://github.com/sibukixxx/insight-sdk-js) — extracted from the PR #87 v0 work (#94). They are optional.
-- **Scalable input/execution** (#89–#93): InputSource / RawArtifact references verified by the engine, a deterministic AUTO planner, and a provider-neutral Heavy Runtime port with a local reference implementation. Large input never means loading everything into memory.
-- **Failure-driven expansion** continues: new core features need a real consumer or dogfooding failure behind them.
-
-## Build, test, and evaluate
-
-```bash
-make build
-make build-demo
-make vet
 make test
+make vet
 ```
 
-Golden tests:
+Golden evaluation:
 
-```bash
-go test -tags=golden ./...
+```sh
+make test-golden
 ```
-
-Real-model evaluation:
-
-```bash
-INSIGHT_LAB_API_KEY=sk-... \
-INSIGHT_LAB_MODEL=<model> \
-make eval-demo
-```
-
-## What confidence means
-
-The application score is an evidence-quality / coverage signal derived from deterministic factors such as grounding, coverage, source diversity, frequency, and counter-evidence.
-
-**It is not the probability that a claim is true. It is not causal probability.**
-
-Likewise, provider confidence from any semantic classifier must only describe that bounded classification decision, not the truth of the underlying hypothesis.
-
-## Project scope
-
-Insight Lab ends around evidence-grounded research artifacts, research gaps, validation / identification state, and decision-ready handoff.
-
-It intentionally does not contain:
-
-- commercial assessment;
-- proposal generation;
-- pricing or estimates;
-- customer-specific architecture recommendations;
-- customer-specific business decisions.
-
-Those belong in downstream applications.
-
-See [Project scope](docs/project-scope.md).
 
 ## Documentation
 
-Start with the [documentation index](docs/README.md).
-
-Key documents:
-
+- [Documentation index](docs/README.md)
+- [Architecture](docs/architecture.md)
+- [Public Engine Contract v1](docs/public-engine-contract.md)
+- [Research loop](docs/research-loop.md)
+- [Temporal evidence](docs/temporal-evidence.md)
+- [Longitudinal research](docs/longitudinal-research.md)
+- [Scenario analysis](docs/scenario-analysis.md)
 - [Project scope](docs/project-scope.md)
-- [BYO-Evidence boundary](docs/byo-evidence-boundary.md)
-- [Current project status](docs/project-status.md)
-- [Research Loop](docs/research-loop.md)
-- [Causal reasoning semantics](docs/causal-reasoning.md)
-- [Detailed design](docs/detailed-design.md) (historical v1)
-- [Evaluation](docs/evaluation/README.md)
-- [Contributing](CONTRIBUTING.md)
-- [Security](SECURITY.md)
-
-## Privacy
-
-Project data is stored locally. Text required for model-backed analysis is sent to the AI provider you configure. Review that provider's data-handling policy before processing confidential, regulated, or personal information.
-
-Never commit API keys or other secrets to the repository.
-
-## Contributing
-
-Issues and pull requests are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before making substantial changes, especially changes to causal semantics, evidence boundaries, research stages, or quality guardrails.
+- [Project status](docs/project-status.md)
 
 ## License
 
-Copyright 2026 Insight Lab contributors.
-
-Licensed under the [Apache License 2.0](LICENSE). Third-party dependencies retain their own licenses; see `go.mod` and `go.sum`.
+Apache License 2.0. See [LICENSE](LICENSE).

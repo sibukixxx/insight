@@ -1,556 +1,225 @@
 # Insight Lab
 
-**Evidenceを持ち込んで、観測事実から監査可能な仮説・反証・不足Evidence・次の調査へ進むための、local-firstなOSSリサーチエンジンです。**
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![Go Version](https://img.shields.io/badge/go-1.25%2B-00ADD8.svg)](go.mod)
 
-[English](README.md) · [ドキュメント](docs/README.md) · [因果推論セマンティクス](docs/causal-reasoning.md) · [Project Scope](docs/project-scope.md) · [Contributing](CONTRIBUTING.md)
+オープンソース・ローカルファーストの Research / Evidence Reasoning Engine です。
 
-## Insight Labとは
+与えられたEvidenceを分析し、AnalysisとResearchの履歴を保存しながら、Observation、Hypothesis、ResearchGap、Timeline、Scenario Evaluationを扱います。決定論的処理だけでも利用でき、OpenAI互換モデルを接続した分析にも対応します。
 
-Insight Labは、**Bring Your Own Evidence（BYO Evidence）型のEvidence Reasoning Engine**です。
+[English](README.md) · [Documentation](docs/README.md) · [Architecture](docs/architecture.md) · [Public Engine Contract](docs/public-engine-contract.md)
 
-対象となる入力は、すでに何らかの形で存在している情報です。
+## Quick start
 
-- 論文、レポート、記録、Web由来テキスト、インタビュー、レビュー、業務メモ、アンケートなどのEvidence
-- 業務データ、BI出力、オープンデータ、外部adapter出力などをDataset Documentまたは対応adapter contractへ正規化した構造化データ
-- 社内調査、外部調査会社レポート、コンサル資料、市場調査、AI分析などの既存Research Artifact
+必要環境:
 
-Insight Labは一般的な「質問すればWebを探して答えるAIリサーチチャット」ではありません。
+- Go 1.25+
+- SQLiteは組み込み。外部DBは不要
 
-中核となる流れは次です。
+BuildしてReference Serverを起動します。
+
+```sh
+make build
+./bin/insight-lab serve -no-browser
+```
+
+既定のendpoint:
 
 ```text
-Provided Evidence
-  ↓
-Observation / Claim
-  ↓
-Expectation + Provenance
-  ↓
-Mismatch / Surprise
-  ↓
-Primary + Competing Hypotheses
-  ↓
-Supporting / Counter / Neutral Evidence
-  ↓
-Research Gap / DataRequirement
-  ↓
-Validation / Identification
-  ↓
-Decision Readiness / Human Handoff
+http://127.0.0.1:8787
 ```
 
-Evidenceが不足している場合は、もっともらしい結論を作るのではなく、**何が不足しているかを構造化して返す**ことを重視します。
+APIのみ:
 
-model-backed Analysisには任意で **research question** を渡せます。質問は全semantic LLM stageへ「何を見るか」の焦点として渡されますが、質問の前提を真とは扱いません。同じEvidenceでも質問が違えば別のsemantic inputとしてfingerprintが変わります。質問を省略した場合はopen-ended discoveryとして動きます。
-
-
-## 何を入力でき、何を分析できるか
-
-以下は **current mainで実際に受け付ける入力境界** です。「CSVなら何でも読める」「PDFやExcelをそのまま解析できる」という意味ではありません。外部データは、下記のDocument / Dataset境界へ正規化してから渡します。
-
-| 入力 | 現在の受け付け方 | Insightが行う分析 | LLM |
-| --- | --- | --- | --- |
-| 論文、レポート、記録、Web由来テキスト、インタビュー、レビュー、業務メモなどのText Evidence | UI/APIでDocument作成、またはDocument CSV | groundingされたObservation、Pattern/Mismatch、Primary/Competing Hypotheses、Supporting/Counter/Neutral Evidence、ResearchGap | 意味分析には必要 |
-| 複数のテキストEvidence | 固定4列Document CSV | 各行をDocumentとして同じEvidence Reasoning pipelineへ投入 | 意味分析には必要 |
-| 集計済みの数値系列 | APIで `source=dataset` のDocumentとして登録 | `record_count` のgrounded Observation、期間比較、delta、rate of change、baseline差、series内share | deterministic部分は不要 |
-| 企業イベントregistry CSV | 専用Analysis CSV import | 月 × event type × 地域 × provider/versionに決定論的集計し、その後Dataset Analysis | 集計は不要、仮説生成等には必要 |
-| 外部調査、社内分析、コンサル資料、AI分析の内容 | 内容をText Documentへ変換、またはResearchRun APIでClaimとして投入 | ClaimとObservationを分離し、根拠・反証・不足Evidenceをレビュー | 通常必要 |
-| Acquisition Manifest | CSV import時の付随JSON | source / dataset ID / retrieval time / unit / population / schema / hash等のprovenance保持と互換性warning | 不要 |
-| 追加Evidence | ResearchRunの新しいiterationとして投入 | `DataRequirement.gapId` とのlink、ValidationEvidence provenance、Insight Delta | 内容により必要 |
-
-### Document入力
-
-API/UIから投入するDocumentは、汎用カテゴリとして次を受け付けます。
-
-```text
-document
-report
-paper
-web
-record
-other
-dataset
+```sh
+./bin/insight-lab serve -no-web
 ```
 
-v1互換のため、従来の `interview` / `review` / `support` / `sales` / `survey` / `job_posting` / `social_post` も引き続き利用できます。
+HTTPを起動せずengine capabilityを確認:
 
-Documentの基本形は `source / title / content / metadata` です。Text系Documentでは `content` から引用可能なObservationをgroundingし、そこからMismatch・仮説・Evidence/Counter Evidenceへ進みます。
-
-### Document CSV
-
-汎用CSV importは **UTF-8の固定4列** です。Excel由来のUTF-8 BOMは除去されます。
-
-```csv
-id,source,title,content
-1,interview,Interview 01,"導入は簡単だったが、毎月の集計が面倒"
-2,support,Ticket 42,"CSV出力後に手作業で列を合わせている"
-3,survey,Survey response,"レポート作成に毎週2時間かかる"
+```sh
+./bin/insight-lab engine
 ```
 
-- 先頭4列は `id,source,title,content` である必要があります。
-- `source` は上記8種類のいずれかです。
-- `content` は必須です。
-- `id` はtraceability用で、Insight内部IDとしては使いません。
-- 追加列があっても現在の汎用importでは分析列として扱いません。
+Headless CLIには `subject`、`evidence`、`analysis`、`research`、`status` があります。
 
-したがって、**任意の表形式CSVをアップロードしただけで全列を自動統計分析する機能ではありません。**
+Model-backed分析ではOpenAI互換endpointを指定します。
 
-### Dataset Document
-
-任意の数値データをInsightのdeterministic pre-analysisへ渡す場合は、外部で集計・正規化して `source=dataset` のDocumentへします。
-
-現在のpre-analysisで重要なmetadataは次です。
-
-```json
-{
-  "source": "dataset",
-  "title": "2026-01 Example City inquiries",
-  "content": "Dataset observation: 2026-01 Example City inquiries = 120.",
-  "metadata": {
-    "record_count": "120",
-    "period": "2026-01",
-    "event_type": "inquiry",
-    "location": "Example City",
-    "source_provider": "internal-export",
-    "source_version": "v1"
-  }
-}
+```sh
+./bin/insight-lab serve \
+  -base-url https://example.invalid/v1 \
+  -model your-model \
+  -api-key "$API_KEY"
 ```
 
-`record_count` が数値ならgrounded Observationを決定論的に作れます。さらに同じseriesで `period` が2期間以上あれば、次をLLMなしで計算します。
+Model未設定でも、決定論的なingestion、validation、temporal operation、対応済みanalytical processingは利用できます。Model生成のHypothesisにはModel設定が必要です。
 
-- 前期間からの差分
-- rate of change
-- baselineからの差分
-- series totalに対するshare
+## 何をするソフトウェアか
 
-Acquisition Manifestに `unit` や `populationScope` がある場合、異なる母集団・単位を無条件に同じseriesとして差し引かないようにします。
-
-### Corporate-event Analysis CSV
-
-現在、raw tabular data向けに実装済みの専用adapterはcorporate-event Analysis CSVです。最低限、次の列を要求します。
-
-```text
-corporate_number
-event_type
-prefecture_name
-city_name
-assignment_date
-update_date
-change_date
-close_date
-source_provider
-source_version
-source_fetched_at
-```
-
-`ASSIGNED / UPDATED / CHANGED / CLOSED` ごとの対応日付を使い、月 × event type × 地域 × provider/versionで件数を集計します。
-
-この件数は**行政レコード件数**であり、「創業数」「開業数」「政策効果」へ自動変換しません。
-
-### Research Review入力
-
-すでに解釈済みの資料は、ファイル形式そのものではなく **Claimとしてどう扱うか** が重要です。
-
-たとえば外部レポートに、
-
-> 「施策Aによって問い合わせが増加した」
-
-と書いてあっても、Insightはそれを一次Observationへ昇格しません。Text Documentとして内容を渡すか、ResearchRun APIの `claims` と `inputReferences` へ構造化し、Underlying Evidence・Assumption・Counter Evidence・ResearchGapを確認します。
-
-### 現在直接は食べないもの
-
-current mainでは、以下をそのままファイル投入するstable pathはありません。
-
-- 任意schemaのCSVをそのままtabular analyticsすること
-- JSON / JSONLの汎用file import
-- XLSX / Excel workbook
-- PDF / DOCX
-- Parquet
-- SQL databaseへの直接接続
-- Web URLのcrawl / scraping
-- Google Drive / CRM / SaaS connector
-- 画像・音声・動画そのもの
-
-これらはInsight外で **Text / Document CSV / Dataset Document / domain adapter output** へ変換してから投入します。
-
-
-## OSS境界 — Bring Your Own Evidence
-
-Insight Lab内部で扱うもの:
-
-- genericなDocument / Dataset ingestion
-- 可能な範囲でのdeterministic dataset pre-analysis
-- groundingされたObservation / Claim
-- Expectation / Mismatch
-- Primary / Competing Hypotheses
-- Supporting / Counter / Neutral Evidence
-- ResearchGap / provider-neutralな `DataRequirement`
-- append-onlyなResearchIteration
-- Validation / Identification / Decision Readiness
-- Markdown Report
-- versioned JSON Research Artifact
-
-Insight Lab自身が行わないもの:
-
-- autonomous Web search
-- e-Statや各種registryへの認証付き自動取得
-- Drive / CRM / SaaS等のmanaged connector
-- 顧客固有Credential管理
-- 外部データの継続監視
-- 自律Evidence Acquisition Agent
-- 見積、価格、提案書、顧客固有Recommendation
-
-不足Evidenceがあれば、Insight Labは `DataRequirement` を返します。
-
-```text
-Insight Lab
-   ↓ DataRequirement
-外部 / Private Orchestration Layer
-   ↓ Evidence取得
-Insight Lab
-   ↓ new ResearchIteration
-再分析
-```
-
-つまり、**Evidence取得責任だけを外へ出し、研究ループそのものはInsightへ戻ります。**
-
-詳細は [BYO-Evidence boundary](docs/byo-evidence-boundary.md) を参照してください。
-
-## Analysis Mode
-
-現在の基本設計では、入力ファイル形式ではなく**情報の意味論・成熟度**によって分析方法を切り替えます。
-
-### 1. Discovery
-
-未解釈の一次情報向けです。
-
-対象例:
-
-- interview
-- review
-- support
-- sales
-- survey free text
-- customer feedback
-
-```text
-Raw Evidence
-→ Observation
-→ Pattern / Latent Need
-→ Hypothesis
-→ Evidence / Counter Evidence
-→ Research Gap
-```
-
-### 2. Dataset Analysis
-
-構造化データ向けです。
-
-対象例:
-
-- normalized Dataset Documents
-- supported CSV adapter output
-- operational metrics normalized into Dataset Documents
-- e-Stat / 自治体Open Dataを外部adapterで正規化したもの
-- corporate-event Analysis CSV
-
-```text
-Structured Dataset
-→ Schema / Unit / Period / Population Check
-→ Deterministic Aggregation / Delta / Baseline
-→ Candidate Observation
-→ Mismatch
-→ Competing Hypotheses
-→ Evidence / Counter Evidence
-→ Research Gap
-```
-
-数値のsource of truthは可能な限りdeterministicに処理します。LLMに権威ある数値を再計算させません。
-
-### 3. Research Review
-
-すでに誰かが解釈した資料向けです。
-
-対象例:
-
-- 顧客社内の分析
-- 外部調査会社レポート
-- コンサル資料
-- BI narrative
-- 人間の分析メモ
-- ChatGPT / Claude等のAI分析
-
-重要なルール:
-
-> 外部資料に書かれたClaimを、そのままObservationや一次Evidenceへ格上げしない。
-
-Claim / Evidence / Assumption / Method / Counter Evidence / Missing Evidenceへ分解してから評価します。
-
-**現状:** `DISCOVERY` / `DATASET_ANALYSIS` / `RESEARCH_REVIEW` のfirst-classなsemantic Analysis Modeはmainに実装済みです。Research Reviewでは外部資料のClaimをClaimとして保持し、Observationや一次Evidenceへ暗黙に格上げしません。各Modeは同じEvidence Reasoning Coreへ収束し、source固有の取得処理は引き続きInsight外です。
-
-**Analysis ModeとExecution Modeは別概念です。** Analysis Modeは入力をどう読むかを表し、`service.ExecutionMode` の `deterministic / model_backed` はLLMが実行に参加したかだけを表します。両者は独立して記録されます。Research Artifact v1の既存JSON key `analysisMode` は互換性のためExecution Modeとして維持し、semantic modeは別fieldとしてexportします。
-
-## Analysis ModeとResearch Stageは別物
-
-Analysis Mode:
-
-> この入力をどう読むか
-
-Research Stage:
-
-> 今の知見が研究工程のどこにいるか
-
-Research Stageは別軸です。
-
-```text
-DISCOVERY
-→ EXPLORATORY
-→ VALIDATION
-→ SYNTHESIS
-```
-
-データを見た後に生成した仮説はExploratoryです。同じデータを使って「事前仮説を検証した」ように扱ってはいけません。
-
-現在のmainには `ResearchIteration.Stage` に加え、first-classな `Expectation` entity、provenance、freeze-for-validation、`EXPLORATORY → VALIDATION` guard、iteration間carry-forward、Research Artifactへのexportまで実装されています。このExpectation lifecycleは [#31](https://github.com/sibukixxx/insight/issues/31) で完了済みです。
-
-## 現在mainでできること
-
-- SQLiteによるlocal-first project
-- text / CSV ingestion
-- source-backed grounding
-- LLMなしでも動くdeterministic dataset pre-analysis
-- acquisition manifest / dataset hash provenance
-- unit / population / period compatibility warning
-- OpenAI-compatible modelを使った意味解釈
-- Primary / Competing Hypotheses
-- Supporting / Counter / Neutral Evidence
-- Causal / Validation / Identification Status
-- append-onlyな `ResearchRun` / `ResearchIteration`
-- semantic Analysis Mode（`DISCOVERY` / `DATASET_ANALYSIS` / `RESEARCH_REVIEW`）とResearch Claim
-- first-class `Expectation` provenance / freeze-for-validation / iteration間lineage
-- independent validation Evidence provenance
-- ResearchGapの優先順位付け
-- Next Data Requirement
-- `DataRequirement.gapId` と追加Evidenceの明示link
-- Insight Semantics v2（Connection / Mechanism Candidate / Generalization・boundary condition）
-- iteration input snapshotとInsight Delta
-- Decision Readiness
-- Stop Reason
-- Human Override / Human Handoff
-- Markdown Research Report
-- versioned JSON Research Artifact
-  - `GET /api/research-runs/{runID}/artifact.json`
-  - Research Stage / semantic mode / Expectations / Claims / validation evidence / gap linkage / Insight Delta / Promotionをexport
-- human review済みのapproved artifact snapshot
-- deterministic quality guardrail
-- Shared Eval / Golden evaluation基盤
-  - association-only / population mismatch / 実Open Data再現 / new-evidence再分析 / inconclusive / competing-hypothesis / promotion / human-review cases
-
-Public Report向けPromotion workflowはdomain/service/usecase/HTTP/reportまで実装済みです。`PUBLICATION_READY`にはHuman Reviewが必須で、自動公開は行いません。`approved-artifact.json` は後続状態から再生成せず、承認時に保存したreview済みsnapshotを返します。
-
-## 結果は1つの解析Runに束縛される
-
-解析Runはすべて保持され、再実行しても過去のRunは削除も上書きもされません。結果の表示は常に1つのRunに束縛され、Run同士が混ざりません。
-
-- プロジェクト画面、痕跡・パターン、評価、`report.md` は既定で**最新の完了Run**を表示します。queued / running / failed のRunには結果がないため、暗黙に選ばれることはありません。
-- 別の完了Runはプロジェクト画面のRunセレクタで選べます。APIでは `GET /api/projects/{id}/insights`、`/patterns`、`/evaluation`、`/report.md` に `?analysisId=<id>` を付けます。別プロジェクトのRunを指定すると404になります。
-- `report.md` は対象Run（analysis ID、status、開始・終了時刻、mode、model、prompt fingerprint、rule version）を明記します。Runが記録していない値は空や既定値ではなく `not recorded` と表示します。
-- Research report は最新iterationを生んだRunに束縛され、`artifact.json` と同じRunを指します。後から解析を実行しても変わりません。iterationのInsightが複数Runにまたがる場合は409で拒否します。
-
-この変更以前は、再解析するとInsightとPatternが全Run分まとめて表示され、`report.md` は全RunのInsightと最新Runのmetricsを組み合わせていました。
-
-### 各Runが記録するもの
-
-2つのRunがなぜ違うのかを後から判断できるよう、各Runは2つのsnapshotを記録します。
-
-- **Execution snapshot**（enqueue時に確定）: engine version、git commitとdirty状態、決定論ルールの版、prompt versionとfingerprint、execution mode、指定されたsemantic analysis mode。model-backedの場合はprovider host、model、clientパラメータも記録します。キュー待ちの間にSettingsが変わっても、Runはこのsnapshotの設定で実行され、変更があったことはsnapshotに記録されます。
-- **Input snapshot**（実行開始時に確定）: 文書ごとのcontent hashとmetadata hash、dataset hashとmanifest、互換性警告。
-
-各snapshotは正準形の `sha256:` fingerprintを持ちます。キーをソートした空白なしJSONで、HTMLエスケープはせず、nullと空コレクションは省きます。input fingerprintは文書IDや順序に依存しないので、同じ証拠なら同じ値になります。input fingerprintが同じでexecution fingerprintが違う2つのRunは、証拠ではなく測定器が違うことを意味します。ただしLLM出力は非決定的なので、差分の原因を自動で帰属することはしません。
-
-snapshotにはAPI key、完全なエンドポイントURL、query stringを含めず、hostだけを残します。snapshot導入前のRunは `not recorded` と表示します。`GET /api/health` は実行中engineのversion、commit、dirty状態を返します。versionは `make build VERSION=v0.9.0` で指定でき、指定がなければgit tagから取り、tagがなければ `UNKNOWN` です。providerが返したtoken使用量はRunごとに `metrics.usage` に集計します。`POST /api/projects/{id}/analysis` のbodyには任意で `label`、`note`、`semanticAnalysisMode` を指定できます。
-
-## 因果関係について
-
-Insight Labは**因果効果推定器ではありません**。
-
-LLMが因果らしい文章を書いたこと、Evidenceが多いこと、Confidenceが高いことだけでは因果関係を証明済みにしません。
-
-観察データのみで識別できない因果仮説は `NOT_IDENTIFIED` のまま扱います。
-
-Control Group、Pre/Post、Natural Experiment、Difference-in-Differences、RDD、IV等を「次に検討すべき研究デザイン」として提示することはできますが、その分析を実際に実行したとは主張しません。
-
-詳細は [Causal reasoning semantics](docs/causal-reasoning.md) を参照してください。
-
-## Research Loop
-
-Insight Labはone-shot reportで終了する設計ではありません。
+基本フロー:
 
 ```text
 Evidence
-→ Analysis
-→ ResearchGap / DataRequirement
-→ 外部取得
-→ Additional Evidence
-→ New ResearchIteration
-→ Re-analysis
-→ Stop / Continue
+  ↓
+Observation / Claim
+  ↓
+Expectation / Mismatch
+  ↓
+Primary + competing hypotheses
+  ↓
+Supporting / counter / neutral evidence
+  ↓
+ResearchGap / DataRequirement
+  ↓
+ResearchIteration
+  ↓
+Re-evaluation / Timeline / Scenario
 ```
 
-停止後も未解決Gapは消しません。
+Research stateはCore自身が永続化します。再解析しても過去のRunは上書きしません。
 
-追加Evidenceは、どの `DataRequirement.gapId` に対応するものかを明示的にlinkできます。この対応関係はappend-onlyなiteration historyとResearch Artifactへ保持されるため、後から「どの不足Evidenceを埋めるために取得したものか」を追跡できます。
+## Input
 
-停止理由には、仮説の十分な識別、重要な不確実性の残存、取得可能なsourceなし、Evidence競合、人間による停止などがあります。
+| Input | 境界 |
+| --- | --- |
+| Text evidence | Documents / Document CSV |
+| Structured observations | Dataset Documents |
+| 外部の決定論的分析結果 | Analytical Artifact v1 |
+| Large/raw files | `RAW_ARTIFACT` reference + 対応済みpreparation spec |
 
-詳細は [Research Loop dogfooding](docs/research-loop.md) を参照してください。
+巨大なraw datasetそのものはSQLiteへ保存しません。外部で正規化・集計するか、対応済みraw-artifact preparationを通してEvidenceとしてCoreへ渡します。
 
-## Quick Start
+汎用XLSX/PDF/Parquet ingestion、任意SQL接続、Web crawling、SaaS connectorはCoreの直接責務ではありません。
 
-### 利用面（CLI / API・SDK / Reference Web / 下流プロダクト UI）
+詳細: [BYO-Evidence boundary](docs/byo-evidence-boundary.md) / [Analytical Artifact contract](docs/analytical-artifact-contract.md)
 
-| 利用面 | 用途 | 使い方 |
-|---|---|---|
-| **Headless CLI** | ローカル運用・スクリプト・CI | `insight-lab <command>`。stdout に JSON、エラーは stderr に JSON と終了コード。サーバもブラウザも起動しない |
-| **API / SDK** | HTTP 経由のアプリ・自動化 | `insight-lab serve -no-web` で `/api/public/v1` を提供。任意で `insight-sdk-go` / `insight-sdk-js` |
-| **Reference Web** | engine 操作の手動確認 | `insight-lab serve`（既定）で同梱 UI を提供。`-no-web` で無効化 |
-| **下流プロダクト UI** | 管理・業務ワークフロー（例: TechVit Insight） | consumer 側のリポジトリにあり API を使う。本プロジェクトには含まない |
+## Research model
 
-どれも同じ engine の配線と Public Engine Contract の操作を使い、研究の意味論を追加しない。
-Headless の一連の流れ（subject → evidence → analysis → research → export → status）と終了コードは英語版 README の "Headless research flow" を参照。従来の `insight-lab [flags]` はこれまでどおりサーバを起動する。
+5つの軸は独立しています。
 
+| Axis | Values |
+| --- | --- |
+| AnalysisMode | Discovery / Dataset Analysis / Research Review |
+| ReasoningProfile | `GENERAL_RESEARCH` / `CUSTOMER_INSIGHT` |
+| ResearchStage | `DISCOVERY` / `EXPLORATORY` / `VALIDATION` / `SYNTHESIS` |
+| ExecutionMode | deterministic / model-backed |
+| ExecutionProfile | `LIGHT` / `STANDARD` / `HEAVY` / `AUTO` |
 
-### 必要環境
+既定ReasoningProfileは `GENERAL_RESEARCH` です。Profileをsource type、namespace、文章内容から推測しません。
 
-- Go 1.25+
-- model-backed analysisを使う場合のみOpenAI-compatible API
+詳細: [Architecture](docs/architecture.md) / [Causal reasoning semantics](docs/causal-reasoning.md)
 
-### Fictional Demo
+## Persistence
 
-```bash
-make build-demo
-./bin/insight-lab-demo --demo
+既定の永続StoreはSQLiteです。
+
+Coreが保存するResearch state:
+
+- Subject / Analysis
+- Observation / Evidence
+- Insight / Hypothesis
+- ResearchRun / append-only ResearchIteration
+- Temporal Evidence
+- ScenarioSet / ScenarioEvaluation
+- Human research evaluation
+
+Analysisにはinput snapshotとexecution snapshotも保存し、Evidence変更と実行設定変更を区別できます。
+
+Longitudinal TimelineやObservation Deltaなど、保存済みstateから再構築できるread modelは原則として別の正本を持ちません。
+
+DB pathを指定する場合:
+
+```sh
+./bin/insight-lab serve -db ./insight.db
 ```
 
-ブラウザで `http://127.0.0.1:8787` を開きます。
+`-db` を省略するとOSのapplication data directoryを使用します。
 
-### 一次情報を分析する
+## Public API / SDK
 
-1. Projectを作成
-2. Textを貼る、または `id,source,title,content` CSVをimport
-3. Analysis実行
-4. Observation / Hypothesis / Evidence / Counter Evidence / Missing Evidence / Identification Statusを確認
-5. 必要ならResearch Runを作成し、追加Evidenceでiterationを継続
-
-### 構造化Datasetを分析する
-
-外部データはInsight外で取得し、正規化したDatasetとprovenanceを持ち込みます。
+言語非依存のPublic API:
 
 ```text
-External Source
-  ↓
-Adapter / Human / Private Acquisition
-  ↓
-Normalized Dataset + Acquisition Manifest
-  ↓
-Insight Lab
+/api/public/v1
 ```
 
-DatasetによってはLLMなしでdeterministic pre-analysisまで完走できます。
+正典schema / conformance fixture:
 
-Hypothesis生成やnarrativeなどのmodel-backed処理を行う場合のみProvider設定が必要です。
-
-実例は [corporate-event CSV dogfooding](docs/dogfooding-corporate-events.md) を参照してください。
-
-### Research Artifactをexportする
-
-```bash
-curl -o artifact.json \
-  http://127.0.0.1:8787/api/research-runs/<runID>/artifact.json
+```text
+contracts/public-engine/v1
 ```
 
-Downstream systemは `report.md` をparseせず、このversioned artifactを機械連携契約として利用します。
+Standalone SDK:
 
-## アーキテクチャと現在のロードマップ
+- [insight-sdk-go](https://github.com/sibukixxx/insight-sdk-go)
+- [insight-sdk-js](https://github.com/sibukixxx/insight-sdk-js)
 
-正典は [Architecture map](docs/architecture.md) です。consumer → 任意の standalone SDK → Public Engine Contract → Insight OSS という一本の経路で、同じ engine が LIGHT / STANDARD / HEAVY / AUTO の実行プロファイルを持ちます。
+SDKはthin clientです。CoreはSDKへ依存しません。
 
-- **Public Engine Contract v1** は `/api/public/v1` で提供します（[契約](docs/public-engine-contract.md)、#59）。subject、evidence（文書・Analytical Artifact・raw artifact 参照）、実行プロファイル付き analysis、Run 一覧と比較（#83）、research run、再評価（#74）、longitudinal timeline（#71）、時系列演算（#73）、scenario（#66）、data triage（#92）を含みます。
-- **SDK** は独立リポジトリ [`insight-sdk-go`](https://github.com/sibukixxx/insight-sdk-go) / [`insight-sdk-js`](https://github.com/sibukixxx/insight-sdk-js) にあり、PR #87 の v0 実装を抽出したものです（#94）。利用は任意です。
-- **スケーラブルな入力・実行**（#89〜#93）：engine が自ら検証する InputSource / RawArtifact 参照、決定的な AUTO プランナー、provider-neutral な Heavy Runtime ポートとローカル参照実装。巨大入力を全量メモリに載せることはしません。
-- **Failure-driven expansion** は継続します。core 機能の追加には実 consumer か dogfooding で観測された失敗が必要です。
+## Execution profile
 
-## Build / Test / Evaluation
+- `LIGHT` — 小規模・ローカル処理
+- `STANDARD` — bounded streaming / concurrent preparation
+- `HEAVY` — Heavy Runtime adapterへ委譲
+- `AUTO` — 決定論的にprofileを選択し、結果を記録
 
-```bash
+Raw file referenceやlocal Heavy Runtimeを有効にする例:
+
+```sh
+./bin/insight-lab serve -input-root ./data -heavy-dir ./heavy
+```
+
+## 運用責任
+
+Insight Labはself-hosted softwareです。利用者が以下を管理します。
+
+- deployment / access control
+- DBのbackup / restore
+- Model credential / provider設定
+- 外部・raw data storage
+- retention / privacy policy
+- monitoring / availability
+
+Managed productはこれらをCoreの外側で提供できますが、OSS CoreのResearch semanticsには含めません。
+
+## Non-goals
+
+Insight Coreは以下を目的にしません。
+
+- 自律Web research agent
+- 汎用data warehouse
+- causal effect estimator
+- most-likely futureを選ぶforecast engine
+- managed multi-tenant SaaS control plane
+
+Unknown、insufficient evidence、not identifiedは正常なResearch結果です。
+
+## Build / Test
+
+```sh
 make build
-make build-demo
-make vet
 make test
+make vet
 ```
 
-Golden tests:
+Golden evaluation:
 
-```bash
-go test -tags=golden ./...
+```sh
+make test-golden
 ```
-
-実モデル評価:
-
-```bash
-INSIGHT_LAB_API_KEY=sk-... \
-INSIGHT_LAB_MODEL=<model> \
-make eval-demo
-```
-
-## Confidenceについて
-
-Insight LabのConfidence / Scoreはgrounding、coverage、source diversity、frequency、counter-evidenceなどから計算されるEvidence Quality系の内部指標です。
-
-**「Claimが正しい確率」でも「因果関係が正しい確率」でもありません。**
-
-Semantic classifier等のprovider confidenceも、そのbounded classification decisionへのconfidenceとしてのみ扱います。
-
-## Project Scope
-
-Insight Labの公開OSS境界は、Evidence-Grounded Research Artifact、Research Gap、Validation / Identification、Decision-Ready Handoff付近までです。
-
-以下はOSS coreに含めません。
-
-- commercial assessment
-- proposal generation
-- pricing / estimate
-- customer-specific architecture recommendation
-- customer-specific business decision
-
-これらはdownstream applicationの責務です。
-
-詳細は [Project Scope](docs/project-scope.md) を参照してください。
 
 ## Documentation
 
-全体像は [Documentation Index](docs/README.md) から確認できます。
-
-重要なドキュメント:
-
-- [Project Scope](docs/project-scope.md)
-- [BYO-Evidence boundary](docs/byo-evidence-boundary.md)
-- [Current Project Status](docs/project-status.md)
-- [Research Loop](docs/research-loop.md)
-- [Causal Reasoning Semantics](docs/causal-reasoning.md)
-- [Detailed Design](docs/detailed-design.md)（historical v1）
-- [Evaluation](docs/evaluation/README.md)
-- [Contributing](CONTRIBUTING.md)
-- [Security](SECURITY.md)
-
-## Privacy
-
-Project Dataはローカルに保存されます。model-backed analysisでは、必要なテキストが設定したAI Providerへ送信されます。機密情報・個人情報・規制対象データを扱う前にProviderのデータ取扱方針を確認してください。
-
-API KeyなどのSecretをリポジトリへcommitしないでください。
+- [Documentation index](docs/README.md)
+- [Architecture](docs/architecture.md)
+- [Public Engine Contract v1](docs/public-engine-contract.md)
+- [Research loop](docs/research-loop.md)
+- [Temporal evidence](docs/temporal-evidence.md)
+- [Longitudinal research](docs/longitudinal-research.md)
+- [Scenario analysis](docs/scenario-analysis.md)
+- [Project scope](docs/project-scope.md)
+- [Project status](docs/project-status.md)
 
 ## License
 
-Copyright 2026 Insight Lab contributors.
-
-[Apache License 2.0](LICENSE) で公開しています。依存ライブラリにはそれぞれのライセンスが適用されます。
+Apache License 2.0. [LICENSE](LICENSE)
