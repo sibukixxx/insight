@@ -43,16 +43,17 @@ Raw / File / Stream / Dataset / Analytical Artifact / Evidence
 - Large input support does **not** mean loading arbitrary GB into memory: STANDARD streams each raw artifact and prepares several of them with bounded concurrency (results never depend on the bound), HEAVY partitions work through the Heavy Runtime port.
 - For many-column datasets, [data triage](data-triage.md) produces an auditable Selection Plan before preparation. No column is silently dropped.
 
-## Four independent axes
+## Five independent axes
 
 | Axis | Values | Meaning |
 |---|---|---|
 | AnalysisMode | Discovery / Dataset Analysis / Research Review | How input is interpreted |
+| ReasoningProfile | GENERAL_RESEARCH / CUSTOMER_INSIGHT | Which explicit reasoning/synthesis specialization the caller selected; GENERAL_RESEARCH is the default |
 | ResearchStage | DISCOVERY / EXPLORATORY / VALIDATION / SYNTHESIS | Where the research is in its lifecycle |
 | ExecutionMode | deterministic / model-backed | Whether a model is used where defined |
 | ExecutionProfile | LIGHT / STANDARD / HEAVY / AUTO | Resource/runtime strategy |
 
-They never substitute for each other. ExecutionProfile must not change hypothesis or readiness semantics; conformance fixture `08-execution-profile-equivalence` checks this.
+They never substitute for each other. ReasoningProfile is explicit and is never inferred from source type, namespace or wording. It changes semantic/execution configuration, not evidence identity. ExecutionProfile must not change hypothesis or readiness semantics; conformance fixture `08-execution-profile-equivalence` checks this. Reasoning-profile separation is covered by fixture `18-reasoning-profiles`.
 
 ## Quickstart — direct engine use
 
