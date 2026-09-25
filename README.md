@@ -9,6 +9,38 @@ Insight Lab accepts supplied evidence, records analysis and research history, an
 
 [日本語](README.ja.md) · [Documentation](docs/README.md) · [Architecture](docs/architecture.md) · [Public Engine Contract](docs/public-engine-contract.md)
 
+
+<!-- role-boundary:v1 -->
+## Role and boundaries
+
+**Role:** domain-neutral research and evidence-reasoning engine. Insight turns supplied evidence into auditable observations, hypotheses, counter-evidence, research gaps, iterations, deltas, timelines, and scenarios.
+
+### Owns
+
+- research semantics and persisted research history
+- Evidence / Observation / Hypothesis / ResearchGap / DataRequirement semantics
+- re-evaluation, temporal comparison, scenario and provenance contracts
+- the language-neutral Public Engine Contract
+
+### Does not own
+
+- a consumer's business decision or workflow state
+- privileged-action authorization or execution
+- provider credentials or external side effects
+- CRM, billing, commerce, marketing, or other domain policy
+- autonomous source acquisition as a hidden dependency
+
+### Integration
+
+```text
+domain / data producer
+        ↓ evidence / analytical artifact
+      Insight
+        ↓ research result / gap / delta
+domain-owned decision
+```
+
+Consumers should integrate through the versioned Public Engine Contract or the thin standalone SDKs. Insight Core must remain usable without any specific private application or vertical.
 ## Quick start
 
 Requirements:
