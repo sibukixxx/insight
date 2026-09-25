@@ -225,7 +225,8 @@ footer.privacy {
 .confidence-pct { font-size: 12px; font-weight: 700; color: var(--accent); width: 40px; text-align: right; flex: none; }
 
 /* Analysis panel */
-.analysis-actions { display: flex; gap: 10px; margin-top: 14px; align-items: center; }
+.analysis-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; align-items: center; }
+.analysis-question { flex: 1 1 360px; min-width: 220px; max-width: 720px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font: inherit; }
 .analysis-status { font-size: 13px; }
 .status-completed { color: #1d8a4a; font-weight: 600; }
 .status-failed { color: var(--danger); font-weight: 600; }
