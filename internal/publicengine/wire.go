@@ -159,6 +159,9 @@ type StartAnalysisRequest struct {
 	Label                string `json:"label,omitempty"`
 	Note                 string `json:"note,omitempty"`
 	SemanticAnalysisMode string `json:"semanticAnalysisMode,omitempty"`
+	// ResearchQuestion optionally focuses semantic analysis. Empty means
+	// open-ended discovery.
+	ResearchQuestion     string `json:"researchQuestion,omitempty"`
 	ExecutionProfile     string `json:"executionProfile,omitempty"`
 	// ModelBindings maps pipeline stages (EngineInfo.modelRouting.stages) to
 	// operator-allowed models. Execution config only; never semantics.
@@ -179,6 +182,7 @@ type AnalysisRun struct {
 	Label                string                      `json:"label,omitempty"`
 	Note                 string                      `json:"note,omitempty"`
 	SemanticAnalysisMode string                      `json:"semanticAnalysisMode,omitempty"`
+	ResearchQuestion     string                      `json:"researchQuestion,omitempty"`
 	ExecutionMode        string                      `json:"executionMode,omitempty"`
 	ExecutionProfile     *ExecutionProfileResolution `json:"executionProfile,omitempty"`
 	Engine               *EngineBuild                `json:"engine,omitempty"`
