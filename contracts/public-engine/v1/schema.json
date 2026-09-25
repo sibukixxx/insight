@@ -146,7 +146,7 @@
       "required": ["externalRef", "source", "content"],
       "properties": {
         "externalRef": {"type": "string", "minLength": 1, "maxLength": 256, "description": "Caller's stable reference, unique within a subject."},
-        "source": {"type": "string", "enum": ["interview", "review", "support", "sales", "survey", "job_posting", "social_post", "dataset"]},
+        "source": {"type": "string", "enum": ["interview", "review", "support", "sales", "survey", "job_posting", "social_post", "dataset", "document", "report", "paper", "web", "record", "other"], "description": "Evidence source category. Generic categories are preferred when no legacy domain-specific category applies."},
         "title": {"type": "string", "maxLength": 512},
         "content": {"type": "string", "minLength": 1, "maxLength": 200000},
         "metadata": {"$ref": "#/$defs/Metadata"}
