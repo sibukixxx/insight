@@ -1,12 +1,14 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"strings"
 	"testing"
 	"time"
 
 	"insight-lab/internal/domain"
+	"insight-lab/internal/llm"
 )
 
 func TestResearchFocusInstructionIsOptionalAndQuestionConditioned(t *testing.T) {
@@ -98,5 +100,33 @@ func TestRunComparisonExplainsResearchQuestionInputChange(t *testing.T) {
 	}
 	if got.Attribution != AttributionInputChange {
 		t.Fatalf("attribution = %s, want %s", got.Attribution, AttributionInputChange)
+	}
+}
+
+
+type promptCaptureClient struct {
+	prompts []string
+}
+
+func (c *promptCaptureClient) Generate(_ context.Context, req llm.GenerateRequest) (*llm.GenerateResponse, error) {
+	c.prompts = append(c.prompts, req.SystemPrompt)
+	return &llm.GenerateResponse{Content: json.RawMessage(`{}`)}, nil
+}
+
+func TestEverySemanticLLMStageReceivesResearchQuestion(t *testing.T) {
+	capture := &promptCaptureClient{}
+	p := &Pipeline{LLM: capture, ResearchQuestion: "Which explanation best accounts for the recorded change?"}
+	for _, step := range pipelineLLMSteps() {
+		if _, err := p.generate(context.Background(), step, nil); err != nil {
+			t.Fatalf("stage %s: %v", step.Name, err)
+		}
+	}
+	if len(capture.prompts) != len(pipelineLLMSteps()) {
+		t.Fatalf("captured %d prompts, want %d", len(capture.prompts), len(pipelineLLMSteps()))
+	}
+	for i, prompt := range capture.prompts {
+		if !strings.Contains(prompt, p.ResearchQuestion) || !strings.Contains(prompt, "Do not assume its premise is true") {
+			t.Fatalf("stage %s did not receive guarded research focus: %s", pipelineLLMSteps()[i].Name, prompt)
+		}
 	}
 }
