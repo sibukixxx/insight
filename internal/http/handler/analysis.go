@@ -59,12 +59,8 @@ func toAnalysisDTO(a *domain.Analysis) analysisDTO {
 	if a.Status == domain.AnalysisCompleted && json.Valid([]byte(a.Metrics)) {
 		dto.Metrics = json.RawMessage(a.Metrics)
 	}
-	dto.Label, dto.Note, dto.SemanticAnalysisMode = a.Label, a.Note, string(a.SemanticAnalysisMode)
+	dto.Label, dto.Note, dto.SemanticAnalysisMode, dto.ResearchQuestion = a.Label, a.Note, string(a.SemanticAnalysisMode), a.ResearchQuestion
 	if json.Valid([]byte(a.ExecutionSnapshot)) {
-		var snap service.ExecutionSnapshot
-		if json.Unmarshal([]byte(a.ExecutionSnapshot), &snap) == nil {
-			dto.ResearchQuestion = snap.ResearchQuestion
-		}
 		dto.ExecutionSnapshot = json.RawMessage(a.ExecutionSnapshot)
 	}
 	if json.Valid([]byte(a.InputSnapshot)) {
