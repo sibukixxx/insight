@@ -87,7 +87,7 @@ func TestDeterministicExecutionSnapshotRecordsNoModel(t *testing.T) {
 	snapshot := mustExecution(t, Settings{}, testBuild, time.Unix(1, 0))
 	want := ExecutionConfig{
 		EngineVersion: "v0.9.0", GitCommit: "abc123", GitDirty: "false",
-		ExecutionMode: ExecutionModeDeterministic,
+		ExecutionMode: ExecutionModeDeterministic, ReasoningProfile: domain.ReasoningGeneralResearch,
 		RuleVersions:  map[string]string{"datasetPreanalysis": datasetPreAnalysisRuleVersion, "analyticalArtifact": analyticalArtifactRuleVersion, "grounding": groundingRuleVersion},
 	}
 	if got := snapshot.ExecutionConfig; !equalJSON(t, got, want) {
@@ -178,4 +178,30 @@ func equalJSON(t *testing.T, a, b any) bool {
 		t.Fatal(err)
 	}
 	return string(x) == string(y)
+}
+
+
+func TestReasoningProfileChangesExecutionButNotInputFingerprint(t *testing.T) {
+	at := time.Unix(1, 0)
+	general, err := BuildExecutionSnapshotForReasoningProfile(modelSettings(), "", domain.ReasoningGeneralResearch, testBuild, at)
+	if err != nil {
+		t.Fatal(err)
+	}
+	customer, err := BuildExecutionSnapshotForReasoningProfile(modelSettings(), "", domain.ReasoningCustomerInsight, testBuild, at)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if general.ExecutionFingerprint == customer.ExecutionFingerprint {
+		t.Fatal("changing reasoning profile must change the execution fingerprint")
+	}
+	if general.ReasoningProfile != domain.ReasoningGeneralResearch || customer.ReasoningProfile != domain.ReasoningCustomerInsight {
+		t.Fatalf("profiles not recorded: %s / %s", general.ReasoningProfile, customer.ReasoningProfile)
+	}
+
+	docs := inputDocs()
+	a := BuildInputSnapshotForQuestion(docs, "Why did this change?", at)
+	b := BuildInputSnapshotForQuestion(docs, "Why did this change?", at)
+	if a.InputFingerprint != b.InputFingerprint {
+		t.Fatal("reasoning profile is not evidence input and must not change input fingerprint")
+	}
 }

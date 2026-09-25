@@ -37,6 +37,7 @@ func TestRenderProjectMarkdownIncludesDecisionContextAndGroundedEvidence(t *test
 	for _, want := range []string{
 		"# 解約理由 \\*調査\\* — Insight Report",
 		"Trace-backed Insights: 75%",
+		"**Hypothesis:** 失敗しても戻せる状態を保ちたい",
 		"**Product Opportunity:** 解約前のデータ保管プラン",
 		"`no_trace`: 要確認",
 		"**support / Interview 01**",

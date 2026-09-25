@@ -1,0 +1,102 @@
+{
+  "fixture": "18-reasoning-profiles",
+  "contractVersion": "1",
+  "covers": "#109 explicit GENERAL_RESEARCH / CUSTOMER_INSIGHT semantic profile axis; same evidence keeps input identity while profile changes execution configuration",
+  "engine": "model_backed",
+  "steps": [
+    {
+      "op": "getEngine",
+      "expect": {"ok": true},
+      "assert": [
+        {"path": "defaultReasoningProfile", "equals": "GENERAL_RESEARCH"},
+        {"path": "supportedReasoningProfiles[0]", "equals": "GENERAL_RESEARCH"},
+        {"path": "supportedReasoningProfiles[1]", "equals": "CUSTOMER_INSIGHT"}
+      ]
+    },
+    {
+      "op": "createSubject",
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-subject",
+        "subject": {"namespace": "conformance", "id": "reasoning-${uniq}"}
+      },
+      "expect": {"ok": true},
+      "save": {"subjectId": "subjectId"}
+    },
+    {
+      "op": "addEvidence",
+      "params": {"subjectId": "${subjectId}"},
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-evidence",
+        "documents": [
+          {
+            "externalRef": "e1",
+            "source": "document",
+            "content": "The observed measure changed after the recorded event."
+          }
+        ]
+      },
+      "expect": {"ok": true}
+    },
+    {
+      "op": "startAnalysis",
+      "params": {"subjectId": "${subjectId}"},
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-general",
+        "researchQuestion": "What explanations are consistent with the observed change?",
+        "reasoningProfile": "GENERAL_RESEARCH"
+      },
+      "expect": {"ok": true},
+      "save": {"analysisId": "generalAnalysisId"}
+    },
+    {
+      "op": "waitForAnalysis",
+      "params": {"subjectId": "${subjectId}", "analysisId": "${generalAnalysisId}"},
+      "expect": {"ok": true},
+      "assert": [
+        {"path": "status", "equals": "completed"},
+        {"path": "reasoningProfile", "equals": "GENERAL_RESEARCH"},
+        {"path": "provenance.execution.reasoningProfile", "equals": "GENERAL_RESEARCH"}
+      ]
+    },
+    {
+      "op": "startAnalysis",
+      "params": {"subjectId": "${subjectId}"},
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-customer",
+        "researchQuestion": "What explanations are consistent with the observed change?",
+        "reasoningProfile": "CUSTOMER_INSIGHT"
+      },
+      "expect": {"ok": true},
+      "save": {"analysisId": "customerAnalysisId"}
+    },
+    {
+      "op": "waitForAnalysis",
+      "params": {"subjectId": "${subjectId}", "analysisId": "${customerAnalysisId}"},
+      "expect": {"ok": true},
+      "assert": [
+        {"path": "status", "equals": "completed"},
+        {"path": "reasoningProfile", "equals": "CUSTOMER_INSIGHT"},
+        {"path": "provenance.execution.reasoningProfile", "equals": "CUSTOMER_INSIGHT"}
+      ]
+    },
+    {
+      "op": "compareAnalyses",
+      "params": {
+        "subjectId": "${subjectId}",
+        "analysisId": "${generalAnalysisId}",
+        "otherAnalysisId": "${customerAnalysisId}"
+      },
+      "expect": {"ok": true},
+      "assert": [
+        {"path": "comparison.input.state", "equals": "SAME"},
+        {"path": "comparison.execution.state", "equals": "CHANGED"},
+        {"path": "comparison.attribution", "equals": "EXECUTION_CHANGE"},
+        {"path": "comparison.execution.changes[0].field", "equals": "reasoningProfile"}
+      ]
+    }
+  ]
+}

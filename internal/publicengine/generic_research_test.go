@@ -60,3 +60,27 @@ func TestStartAnalysisReturnsNormalizedResearchQuestion(t *testing.T) {
 		t.Fatalf("researchQuestion = %q", run.ResearchQuestion)
 	}
 }
+
+
+func TestEngineAdvertisesGenericReasoningDefault(t *testing.T) {
+	info := newTestEngine(t).Engine()
+	if info.DefaultReasoningProfile != "GENERAL_RESEARCH" {
+		t.Fatalf("default reasoning profile = %q", info.DefaultReasoningProfile)
+	}
+	got := strings.Join(info.SupportedReasoningProfiles, ",")
+	if !strings.Contains(got, "GENERAL_RESEARCH") || !strings.Contains(got, "CUSTOMER_INSIGHT") {
+		t.Fatalf("supported reasoning profiles = %v", info.SupportedReasoningProfiles)
+	}
+}
+
+func TestPublicAnalysisRejectsUnknownReasoningProfile(t *testing.T) {
+	e := newTestEngine(t)
+	subjectID := createTestSubject(t, e)
+	_, _, err := e.StartAnalysis(context.Background(), subjectID, StartAnalysisRequest{
+		ContractVersion: "1", IdempotencyKey: "bad-reasoning-profile",
+		ReasoningProfile: "SALES_ONLY",
+	})
+	if got := AsError(err); got.Code != CodeInvalidRequest {
+		t.Fatalf("code = %s (%s), want %s", got.Code, got.Message, CodeInvalidRequest)
+	}
+}

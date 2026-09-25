@@ -19,6 +19,7 @@ type insightDTO struct {
 	Observation               string                          `json:"observation"`
 	StatedNeed                string                          `json:"statedNeed"`
 	LatentNeed                string                          `json:"latentNeed"`
+	Hypothesis                string                          `json:"hypothesis"`
 	JTBD                      string                          `json:"jtbd"`
 	Expectation               string                          `json:"expectation"`
 	SurprisingFact            string                          `json:"surprisingFact"`
@@ -61,7 +62,7 @@ func toInsightDTO(i *domain.Insight) insightDTO {
 	}
 	return insightDTO{
 		ID: i.ID, ProjectID: i.ProjectID, AnalysisID: i.AnalysisID, Title: i.Title, Observation: i.Observation,
-		StatedNeed: i.StatedNeed, LatentNeed: i.LatentNeed, JTBD: i.JTBD,
+		StatedNeed: i.StatedNeed, LatentNeed: i.LatentNeed, Hypothesis: i.LatentNeed, JTBD: i.JTBD,
 		Expectation: i.Expectation, SurprisingFact: i.SurprisingFact, Rationale: i.Rationale,
 		Interpretation: i.Interpretation, AlternativeInterpretation: i.AlternativeInterpretation,
 		Connection: i.Connection, Mechanism: i.Mechanism, Generalization: i.Generalization,

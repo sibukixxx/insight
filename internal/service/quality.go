@@ -16,7 +16,7 @@ import (
 
 // qualityRuleVersion is recorded in every run's execution snapshot. Bump it
 // whenever the quality flag rules or thresholds change in a way that can change results.
-const qualityRuleVersion = "quality/v2"
+const qualityRuleVersion = "quality/v3"
 
 // genericNeedTerms are labels that, on their own, are not insights: the
 // first group is what the customer already consciously wants (so it is a
@@ -39,6 +39,7 @@ const statedNeedEchoThreshold = 0.5
 const minEchoRunes = 4
 
 type QualityInput struct {
+	ReasoningProfile domain.ReasoningProfile
 	StatedNeed     string
 	LatentNeed     string
 	Expectation    string
@@ -54,10 +55,10 @@ type QualityInput struct {
 func AssessQuality(in QualityInput) []domain.QualityFlag {
 	var flags []domain.QualityFlag
 
-	// These two checks are compatibility checks for the original customer-
-	// research shape. Generic research leaves statedNeed empty and must not be
-	// penalized by a domain-specific needs vocabulary.
-	if strings.TrimSpace(in.StatedNeed) != "" {
+	// These two checks belong to the explicit CUSTOMER_INSIGHT specialization.
+	// GENERAL_RESEARCH must not be judged by a customer-needs vocabulary even
+	// if a source happens to contain language that looks like a stated need.
+	if in.ReasoningProfile.Normalize() == domain.ReasoningCustomerInsight && strings.TrimSpace(in.StatedNeed) != "" {
 		if isStatedNeedEcho(in.StatedNeed, in.LatentNeed) {
 			flags = append(flags, domain.QualityFlag{Code: domain.QualityStatedNeedEcho})
 		}

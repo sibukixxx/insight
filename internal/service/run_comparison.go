@@ -177,6 +177,7 @@ func executionFields(raw string) (map[string]string, bool) {
 	f := map[string]string{
 		"engineVersion": s.EngineVersion, "gitCommit": s.GitCommit, "gitDirty": s.GitDirty,
 		"executionMode": string(s.ExecutionMode), "semanticAnalysisMode": string(s.SemanticAnalysisMode),
+		"reasoningProfile": string(s.ReasoningProfile.Normalize()),
 		"promptVersion": s.PromptVersion, "promptFingerprint": s.PromptFingerprint,
 	}
 	for k, v := range s.RuleVersions {

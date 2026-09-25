@@ -116,6 +116,8 @@ Routing policy (which model for which stage, cost budgets, escalation) belongs t
 - Bindings are execution configuration: they are recorded per stage in `provenance.execution.llm.models`, change the execution fingerprint (so run comparison attributes the difference to execution), and never change research semantics.
 - Conformance: `17-model-bindings` (requires an engine started with `-model scripted-model -allowed-models scripted-model-large`, see below).
 - `EngineInfo.modelBacked` (#104) is true when analyses use a configured model and can form hypotheses. False means deterministic only: research runs are refused with `ANALYSIS_HAS_NO_HYPOTHESES`, so a consumer that needs research checks this flag before starting an analysis instead of failing afterwards.
+- `startAnalysis.reasoningProfile` is an optional semantic specialization of the same research core. Omitted means `GENERAL_RESEARCH`; `CUSTOMER_INSIGHT` explicitly opts into the legacy hidden-need/JTBD specialization. The engine advertises supported/default profiles through `EngineInfo`.
+- ReasoningProfile is not inferred from subject namespace, type or evidence source. Changing it changes the execution/semantic configuration fingerprint, not the evidence/input fingerprint. Run comparison therefore reports it as an instrument/configuration difference rather than as new evidence.
 
 ## Limits
 

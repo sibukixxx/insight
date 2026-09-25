@@ -13,11 +13,12 @@ import (
 )
 
 func analysisStart(ctx context.Context, args []string, stderr io.Writer) (any, error) {
-	var subject, question, profile, label, key string
+	var subject, question, profile, reasoning, label, key string
 	var timeout time.Duration
 	return engineCall(ctx, "analysis start", args, stderr, func(fs *flag.FlagSet) {
 		fs.StringVar(&subject, "subject", "", "subject id")
 		fs.StringVar(&question, "research-question", "", "focus the analysis on this research question")
+		fs.StringVar(&reasoning, "reasoning-profile", "", "GENERAL_RESEARCH (default) or CUSTOMER_INSIGHT")
 		fs.StringVar(&profile, "execution-profile", "", "AUTO (default), LIGHT, STANDARD or HEAVY")
 		fs.StringVar(&label, "label", "", "optional run label")
 		fs.StringVar(&key, "idempotency-key", "", "reuse to replay the same start (default: new analysis)")
@@ -30,7 +31,7 @@ func analysisStart(ctx context.Context, args []string, stderr io.Writer) (any, e
 			key = randomKey()
 		}
 		_, body, err := e.StartAnalysis(ctx, subject, publicengine.StartAnalysisRequest{ContractVersion: publicengine.ContractVersion,
-			IdempotencyKey: key, Label: label, ResearchQuestion: question, ExecutionProfile: profile})
+			IdempotencyKey: key, Label: label, ResearchQuestion: question, ReasoningProfile: reasoning, ExecutionProfile: profile})
 		if err != nil {
 			return nil, err
 		}

@@ -126,6 +126,9 @@ type EnqueueRequest struct {
 	SemanticAnalysisMode domain.AnalysisMode
 	// ResearchQuestion is optional. Empty means open-ended discovery.
 	ResearchQuestion string
+	// ReasoningProfile selects semantic specialization; empty means
+	// GENERAL_RESEARCH.
+	ReasoningProfile domain.ReasoningProfile
 	// ExecutionProfile is the requested strategy; empty means AUTO.
 	ExecutionProfile execution.Profile
 	// ModelBindings optionally binds pipeline stages to operator-allowed
@@ -142,6 +145,10 @@ func (m *JobManager) Enqueue(ctx context.Context, req EnqueueRequest) (*domain.A
 		return nil, fmt.Errorf("invalid semantic analysis mode %q", req.SemanticAnalysisMode)
 	}
 	req.ResearchQuestion = strings.TrimSpace(req.ResearchQuestion)
+	req.ReasoningProfile = req.ReasoningProfile.Normalize()
+	if !req.ReasoningProfile.Valid() {
+		return nil, fmt.Errorf("invalid reasoning profile %q", req.ReasoningProfile)
+	}
 	if len(req.ResearchQuestion) > 2000 {
 		return nil, fmt.Errorf("research question is limited to 2000 characters")
 	}
@@ -156,7 +163,7 @@ func (m *JobManager) Enqueue(ctx context.Context, req EnqueueRequest) (*domain.A
 	if err != nil {
 		return nil, err
 	}
-	execution, err := BuildExecutionSnapshot(settings, req.SemanticAnalysisMode, m.build, now)
+	execution, err := BuildExecutionSnapshotForReasoningProfile(settings, req.SemanticAnalysisMode, req.ReasoningProfile, m.build, now)
 	if err != nil {
 		return nil, fmt.Errorf("capture execution snapshot: %w", err)
 	}
@@ -167,7 +174,7 @@ func (m *JobManager) Enqueue(ctx context.Context, req EnqueueRequest) (*domain.A
 	}
 	a := &domain.Analysis{
 		ID: newID("ana"), ProjectID: req.ProjectID, Status: domain.AnalysisQueued, CreatedAt: now,
-		Label: req.Label, Note: req.Note, SemanticAnalysisMode: req.SemanticAnalysisMode, ResearchQuestion: req.ResearchQuestion,
+		Label: req.Label, Note: req.Note, SemanticAnalysisMode: req.SemanticAnalysisMode, ResearchQuestion: req.ResearchQuestion, ReasoningProfile: req.ReasoningProfile,
 		ExecutionSnapshot: string(executionJSON), ExecutionFingerprint: execution.ExecutionFingerprint,
 	}
 	if err := m.analyses.Create(ctx, a); err != nil {
@@ -214,7 +221,7 @@ func (m *JobManager) run(ctx context.Context, analysisID string) {
 	pipeline := &Pipeline{
 		Documents: m.pipeline.Documents, Observations: m.pipeline.Observations,
 		Patterns: m.pipeline.Patterns, Insights: m.pipeline.Insights, Evidence: m.pipeline.Evidence,
-		LLM: client, Model: settings.Model, ResearchQuestion: a.ResearchQuestion,
+		LLM: client, Model: settings.Model, ResearchQuestion: a.ResearchQuestion, ReasoningProfile: a.ReasoningProfile.Normalize(),
 	}
 
 	now := time.Now().UTC()

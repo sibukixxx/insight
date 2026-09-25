@@ -47,6 +47,9 @@ type Analysis struct {
 	// ResearchQuestion is optional semantic input. Empty means open-ended
 	// discovery. It is persisted independently from execution configuration.
 	ResearchQuestion string
+	// ReasoningProfile selects the semantic specialization of the shared
+	// research pipeline. Empty legacy rows normalize to GENERAL_RESEARCH.
+	ReasoningProfile ReasoningProfile
 	// ExecutionSnapshot and InputSnapshot are the JSON snapshots captured at
 	// enqueue time and at run start. Both are empty for runs recorded before
 	// snapshots existed; that means "not recorded", never "same".
