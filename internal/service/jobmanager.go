@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"insight-lab/internal/execution"
 	"insight-lab/internal/input"
+	"strings"
 	"sync"
 	"time"
 
@@ -123,6 +124,8 @@ type EnqueueRequest struct {
 	Label                string
 	Note                 string
 	SemanticAnalysisMode domain.AnalysisMode
+	// ResearchQuestion is optional. Empty means open-ended discovery.
+	ResearchQuestion string
 	// ExecutionProfile is the requested strategy; empty means AUTO.
 	ExecutionProfile execution.Profile
 	// ModelBindings optionally binds pipeline stages to operator-allowed
@@ -137,6 +140,10 @@ type EnqueueRequest struct {
 func (m *JobManager) Enqueue(ctx context.Context, req EnqueueRequest) (*domain.Analysis, error) {
 	if req.SemanticAnalysisMode != "" && !req.SemanticAnalysisMode.Valid() {
 		return nil, fmt.Errorf("invalid semantic analysis mode %q", req.SemanticAnalysisMode)
+	}
+	req.ResearchQuestion = strings.TrimSpace(req.ResearchQuestion)
+	if len(req.ResearchQuestion) > 4000 {
+		return nil, fmt.Errorf("research question is limited to 4000 characters")
 	}
 	now := time.Now().UTC()
 	settings := m.settings.Get()
@@ -154,6 +161,7 @@ func (m *JobManager) Enqueue(ctx context.Context, req EnqueueRequest) (*domain.A
 		return nil, fmt.Errorf("capture execution snapshot: %w", err)
 	}
 	execution.ExecutionProfile = &resolution
+	execution.ResearchQuestion = req.ResearchQuestion
 	executionJSON, err := json.Marshal(execution)
 	if err != nil {
 		return nil, fmt.Errorf("encode execution snapshot: %w", err)
@@ -204,10 +212,12 @@ func (m *JobManager) run(ctx context.Context, analysisID string) {
 		client = newStageRouter(settings, m.newLLMClient)
 	}
 
+	var executionSnapshot ExecutionSnapshot
+	_ = json.Unmarshal([]byte(a.ExecutionSnapshot), &executionSnapshot)
 	pipeline := &Pipeline{
 		Documents: m.pipeline.Documents, Observations: m.pipeline.Observations,
 		Patterns: m.pipeline.Patterns, Insights: m.pipeline.Insights, Evidence: m.pipeline.Evidence,
-		LLM: client, Model: settings.Model,
+		LLM: client, Model: settings.Model, ResearchQuestion: executionSnapshot.ResearchQuestion,
 	}
 
 	now := time.Now().UTC()
@@ -221,7 +231,7 @@ func (m *JobManager) run(ctx context.Context, analysisID string) {
 		m.fail(ctx, a, fmt.Errorf("prepare inputs: %w", err))
 		return
 	}
-	inputSnap := BuildInputSnapshot(docs, now)
+	inputSnap := BuildInputSnapshotForQuestion(docs, pipeline.ResearchQuestion, now)
 	inputJSON, err := json.Marshal(inputSnap)
 	if err != nil {
 		m.fail(ctx, a, fmt.Errorf("encode input snapshot: %w", err))
