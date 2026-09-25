@@ -429,9 +429,9 @@ func toAnalysisRun(subjectID string, a *domain.Analysis) AnalysisRun {
 		ExecutionFingerprint: a.ExecutionFingerprint, InputFingerprint: a.InputFingerprint,
 		CreatedAt: formatTime(a.CreatedAt), StartedAt: formatTimePtr(a.StartedAt), FinishedAt: formatTimePtr(a.FinishedAt),
 	}
+	run.ResearchQuestion = strings.TrimSpace(a.ResearchQuestion)
 	var execution service.ExecutionSnapshot
 	if json.Unmarshal([]byte(a.ExecutionSnapshot), &execution) == nil {
-		run.ResearchQuestion = strings.TrimSpace(execution.ResearchQuestion)
 		run.ExecutionMode = string(execution.ExecutionMode)
 		run.Engine = &EngineBuild{Version: execution.EngineVersion, Commit: execution.GitCommit, Dirty: execution.GitDirty}
 		if p := execution.ExecutionProfile; p != nil {
@@ -452,14 +452,10 @@ func toAnalysisRun(subjectID string, a *domain.Analysis) AnalysisRun {
 }
 
 func analysisResearchQuestion(a *domain.Analysis) string {
-	if a == nil || strings.TrimSpace(a.ExecutionSnapshot) == "" {
+	if a == nil {
 		return ""
 	}
-	var snapshot service.ExecutionSnapshot
-	if json.Unmarshal([]byte(a.ExecutionSnapshot), &snapshot) != nil {
-		return ""
-	}
-	return strings.TrimSpace(snapshot.ResearchQuestion)
+	return strings.TrimSpace(a.ResearchQuestion)
 }
 
 // ---------- research ----------
