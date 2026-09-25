@@ -714,13 +714,14 @@
           <div class="field-label">Alternative interpretation</div>
           <div>${escapeHtml(insight.alternativeInterpretation || "-")}</div>
         </div>
+        ${insight.productOpportunity ? `
         <div class="field-block">
-          <div class="field-label">Product opportunity</div>
-          <div>${escapeHtml(insight.productOpportunity || "-")}</div>
-        </div>
+          <div class="field-label">Product opportunity (legacy downstream field)</div>
+          <div>${escapeHtml(insight.productOpportunity)}</div>
+        </div>` : ""}
         ${insight.monetizationAngle ? `
         <div class="field-block money-block">
-          <div class="field-label">Monetization angle</div>
+          <div class="field-label">Monetization angle (legacy downstream field)</div>
           <div>${escapeHtml(insight.monetizationAngle)}</div>
         </div>` : ""}
       </div>
