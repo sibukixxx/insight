@@ -49,7 +49,7 @@
         "reasoningProfile": "GENERAL_RESEARCH"
       },
       "expect": {"ok": true},
-      "save": {"analysisId": "generalAnalysisId"}
+      "save": {"generalAnalysisId": "analysisId"}
     },
     {
       "op": "waitForAnalysis",
@@ -71,7 +71,7 @@
         "reasoningProfile": "CUSTOMER_INSIGHT"
       },
       "expect": {"ok": true},
-      "save": {"analysisId": "customerAnalysisId"}
+      "save": {"customerAnalysisId": "analysisId"}
     },
     {
       "op": "waitForAnalysis",
