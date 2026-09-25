@@ -115,8 +115,8 @@ func TestHeadlessResearchFlowEndToEnd(t *testing.T) {
 	if r := run(t, with("evidence", "add", "-subject", sid, "-document", doc)...); r.code != ExitOK {
 		t.Fatalf("evidence: %+v", r)
 	}
-	an := run(t, with("analysis", "start", "-subject", sid, "-research-question", "Why did exports rise?", "-execution-profile", "LIGHT", "-timeout", (30*time.Second).String())...)
-	if an.code != ExitOK || an.stdout["status"] != "completed" {
+	an := run(t, with("analysis", "start", "-subject", sid, "-research-question", "Why did exports rise?", "-reasoning-profile", "GENERAL_RESEARCH", "-execution-profile", "LIGHT", "-timeout", (30*time.Second).String())...)
+	if an.code != ExitOK || an.stdout["status"] != "completed" || an.stdout["reasoningProfile"] != "GENERAL_RESEARCH" {
 		t.Fatalf("analysis: %+v", an)
 	}
 	aid := an.stdout["analysisId"].(string)
