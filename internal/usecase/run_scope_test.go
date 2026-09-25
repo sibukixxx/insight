@@ -337,7 +337,7 @@ func TestProjectReportShowsTheRunSnapshot(t *testing.T) {
 		"- Engine version: `v0.9.0`",
 		"- Git commit: `abc123` (uncommitted changes)",
 		"- Execution fingerprint: `" + execution.ExecutionFingerprint + "`",
-		"- Prompt version: `prompts/v1` (fingerprint v2 `" + execution.PromptFingerprint + "`)",
+		"- Prompt version: `" + execution.PromptVersion + "` (fingerprint v2 `" + execution.PromptFingerprint + "`)",
 		"- Provider host: `api.example.com`",
 		"- Input fingerprint: `" + input.InputFingerprint + "` (1 documents)",
 	} {
