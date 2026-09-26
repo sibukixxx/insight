@@ -1,0 +1,100 @@
+{
+  "caseId": "DB-F02",
+  "version": "0.1.0",
+  "title": "Apparent drop caused by a population definition change",
+  "category": "FALSE_ASSOCIATION_GUARD",
+  "mode": "DATASET_ANALYSIS",
+  "researchQuestion": "Did business registrations in town X fall in 2023?",
+  "trap": "2023 counts only corporations while earlier years count all entities; the naive -36% is a definition change.",
+  "input": {
+    "documents": [
+      {
+        "id": "reg-2021",
+        "datasetId": "registrations-2021",
+        "period": "2021",
+        "location": "Town X",
+        "eventType": "business_registrations",
+        "recordCount": "1200",
+        "unit": "registrations",
+        "populationScope": "all registered entities",
+        "populationDefinitionId": "registrations_all_entities",
+        "schemaId": "synthetic-registrations",
+        "schemaVersion": "2021",
+        "fileHash": "sha256:reg2021"
+      },
+      {
+        "id": "reg-2022",
+        "datasetId": "registrations-2022",
+        "period": "2022",
+        "location": "Town X",
+        "eventType": "business_registrations",
+        "recordCount": "1250",
+        "unit": "registrations",
+        "populationScope": "all registered entities",
+        "populationDefinitionId": "registrations_all_entities",
+        "schemaId": "synthetic-registrations",
+        "schemaVersion": "2021",
+        "fileHash": "sha256:reg2022"
+      },
+      {
+        "id": "reg-2023",
+        "datasetId": "registrations-2023",
+        "period": "2023",
+        "location": "Town X",
+        "eventType": "business_registrations",
+        "recordCount": "800",
+        "unit": "registrations",
+        "populationScope": "registered corporations only",
+        "populationDefinitionId": "registrations_corporations_only",
+        "schemaId": "synthetic-registrations",
+        "schemaVersion": "2023",
+        "fileHash": "sha256:reg2023"
+      }
+    ]
+  },
+  "expected": {
+    "discovery": false,
+    "assertions": [
+      {
+        "preanalysis": "observations",
+        "count": 3
+      },
+      {
+        "preanalysis": "comparisons",
+        "count": 1
+      },
+      {
+        "preanalysis": "compatibilityWarnings",
+        "code": "population_mismatch",
+        "count": 2
+      },
+      {
+        "preanalysis": "compatibilityWarnings",
+        "code": "schema_version_mismatch",
+        "count": 2
+      }
+    ]
+  },
+  "forbiddenClaims": [
+    "registrations fell",
+    "36% decline",
+    "登録が減少した"
+  ],
+  "humanRubric": {
+    "novelty": "PENDING",
+    "grounding": "PENDING",
+    "surpriseValidity": "PENDING",
+    "hypothesisDiversity": "PENDING",
+    "falsifiability": "PENDING",
+    "missingEvidenceSpecificity": "PENDING",
+    "reproducibility": "PENDING",
+    "usefulnessForContinuedResearch": "PENDING"
+  },
+  "humanReview": {
+    "status": "PENDING",
+    "reviewer": null,
+    "reviewedAt": null,
+    "outcome": null,
+    "notes": "A report must name the definition change and refuse the 2022->2023 comparison."
+  }
+}

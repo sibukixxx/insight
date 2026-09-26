@@ -1,0 +1,98 @@
+{
+  "caseId": "DB-P02",
+  "version": "0.1.0",
+  "title": "Level shift hidden inside a two-year total",
+  "category": "POSITIVE_DISCOVERY",
+  "mode": "DATASET_ANALYSIS",
+  "researchQuestion": "Did the level of monthly enrolments change during 2023-2024?",
+  "trap": "The two-year mean looks unremarkable; the series moves to a new level in 2024-01.",
+  "input": {
+    "basis": "calendar-month",
+    "population": "Fictional monthly course enrolments",
+    "geography": "synthetic region",
+    "series": [
+      {
+        "metricId": "enrolments",
+        "name": "Course enrolments",
+        "unit": "enrolments",
+        "dimensions": {
+          "program": "P"
+        },
+        "values": {
+          "2023-01": 50,
+          "2023-02": 52,
+          "2023-03": 49,
+          "2023-04": 51,
+          "2023-05": 50,
+          "2023-06": 48,
+          "2023-07": 51,
+          "2023-08": 50,
+          "2023-09": 49,
+          "2023-10": 52,
+          "2023-11": 50,
+          "2023-12": 51,
+          "2024-01": 70,
+          "2024-02": 69,
+          "2024-03": 71,
+          "2024-04": 72,
+          "2024-05": 70,
+          "2024-06": 68,
+          "2024-07": 71,
+          "2024-08": 70,
+          "2024-09": 69,
+          "2024-10": 71,
+          "2024-11": 72,
+          "2024-12": 70
+        }
+      }
+    ]
+  },
+  "operations": [
+    {
+      "operation": "change_point_candidate",
+      "metricId": "enrolments",
+      "series": {
+        "program": "P"
+      }
+    }
+  ],
+  "expected": {
+    "discovery": true,
+    "assertions": [
+      {
+        "op": 0,
+        "metric": "shift_score",
+        "dimensions": {
+          "candidatePeriod": "2024-01"
+        },
+        "min": 0.9
+      },
+      {
+        "op": 0,
+        "limitation": "not a confirmed structural change"
+      }
+    ]
+  },
+  "forbiddenClaims": [
+    "structural break confirmed",
+    "because of",
+    "によって増えた"
+  ],
+  "humanRubric": {
+    "novelty": "PENDING",
+    "grounding": "PENDING",
+    "surpriseValidity": "PENDING",
+    "hypothesisDiversity": "PENDING",
+    "falsifiability": "PENDING",
+    "missingEvidenceSpecificity": "PENDING",
+    "reproducibility": "PENDING",
+    "usefulnessForContinuedResearch": "PENDING"
+  },
+  "humanReview": {
+    "status": "PENDING",
+    "reviewer": null,
+    "reviewedAt": null,
+    "outcome": null,
+    "notes": "Record whether a report dates the shift to 2024-01 and keeps it a candidate with competing explanations."
+  }
+}

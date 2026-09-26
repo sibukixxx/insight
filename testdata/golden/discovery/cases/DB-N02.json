@@ -1,0 +1,118 @@
+{
+  "caseId": "DB-N02",
+  "version": "0.1.0",
+  "title": "Recurring seasonal peak with stable year-over-year growth",
+  "category": "VALID_NO_DISCOVERY",
+  "mode": "DISCOVERY",
+  "trap": "December is far above other months every year; year-over-year the series only grows about 2%. The peak is seasonality, not a new event.",
+  "input": {
+    "basis": "calendar-month",
+    "population": "Fictional monthly retail visits",
+    "geography": "synthetic town",
+    "series": [
+      {
+        "metricId": "visits",
+        "name": "Visits",
+        "unit": "visits",
+        "dimensions": {
+          "site": "S"
+        },
+        "values": {
+          "2023-01": 100,
+          "2023-02": 95,
+          "2023-03": 105,
+          "2023-04": 100,
+          "2023-05": 98,
+          "2023-06": 102,
+          "2023-07": 110,
+          "2023-08": 108,
+          "2023-09": 100,
+          "2023-10": 103,
+          "2023-11": 120,
+          "2023-12": 160,
+          "2024-01": 102,
+          "2024-02": 96.9,
+          "2024-03": 107.1,
+          "2024-04": 102,
+          "2024-05": 99.96,
+          "2024-06": 104.04,
+          "2024-07": 112.2,
+          "2024-08": 110.16,
+          "2024-09": 102,
+          "2024-10": 105.06,
+          "2024-11": 122.4,
+          "2024-12": 163.2
+        }
+      }
+    ]
+  },
+  "operations": [
+    {
+      "operation": "yoy",
+      "metricId": "visits",
+      "series": {
+        "site": "S"
+      }
+    },
+    {
+      "operation": "anomaly_candidate",
+      "metricId": "visits",
+      "series": {
+        "site": "S"
+      }
+    }
+  ],
+  "expected": {
+    "discovery": false,
+    "assertions": [
+      {
+        "op": 0,
+        "metric": "change_ratio",
+        "period": "2024-12",
+        "min": 0.019,
+        "max": 0.021
+      },
+      {
+        "op": 0,
+        "metric": "change_ratio",
+        "period": "2024-07",
+        "min": 0.019,
+        "max": 0.021
+      },
+      {
+        "op": 1,
+        "metric": "robust_z",
+        "flag": "ANOMALY_CANDIDATE",
+        "count": 0
+      }
+    ],
+    "knownFailure": {
+      "assertions": [
+        2
+      ],
+      "reason": "anomaly_candidate uses a robust z-score over the whole series with no seasonal adjustment, so the recurring December peak is flagged as an outlier candidate. YoY shows the peak is seasonal."
+    }
+  },
+  "forbiddenClaims": [
+    "unusual December surge",
+    "anomaly in December",
+    "12月に異常"
+  ],
+  "humanRubric": {
+    "novelty": "PENDING",
+    "grounding": "PENDING",
+    "surpriseValidity": "PENDING",
+    "hypothesisDiversity": "PENDING",
+    "falsifiability": "PENDING",
+    "missingEvidenceSpecificity": "PENDING",
+    "reproducibility": "PENDING",
+    "usefulnessForContinuedResearch": "PENDING"
+  },
+  "humanReview": {
+    "status": "PENDING",
+    "reviewer": null,
+    "reviewedAt": null,
+    "outcome": null,
+    "notes": "No discovery is correct. A report that presents the December peak as new or anomalous fails."
+  }
+}

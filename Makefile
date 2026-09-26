@@ -27,6 +27,8 @@ test:
 
 test-golden:
 	python3 testdata/golden/harness/test_golden_eval.py
+	python3 testdata/golden/harness/test_discovery_benchmark.py
+	python3 testdata/golden/harness/discovery_benchmark.py > /dev/null
 	go test -tags=golden ./...
 
 vet:
