@@ -108,3 +108,18 @@ func (r *PublicRepository) SaveResponse(ctx context.Context, resp *repository.Id
 func isUniqueViolation(err error) bool {
 	return err != nil && strings.Contains(err.Error(), "UNIQUE constraint failed")
 }
+
+// EngineState returns the identity of this database, created by migration 020.
+func (r *PublicRepository) EngineState(ctx context.Context) (*repository.EngineState, error) {
+	var state repository.EngineState
+	var createdAt string
+	if err := r.db.QueryRowContext(ctx, `SELECT state_id, created_at FROM engine_state WHERE id = 1`).Scan(&state.StateID, &createdAt); err != nil {
+		return nil, fmt.Errorf("read engine state: %w", err)
+	}
+	t, err := parseTime(createdAt)
+	if err != nil {
+		return nil, fmt.Errorf("parse engine state created_at: %w", err)
+	}
+	state.CreatedAt = t
+	return &state, nil
+}

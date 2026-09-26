@@ -23,6 +23,13 @@ type PublicSubject struct {
 	CreatedAt  time.Time
 }
 
+// EngineState identifies one persisted engine state (database). StateID is
+// opaque and generated once when the state is initialized.
+type EngineState struct {
+	StateID   string
+	CreatedAt time.Time
+}
+
 // IdempotentResponse is the first successful response to an idempotency key,
 // replayed verbatim for every retry with the same request.
 type IdempotentResponse struct {
