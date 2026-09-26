@@ -49,7 +49,12 @@ func newPublicServer(t *testing.T, modelBacked bool) *httptest.Server {
 	prep := &service.Preparation{Resolver: input.Resolvers{"file": input.FileResolver{Root: fixtureDir + "/data"}}, Heavy: execution.NewLocalRuntime(t.TempDir(), 2), Partitions: 3}
 	jobs.ConfigureExecution(prep)
 	jobs.AllowedModels = []string{"scripted-model-large"}
-	engine := publicengine.New(app, sqlite.NewPublicRepository(db), documents, jobs, conformanceBuild, publicengine.WithInputResolver(prep.Resolver, 0), publicengine.WithAllowedModels(jobs.AllowedModels), publicengine.WithModelBacked(settings.Configured))
+	publicRepo := sqlite.NewPublicRepository(db)
+	state, err := publicRepo.EngineState(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	engine := publicengine.New(app, publicRepo, documents, jobs, conformanceBuild, publicengine.WithInputResolver(prep.Resolver, 0), publicengine.WithAllowedModels(jobs.AllowedModels), publicengine.WithModelBacked(settings.Configured), publicengine.WithEngineState(state))
 	engine.EnableTriage(sqlite.NewTriageRepository(db), nil)
 	server := httptest.NewServer(httpapi.NewRouter(httpapi.Deps{App: app, JobManager: jobs, PublicEngine: engine}))
 	t.Cleanup(func() {

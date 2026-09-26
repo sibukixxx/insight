@@ -15,7 +15,7 @@ import (
 // the server encodes or decodes for it.
 var wireTypes = map[string]any{
 	"ModelRouting": ModelRouting{},
-	"SubjectRef":   SubjectRef{}, "EngineBuild": EngineBuild{}, "SchemaRef": SchemaRef{}, "EngineInfo": EngineInfo{},
+	"SubjectRef":   SubjectRef{}, "EngineBuild": EngineBuild{}, "SchemaRef": SchemaRef{}, "EngineInfo": EngineInfo{}, "EngineState": EngineState{},
 	"CreateSubjectRequest": CreateSubjectRequest{}, "Subject": Subject{}, "EvidenceDocument": EvidenceDocument{},
 	"AddEvidenceRequest": AddEvidenceRequest{}, "EvidenceItemReceipt": EvidenceItemReceipt{}, "EvidenceReceipt": EvidenceReceipt{},
 	"StartAnalysisRequest": StartAnalysisRequest{}, "AnalysisProvenance": AnalysisProvenance{}, "AnalysisRun": AnalysisRun{},

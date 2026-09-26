@@ -45,6 +45,12 @@ func Open(ctx context.Context, cfg *Config) (*Engine, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open database: %w", err)
 	}
+	publicRepo := sqlite.NewPublicRepository(db)
+	state, err := publicRepo.EngineState(ctx)
+	if err != nil {
+		db.Close()
+		return nil, err
+	}
 
 	projects := sqlite.NewProjectRepository(db)
 	documents := sqlite.NewDocumentRepository(db)
@@ -95,7 +101,8 @@ func Open(ctx context.Context, cfg *Config) (*Engine, error) {
 		Scenarios: sqlite.NewScenarioRepository(db),
 	})
 
-	publicEngine := publicengine.New(application, sqlite.NewPublicRepository(db), documents, jobManager, buildinfo.Get(), engineOpts...)
+	engineOpts = append(engineOpts, publicengine.WithEngineState(state))
+	publicEngine := publicengine.New(application, publicRepo, documents, jobManager, buildinfo.Get(), engineOpts...)
 	publicEngine.EnableTriage(sqlite.NewTriageRepository(db), func() (llm.Client, string, bool) {
 		current := settings.Get()
 		if !current.Configured() {

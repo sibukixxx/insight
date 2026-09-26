@@ -108,7 +108,17 @@
         "supportedReasoningProfiles": {"type": "array", "items": {"type": "string", "enum": ["GENERAL_RESEARCH", "CUSTOMER_INSIGHT"]}, "description": "Semantic reasoning specializations supported by the same research core."},
         "defaultReasoningProfile": {"type": "string", "enum": ["GENERAL_RESEARCH", "CUSTOMER_INSIGHT"], "description": "Profile used when startAnalysis omits reasoningProfile; currently GENERAL_RESEARCH."},
         "modelRouting": {"$ref": "#/$defs/ModelRouting"},
-        "modelBacked": {"type": "boolean", "description": "True when analyses use a configured model and can form hypotheses. False means deterministic only: research runs are refused with ANALYSIS_HAS_NO_HYPOTHESES."}
+        "modelBacked": {"type": "boolean", "description": "True when analyses use a configured model and can form hypotheses. False means deterministic only: research runs are refused with ANALYSIS_HAS_NO_HYPOTHESES."},
+        "state": {"$ref": "#/$defs/EngineState"}
+      }
+    },
+    "EngineState": {
+      "type": "object",
+      "description": "Opaque identity of the persisted engine state (#116). stateId is generated once when the state store is initialized and persisted inside it: it survives restarts, changes for a fresh store and travels with a backup/restore of that store. It never encodes host, path or storage-provider details. Absent means unknown, never the same state.",
+      "required": ["stateId", "createdAt"],
+      "properties": {
+        "stateId": {"type": "string", "minLength": 1},
+        "createdAt": {"type": "string", "format": "date-time", "description": "When this state was initialized."}
       }
     },
     "ModelRouting": {
