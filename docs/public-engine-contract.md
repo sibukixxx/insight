@@ -107,6 +107,18 @@ The SDKs add `UNAVAILABLE` for an unreachable engine or a non-contract response.
 
 `EngineInfo.modelBacked` reports whether analyses use a configured model (it follows live settings). A deterministic engine (`false`) analyzes evidence into observations but never forms hypotheses, so `createResearchRun` / `appendIteration` over its analyses fail with `ANALYSIS_HAS_NO_HYPOTHESES`. Consumers should check it before starting research work.
 
+## Engine-state identity (#116)
+
+Consumers persist only references to Core-owned state (subject IDs, analysis IDs, ResearchRunIDs, iteration IDs). `EngineInfo.state` lets them check that those references still point at the same persisted state, without inferring identity from run counts, timestamps or host/path details.
+
+- `state.stateId` is opaque. It is generated once when the engine's state store (the SQLite database) is initialized and is persisted inside that store. It never encodes host, path or storage-provider details.
+- It is stable across restarts, changes when a fresh or empty database is mounted, and travels with a backup/restore of the database file.
+- `state.createdAt` is when that state was initialized. A database created before this field existed reports its original initialization time (its earliest recorded migration), not the upgrade time.
+- The field is optional and additive in v1. **Absent means unknown, never the same state.** Consumers must not treat a missing `state` as a match.
+- A changed `stateId` means the references a consumer holds may dangle, so the consumer should re-check them instead of trusting them. The engine does not reconcile with consumers.
+- Out of scope for now: a monotonic `stateRevision` / high-water mark that would show a restored state predates recorded references, and a per-iteration content digest (`getResearchRun` artifacts carry a per-export `exportedAt`, so compare `iterationId`, not artifact bytes).
+- Conformance: `19-engine-state-identity`.
+
 ## Model bindings (#65 extension point)
 
 Routing policy (which model for which stage, cost budgets, escalation) belongs to consumers. The engine exposes only a minimal, provider-neutral extension point:
@@ -139,7 +151,7 @@ The request body is at most 16 MiB. A request carries at most 500 documents and 
 
 ### Conformance
 
-- `contracts/public-engine/v1/fixtures/` holds 17 fixtures. Each names its `engine` (`deterministic` or `model_backed`):
+- `contracts/public-engine/v1/fixtures/` holds 19 fixtures. Each names its `engine` (`deterministic` or `model_backed`):
   1. generic public-data subject (model-backed)
   2. commerce-like opaque subject (model-backed)
   3. deterministic Analytical Artifact
@@ -157,6 +169,8 @@ The request body is at most 16 MiB. A request carries at most 500 documents and 
   15. re-triage from research gaps (#92, model-backed)
   16. temporal operation pack (#73)
   17. model bindings (#65, model-backed; needs `-allowed-models scripted-model-large`)
+  18. reasoning profiles (#109, model-backed)
+  19. engine-state identity (#116)
 - Fixtures 08 and 09 need an engine started with an input root containing `fixtures/data` and, for 08, a HEAVY adapter (`-input-root` and `-heavy-dir`).
 - `internal/http/public_conformance_test.go` starts a deterministic engine and a model-backed engine. It runs every fixture over plain HTTP with `internal/publicengine/conformance`. SDK repositories run the same fixture files against a live engine or recorded responses.
 - The model-backed engine in that test uses the scripted stand-in model from `internal/llm/scripted`, the same one `cmd/insight-scripted-llm` serves over HTTP for SDK repositories. Production code has no fake-model mode: the engine only ever talks to an OpenAI-compatible endpoint. Model-backed fixtures check contract behavior with that model. They do not measure the quality of a real model.

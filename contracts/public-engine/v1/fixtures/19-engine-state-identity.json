@@ -1,0 +1,16 @@
+{
+  "fixture": "19-engine-state-identity",
+  "contractVersion": "1",
+  "covers": "#116 opaque engine-state identity in EngineInfo so consumers can tell a restart from a fresh or restored engine state",
+  "engine": "deterministic",
+  "steps": [
+    {
+      "op": "getEngine",
+      "expect": {"ok": true},
+      "assert": [
+        {"path": "state.stateId", "exists": true},
+        {"path": "state.createdAt", "exists": true}
+      ]
+    }
+  ]
+}

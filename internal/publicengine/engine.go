@@ -62,6 +62,7 @@ type Engine struct {
 	maxRawBytes   int64
 	allowedModels []string
 	modelBacked   func() bool
+	state         *EngineState
 
 	// mu serializes mutating operations so an idempotency replay check and
 	// an identity check can never interleave with the write they guard.
@@ -90,7 +91,27 @@ func (e *Engine) Engine() EngineInfo {
 		DefaultReasoningProfile:    string(domain.ReasoningGeneralResearch),
 		ModelRouting:              e.modelRouting(),
 		ModelBacked:               e.modelBacked != nil && e.modelBacked(),
+		State:                     e.engineState(),
 	}
+}
+
+// WithEngineState advertises the identity of the persisted engine state.
+func WithEngineState(state *repository.EngineState) Option {
+	return func(e *Engine) {
+		if state == nil || state.StateID == "" {
+			e.state = nil
+			return
+		}
+		e.state = &EngineState{StateID: state.StateID, CreatedAt: state.CreatedAt.UTC().Format(time.RFC3339Nano)}
+	}
+}
+
+func (e *Engine) engineState() *EngineState {
+	if e.state == nil {
+		return nil
+	}
+	state := *e.state
+	return &state
 }
 
 // ---------- idempotency ----------

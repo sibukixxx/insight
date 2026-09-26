@@ -58,6 +58,17 @@ type EngineInfo struct {
 	// hypotheses; false means deterministic only (research runs are refused
 	// with ANALYSIS_HAS_NO_HYPOTHESES).
 	ModelBacked bool `json:"modelBacked"`
+	// State identifies the persisted engine state (#116). Absent means
+	// unknown, never "same state".
+	State *EngineState `json:"state,omitempty"`
+}
+
+// EngineState is an opaque identity of one persisted engine state. It is
+// stable across restarts, new for a fresh store and carried along with a
+// backup/restore of that store. It never encodes host, path or provider.
+type EngineState struct {
+	StateID   string `json:"stateId"`
+	CreatedAt string `json:"createdAt"`
 }
 
 type ExecutionProfileInfo struct {
