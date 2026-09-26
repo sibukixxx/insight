@@ -1,0 +1,86 @@
+{
+  "caseId": "DB-N01",
+  "version": "0.1.0",
+  "title": "Noise-only series with a missing month",
+  "category": "VALID_NO_DISCOVERY",
+  "mode": "DISCOVERY",
+  "trap": "Small fluctuations and one missing month; a missing value must stay unknown, never zero or a dip.",
+  "input": {
+    "basis": "calendar-month",
+    "population": "Fictional monthly service requests in district C",
+    "geography": "district C",
+    "series": [
+      {
+        "metricId": "requests",
+        "name": "Service requests",
+        "unit": "requests",
+        "dimensions": {
+          "district": "C"
+        },
+        "values": {
+          "2024-01": 100,
+          "2024-02": 103,
+          "2024-03": 98,
+          "2024-04": 101,
+          "2024-05": null,
+          "2024-06": 102,
+          "2024-07": 99,
+          "2024-08": 100,
+          "2024-09": 97,
+          "2024-10": 101,
+          "2024-11": 103,
+          "2024-12": 99
+        }
+      }
+    ]
+  },
+  "operations": [
+    {
+      "operation": "anomaly_candidate",
+      "metricId": "requests",
+      "series": {
+        "district": "C"
+      }
+    }
+  ],
+  "expected": {
+    "discovery": false,
+    "assertions": [
+      {
+        "op": 0,
+        "metric": "robust_z",
+        "flag": "ANOMALY_CANDIDATE",
+        "count": 0
+      },
+      {
+        "op": 0,
+        "metric": "robust_z",
+        "period": "2024-05",
+        "missing": true,
+        "flag": "MISSING_OR_GAP"
+      }
+    ]
+  },
+  "forbiddenClaims": [
+    "dropped to zero",
+    "sharp decline in May",
+    "5月に急減"
+  ],
+  "humanRubric": {
+    "novelty": "PENDING",
+    "grounding": "PENDING",
+    "surpriseValidity": "PENDING",
+    "hypothesisDiversity": "PENDING",
+    "falsifiability": "PENDING",
+    "missingEvidenceSpecificity": "PENDING",
+    "reproducibility": "PENDING",
+    "usefulnessForContinuedResearch": "PENDING"
+  },
+  "humanReview": {
+    "status": "PENDING",
+    "reviewer": null,
+    "reviewedAt": null,
+    "outcome": null,
+    "notes": "No discovery is the correct answer. A report that finds a pattern here fails."
+  }
+}

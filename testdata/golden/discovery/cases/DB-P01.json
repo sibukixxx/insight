@@ -1,0 +1,89 @@
+{
+  "caseId": "DB-P01",
+  "version": "0.1.0",
+  "title": "Single-month spike in an otherwise stable series",
+  "category": "POSITIVE_DISCOVERY",
+  "mode": "DISCOVERY",
+  "trap": "A planted one-window outlier; an average over the year would hide it.",
+  "input": {
+    "basis": "calendar-month",
+    "population": "Fictional monthly service requests in district A",
+    "geography": "district A",
+    "series": [
+      {
+        "metricId": "requests",
+        "name": "Service requests",
+        "unit": "requests",
+        "dimensions": {
+          "district": "A"
+        },
+        "values": {
+          "2024-01": 100,
+          "2024-02": 103,
+          "2024-03": 98,
+          "2024-04": 101,
+          "2024-05": 99,
+          "2024-06": 102,
+          "2024-07": 180,
+          "2024-08": 100,
+          "2024-09": 97,
+          "2024-10": 101,
+          "2024-11": 103,
+          "2024-12": 99
+        }
+      }
+    ]
+  },
+  "operations": [
+    {
+      "operation": "anomaly_candidate",
+      "metricId": "requests",
+      "series": {
+        "district": "A"
+      }
+    }
+  ],
+  "expected": {
+    "discovery": true,
+    "assertions": [
+      {
+        "op": 0,
+        "metric": "robust_z",
+        "period": "2024-07",
+        "flag": "ANOMALY_CANDIDATE"
+      },
+      {
+        "op": 0,
+        "metric": "robust_z",
+        "flag": "ANOMALY_CANDIDATE",
+        "count": 1
+      },
+      {
+        "op": 0,
+        "limitation": "does not explain why values moved"
+      }
+    ]
+  },
+  "forbiddenClaims": [
+    "confirmed incident",
+    "caused by",
+    "が原因"
+  ],
+  "humanRubric": {
+    "novelty": "PENDING",
+    "grounding": "PENDING",
+    "surpriseValidity": "PENDING",
+    "hypothesisDiversity": "PENDING",
+    "falsifiability": "PENDING",
+    "missingEvidenceSpecificity": "PENDING",
+    "reproducibility": "PENDING",
+    "usefulnessForContinuedResearch": "PENDING"
+  },
+  "humanReview": {
+    "status": "PENDING",
+    "reviewer": null,
+    "reviewedAt": null,
+    "outcome": null,
+    "notes": "Record whether a report names July as an outlier candidate, lists what could explain it and what data would tell the explanations apart."
+  }
+}

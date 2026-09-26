@@ -1,0 +1,361 @@
+{
+  "benchmarkVersion": "discovery-benchmark/v1",
+  "cases": [
+    {
+      "caseId": "DB-F01",
+      "version": "0.1.0",
+      "category": "FALSE_ASSOCIATION_GUARD",
+      "mode": "RESEARCH_REVIEW",
+      "inputFingerprint": "sha256:6dff83a549d6635b8c48f6e7c2c99f6eff490034388f666fdca5f7460a697679",
+      "executionFingerprint": "sha256:27cf21a0566b11391643b1eadc8e5f64a446c95d43ce300f3d933c252a852df8",
+      "ruleVersions": {
+        "analyticalArtifact": "analytical-artifact/v1",
+        "datasetPreanalysis": "dataset-preanalysis/v1",
+        "grounding": "grounding/v1",
+        "temporalOperation": "insight-lab.temporal-operation/v1"
+      },
+      "operations": [
+        {
+          "operation": "lagged_comparison",
+          "specHash": "sha256:3f556a1e8596286303056e5a021022c8473f52656e16da1979daebfd6da64a6e",
+          "candidates": 3
+        }
+      ],
+      "assertions": [
+        {
+          "index": 0,
+          "passed": true,
+          "observed": "2015=0.997912 PAIRS"
+        },
+        {
+          "index": 1,
+          "passed": true,
+          "observed": "limitation: Association only: a coefficient at some lag says nothing about why the series move together."
+        },
+        {
+          "index": 2,
+          "passed": true,
+          "observed": "limitation: Descriptive arithmetic over recorded values; it does not explain why values moved."
+        }
+      ],
+      "outcome": "PASS"
+    },
+    {
+      "caseId": "DB-F02",
+      "version": "0.1.0",
+      "category": "FALSE_ASSOCIATION_GUARD",
+      "mode": "DATASET_ANALYSIS",
+      "inputFingerprint": "sha256:d0e57f781f3a0817d1bd8eb55993d5d409ecf81e1fb87db27aca05981d7b4558",
+      "executionFingerprint": "sha256:9d8f4e50d44efb63ebbdd63be23b3627ab47b62bf3e23e455a9b7f504cb81694",
+      "ruleVersions": {
+        "analyticalArtifact": "analytical-artifact/v1",
+        "datasetPreanalysis": "dataset-preanalysis/v1",
+        "grounding": "grounding/v1",
+        "temporalOperation": "insight-lab.temporal-operation/v1"
+      },
+      "assertions": [
+        {
+          "index": 0,
+          "passed": true,
+          "observed": "count=3"
+        },
+        {
+          "index": 1,
+          "passed": true,
+          "observed": "count=1 2021-\u003e2022"
+        },
+        {
+          "index": 2,
+          "passed": true,
+          "observed": "count=2"
+        },
+        {
+          "index": 3,
+          "passed": true,
+          "observed": "count=2"
+        }
+      ],
+      "outcome": "PASS"
+    },
+    {
+      "caseId": "DB-F03",
+      "version": "0.1.0",
+      "category": "FALSE_ASSOCIATION_GUARD",
+      "mode": "DISCOVERY",
+      "inputFingerprint": "sha256:05fb92af311545410073f2c76be34d24477147244ba682fd1e02cc3ac3707d4a",
+      "executionFingerprint": "sha256:e023e27b1c171be8f7d8e704ab5395f267f95b14c3dd0197ccd9faf38b855dea",
+      "ruleVersions": {
+        "analyticalArtifact": "analytical-artifact/v1",
+        "datasetPreanalysis": "dataset-preanalysis/v1",
+        "grounding": "grounding/v1",
+        "temporalOperation": "insight-lab.temporal-operation/v1"
+      },
+      "operations": [
+        {
+          "operation": "anomaly_candidate",
+          "specHash": "sha256:ecdc9325241eaecfb655429a89e43972a2d3ee4fb0433b7739e706c46b51293e",
+          "candidates": 0,
+          "error": "invalid temporal operation: duplicate window 2024-03 in one series"
+        }
+      ],
+      "assertions": [
+        {
+          "index": 0,
+          "passed": true,
+          "observed": "error: invalid temporal operation: duplicate window 2024-03 in one series"
+        },
+        {
+          "index": 1,
+          "passed": true,
+          "observed": "count=2"
+        },
+        {
+          "index": 2,
+          "passed": true,
+          "observed": "count=2"
+        },
+        {
+          "index": 3,
+          "passed": true,
+          "observed": "count=0 "
+        },
+        {
+          "index": 4,
+          "passed": true,
+          "observed": "series \"visits / Site S\" has more than one document for period 2023; comparisons skipped until the duplicate import is resolved"
+        },
+        {
+          "index": 5,
+          "passed": false,
+          "observed": "count=3"
+        }
+      ],
+      "outcome": "KNOWN_FAILURE",
+      "knownFailureReason": "Dataset pre-analysis materializes one observation per document, so the re-imported 2023 file yields a second record_count observation. Dataset hashes, manifests and period comparisons already collapse the copy; the observation list does not."
+    },
+    {
+      "caseId": "DB-N01",
+      "version": "0.1.0",
+      "category": "VALID_NO_DISCOVERY",
+      "mode": "DISCOVERY",
+      "inputFingerprint": "sha256:f23b323d2c277849c0747edf2d1445ae9bca3f72e9cf52dceea30d87489d1cbd",
+      "executionFingerprint": "sha256:e023e27b1c171be8f7d8e704ab5395f267f95b14c3dd0197ccd9faf38b855dea",
+      "ruleVersions": {
+        "analyticalArtifact": "analytical-artifact/v1",
+        "datasetPreanalysis": "dataset-preanalysis/v1",
+        "grounding": "grounding/v1",
+        "temporalOperation": "insight-lab.temporal-operation/v1"
+      },
+      "operations": [
+        {
+          "operation": "anomaly_candidate",
+          "specHash": "sha256:9450ebaeabee8e47c493d3d2dd4aadef50e0154932a0d5cb42006d28bb7c0eab",
+          "candidates": 12
+        }
+      ],
+      "assertions": [
+        {
+          "index": 0,
+          "passed": true,
+          "observed": "count=0 []"
+        },
+        {
+          "index": 1,
+          "passed": true,
+          "observed": "2024-05=missing MISSING_OR_GAP"
+        }
+      ],
+      "outcome": "PASS"
+    },
+    {
+      "caseId": "DB-N02",
+      "version": "0.1.0",
+      "category": "VALID_NO_DISCOVERY",
+      "mode": "DISCOVERY",
+      "inputFingerprint": "sha256:417dc59f7d5dc6b09a5acceb412fdc18cd9243dad4d337ca13b1ac394513ecc2",
+      "executionFingerprint": "sha256:e023e27b1c171be8f7d8e704ab5395f267f95b14c3dd0197ccd9faf38b855dea",
+      "ruleVersions": {
+        "analyticalArtifact": "analytical-artifact/v1",
+        "datasetPreanalysis": "dataset-preanalysis/v1",
+        "grounding": "grounding/v1",
+        "temporalOperation": "insight-lab.temporal-operation/v1"
+      },
+      "operations": [
+        {
+          "operation": "yoy",
+          "specHash": "sha256:48b4f0b8019e6b93bd50f205257728a47b25f72660740332e158685172bab274",
+          "candidates": 12
+        },
+        {
+          "operation": "anomaly_candidate",
+          "specHash": "sha256:ecdc9325241eaecfb655429a89e43972a2d3ee4fb0433b7739e706c46b51293e",
+          "candidates": 24
+        }
+      ],
+      "assertions": [
+        {
+          "index": 0,
+          "passed": true,
+          "observed": "2024-12=0.02"
+        },
+        {
+          "index": 1,
+          "passed": true,
+          "observed": "2024-07=0.02"
+        },
+        {
+          "index": 2,
+          "passed": false,
+          "observed": "count=3 [2023-12 2024-11 2024-12]"
+        }
+      ],
+      "outcome": "KNOWN_FAILURE",
+      "knownFailureReason": "anomaly_candidate uses a robust z-score over the whole series with no seasonal adjustment, so the recurring December peak is flagged as an outlier candidate. YoY shows the peak is seasonal."
+    },
+    {
+      "caseId": "DB-N03",
+      "version": "0.1.0",
+      "category": "VALID_NO_DISCOVERY",
+      "mode": "DATASET_ANALYSIS",
+      "inputFingerprint": "sha256:b383dc477b0a62386ac86343ed2c4ae3d309a2e481f3b22e9645c00aa5ea2d0d",
+      "executionFingerprint": "sha256:9d8f4e50d44efb63ebbdd63be23b3627ab47b62bf3e23e455a9b7f504cb81694",
+      "ruleVersions": {
+        "analyticalArtifact": "analytical-artifact/v1",
+        "datasetPreanalysis": "dataset-preanalysis/v1",
+        "grounding": "grounding/v1",
+        "temporalOperation": "insight-lab.temporal-operation/v1"
+      },
+      "operations": [
+        {
+          "operation": "control_comparison",
+          "specHash": "sha256:57125d860f453697a10f428cda20a48bdad12d6d924f224708f648e6d1abc27e",
+          "candidates": 3
+        }
+      ],
+      "assertions": [
+        {
+          "index": 0,
+          "passed": true,
+          "observed": "2024-01=20"
+        },
+        {
+          "index": 1,
+          "passed": true,
+          "observed": "2024-01=0"
+        }
+      ],
+      "outcome": "PASS"
+    },
+    {
+      "caseId": "DB-P01",
+      "version": "0.1.0",
+      "category": "POSITIVE_DISCOVERY",
+      "mode": "DISCOVERY",
+      "inputFingerprint": "sha256:3b9569362610a9bf3d51fe1e4cedcca8e0534cab4311981401afff122eb35fe6",
+      "executionFingerprint": "sha256:e023e27b1c171be8f7d8e704ab5395f267f95b14c3dd0197ccd9faf38b855dea",
+      "ruleVersions": {
+        "analyticalArtifact": "analytical-artifact/v1",
+        "datasetPreanalysis": "dataset-preanalysis/v1",
+        "grounding": "grounding/v1",
+        "temporalOperation": "insight-lab.temporal-operation/v1"
+      },
+      "operations": [
+        {
+          "operation": "anomaly_candidate",
+          "specHash": "sha256:4372077f9c9c2b01a80e0fdaa00a0acc36f46e6777cc6f031e39f1e45645a9bd",
+          "candidates": 12
+        }
+      ],
+      "assertions": [
+        {
+          "index": 0,
+          "passed": true,
+          "observed": "2024-07=35.7485 ANOMALY_CANDIDATE"
+        },
+        {
+          "index": 1,
+          "passed": true,
+          "observed": "count=1 [2024-07]"
+        },
+        {
+          "index": 2,
+          "passed": true,
+          "observed": "limitation: Descriptive arithmetic over recorded values; it does not explain why values moved."
+        }
+      ],
+      "outcome": "PASS"
+    },
+    {
+      "caseId": "DB-P02",
+      "version": "0.1.0",
+      "category": "POSITIVE_DISCOVERY",
+      "mode": "DATASET_ANALYSIS",
+      "inputFingerprint": "sha256:69eb9363489e59a712801b23f1173813d2b3e8581985fe6431f18f7b27d60b1f",
+      "executionFingerprint": "sha256:9d8f4e50d44efb63ebbdd63be23b3627ab47b62bf3e23e455a9b7f504cb81694",
+      "ruleVersions": {
+        "analyticalArtifact": "analytical-artifact/v1",
+        "datasetPreanalysis": "dataset-preanalysis/v1",
+        "grounding": "grounding/v1",
+        "temporalOperation": "insight-lab.temporal-operation/v1"
+      },
+      "operations": [
+        {
+          "operation": "change_point_candidate",
+          "specHash": "sha256:31266f74b92b16b8ce5ff00d3afec656128cadcf08fc6763a0af4ec0f02d7a5f",
+          "candidates": 3
+        }
+      ],
+      "assertions": [
+        {
+          "index": 0,
+          "passed": true,
+          "observed": "2023-01=0.986639"
+        },
+        {
+          "index": 1,
+          "passed": true,
+          "observed": "limitation: Single mean-shift search; a break candidate is not a confirmed structural change."
+        }
+      ],
+      "outcome": "PASS"
+    },
+    {
+      "caseId": "DB-P03",
+      "version": "0.1.0",
+      "category": "POSITIVE_DISCOVERY",
+      "mode": "DATASET_ANALYSIS",
+      "inputFingerprint": "sha256:6c4ba8f54609c3750926c3fc14793741834107ed66e024625932ef42b0652bd6",
+      "executionFingerprint": "sha256:9d8f4e50d44efb63ebbdd63be23b3627ab47b62bf3e23e455a9b7f504cb81694",
+      "ruleVersions": {
+        "analyticalArtifact": "analytical-artifact/v1",
+        "datasetPreanalysis": "dataset-preanalysis/v1",
+        "grounding": "grounding/v1",
+        "temporalOperation": "insight-lab.temporal-operation/v1"
+      },
+      "operations": [
+        {
+          "operation": "control_comparison",
+          "specHash": "sha256:57125d860f453697a10f428cda20a48bdad12d6d924f224708f648e6d1abc27e",
+          "candidates": 3
+        }
+      ],
+      "assertions": [
+        {
+          "index": 0,
+          "passed": true,
+          "observed": "2024-01=19.5"
+        },
+        {
+          "index": 1,
+          "passed": true,
+          "observed": "limitation: The reference series is assumed comparable; that assumption is not verified here."
+        }
+      ],
+      "outcome": "PASS"
+    }
+  ],
+  "summary": {
+    "KNOWN_FAILURE": 2,
+    "PASS": 7
+  }
+}

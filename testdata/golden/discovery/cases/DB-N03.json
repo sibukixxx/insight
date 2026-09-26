@@ -1,0 +1,102 @@
+{
+  "caseId": "DB-N03",
+  "version": "0.1.0",
+  "title": "Series and reference move identically after a break period",
+  "category": "VALID_NO_DISCOVERY",
+  "mode": "DATASET_ANALYSIS",
+  "researchQuestion": "Did region A move differently from region B after 2024-05?",
+  "trap": "Region A rises by 20 after the break, but so does the reference; the rise alone looks like a finding.",
+  "input": {
+    "basis": "calendar-month",
+    "population": "Fictional monthly orders in two regions",
+    "geography": "regions A and B",
+    "series": [
+      {
+        "metricId": "orders",
+        "name": "Orders",
+        "unit": "orders",
+        "dimensions": {
+          "region": "A"
+        },
+        "values": {
+          "2024-01": 100,
+          "2024-02": 101,
+          "2024-03": 99,
+          "2024-04": 100,
+          "2024-05": 120,
+          "2024-06": 121,
+          "2024-07": 119,
+          "2024-08": 120
+        }
+      },
+      {
+        "metricId": "orders",
+        "name": "Orders",
+        "unit": "orders",
+        "dimensions": {
+          "region": "B"
+        },
+        "values": {
+          "2024-01": 80,
+          "2024-02": 81,
+          "2024-03": 79,
+          "2024-04": 80,
+          "2024-05": 100,
+          "2024-06": 101,
+          "2024-07": 99,
+          "2024-08": 100
+        }
+      }
+    ]
+  },
+  "operations": [
+    {
+      "operation": "control_comparison",
+      "metricId": "orders",
+      "series": {
+        "region": "A"
+      },
+      "referenceSeries": {
+        "region": "B"
+      },
+      "breakPeriod": "2024-05"
+    }
+  ],
+  "expected": {
+    "discovery": false,
+    "assertions": [
+      {
+        "op": 0,
+        "metric": "selected_change",
+        "min": 19
+      },
+      {
+        "op": 0,
+        "metric": "difference_of_changes",
+        "absMax": 1
+      }
+    ]
+  },
+  "forbiddenClaims": [
+    "region A outperformed",
+    "A grew because",
+    "Aだけが伸びた"
+  ],
+  "humanRubric": {
+    "novelty": "PENDING",
+    "grounding": "PENDING",
+    "surpriseValidity": "PENDING",
+    "hypothesisDiversity": "PENDING",
+    "falsifiability": "PENDING",
+    "missingEvidenceSpecificity": "PENDING",
+    "reproducibility": "PENDING",
+    "usefulnessForContinuedResearch": "PENDING"
+  },
+  "humanReview": {
+    "status": "PENDING",
+    "reviewer": null,
+    "reviewedAt": null,
+    "outcome": null,
+    "notes": "No region-specific discovery. A report that attributes A's rise to something A-specific fails."
+  }
+}

@@ -1,0 +1,144 @@
+{
+  "caseId": "DB-F03",
+  "version": "0.1.0",
+  "title": "Same source imported twice",
+  "category": "FALSE_ASSOCIATION_GUARD",
+  "mode": "DISCOVERY",
+  "trap": "The 2023 file is imported a second time under a new document ID; the copy must not count as independent evidence, and a duplicated window must not be silently averaged.",
+  "input": {
+    "basis": "calendar-month",
+    "population": "Fictional monthly visits",
+    "geography": "synthetic site",
+    "series": [
+      {
+        "metricId": "visits",
+        "name": "Visits",
+        "unit": "visits",
+        "dimensions": {
+          "site": "S"
+        },
+        "values": {
+          "2024-01": 100,
+          "2024-02": 102,
+          "2024-03": 99,
+          "2024-04": 101,
+          "2024-05": 100,
+          "2024-06": 103
+        },
+        "duplicates": {
+          "2024-03": 140
+        }
+      }
+    ],
+    "documents": [
+      {
+        "id": "visits-2023",
+        "datasetId": "visits-2023",
+        "period": "2023",
+        "location": "Site S",
+        "eventType": "visits",
+        "recordCount": "5400",
+        "unit": "visits",
+        "populationScope": "all visits",
+        "populationDefinitionId": "visits_all",
+        "schemaId": "synthetic-visits",
+        "schemaVersion": "1",
+        "fileHash": "sha256:visits2023"
+      },
+      {
+        "id": "visits-2023-reimport",
+        "datasetId": "visits-2023",
+        "period": "2023",
+        "location": "Site S",
+        "eventType": "visits",
+        "recordCount": "5400",
+        "unit": "visits",
+        "populationScope": "all visits",
+        "populationDefinitionId": "visits_all",
+        "schemaId": "synthetic-visits",
+        "schemaVersion": "1",
+        "fileHash": "sha256:visits2023"
+      },
+      {
+        "id": "visits-2024",
+        "datasetId": "visits-2024",
+        "period": "2024",
+        "location": "Site S",
+        "eventType": "visits",
+        "recordCount": "5600",
+        "unit": "visits",
+        "populationScope": "all visits",
+        "populationDefinitionId": "visits_all",
+        "schemaId": "synthetic-visits",
+        "schemaVersion": "1",
+        "fileHash": "sha256:visits2024"
+      }
+    ]
+  },
+  "operations": [
+    {
+      "operation": "anomaly_candidate",
+      "metricId": "visits",
+      "series": {
+        "site": "S"
+      }
+    }
+  ],
+  "expected": {
+    "discovery": false,
+    "assertions": [
+      {
+        "op": 0,
+        "error": "duplicate window"
+      },
+      {
+        "preanalysis": "datasetHashes",
+        "count": 2
+      },
+      {
+        "preanalysis": "manifests",
+        "count": 2
+      },
+      {
+        "preanalysis": "comparisons",
+        "count": 0
+      },
+      {
+        "preanalysis": "notes",
+        "contains": "more than one document for period 2023"
+      },
+      {
+        "preanalysis": "observations",
+        "count": 2
+      }
+    ],
+    "knownFailure": {
+      "assertions": [
+        5
+      ],
+      "reason": "Dataset pre-analysis materializes one observation per document, so the re-imported 2023 file yields a second record_count observation. Dataset hashes, manifests and period comparisons already collapse the copy; the observation list does not."
+    }
+  },
+  "forbiddenClaims": [
+    "confirmed by two sources",
+    "independently confirmed",
+    "2つの資料で裏付け"
+  ],
+  "humanRubric": {
+    "novelty": "PENDING",
+    "grounding": "PENDING",
+    "surpriseValidity": "PENDING",
+    "hypothesisDiversity": "PENDING",
+    "falsifiability": "PENDING",
+    "missingEvidenceSpecificity": "PENDING",
+    "reproducibility": "PENDING",
+    "usefulnessForContinuedResearch": "PENDING"
+  },
+  "humanReview": {
+    "status": "PENDING",
+    "reviewer": null,
+    "reviewedAt": null,
+    "outcome": null,
+    "notes": "A report must treat the re-import as one source and resolve the duplicate before comparing periods."
+  }
+}

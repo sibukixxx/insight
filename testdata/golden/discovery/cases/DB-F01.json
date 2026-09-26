@@ -1,0 +1,121 @@
+{
+  "caseId": "DB-F01",
+  "version": "0.1.0",
+  "title": "External claim built on two independently trending series",
+  "category": "FALSE_ASSOCIATION_GUARD",
+  "mode": "RESEARCH_REVIEW",
+  "claim": {
+    "id": "claim-1",
+    "statement": "The growth of public charging stations drives the growth of coffee shops.",
+    "sourceReference": "external-report://synthetic/charging-and-coffee",
+    "evidenceReferences": [
+      "benchmark:DB-F01"
+    ]
+  },
+  "trap": "Both series rise steadily for ten years, so their correlation is near 1 at lag 0; nothing links them except time.",
+  "input": {
+    "basis": "calendar-year",
+    "population": "Fictional annual counts in one city",
+    "geography": "synthetic city",
+    "series": [
+      {
+        "metricId": "charging_stations",
+        "name": "Public charging stations",
+        "unit": "stations",
+        "dimensions": {
+          "city": "X"
+        },
+        "values": {
+          "2015": 10,
+          "2016": 14,
+          "2017": 19,
+          "2018": 25,
+          "2019": 30,
+          "2020": 37,
+          "2021": 41,
+          "2022": 48,
+          "2023": 55,
+          "2024": 60
+        }
+      },
+      {
+        "metricId": "coffee_shops",
+        "name": "Coffee shops",
+        "unit": "shops",
+        "dimensions": {
+          "city": "X"
+        },
+        "values": {
+          "2015": 200,
+          "2016": 206,
+          "2017": 211,
+          "2018": 219,
+          "2019": 224,
+          "2020": 230,
+          "2021": 237,
+          "2022": 241,
+          "2023": 249,
+          "2024": 255
+        }
+      }
+    ]
+  },
+  "operations": [
+    {
+      "operation": "lagged_comparison",
+      "metricId": "coffee_shops",
+      "series": {
+        "city": "X"
+      },
+      "referenceMetricId": "charging_stations",
+      "referenceSeries": {
+        "city": "X"
+      },
+      "maxLag": 1
+    }
+  ],
+  "expected": {
+    "discovery": false,
+    "assertions": [
+      {
+        "op": 0,
+        "metric": "lag_correlation",
+        "dimensions": {
+          "lag": "0"
+        },
+        "min": 0.95
+      },
+      {
+        "op": 0,
+        "limitation": "Association only"
+      },
+      {
+        "op": 0,
+        "limitation": "does not explain why values moved"
+      }
+    ]
+  },
+  "forbiddenClaims": [
+    "drives",
+    "causes",
+    "が原因",
+    "を押し上げた"
+  ],
+  "humanRubric": {
+    "novelty": "PENDING",
+    "grounding": "PENDING",
+    "surpriseValidity": "PENDING",
+    "hypothesisDiversity": "PENDING",
+    "falsifiability": "PENDING",
+    "missingEvidenceSpecificity": "PENDING",
+    "reproducibility": "PENDING",
+    "usefulnessForContinuedResearch": "PENDING"
+  },
+  "humanReview": {
+    "status": "PENDING",
+    "reviewer": null,
+    "reviewedAt": null,
+    "outcome": null,
+    "notes": "The claim must stay an unverified association with common-trend as a competing explanation; a report that supports it fails."
+  }
+}
