@@ -12,7 +12,12 @@ testdata/golden/
   cases/                         one JSON file per golden case, versioned via "version"
   harness/golden_eval.py         stdlib-only invariant checker + CLI
   harness/test_golden_eval.py    unittest: fixtures stay consistent, every invariant fires when broken
+  discovery/cases/               Discovery Benchmark v1 cases (#120), run through real Core by internal/goldenset
+  discovery/baseline.json        measured Discovery Benchmark baseline (input / execution fingerprints kept separate)
+  harness/discovery_benchmark.py discovery case-set checker (category coverage, known failures, human rubric)
 ```
+
+The Discovery Benchmark (positive discovery / valid no-discovery / false-association guard) is described in [`docs/evaluation/discovery-benchmark.md`](../../docs/evaluation/discovery-benchmark.md).
 
 `testdata/` is ignored by the Go toolchain, so nothing here affects `go build` or `go test ./...`.
 

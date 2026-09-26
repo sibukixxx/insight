@@ -1,5 +1,7 @@
 # 実LLM評価の記録
 
+決定的な発見能力のベンチマーク（仕込んだズレを拾うか、何もないときに黙るか、偽の関連を関連止まりにするか）は [Discovery Benchmark](discovery-benchmark.md) を参照。ここに置くのはモデルを使った評価の記録である。
+
 `make eval-demo`（`scripts/eval-demo.sh`）の出力を、`<日付>-<モデル>/` ごとに保存する。現在の架空政策デモでは通常のInsight結果に加え、`research-run.json`と`research-report.md`も生成する。Human EvaluationはLLMに自己評価させず、人間が別途入力する。
 
 | ファイル | 内容 |
