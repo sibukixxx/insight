@@ -31,17 +31,17 @@ export function TextEvidenceForm({ projectId, sourceTypes, onAdded }: { projectI
   return (
     <form id="paste-form" class={formStyles.form} onSubmit={onSubmit}>
       <div class={formStyles.row}>
-        <Field label={t("project.sourceType")} htmlFor="paste-source">
+        <Field label={t("project.sourceType")} htmlFor="paste-source" requirement="required" requirementLabel={t("common.required")}>
           <select id="paste-source" name="source" class={formStyles.control}>
             {sources.map((code) => <option key={code} value={code}>{label(SOURCE_LABELS, code)}</option>)}
           </select>
         </Field>
-        <Field label={t("project.docTitle")} htmlFor="paste-title" optionalLabel={t("common.optional")}>
+        <Field label={t("project.docTitle")} htmlFor="paste-title" requirement="optional" requirementLabel={t("common.optional")}>
           <input id="paste-title" name="title" type="text" class={formStyles.control} placeholder={t("project.docTitlePlaceholder")} />
         </Field>
       </div>
-      <Field label={t("project.docContent")} htmlFor="paste-content">
-        <textarea id="paste-content" name="content" class={formStyles.control} placeholder={t("project.docContentPlaceholder")} required />
+      <Field label={t("project.docContent")} htmlFor="paste-content" requirement="required" requirementLabel={t("common.required")}>
+        <textarea id="paste-content" aria-label={t("project.docContent")} name="content" class={formStyles.control} placeholder={t("project.docContentPlaceholder")} required />
       </Field>
       {error && <Notice kind="error">{error}</Notice>}
       {notice && <Notice kind="success">{notice}</Notice>}

@@ -75,7 +75,7 @@ the API. The UI-side rules are limited to display:
   ("not recorded" is never rendered as empty, zero or "same").
 - `domain/readiness.ts` — pre-run checks that mirror conditions the server
   enforces or fails on (no evidence; active run; no model and no dataset →
-  `pipeline.go` failure). They are warnings/blocks for guidance; the server
+  `pipeline.go` failure). A text-only project without a model is blocked before start; a dataset with no model retains deterministic analysis. Unknown settings are left to the server. The server
   remains authoritative and its error is always shown.
 - `domain/evidence.ts` — splitting a quote out of its document and counting the
   links the server returned for the evidence map.

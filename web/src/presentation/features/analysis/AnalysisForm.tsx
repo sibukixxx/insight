@@ -2,6 +2,7 @@ import { useState } from "preact/hooks";
 import type { StartAnalysisInput } from "../../../application/ports";
 import { OUTPUT_LOCALE_LABELS, REASONING_PROFILE_LABELS } from "../../../domain/codes";
 import { Button } from "../../components/Button";
+import { Disclosure } from "../../components/Disclosure";
 import { Field, formStyles } from "../../components/Field";
 import { useI18n } from "../../i18n/I18nProvider";
 
@@ -18,7 +19,9 @@ export function AnalysisForm({ canStart, busy, onStart }: Props) {
   const [outputLocale, setOutputLocale] = useState("");
   return (
     <form class={formStyles.form} onSubmit={(e) => { e.preventDefault(); onStart({ researchQuestion: question, reasoningProfile: profile, outputLocale }); }}>
-      <Field label={t("project.questionLabel")} htmlFor="research-question" optionalLabel={t("common.optional")} hint={t("analysis.questionHint")}>
+      <p class={formStyles.hint}>{t("analysis.defaultSettings")}</p>
+      <Disclosure summary={t("analysis.advancedSettings")}>
+      <Field label={t("project.questionLabel")} htmlFor="research-question" requirement="optional" requirementLabel={t("common.optional")} hint={t("analysis.questionHint")}>
         <input id="research-question" class={formStyles.control} type="text" maxLength={2000} value={question}
           placeholder={t("project.questionPlaceholder")} onInput={(e) => setQuestion(e.currentTarget.value)} />
       </Field>
@@ -34,6 +37,7 @@ export function AnalysisForm({ canStart, busy, onStart }: Props) {
           </select>
         </Field>
       </div>
+      </Disclosure>
       <div class={formStyles.actions}>
         <Button id="run-analysis" type="submit" variant="primary" disabled={!canStart || busy}>{t("project.runAnalysis")}</Button>
       </div>

@@ -17,10 +17,10 @@ describe("assessReadiness", () => {
     expect(assessReadiness([doc("web")], [running], settings(true)).canStart).toBe(false);
   });
 
-  it("warns but does not block when no model is configured and no dataset exists", () => {
+  it("blocks when no model is configured and no dataset exists", () => {
     const r = assessReadiness([doc("web")], [], settings(false));
-    expect(r.canStart).toBe(true);
-    expect(r.checks.find((c) => c.id === "model")).toMatchObject({ level: "warning", message: "readiness.noModelNoDataset" });
+    expect(r.canStart).toBe(false);
+    expect(r.checks.find((c) => c.id === "model")).toMatchObject({ level: "blocked", message: "readiness.noModelNoDataset" });
   });
 
   it("explains the deterministic mode when datasets exist without a model", () => {

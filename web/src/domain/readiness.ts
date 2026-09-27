@@ -43,7 +43,7 @@ export function assessReadiness(documents: readonly EvidenceDocument[], runs: re
     // pipeline.go: without a model only dataset documents are pre-analyzed.
     checks.push({ id: "model", level: "info", message: "readiness.deterministicOnly", fix: "settings" });
   } else if (documents.length > 0) {
-    checks.push({ id: "model", level: "warning", message: "readiness.noModelNoDataset", fix: "settings" });
+    checks.push({ id: "model", level: "blocked", message: "readiness.noModelNoDataset", fix: "settings" });
   }
 
   return { checks, canStart: !checks.some((c) => c.level === "blocked") };
