@@ -50,6 +50,9 @@ type Analysis struct {
 	// ReasoningProfile selects the semantic specialization of the shared
 	// research pipeline. Empty legacy rows normalize to GENERAL_RESEARCH.
 	ReasoningProfile ReasoningProfile
+	// OutputLocale is the explicitly requested language of model-generated
+	// text. Empty means not requested (legacy rows and omitted requests).
+	OutputLocale OutputLocale
 	// ExecutionSnapshot and InputSnapshot are the JSON snapshots captured at
 	// enqueue time and at run start. Both are empty for runs recorded before
 	// snapshots existed; that means "not recorded", never "same".
