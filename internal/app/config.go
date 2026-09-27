@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"insight-lab/internal/service"
 )
 
 type Config struct {
@@ -24,7 +26,11 @@ type Config struct {
 	InputRoot string
 	// HeavyDir enables the HEAVY profile with the local Heavy Execution
 	// Adapter persisting job state in this directory. Empty disables HEAVY.
-	HeavyDir      string
+	HeavyDir string
+	// IngestDir stages large-CSV uploads (#132). It defaults to an "ingest"
+	// directory beside the database, so the standalone binary needs no flag.
+	IngestDir     string
+	IngestLimits  service.IngestLimits
 	AllowedModels []string
 	// NoWeb serves only the API (/api, /api/public/v1) without the embedded
 	// Reference Web.
@@ -56,6 +62,11 @@ func BindFlags(fs *flag.FlagSet) func() (*Config, error) {
 	inputRoot := fs.String("input-root", os.Getenv("INSIGHT_LAB_INPUT_ROOT"), "directory that file: raw artifact references may read (empty disables raw references)")
 	allowedModels := fs.String("allowed-models", os.Getenv("INSIGHT_LAB_ALLOWED_MODELS"), "comma-separated models (besides -model) callers may bind to pipeline stages via modelBindings")
 	heavyDir := fs.String("heavy-dir", os.Getenv("INSIGHT_LAB_HEAVY_DIR"), "directory for local HEAVY job state (empty disables the HEAVY profile)")
+	ingestDir := fs.String("ingest-dir", os.Getenv("INSIGHT_LAB_INGEST_DIR"), "directory for staged large-CSV uploads (default: \"ingest\" beside the database)")
+	defaults := service.DefaultIngestLimits()
+	ingestMaxBytes := fs.Int64("ingest-max-bytes", defaults.MaxUploadBytes, "largest CSV file one ingest accepts, in bytes")
+	ingestMaxStaged := fs.Int64("ingest-max-staged-bytes", defaults.MaxStagedBytes, "staging quota across queued and running ingests, in bytes")
+	ingestMaxRows := fs.Int64("ingest-max-rows", defaults.MaxRows, "most data rows one ingest reads")
 	clientName := fs.String("client", os.Getenv("INSIGHT_LAB_CLIENT_NAME"), "client name shown in the delivery build's confidentiality banner")
 	return func() (*Config, error) {
 		path := *dbPath
@@ -69,10 +80,20 @@ func BindFlags(fs *flag.FlagSet) func() (*Config, error) {
 			}
 			path = filepath.Join(dir, "insight.db")
 		}
+		if *ingestMaxBytes <= 0 || *ingestMaxStaged <= 0 || *ingestMaxRows <= 0 {
+			return nil, fmt.Errorf("ingest limits must be positive")
+		}
+		limits := defaults
+		limits.MaxUploadBytes, limits.MaxStagedBytes, limits.MaxRows = *ingestMaxBytes, *ingestMaxStaged, *ingestMaxRows
+		ingest := *ingestDir
+		if ingest == "" {
+			ingest = filepath.Join(filepath.Dir(path), "ingest")
+		}
 		return &Config{
 			Host: *host, Port: *port, DBPath: path, Demo: *demo, NoBrowser: *noBrowser, NoWeb: *noWeb,
 			APIKey: *apiKey, Model: *model, BaseURL: *baseURL, ClientName: *clientName,
 			InputRoot: *inputRoot, HeavyDir: *heavyDir, AllowedModels: splitList(*allowedModels),
+			IngestDir: ingest, IngestLimits: limits,
 		}, nil
 	}
 }

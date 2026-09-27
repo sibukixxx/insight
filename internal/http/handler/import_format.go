@@ -29,7 +29,10 @@ func (h *Handler) ImportTemplate(w http.ResponseWriter, r *http.Request) {
 }
 
 type importPreviewDTO struct {
-	Kind           string                   `json:"kind"`
+	Kind string `json:"kind"`
+	// Scope is EXHAUSTIVE: every row of the (size-limited) file was read.
+	// A large-ingest receipt previews a SAMPLE instead.
+	Scope          string                   `json:"scope"`
 	RecordsRead    int                      `json:"recordsRead"`
 	Importable     int                      `json:"importable"`
 	Skipped        int                      `json:"skipped"`
@@ -70,7 +73,7 @@ func (h *Handler) PreviewImport(w http.ResponseWriter, r *http.Request) {
 		docs = append(docs, toDocumentDTO(d))
 	}
 	writeJSON(w, http.StatusOK, importPreviewDTO{
-		Kind: preview.Kind, RecordsRead: preview.RecordsRead, Importable: preview.Importable,
+		Kind: preview.Kind, Scope: "EXHAUSTIVE", RecordsRead: preview.RecordsRead, Importable: preview.Importable,
 		Skipped: preview.Skipped, Errors: preview.Errors, FileHash: preview.FileHash,
 		Documents: docs, TotalDocuments: preview.TotalDocuments,
 		Profile: preview.Profile, ProfileError: preview.ProfileError,

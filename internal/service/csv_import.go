@@ -5,11 +5,13 @@ import (
 	"crypto/sha256"
 	"encoding/csv"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"hash"
 	"io"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"insight-lab/internal/domain"
 	"insight-lab/internal/repository"
@@ -55,59 +57,24 @@ func ImportCSVWithManifest(ctx context.Context, documents repository.DocumentRep
 	hashed := newHashingReader(r)
 	reader := csv.NewReader(stripBOM(hashed))
 	reader.FieldsPerRecord = -1
-
-	header, err := reader.Read()
-	if err != nil {
-		if err == io.EOF {
-			return nil, fmt.Errorf("CSV is empty")
-		}
-		return nil, fmt.Errorf("read CSV: %w", err)
-	}
-	if !headerMatches(header) {
-		return nil, fmt.Errorf("CSV header must be %s", strings.Join(csvHeader, ","))
+	if err := readDocumentsHeader(reader); err != nil {
+		return nil, err
 	}
 
 	result := &ImportResult{}
 	var toInsert []*domain.Document
-	row := 0
-	for {
-		record, err := reader.Read()
-		if err == io.EOF {
-			break
-		}
-		row++
-		if err != nil {
+	err := scanDocumentRows(reader, projectID,
+		func(doc *domain.Document) error {
+			toInsert = append(toInsert, doc)
+			return nil
+		},
+		func(e ImportRowError) error {
 			result.Skipped++
-			result.Errors = append(result.Errors, ImportRowError{Row: row, Reason: err.Error()})
-			continue
-		}
-		if len(record) < 4 {
-			result.Skipped++
-			result.Errors = append(result.Errors, ImportRowError{Row: row, Reason: "not enough columns"})
-			continue
-		}
-
-		csvID, source, title, content := record[0], record[1], record[2], record[3]
-		sourceType := domain.SourceType(strings.TrimSpace(source))
-		if !sourceType.Valid() {
-			result.Skipped++
-			result.Errors = append(result.Errors, ImportRowError{Row: row, Reason: fmt.Sprintf("invalid source: %q", source)})
-			continue
-		}
-		if strings.TrimSpace(content) == "" {
-			result.Skipped++
-			result.Errors = append(result.Errors, ImportRowError{Row: row, Reason: "content is empty"})
-			continue
-		}
-
-		meta := map[string]string{}
-		if csvID != "" {
-			meta["csv_id"] = csvID
-		}
-		toInsert = append(toInsert, &domain.Document{
-			ID: newID("doc"), ProjectID: projectID, Source: sourceType,
-			Title: title, Content: content, Metadata: meta, CreatedAt: time.Now().UTC(),
+			result.Errors = append(result.Errors, e)
+			return nil
 		})
+	if err != nil {
+		return nil, err
 	}
 
 	result.FileHash = hashed.Sum()
@@ -121,6 +88,93 @@ func ImportCSVWithManifest(ctx context.Context, documents repository.DocumentRep
 	}
 	result.Imported = len(toInsert)
 	return result, nil
+}
+
+// readDocumentsHeader consumes and checks the id,source,title,content header.
+func readDocumentsHeader(reader *csv.Reader) error {
+	header, err := reader.Read()
+	if err != nil {
+		if err == io.EOF {
+			return fmt.Errorf("CSV is empty")
+		}
+		return fmt.Errorf("read CSV: %w", err)
+	}
+	if !headerMatches(header) {
+		return fmt.Errorf("CSV header must be %s", strings.Join(csvHeader, ","))
+	}
+	return nil
+}
+
+// scanDocumentRows reads the rows after the header, handing each valid row
+// to emit as a Document without provenance metadata and every other row to
+// reject. Nothing is retained between rows, so the caller decides whether
+// documents accumulate. An error returned by emit or reject stops the scan.
+func scanDocumentRows(reader *csv.Reader, projectID string, emit func(*domain.Document) error, reject func(ImportRowError) error) error {
+	row := 0
+	for {
+		record, err := reader.Read()
+		if err == io.EOF {
+			return nil
+		}
+		row++
+		var reason string
+		switch {
+		case err != nil:
+			if isFatalReadError(err) {
+				return err
+			}
+			reason = err.Error()
+		case !validUTF8Record(record):
+			reason = invalidUTF8Reason
+		case len(record) < 4:
+			reason = "not enough columns"
+		case !domain.SourceType(strings.TrimSpace(record[1])).Valid():
+			reason = fmt.Sprintf("invalid source: %q", record[1])
+		case strings.TrimSpace(record[3]) == "":
+			reason = "content is empty"
+		}
+		if reason != "" {
+			if err := reject(ImportRowError{Row: row, Reason: reason}); err != nil {
+				return err
+			}
+			continue
+		}
+
+		csvID, title, content := record[0], record[2], record[3]
+		meta := map[string]string{}
+		if csvID != "" {
+			meta["csv_id"] = csvID
+		}
+		doc := &domain.Document{
+			ID: newID("doc"), ProjectID: projectID, Source: domain.SourceType(strings.TrimSpace(record[1])),
+			Title: title, Content: content, Metadata: meta, CreatedAt: time.Now().UTC(),
+		}
+		if err := emit(doc); err != nil {
+			return err
+		}
+	}
+}
+
+const invalidUTF8Reason = "row is not valid UTF-8"
+
+// validUTF8Record reports whether every field is valid UTF-8. A row in
+// another encoding is rejected rather than stored with replaced bytes.
+func validUTF8Record(record []string) bool {
+	for _, field := range record {
+		if !utf8.ValidString(field) {
+			return false
+		}
+	}
+	return true
+}
+
+// isFatalReadError reports whether a csv.Reader error came from the
+// underlying stream rather than from the row's CSV syntax. A syntax error
+// skips one row; a stream error (a cancelled or over-limit read) must stop
+// the import instead of being recorded against every remaining row.
+func isFatalReadError(err error) bool {
+	var parseErr *csv.ParseError
+	return !errors.As(err, &parseErr)
 }
 
 // provenanceMetadata adds the file hash and, when present, the manifest to

@@ -59,6 +59,35 @@ func ImportAnalysisCSVWithManifest(ctx context.Context, documents repository.Doc
 	hashed := newHashingReader(input)
 	reader := csv.NewReader(stripBOM(hashed))
 	reader.FieldsPerRecord = -1
+	columns, err := readAnalysisHeader(reader)
+	if err != nil {
+		return nil, err
+	}
+
+	result := &AnalysisImportResult{}
+	groups, recordsRead, err := aggregateAnalysisRows(reader, columns, analysisScanLimits{}, func(e ImportRowError) error {
+		result.Skipped++
+		result.Errors = append(result.Errors, e)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	result.RecordsRead = recordsRead
+	result.FileHash = hashed.Sum()
+	docs := analysisDocuments(groups, projectID, result.FileHash, manifest)
+	if len(docs) > 0 {
+		if err := documents.CreateBatch(ctx, docs); err != nil {
+			return nil, fmt.Errorf("save analysis documents: %w", err)
+		}
+	}
+	result.Imported = len(docs)
+	return result, nil
+}
+
+// readAnalysisHeader consumes the header and returns the column index,
+// failing when a required column is absent.
+func readAnalysisHeader(reader *csv.Reader) (map[string]int, error) {
 	header, err := reader.Read()
 	if err != nil {
 		if err == io.EOF {
@@ -72,21 +101,32 @@ func ImportAnalysisCSVWithManifest(ctx context.Context, documents repository.Doc
 			return nil, fmt.Errorf("analysis CSV is missing required column %q", required)
 		}
 	}
+	return columns, nil
+}
 
-	result := &AnalysisImportResult{}
+// analysisScanLimits bounds an analysis CSV scan; a zero field is unbounded.
+type analysisScanLimits struct {
+	maxGroups int
+	maxRows   int64
+}
+
+// aggregateAnalysisRows counts valid rows per group. Memory grows with the
+// number of distinct groups, never with rows; limits fail the scan once a
+// bound is exceeded. Invalid rows go to reject.
+func aggregateAnalysisRows(reader *csv.Reader, columns map[string]int, limits analysisScanLimits, reject func(ImportRowError) error) (map[string]*analysisGroup, int, error) {
 	groups := map[string]*analysisGroup{}
 	row := 0
 	for {
 		record, err := reader.Read()
 		if err == io.EOF {
-			break
+			return groups, row, nil
+		}
+		if err != nil && isFatalReadError(err) {
+			return nil, row, err
 		}
 		row++
-		result.RecordsRead++
-		if err != nil {
-			result.Skipped++
-			result.Errors = append(result.Errors, ImportRowError{Row: row, Reason: err.Error()})
-			continue
+		if limits.maxRows > 0 && int64(row) > limits.maxRows {
+			return nil, row, fmt.Errorf("the file has more than %d data rows", limits.maxRows)
 		}
 		value := func(name string) string {
 			index := columns[name]
@@ -95,35 +135,47 @@ func ImportAnalysisCSVWithManifest(ctx context.Context, documents repository.Doc
 			}
 			return strings.TrimSpace(record[index])
 		}
-		if value("corporate_number") == "" {
-			result.Skipped++
-			result.Errors = append(result.Errors, ImportRowError{Row: row, Reason: "corporate_number is empty"})
-			continue
+		var reason, eventType, eventDate string
+		switch {
+		case err != nil:
+			reason = err.Error()
+		case !validUTF8Record(record):
+			reason = invalidUTF8Reason
+		case value("corporate_number") == "":
+			reason = "corporate_number is empty"
+		default:
+			eventType = value("event_type")
+			eventDate = analysisEventDate(eventType, value)
+			if _, perr := time.Parse("2006-01-02", eventDate); perr != nil {
+				reason = fmt.Sprintf("event date is unavailable or invalid for %q", eventType)
+			} else if value("source_provider") == "" {
+				reason = "source_provider is empty"
+			}
 		}
-		eventType := value("event_type")
-		eventDate := analysisEventDate(eventType, value)
-		if _, err := time.Parse("2006-01-02", eventDate); err != nil {
-			result.Skipped++
-			result.Errors = append(result.Errors, ImportRowError{Row: row, Reason: fmt.Sprintf("event date is unavailable or invalid for %q", eventType)})
+		if reason != "" {
+			if err := reject(ImportRowError{Row: row, Reason: reason}); err != nil {
+				return nil, row, err
+			}
 			continue
 		}
 		provider := value("source_provider")
-		if provider == "" {
-			result.Skipped++
-			result.Errors = append(result.Errors, ImportRowError{Row: row, Reason: "source_provider is empty"})
-			continue
-		}
 		period := eventDate[:7]
 		key := strings.Join([]string{period, eventType, value("prefecture_name"), value("city_name"), provider, value("source_version")}, "\x00")
 		group := groups[key]
 		if group == nil {
+			if limits.maxGroups > 0 && len(groups) >= limits.maxGroups {
+				return nil, row, fmt.Errorf("analysis CSV has more than %d distinct groups", limits.maxGroups)
+			}
 			group = &analysisGroup{period: period, eventType: eventType, prefecture: value("prefecture_name"), city: value("city_name"), sourceProvider: provider, sourceVersion: value("source_version"), sourceFetchedAt: value("source_fetched_at")}
 			groups[key] = group
 		}
 		group.count++
 	}
+}
 
-	result.FileHash = hashed.Sum()
+// analysisDocuments turns the groups into one dataset Document each, in
+// key order, stamped with the file hash and optional manifest.
+func analysisDocuments(groups map[string]*analysisGroup, projectID, fileHash string, manifest *AcquisitionManifest) []*domain.Document {
 	keys := make([]string, 0, len(groups))
 	for key := range groups {
 		keys = append(keys, key)
@@ -145,17 +197,11 @@ func ImportAnalysisCSVWithManifest(ctx context.Context, documents repository.Doc
 				"adapter": "corporate-event-analysis-csv", "period": group.period, "event_type": group.eventType,
 				"prefecture_name": group.prefecture, "city_name": group.city, "record_count": fmt.Sprint(group.count),
 				"source_provider": group.sourceProvider, "source_version": group.sourceVersion, "source_fetched_at": group.sourceFetchedAt,
-			}, result.FileHash, manifest),
+			}, fileHash, manifest),
 			CreatedAt: time.Now().UTC(),
 		})
 	}
-	if len(docs) > 0 {
-		if err := documents.CreateBatch(ctx, docs); err != nil {
-			return nil, fmt.Errorf("save analysis documents: %w", err)
-		}
-	}
-	result.Imported = len(docs)
-	return result, nil
+	return docs
 }
 
 func indexCSVColumns(header []string) map[string]int {

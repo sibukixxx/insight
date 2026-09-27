@@ -43,6 +43,26 @@ Raw / File / Stream / Dataset / Analytical Artifact / Evidence
 - Large input support does **not** mean loading arbitrary GB into memory: STANDARD streams each raw artifact and prepares several of them with bounded concurrency (results never depend on the bound), HEAVY partitions work through the Heavy Runtime port.
 - For many-column datasets, [data triage](data-triage.md) produces an auditable Selection Plan before preparation. No column is silently dropped.
 
+### Large CSV ingestion (#132)
+
+The synchronous import and preview endpoints stay as they are for small files (the preview keeps its explicit 32 MiB limit and reports `scope: EXHAUSTIVE`). Files beyond that go through a separate, durable ingest that is independent of any Analysis Run:
+
+```text
+POST /api/projects/{id}/ingests  (raw text/csv, or multipart: kind, manifest, then file)
+  → streamed to <ingest-dir>/tmp, sha256 + size measured, text sniffed, quota checked
+  → immutable staged file <ingest-dir>/<ingestId>/upload.csv, job QUEUED
+  → one worker: VALIDATING — same importers as the small path, bounded batches
+  → READY (documents become Evidence) | FAILED | CANCELLED (rows discarded)
+```
+
+- **Atomicity.** Documents are written in bounded transactions with `documents.ingest_id` set and are hidden from every document read until the job is READY; READY is a single conditional row update. FAILED / CANCELLED and interrupted jobs discard their rows in bounded chunks, so the single SQLite connection is never held for a whole file and partial ingestion never looks like success.
+- **Identity.** (project, kind, file sha256, manifest hash, optional `Idempotency-Key`) — the same bytes submitted again resolve to the live or READY receipt (HTTP 200) instead of importing Evidence twice. A FAILED or CANCELLED ingest does not block re-uploading.
+- **Restart.** On start, VALIDATING jobs are requeued from their staged file after discarding their rows (or FAILED when the file is gone); leftovers of finished jobs, temp files and staging directories without a job are removed.
+- **Limits.** `-ingest-max-bytes` (2 GiB), `-ingest-max-staged-bytes` (8 GiB quota over queued/running ingests → 507), `-ingest-max-rows` (10M), an 8 MiB physical-line bound and 100k analysis groups. Memory is one batch plus capped error examples; the full rejected-row list is `GET …/ingests/{ingestId}/errors.csv`.
+- **Row checks.** Invalid source, empty content, malformed CSV, invalid UTF-8 and duplicate `id` within the file are rejected per row; a file with no importable row is FAILED. Missing values are never turned into zero.
+- **Retention.** The staged upload is deleted when the job finishes; the error export stays with the job. The receipt previews the first documents as `scope: SAMPLE`.
+- **Standalone.** The ingest directory defaults to `ingest/` beside the database (`-ingest-dir` / `INSIGHT_LAB_INGEST_DIR` override it); no extra service is needed. `GET /api/health` reports `capabilities.largeIngest`. Only the Go-supported CSV kinds (`documents`, `analysis`) are accepted; raw-reference registration stays with `RAW_ARTIFACT`.
+
 ## Five independent axes
 
 | Axis | Values | Meaning |

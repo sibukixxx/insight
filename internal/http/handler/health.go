@@ -8,5 +8,8 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 		"demoBuild":  h.Build.DemoBuild,
 		"clientName": h.Build.ClientName,
 		"engine":     h.Build.Engine,
+		"capabilities": map[string]any{
+			"largeIngest": h.Ingest.Capability(),
+		},
 	})
 }
