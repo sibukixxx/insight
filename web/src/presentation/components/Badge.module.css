@@ -5,7 +5,7 @@
   border: 1px solid transparent;
 }
 .neutral { background: var(--color-surface-sunken); color: var(--color-text-muted); }
-.accent { background: var(--color-accent-weak); color: var(--color-accent); }
+.accent { background: var(--color-info-weak); color: var(--color-info); }
 .success { background: var(--color-success-weak); color: var(--color-success); }
 .warning { background: var(--color-warning-weak); color: var(--color-warning); border-color: var(--color-warning-border); }
 .danger { background: var(--color-danger-weak); color: var(--color-danger); border-color: var(--color-danger-border); }

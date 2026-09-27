@@ -3,7 +3,7 @@ import { matchesFormat } from "../../../application/usecases/importEvidence";
 import type { UploadFile } from "../../../application/ports";
 import { IMPORT_KIND_LABELS, labelKey } from "../../../domain/codes";
 import type { DocumentImportResult, ImportFormat, ImportPreview } from "../../../domain/models";
-import { Button } from "../../components/Button";
+import { Button, ButtonLink } from "../../components/Button";
 import { Field, formStyles } from "../../components/Field";
 import { focusField, ValidationSummary } from "../../components/ValidationSummary";
 import { FormatGuide } from "./FormatGuide";
@@ -17,6 +17,7 @@ import styles from "./Input.module.css";
 
 type Step =
   | { readonly state: "idle" }
+  | { readonly state: "loadingSample" }
   | { readonly state: "previewing"; readonly file: UploadFile }
   | { readonly state: "preview"; readonly file: UploadFile; readonly preview: ImportPreview }
   | { readonly state: "importing"; readonly file: UploadFile; readonly preview: ImportPreview }
@@ -29,7 +30,17 @@ const MAX_LISTED_ERRORS = 10;
  * Upload → server-side dry run (the importer's own validation and the Data
  * Triage profile) → explicit import. Nothing is stored before "Import".
  */
-export function CsvImport({ projectId, formats, onImported }: { projectId: string; formats: readonly ImportFormat[]; onImported: () => void }) {
+/** A bundled sample CSV the user can put through the same preview → import. */
+export interface CsvSample {
+  readonly kind: string;
+  readonly rows: number;
+  readonly downloadHref: string;
+  /** The project already has documents: importing again would add a second copy. */
+  readonly projectHasDocuments: boolean;
+  readonly load: () => Promise<UploadFile>;
+}
+
+export function CsvImport({ projectId, formats, onImported, sample }: { projectId: string; formats: readonly ImportFormat[]; onImported: () => void; sample?: CsvSample | undefined }) {
   const i18n = useI18n();
   const { t } = i18n;
   const { input } = useUseCases();
@@ -42,9 +53,13 @@ export function CsvImport({ projectId, formats, onImported }: { projectId: strin
 
   const choose = (file: File | undefined) => {
     if (!file || !format) return;
-    const upload: UploadFile = { name: file.name, blob: file };
-    if (!matchesFormat(file.name, format)) {
-      setStep({ state: "error", message: t("input.csv.wrongType", { name: file.name, extensions: format.extensions.join(", ") }) });
+    runPreview({ name: file.name, blob: file }, format);
+  };
+
+  const runPreview = (upload: UploadFile, target: ImportFormat) => {
+    const kind = target.kind;
+    if (!matchesFormat(upload.name, target)) {
+      setStep({ state: "error", message: t("input.csv.wrongType", { name: upload.name, extensions: target.extensions.join(", ") }) });
       return;
     }
     setStep({ state: "previewing", file: upload });
@@ -63,11 +78,35 @@ export function CsvImport({ projectId, formats, onImported }: { projectId: strin
     );
   };
 
+  const useSample = () => {
+    const sampleFormat = sample && formats.find((f) => f.kind === sample.kind);
+    if (!sample || !sampleFormat) return;
+    setKind(sampleFormat.kind);
+    setStep({ state: "loadingSample" });
+    sample.load().then(
+      (upload) => runPreview(upload, sampleFormat),
+      (err: unknown) => setStep({ state: "error", message: errorMessage(err, t) }),
+    );
+  };
+
   const kindLabel = (k: string) => (labelKey(IMPORT_KIND_LABELS, k) ? i18n.label(IMPORT_KIND_LABELS, k) : k);
-  const busy = step.state === "previewing" || step.state === "importing";
+  const busy = step.state === "previewing" || step.state === "importing" || step.state === "loadingSample";
 
   return (
     <div class={styles.chooser}>
+      {sample && (
+        <div class={styles.sample} role="group" aria-label={t("input.sample.label")}>
+          <div>
+            <p class={styles.sampleTitle}>{t("input.sample.title")}</p>
+            <p class={styles.meta}>{t("input.sample.hint", { format: kindLabel(sample.kind), rows: sample.rows })}</p>
+            {sample.projectHasDocuments && <p class={styles.meta}>{t("input.sample.again")}</p>}
+          </div>
+          <div class={styles.kinds}>
+            <Button id="use-sample-csv" variant={sample.projectHasDocuments ? "secondary" : "primary"} onClick={useSample} disabled={busy}>{t("input.sample.preview")}</Button>
+            <ButtonLink size="small" variant="ghost" href={sample.downloadHref} download>{t("samples.download")}</ButtonLink>
+          </div>
+        </div>
+      )}
       <p class={styles.meta}>{t("input.csv.steps")}</p>
       <ValidationSummary errors={step.state === "error" ? [{ id: fileInputId, label: t("project.csvFile"), message: step.message }] : []} />
       <fieldset class={styles.kinds} aria-describedby={`${fileInputId}-selected`}>
@@ -113,7 +152,7 @@ export function CsvImport({ projectId, formats, onImported }: { projectId: strin
         {"file" in step && step.file && <span class={styles.fileName}>{step.file.name}</span>}
       </div>
 
-      {step.state === "previewing" && <Notice>{t("input.csv.previewing")}</Notice>}
+      {(step.state === "previewing" || step.state === "loadingSample") && <Notice>{t("input.csv.previewing")}</Notice>}
       {step.state === "done" && (
         <Notice kind="success">
           <p>{t("input.csv.importedNext")}</p>

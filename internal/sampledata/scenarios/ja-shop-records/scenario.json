@@ -1,0 +1,25 @@
+{
+  "id": "ja-shop-records",
+  "dataKind": "synthetic",
+  "importKind": "documents",
+  "inputFile": "input.csv",
+  "inputSha256": "49979dc0a73fd8d29680a0ed1f4c808c3a8ec1f2040c67afd6e657781ed57e09",
+  "rows": 9,
+  "sources": [
+    {
+      "kind": "synthetic",
+      "description": "Insight デモ用に作成した架空の店舗記録・ヒアリング・レビュー・集計メモ（9件）。実在の店舗・人物・売上ではない。",
+      "rows": ["r001", "r002", "r003", "r004", "r005", "r006", "r007", "r008", "r009"]
+    }
+  ],
+  "transform": {
+    "script": "",
+    "version": "1",
+    "description": "手書きの架空データ。変換処理なし（Draft PR #152 の 01-ja-shop-records-documents.csv をそのまま使用）。"
+  },
+  "limitations": [
+    "すべて架空データであり、実在の店舗の売上・評判を表さない。",
+    "2025年7月に売上の集計範囲が変わっており、前年同月比は旧定義での再集計なしには解釈できない。",
+    "返品データや来店数など未取得の情報があり、空欄や記載なしは0を意味しない。"
+  ]
+}

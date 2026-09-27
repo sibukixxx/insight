@@ -6,8 +6,9 @@
 
 .header {
   position: sticky; top: 0; z-index: 5;
-  background: var(--color-surface);
-  border-bottom: 1px solid var(--color-border);
+  background: var(--color-ink);
+  color: var(--color-on-ink);
+  box-shadow: inset 0 -3px 0 var(--color-data);
 }
 .headerInner {
   max-width: var(--content-width); margin: 0 auto;
@@ -15,16 +16,22 @@
   display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap;
 }
 .brand { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0; }
-.brand a { color: var(--color-text); font-weight: 800; font-size: 1.125rem; }
+.brand a { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--color-on-ink); font-weight: 800; font-size: 1.125rem; letter-spacing: 0.01em; }
+.mark {
+  width: 22px; height: 22px; border-radius: 6px; flex: none;
+  background: linear-gradient(135deg, var(--color-primary) 0 55%, var(--color-data) 55% 100%);
+  box-shadow: 0 0 0 2px var(--color-ink-raised);
+}
 .brand a:hover { text-decoration: none; }
-.tagline { color: var(--color-text-muted); font-size: var(--font-size-xs); }
+.tagline { color: var(--color-on-ink-muted); font-size: var(--font-size-xs); }
 .tools { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
 .localeSelect select {
-  padding: var(--space-1) var(--space-2); border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-sm); background: var(--color-surface); font-size: var(--font-size-sm);
+  padding: var(--space-1) var(--space-2); border: 1px solid var(--color-ink-raised);
+  border-radius: var(--radius-sm); background: var(--color-ink-raised); color: var(--color-on-ink); font-size: var(--font-size-sm);
 }
-.settingsLink { font-size: var(--font-size-sm); color: var(--color-text-muted); }
-.settingsLink:hover, .settingsLink[aria-current="page"] { color: var(--color-accent); text-decoration: none; }
+.settingsLink { font-size: var(--font-size-sm); color: var(--color-on-ink-muted); padding-inline: var(--space-2); border-radius: var(--radius-sm); }
+.settingsLink:hover, .settingsLink[aria-current="page"] { color: var(--color-on-ink); background: var(--color-ink-raised); text-decoration: none; }
+.header :focus-visible { outline-color: var(--color-data); }
 
 .main { max-width: var(--content-width); margin: 0 auto; padding: var(--space-6) var(--space-5) var(--space-10); }
 .banner {

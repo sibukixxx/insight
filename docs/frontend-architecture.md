@@ -24,7 +24,8 @@ separate web server.
   to `dist/locales/`; the Go handler still serves `/locales/{lang}.json`.
 - `pnpm dev` runs Vite with `/api` proxied to `insight-lab serve` on `:8787`.
 - Nothing under `web/public` may contain sample data: it would ship in delivery
-  builds. The sample project is loaded only from `POST /api/demo` (demo builds).
+  builds. The sample project is loaded only from `POST /api/demo` (demo builds),
+  and the sample scenarios only from `/api/demo/scenarios` (below).
   E2E fixtures live in `web/e2e/fixtures/` and are not bundled.
 
 ## Onion layers
@@ -104,6 +105,39 @@ routes were **added** for the guided intake (no Public Engine Contract change):
   errors, the first documents that would be created, and the Data Triage
   dataset profile of the same bytes.
 
+Three more internal routes serve the sample-scenario gallery (#151). Their
+data lives in `internal/sampledata/scenarios/` and is compiled in only by the
+`demo` build tag; a delivery build lists no scenarios and answers 409 to the
+other two. They are Reference API routes, not Public Engine Contract methods.
+
+- `GET /api/demo/scenarios` — scenarios in display order with their stable
+  `projectId`, data kind (`synthetic` / `official` / `mixed`), input format,
+  row count, input sha256 and per-source provenance (publisher, series,
+  regions, periods, unit, retrieval time, licence, raw snapshot sha256).
+- `GET /api/demo/scenarios/{id}/input.csv` — the input CSV byte for byte,
+  checked against the manifest checksum; used for the download link and for
+  "Preview this CSV", which feeds it into the ordinary import preview.
+- `POST /api/demo/scenarios/{id}/project` — creates the scenario's empty
+  project once (`demo-scenario-<id>`) and returns it again afterwards. It
+  imports nothing: the user brings the CSV in through preview → import.
+
+Descriptions of what a sample is for are dictionary copy (`samples.*`), shown
+before any analysis and never presented as results. Every screen of a sample
+project repeats its data kind (`SampleStrip`).
+
+## Theme
+
+`styles/tokens.css` has three groups. Neutral surfaces and Deep Ink text
+carry most of the UI. Brand colour is spent on emphasis: Deep Ink
+(`--color-ink`) for the header and first-use hero, Primary Indigo
+(`--color-primary`, one primary action per screen) and Data Cyan
+(`--color-data`, selection bars and data-path accents only — 2.4:1 on
+white, so never a text colour). Epistemic and status meaning uses its own
+tokens (`--color-info*`, `--color-hypothesis*`, success/warning/danger) so a
+brand change never recolours "hypothesis", "info" or a run state.
+`src/test/contrast.test.ts` checks the text pairs for WCAG AA and that cyan
+is not used as text.
+
 SSE handling: the server only pushes events that happen after subscribing, so
 `watchRun` (application) reads the run snapshot whenever the stream opens or
 drops, and reports the terminal event exactly once. A server `error` event
@@ -116,7 +150,7 @@ hashes show Home, as before.
 
 | Hash | Screen |
 |---|---|
-| `#/` | Home / dashboard: first-run guide, sample (demo builds), new project, projects |
+| `#/` | Home / dashboard: hero, "What would you like to investigate?" sample gallery (demo builds), English policy demo, own CSV, projects |
 | `#/projects/:id[?run=]` | Project workspace: workflow stepper, single next action, latest run status, run selector, next steps, top findings |
 | `#/projects/:id/input` | Input / evidence: supported formats + templates, CSV upload → preview → import, paste text, documents |
 | `#/projects/:id/analysis` | Analysis: input checks, live progress, failure + retry with the same settings, question/profile/output locale |

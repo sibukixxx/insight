@@ -55,7 +55,7 @@ function WorkspaceView({ ws, runId, onChanged }: { ws: Workspace; runId: string 
   return (
     <ProjectFrame project={project} current="overview" runId={selected?.id}
       subtitle={t("project.counts", { documents: documents.length, runs: runs.length, insights: insights.length })}
-      actions={selected && <ButtonLink variant="primary" href={exports.reportLink(project.id, selected.id)} download>{t("project.downloadReport")}</ButtonLink>}>
+      actions={selected && <ButtonLink href={exports.reportLink(project.id, selected.id)} download>{t("project.downloadReport")}</ButtonLink>}>
       <Stepper steps={steps} label={t("workflow.label")} />
       {selection.requestedRunMissing && <Notice kind="warning">{t("run.notFoundNotice")}</Notice>}
       <NextStep ws={ws} />

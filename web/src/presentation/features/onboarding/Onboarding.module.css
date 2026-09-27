@@ -1,9 +1,31 @@
-.hero { padding: var(--space-8) 0 var(--space-6); display: grid; gap: var(--space-3); }
-.hero h1 { font-size: var(--font-size-2xl); }
-.lead { color: var(--color-text-muted); font-size: var(--font-size-base); max-width: 720px; }
+/* First-use hero: the one Deep Ink surface in the main column. */
+.hero {
+  position: relative; overflow: hidden; display: grid; gap: var(--space-3);
+  padding: var(--space-8) var(--space-8) var(--space-6); border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, var(--color-ink) 0%, var(--color-ink) 62%, var(--color-ink-raised) 100%);
+  color: var(--color-on-ink); box-shadow: var(--shadow-md);
+}
+.hero::after {
+  content: ""; position: absolute; right: calc(-1 * var(--space-10)); top: calc(-1 * var(--space-10));
+  width: 220px; height: 220px; border-radius: 50%; border: 18px solid var(--color-data); opacity: 0.18; pointer-events: none;
+}
+.hero h1 { font-size: var(--font-size-2xl); color: var(--color-on-ink); }
+.eyebrow { font-size: var(--font-size-sm); font-weight: 700; letter-spacing: 0.06em; color: var(--color-on-ink-muted); display: flex; align-items: center; gap: var(--space-2); }
+.eyebrow::before { content: ""; width: 24px; height: 3px; border-radius: 2px; background: var(--color-data); }
+.lead { color: var(--color-on-ink-muted); font-size: var(--font-size-base); max-width: 720px; }
+.heroActions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-2); position: relative; z-index: 1; }
+.onInk {
+  display: inline-flex; align-items: center; min-height: 44px; padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-on-ink-muted); border-radius: var(--radius-md); background: transparent;
+  color: var(--color-on-ink); font-size: var(--font-size-md); font-weight: 600; cursor: pointer;
+}
+.onInk:hover { background: var(--color-ink-raised); }
+.hero :focus-visible { outline-color: var(--color-data); }
+.hero .steps { position: relative; z-index: 1; }
+.hero .step { color: var(--color-text); }
 .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--space-3); list-style: none; padding: 0; margin: var(--space-4) 0 0; }
 .step { display: grid; gap: var(--space-1); padding: var(--space-4); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); font-size: var(--font-size-sm); }
-.stepNum { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--color-accent-weak); color: var(--color-accent); font-weight: 800; }
+.stepNum { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--color-ink); color: var(--color-on-ink); font-weight: 800; }
 .stepTitle { font-weight: 700; font-size: var(--font-size-md); }
 .stepHint { color: var(--color-text-muted); }
 .paths { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--space-4); }
@@ -12,3 +34,7 @@
 .hint { color: var(--color-text-muted); font-size: var(--font-size-sm); }
 .inline { display: flex; gap: var(--space-2); flex-wrap: wrap; align-items: flex-end; }
 .inline > :first-child { flex: 1 1 220px; }
+@media (max-width: 600px) {
+  .hero { padding: var(--space-6) var(--space-4) var(--space-5); }
+  .hero::after { width: 140px; height: 140px; border-width: 12px; }
+}

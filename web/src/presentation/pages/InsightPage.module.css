@@ -1,12 +1,13 @@
 .stack { display: grid; gap: var(--space-4); }
 .trail { background: var(--color-surface); border: 1px dashed var(--color-border-strong); border-radius: var(--radius-lg); padding: var(--space-5); }
+.sectionTitle { color: var(--color-ink); }
 .sectionTitle { font-size: var(--font-size-base); font-weight: 700; margin-bottom: var(--space-1); }
 .subtitle { font-size: var(--font-size-sm); font-weight: 700; color: var(--color-text-muted); margin: var(--space-2) 0; }
 .hint { color: var(--color-text-muted); font-size: var(--font-size-sm); margin-bottom: var(--space-3); }
 .fields { display: grid; gap: var(--space-3); }
 .field { padding: var(--space-3); border-radius: var(--radius-md); background: var(--color-surface-muted); overflow-wrap: anywhere; }
 .field dd { margin: 0; white-space: pre-wrap; }
-.fact { background: var(--color-accent-weak); }
+.fact { background: var(--color-info-weak); }
 .latent { background: var(--color-warning-weak); }
 .interpretation { background: var(--color-violet-weak); }
 .alternative { background: var(--color-success-weak); }

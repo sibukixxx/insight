@@ -9,7 +9,7 @@
   overflow-wrap: anywhere;
 }
 .notice + .notice { margin-top: var(--space-2); }
-.info { background: var(--color-accent-weak); border-color: var(--color-accent-border); color: var(--color-text); }
+.info { background: var(--color-info-weak); border-color: var(--color-info-border); color: var(--color-text); }
 .success { background: var(--color-success-weak); border-color: var(--color-success); color: var(--color-text); }
 .warning { background: var(--color-warning-weak); border-color: var(--color-warning-border); color: var(--color-text); }
 .error { background: var(--color-danger-weak); border-color: var(--color-danger-border); color: var(--color-danger); }

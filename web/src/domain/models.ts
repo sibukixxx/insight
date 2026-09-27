@@ -288,3 +288,45 @@ export type AnalysisEvent =
   | { readonly type: "progress"; readonly step: string; readonly progress: number; readonly message?: string }
   | { readonly type: "completed" }
   | { readonly type: "failed"; readonly message?: string };
+
+/** Where one part of a sample scenario's data came from (demo builds only). */
+export interface SampleSource {
+  /** "official" | "synthetic"; an unknown kind is shown verbatim. */
+  readonly kind: string;
+  readonly description?: string | undefined;
+  readonly rows: readonly string[];
+  readonly publisher?: string | undefined;
+  readonly survey?: string | undefined;
+  readonly dataset?: string | undefined;
+  readonly provider?: string | undefined;
+  readonly indicatorCode?: string | undefined;
+  readonly regions: readonly { readonly code: string; readonly name: string }[];
+  readonly periods: readonly string[];
+  readonly unit?: string | undefined;
+  readonly url?: string | undefined;
+  readonly retrievedAt?: string | undefined;
+  readonly rawFile?: string | undefined;
+  readonly rawSha256?: string | undefined;
+  readonly license?: string | undefined;
+  readonly licenseUrl?: string | undefined;
+  readonly attribution?: string | undefined;
+}
+
+/**
+ * A playable sample pack: one CSV the ordinary importer accepts, its own
+ * stable project, and the provenance that tells synthetic from official
+ * data. Descriptions of what a sample is for are UI copy, never results.
+ */
+export interface SampleScenario {
+  readonly id: string;
+  readonly projectId: string;
+  readonly projectName: string;
+  /** "synthetic" | "official" | "mixed"; an unknown kind is shown verbatim. */
+  readonly dataKind: string;
+  readonly importKind: string;
+  readonly inputSha256: string;
+  readonly rows: number;
+  readonly sources: readonly SampleSource[];
+  readonly transform: { readonly script: string; readonly version: string; readonly description: string };
+  readonly limitations: readonly string[];
+}

@@ -3,13 +3,13 @@
 // changes or extends its contract.
 
 import type {
-  AnalysisPort, EvidencePort, LinkPort, ProjectPort, ResearchPort, ResultsPort, SettingsPort, SystemPort, UploadFile,
+  AnalysisPort, EvidencePort, LinkPort, ProjectPort, ResearchPort, ResultsPort, SamplePort, SettingsPort, SystemPort, UploadFile,
 } from "../../application/ports";
 import { enc, ignoreBody, type HttpClient } from "./client";
 import {
   decodeBuildInfo, decodeComparison, decodeDocument, decodeImportFormat, decodeImportPreview, decodeImportResult,
   decodeInsight, decodeInsightDetail, decodeMetrics, decodePattern, decodeProject, decodeResearchRun,
-  decodeResearchSummary, decodeRun, decodeSettings, list,
+  decodeResearchSummary, decodeRun, decodeSampleScenario, decodeSettings, list,
 } from "./dto";
 import { obj, str } from "./decode";
 
@@ -106,4 +106,13 @@ export const httpLinks: LinkPort = {
   researchReport: (id) => `/api/research-runs/${enc(id)}/report.md`,
   researchArtifact: (id) => `/api/research-runs/${enc(id)}/artifact.json`,
   approvedResearchArtifact: (id) => `/api/research-runs/${enc(id)}/approved-artifact.json`,
+  sampleInput: (id) => `/api/demo/scenarios/${enc(id)}/input.csv`,
 };
+
+export function httpSamples(http: HttpClient): SamplePort {
+  return {
+    list: () => http.getJson("/api/demo/scenarios", list(decodeSampleScenario, "scenarios")),
+    openProject: (id) => http.sendJson("POST", `/api/demo/scenarios/${enc(id)}/project`, undefined, decodeProject),
+    input: async (id) => ({ name: `insight-sample-${id}.csv`, blob: await http.getBlob(httpLinks.sampleInput(id)) }),
+  };
+}

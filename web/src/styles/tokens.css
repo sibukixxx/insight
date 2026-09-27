@@ -4,24 +4,43 @@
 :root {
   color-scheme: light;
 
-  --color-bg: #f6f7fb;
+  --color-bg: #f5f7fc;
   --color-surface: #ffffff;
-  --color-surface-muted: #fafbfc;
-  --color-surface-sunken: #f1f2f4;
-  --color-border: #e2e4e9;
-  --color-border-strong: #c9ccd3;
-  --color-text: #1f2937;
-  --color-text-muted: #5f6673;
-  --color-primary: #4f46e5;
-  --color-primary-hover: #3730a3;
-  --color-primary-soft: #eef2ff;
-  --color-secondary: #0e7490;
-  --color-secondary-soft: #ecfeff;
+  --color-surface-muted: #f8f9fd;
+  --color-surface-sunken: #edf0f7;
+  --color-border: #dde2ee;
+  --color-border-strong: #bfc6d6;
+  --color-text: #14213d;
+  --color-text-muted: #505b74;
+  --color-primary: #5546ff;
+  --color-primary-hover: #3b2ed1;
+  --color-primary-soft: #efeeff;
+  --color-secondary: #00718a;
+  --color-secondary-soft: #e3f8fc;
   --color-accent: var(--color-primary);
   --color-accent-strong: var(--color-primary-hover);
   --color-accent-weak: var(--color-primary-soft);
-  --color-accent-border: #c7d2fe;
+  --color-accent-border: #c8c3ff;
   --color-on-accent: #ffffff;
+
+  /* Brand surfaces: Deep Ink for the header and first-use hero, Data Cyan
+     for data-path and selection accents only. Cyan never carries text on a
+     light background (2.4:1); it is a border, bar or fill next to text. */
+  --color-ink: #14213d;
+  --color-ink-raised: #1f3160;
+  --color-on-ink: #ffffff;
+  --color-on-ink-muted: #c9d1e6;
+  --color-data: #00b8d9;
+  --color-data-weak: #e3f8fc;
+
+  /* Epistemic and status meaning. These keep their own hues so a brand
+     change never recolors "hypothesis", "info" or a run state. */
+  --color-info: #4338ca;
+  --color-info-weak: #eef2ff;
+  --color-info-border: #c7d2fe;
+  --color-hypothesis: #4338ca;
+  --color-hypothesis-weak: #eef2ff;
+  --color-hypothesis-border: #a5b4fc;
   --color-success: #1d7a44;
   --color-success-weak: #eafaf0;
   --color-danger: #c2372d;
@@ -33,7 +52,7 @@
   --color-highlight: #fff2a8;
   --color-violet-weak: #f5eaff;
   --color-violet: #6b34bd;
-  --color-focus: #4f46e5;
+  --color-focus: #5546ff;
 
   --font-sans: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic", "Noto Sans JP", system-ui, -apple-system, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -60,7 +79,8 @@
   --radius-lg: 12px;
   --radius-pill: 999px;
 
-  --shadow-sm: 0 1px 2px rgb(16 24 40 / 6%);
+  --shadow-sm: 0 1px 2px rgb(20 33 61 / 6%);
+  --shadow-md: 0 6px 20px rgb(20 33 61 / 10%);
   --content-width: 1040px;
   --transition-fast: 150ms ease;
 }
@@ -85,6 +105,18 @@
   --color-accent-weak: var(--color-primary-soft);
   --color-accent-border: #2f4270;
   --color-on-accent: #0d1220;
+  --color-ink: #0b1224;
+  --color-ink-raised: #17223f;
+  --color-on-ink: #ffffff;
+  --color-on-ink-muted: #c9d1e6;
+  --color-data: #22c7e6;
+  --color-data-weak: #113541;
+  --color-info: #a5b4fc;
+  --color-info-weak: #252551;
+  --color-info-border: #2f4270;
+  --color-hypothesis: #a5b4fc;
+  --color-hypothesis-weak: #252551;
+  --color-hypothesis-border: #3d4a8a;
   --color-success: #6fd39a;
   --color-success-weak: #173024;
   --color-danger: #ff8a80;

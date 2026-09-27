@@ -14,7 +14,7 @@ export function AppShell({ children, onSettings = false }: { children: Component
       <header class={styles.header}>
         <div class={styles.headerInner}>
           <div class={styles.brand}>
-            <a href="#/">Insight Lab</a>
+            <a href="#/"><span class={styles.mark} aria-hidden="true" />Insight Lab</a>
             <span class={styles.tagline}>{t("app.tagline")}</span>
           </div>
           <div class={styles.tools}>
