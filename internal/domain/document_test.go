@@ -17,3 +17,19 @@ func TestSourceTypeValid(t *testing.T) {
 		}
 	}
 }
+
+func TestSourceTypesListsEveryValidSourceOnceWhenEnumerated(t *testing.T) {
+	seen := map[SourceType]bool{}
+	for _, s := range SourceTypes() {
+		if !s.Valid() {
+			t.Errorf("SourceTypes() includes invalid %q", s)
+		}
+		if seen[s] {
+			t.Errorf("SourceTypes() lists %q twice", s)
+		}
+		seen[s] = true
+	}
+	if len(seen) != 14 {
+		t.Errorf("SourceTypes() has %d entries, want 14", len(seen))
+	}
+}

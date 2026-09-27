@@ -140,6 +140,15 @@ func (a *Application) ImportAnalysisCSV(ctx context.Context, projectID string, r
 	return service.ImportAnalysisCSVWithManifest(ctx, a.repos.Documents, projectID, r, m)
 }
 
+// PreviewImport reports what importing r as kind would create, without
+// storing anything.
+func (a *Application) PreviewImport(ctx context.Context, projectID, kind string, r io.Reader) (*service.ImportPreview, error) {
+	if err := a.RequireProject(ctx, projectID); err != nil {
+		return nil, err
+	}
+	return service.PreviewImport(ctx, kind, projectID, r)
+}
+
 func parseOptionalManifest(r io.Reader) (*service.AcquisitionManifest, error) {
 	if r == nil {
 		return nil, nil
