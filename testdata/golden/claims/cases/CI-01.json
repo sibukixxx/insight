@@ -1,0 +1,169 @@
+{
+  "caseId": "CI-01",
+  "version": "0.1.0",
+  "domain": "public-statistics",
+  "title": "Claims about registrations across a population definition change",
+  "input": {
+    "documents": [
+      {
+        "id": "doc-2022",
+        "externalRef": "registrations-2022",
+        "source": "dataset",
+        "content": "2022: 1,250 business registrations (all registered entities).",
+        "manifest": {
+          "datasetId": "registrations-2022",
+          "unit": "registrations",
+          "populationScope": "all registered entities",
+          "populationDefinitionId": "all",
+          "period": "2022",
+          "schemaId": "synthetic-registrations",
+          "schemaVersion": "2021"
+        }
+      },
+      {
+        "id": "doc-2023",
+        "externalRef": "registrations-2023",
+        "source": "dataset",
+        "content": "2023: 800 business registrations (registered corporations only).",
+        "manifest": {
+          "datasetId": "registrations-2023",
+          "unit": "registrations",
+          "populationScope": "registered corporations only",
+          "populationDefinitionId": "corp",
+          "period": "2023",
+          "schemaId": "synthetic-registrations",
+          "schemaVersion": "2023"
+        }
+      }
+    ],
+    "observations": [
+      {
+        "id": "obs-2022",
+        "documentId": "doc-2022",
+        "quote": "2022: 1,250 business registrations (all registered entities)."
+      },
+      {
+        "id": "obs-2023",
+        "documentId": "doc-2023",
+        "quote": "2023: 800 business registrations (registered corporations only)."
+      }
+    ],
+    "insights": [
+      {
+        "id": "h-definition",
+        "title": "The 2023 count covers a narrower population",
+        "hypothesisSetId": "s1",
+        "role": "PRIMARY",
+        "causalStatus": "OBSERVED_ASSOCIATION",
+        "validationStatus": "SUPPORTED",
+        "identificationStatus": "NOT_IDENTIFIED",
+        "evidence": [
+          {
+            "id": "ev-1",
+            "insightId": "h-definition",
+            "documentId": "doc-2023",
+            "observationId": "obs-2023",
+            "quote": "2023: 800 business registrations (registered corporations only).",
+            "type": "support"
+          }
+        ]
+      },
+      {
+        "id": "h-decline",
+        "title": "Registrations really declined",
+        "hypothesisSetId": "s1",
+        "role": "COMPETING",
+        "causalStatus": "CAUSAL_HYPOTHESIS",
+        "validationStatus": "CONTRADICTED",
+        "identificationStatus": "NOT_IDENTIFIED",
+        "missingEvidence": [
+          "2023 registrations of all entities"
+        ],
+        "evidence": [
+          {
+            "id": "ev-2",
+            "insightId": "h-decline",
+            "documentId": "doc-2022",
+            "observationId": "obs-2022",
+            "quote": "2022: 1,250 business registrations (all registered entities).",
+            "type": "neutral"
+          },
+          {
+            "id": "ev-3",
+            "insightId": "h-decline",
+            "documentId": "doc-2023",
+            "observationId": "obs-2023",
+            "quote": "2023: 800 business registrations (registered corporations only).",
+            "type": "counter"
+          }
+        ]
+      }
+    ],
+    "researchGaps": [
+      {
+        "id": "gap-harmonized",
+        "need": "a harmonized 2023 count",
+        "affectedHypothesisIds": [
+          "h-decline"
+        ]
+      }
+    ],
+    "claims": [
+      {
+        "id": "a-naive-drop",
+        "statement": "Business registrations fell 36% in 2023.",
+        "evidenceReferences": [
+          "registrations-2022",
+          "registrations-2023"
+        ]
+      },
+      {
+        "id": "b-causal",
+        "statement": "The new tax rule caused the drop in registrations.",
+        "evidenceReferences": [
+          "registrations-2023"
+        ]
+      },
+      {
+        "id": "c-definition",
+        "statement": "The 2023 figure counts registered corporations only.",
+        "evidenceReferences": [
+          "obs-2023"
+        ],
+        "hypothesisReferences": [
+          "h-definition"
+        ]
+      }
+    ]
+  },
+  "expected": [
+    {
+      "claimId": "a-naive-drop",
+      "status": "INSUFFICIENT",
+      "flags": [
+        "CONFLICTING_EVIDENCE",
+        "DEFINITION_OR_POPULATION_MISMATCH"
+      ]
+    },
+    {
+      "claimId": "b-causal",
+      "status": "INSUFFICIENT",
+      "flags": [
+        "CAUSAL_LANGUAGE_WITHOUT_IDENTIFICATION",
+        "CONFLICTING_EVIDENCE"
+      ]
+    },
+    {
+      "claimId": "c-definition",
+      "status": "SUPPORTED",
+      "flags": []
+    }
+  ],
+  "humanReview": {
+    "status": "PENDING",
+    "reviewer": null,
+    "reviewedAt": null,
+    "outcome": null,
+    "notes": "A report must refuse the naive 36% drop and the causal claim, and may state the definition change."
+  }
+}

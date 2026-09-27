@@ -32,7 +32,7 @@ type ClaimInspectionInput struct {
 // Keyword hints. They are deliberately small and bilingual; a claim can
 // avoid them with other wording, so an absent flag proves nothing.
 var (
-	causalWording  = regexp.MustCompile(`(?i)\b(caus(e|ed|es|ing)|because of|due to|led to|leads? to|lead to|result(ed|s)? in|drives?|drove|driven by|effect of|impact of|attributable to)\b|が原因|のせいで|によって|により|をもたらし|を引き起こ|効果があった|押し上げ`)
+	causalWording  = regexp.MustCompile(`(?i)\b(caus(e|ed|es|ing)|because( of)?|due to|led to|leads? to|lead to|result(ed|s)? in|drives?|drove|driven by|effect of|impact of|attributable to)\b|が原因|のせいで|によって|により|をもたらし|を引き起こ|効果があった|押し上げ`)
 	generalWording = regexp.MustCompile(`(?i)\b(all|always|never|every|everyone|everybody|no one|nobody|universally|in every case)\b|すべて|全て|必ず|常に|誰もが|一切|例外なく`)
 )
 
@@ -242,8 +242,12 @@ func inspectClaim(in ClaimInspectionInput, claim domain.ResearchClaim) domain.Cl
 			manifests = append(manifests, m)
 		}
 	}
+	var mismatches []string
 	for _, w := range CheckDatasetCompatibility(manifests) {
-		flag(domain.ClaimFlagDefinitionMismatch, string(w.Code)+": "+w.Detail)
+		mismatches = append(mismatches, string(w.Code)+": "+w.Detail)
+	}
+	if len(mismatches) > 0 {
+		flag(domain.ClaimFlagDefinitionMismatch, strings.Join(mismatches, "; "))
 	}
 
 	ins.Status = claimStatus(basis, ins.CompetingHypotheses, causal && !identified, flag)

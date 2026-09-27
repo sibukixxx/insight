@@ -15,6 +15,7 @@ testdata/golden/
   discovery/cases/               Discovery Benchmark v1 cases (#120), run through real Core by internal/goldenset
   discovery/baseline.json        measured Discovery Benchmark baseline (input / execution fingerprints kept separate)
   harness/discovery_benchmark.py discovery case-set checker (category coverage, known failures, human rubric)
+  claims/cases/                  Claim Inspection golden cases (#119), run by internal/goldenset
 ```
 
 The Discovery Benchmark (positive discovery / valid no-discovery / false-association guard) is described in [`docs/evaluation/discovery-benchmark.md`](../../docs/evaluation/discovery-benchmark.md).

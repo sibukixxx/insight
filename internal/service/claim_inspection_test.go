@@ -91,7 +91,7 @@ func TestInspectClaimsCapsAtInsufficientWhenCompetingExplanationIsStillOpen(t *t
 }
 
 func TestInspectClaimsCapsCausalWordingAtInsufficientWhenNotIdentified(t *testing.T) {
-	for _, statement := range []string{"The campaign caused the rise in visits.", "キャンペーンが原因で来店が増えた。"} {
+	for _, statement := range []string{"The campaign caused the rise in visits.", "Visits rose because the campaign ran.", "キャンペーンが原因で来店が増えた。"} {
 		got := inspectOne(t, claimFixture(domain.ValidationSupported, domain.ValidationContradicted), domain.ResearchClaim{
 			ID: "c1", Statement: statement, EvidenceReferences: []string{"obs-1"}, HypothesisReferences: []string{"h-primary"},
 		})
@@ -168,8 +168,14 @@ func TestInspectClaimsFlagsDefinitionMismatchWhenCitedSourcesAreIncompatible(t *
 		&domain.Document{ID: "doc-2022", Source: domain.SourceDataset, Metadata: a.DocumentMetadata(nil)},
 		&domain.Document{ID: "doc-2023", Source: domain.SourceDataset, Metadata: b.DocumentMetadata(nil)})
 	got := inspectOne(t, in, domain.ResearchClaim{ID: "c1", Statement: "Registrations fell 36% in 2023.", EvidenceReferences: []string{"doc-2022", "doc-2023"}})
-	if !hasClaimFlag(got, domain.ClaimFlagDefinitionMismatch) {
-		t.Fatalf("flags = %+v", got.Flags)
+	count := 0
+	for _, f := range got.Flags {
+		if f.Code == domain.ClaimFlagDefinitionMismatch {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Fatalf("want exactly one definition-mismatch flag listing every incompatibility, flags = %+v", got.Flags)
 	}
 }
 

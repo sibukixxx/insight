@@ -1,0 +1,148 @@
+{
+  "caseId": "CI-03",
+  "version": "0.1.0",
+  "domain": "marketing",
+  "title": "Over-generalized and causal claims about a newsletter",
+  "input": {
+    "documents": [
+      {
+        "id": "doc-sales",
+        "externalRef": "sales-weekly",
+        "source": "record",
+        "content": "Weekly sales rose 18% in the four weeks after the newsletter launch; coupon redemptions stayed flat."
+      }
+    ],
+    "observations": [
+      {
+        "id": "obs-sales",
+        "documentId": "doc-sales",
+        "quote": "Weekly sales rose 18% in the four weeks after the newsletter launch; coupon redemptions stayed flat."
+      }
+    ],
+    "insights": [
+      {
+        "id": "h-newsletter",
+        "title": "Newsletter timing",
+        "hypothesisSetId": "s1",
+        "role": "PRIMARY",
+        "causalStatus": "OBSERVED_ASSOCIATION",
+        "validationStatus": "PARTIALLY_SUPPORTED",
+        "identificationStatus": "NOT_IDENTIFIED",
+        "missingEvidence": [
+          "sales of customers who did not receive the newsletter"
+        ],
+        "evidence": [
+          {
+            "id": "ev-1",
+            "insightId": "h-newsletter",
+            "documentId": "doc-sales",
+            "observationId": "obs-sales",
+            "quote": "Weekly sales rose 18% in the four weeks after the newsletter launch; coupon redemptions stayed flat.",
+            "type": "support"
+          }
+        ]
+      },
+      {
+        "id": "h-season",
+        "title": "Seasonal demand",
+        "hypothesisSetId": "s1",
+        "role": "COMPETING",
+        "causalStatus": "CAUSAL_HYPOTHESIS",
+        "validationStatus": "PLAUSIBLE",
+        "identificationStatus": "NOT_IDENTIFIED",
+        "evidence": [
+          {
+            "id": "ev-2",
+            "insightId": "h-season",
+            "documentId": "doc-sales",
+            "observationId": "obs-sales",
+            "quote": "Weekly sales rose 18% in the four weeks after the newsletter launch; coupon redemptions stayed flat.",
+            "type": "neutral"
+          }
+        ]
+      },
+      {
+        "id": "h-coupon",
+        "title": "Coupon redemptions",
+        "hypothesisSetId": "s1",
+        "role": "COMPETING",
+        "causalStatus": "CAUSAL_HYPOTHESIS",
+        "validationStatus": "CONTRADICTED",
+        "identificationStatus": "NOT_IDENTIFIED",
+        "evidence": [
+          {
+            "id": "ev-3",
+            "insightId": "h-coupon",
+            "documentId": "doc-sales",
+            "observationId": "obs-sales",
+            "quote": "Weekly sales rose 18% in the four weeks after the newsletter launch; coupon redemptions stayed flat.",
+            "type": "counter"
+          }
+        ]
+      }
+    ],
+    "researchGaps": [],
+    "claims": [
+      {
+        "id": "a-everyone",
+        "statement": "Every customer who opened the newsletter bought more.",
+        "evidenceReferences": [
+          "sales-weekly"
+        ],
+        "hypothesisReferences": [
+          "h-newsletter"
+        ]
+      },
+      {
+        "id": "b-causal-ja",
+        "statement": "ニュースレターによって売上が伸びた。",
+        "evidenceReferences": [
+          "sales-weekly"
+        ],
+        "hypothesisReferences": [
+          "h-newsletter"
+        ]
+      },
+      {
+        "id": "c-coupon",
+        "statement": "Coupon redemptions explain the sales rise.",
+        "evidenceReferences": [
+          "obs-sales"
+        ],
+        "hypothesisReferences": [
+          "h-coupon"
+        ]
+      }
+    ]
+  },
+  "expected": [
+    {
+      "claimId": "a-everyone",
+      "status": "INSUFFICIENT",
+      "flags": [
+        "COMPETING_EXPLANATION_OPEN",
+        "OVERGENERALIZATION_LANGUAGE"
+      ]
+    },
+    {
+      "claimId": "b-causal-ja",
+      "status": "INSUFFICIENT",
+      "flags": [
+        "CAUSAL_LANGUAGE_WITHOUT_IDENTIFICATION",
+        "COMPETING_EXPLANATION_OPEN"
+      ]
+    },
+    {
+      "claimId": "c-coupon",
+      "status": "CONTRADICTED",
+      "flags": []
+    }
+  ],
+  "humanReview": {
+    "status": "PENDING",
+    "reviewer": null,
+    "reviewedAt": null,
+    "outcome": null,
+    "notes": "Neither the universal nor the causal newsletter claim may be reported as supported while seasonality is open."
+  }
+}
