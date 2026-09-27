@@ -1,0 +1,313 @@
+{
+  "fixture": "21-claim-inspection",
+  "contractVersion": "1",
+  "covers": "#119 claim inspection: cited, fabricated-citation, causal and uncited claims are inspected against existing hypothesis states without becoming evidence; claims are re-inspected on the next iteration with their previous status",
+  "engine": "model_backed",
+  "steps": [
+    {
+      "op": "createSubject",
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-subject",
+        "subject": {
+          "namespace": "conformance",
+          "id": "claims-${uniq}"
+        }
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "subjectId": "subjectId"
+      }
+    },
+    {
+      "op": "addEvidence",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-evidence-1",
+        "documents": [
+          {
+            "externalRef": "site-a",
+            "source": "document",
+            "content": "The observed measure rose from 120 to 150 units in 2024-03."
+          }
+        ]
+      },
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "op": "startAnalysis",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-analysis-1",
+        "researchQuestion": "What explanations are consistent with the observed change?"
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "firstAnalysisId": "analysisId"
+      }
+    },
+    {
+      "op": "waitForAnalysis",
+      "params": {
+        "subjectId": "${subjectId}",
+        "analysisId": "${firstAnalysisId}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "status",
+          "equals": "completed"
+        }
+      ]
+    },
+    {
+      "op": "createResearchRun",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-research",
+        "question": "What explanations are consistent with the observed change?",
+        "analysisId": "${firstAnalysisId}",
+        "claims": [
+          {
+            "id": "c-cited",
+            "statement": "The measure rose at site A.",
+            "sourceReference": "external-report://synthetic/site-a",
+            "evidenceReferences": [
+              "site-a"
+            ],
+            "assumptions": [
+              "the counting method did not change"
+            ]
+          },
+          {
+            "id": "c-fabricated",
+            "statement": "A national survey shows the measure doubled.",
+            "evidenceReferences": [
+              "national-survey-2024"
+            ]
+          },
+          {
+            "id": "c-causal",
+            "statement": "The program caused the rise at site A.",
+            "evidenceReferences": [
+              "site-a"
+            ]
+          },
+          {
+            "id": "c-uncited",
+            "statement": "The measure always rises in spring."
+          }
+        ]
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "researchRunId": "researchRunId"
+      },
+      "assert": [
+        {
+          "path": "artifact.claimInspections[0].claimId",
+          "equals": "c-cited"
+        },
+        {
+          "path": "artifact.claimInspections[0].status",
+          "equals": "INSUFFICIENT"
+        },
+        {
+          "path": "artifact.claimInspections[0].ruleVersion",
+          "equals": "claim-inspection/v1"
+        },
+        {
+          "path": "artifact.claimInspections[0].basis",
+          "minLength": 1
+        },
+        {
+          "path": "artifact.claimInspections[0].citations[0].state",
+          "equals": "RESOLVED"
+        },
+        {
+          "path": "artifact.claimInspections[0].unverifiedAssumptions[0]",
+          "equals": "the counting method did not change"
+        },
+        {
+          "path": "artifact.claimInspections[1].status",
+          "equals": "UNKNOWN"
+        },
+        {
+          "path": "artifact.claimInspections[1].citations[0].state",
+          "equals": "NOT_FOUND"
+        },
+        {
+          "path": "artifact.claimInspections[1].flags[0].code",
+          "equals": "CITATION_NOT_FOUND"
+        },
+        {
+          "path": "artifact.claimInspections[2].status",
+          "equals": "INSUFFICIENT"
+        },
+        {
+          "path": "artifact.claimInspections[2].cannotConclude",
+          "minLength": 1
+        },
+        {
+          "path": "artifact.claimInspections[3].status",
+          "equals": "UNKNOWN"
+        },
+        {
+          "path": "artifact.claimInspections[3].flags[0].code",
+          "equals": "NO_SOURCE_CITATION"
+        },
+        {
+          "path": "artifact.claimInspections[3].flags[1].code",
+          "equals": "OVERGENERALIZATION_LANGUAGE"
+        }
+      ]
+    },
+    {
+      "op": "addEvidence",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-evidence-2",
+        "documents": [
+          {
+            "externalRef": "site-b",
+            "source": "document",
+            "content": "A second site reported 45 units, which contradicts the first trend."
+          }
+        ]
+      },
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "op": "startAnalysis",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-analysis-2",
+        "researchQuestion": "What explanations are consistent with the observed change?"
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "secondAnalysisId": "analysisId"
+      }
+    },
+    {
+      "op": "waitForAnalysis",
+      "params": {
+        "subjectId": "${subjectId}",
+        "analysisId": "${secondAnalysisId}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "status",
+          "equals": "completed"
+        }
+      ]
+    },
+    {
+      "op": "appendIteration",
+      "params": {
+        "researchRunId": "${researchRunId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-iteration-2",
+        "analysisId": "${secondAnalysisId}",
+        "addedEvidence": [
+          {
+            "reference": "site-b"
+          }
+        ]
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "iterationSequence",
+          "equals": 2
+        },
+        {
+          "path": "artifact.claimInspections[0].claimId",
+          "equals": "c-cited"
+        },
+        {
+          "path": "artifact.claimInspections[0].status",
+          "equals": "CONTRADICTED"
+        },
+        {
+          "path": "artifact.claimInspections[0].previous.status",
+          "equals": "INSUFFICIENT"
+        },
+        {
+          "path": "artifact.claimInspections[0].previous.changed",
+          "equals": true
+        },
+        {
+          "path": "artifact.claimInspections[1].status",
+          "equals": "UNKNOWN"
+        },
+        {
+          "path": "artifact.claimInspections[1].previous.changed",
+          "equals": false
+        }
+      ]
+    },
+    {
+      "op": "createResearchRun",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-bad-claims",
+        "question": "What explanations are consistent with the observed change?",
+        "analysisId": "${firstAnalysisId}",
+        "claims": [
+          {
+            "id": "dup",
+            "statement": "rose"
+          },
+          {
+            "id": "dup",
+            "statement": "fell"
+          }
+        ]
+      },
+      "expect": {
+        "errorCode": "INVALID_REQUEST",
+        "httpStatus": 400
+      }
+    }
+  ]
+}

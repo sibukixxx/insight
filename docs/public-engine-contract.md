@@ -129,6 +129,17 @@ Callers may request the language of new model-generated explanatory text. The de
 - Quotes, numbers, units, dates, IDs, source names and enum codes are never translated. Research runs inherit the locale of their analysis; they do not regenerate text.
 - Conformance: `20-output-locale`.
 
+## Claim inspection (#119)
+
+Consumers (LLM output, human reports, other apps) can submit external claims to be inspected against a research run's existing state. A claim is never evidence and gets no independent truth score.
+
+- `createResearchRun.claims` / `appendIteration.claims` accept up to 50 `ResearchClaim` objects: `id`, `statement`, optional `sourceReference`, `evidenceReferences` (document `externalRef` / `documentId` or observation IDs), `hypothesisReferences` (insight IDs) and `assumptions`. A reused `id` with different content is `INVALID_REQUEST`; identical content under another id is inspected identically and marked `duplicateOf`.
+- `artifact.claimInspections` (rule `claim-inspection/v1`) gives per claim: `status` (`SUPPORTED` / `CONTRADICTED` / `INSUFFICIENT` / `UNKNOWN`), the `basis` hypotheses with their causal / validation / identification states, `competingHypotheses`, `citations` (`RESOLVED` / `NOT_FOUND`), supporting / counter / neutral evidence (existing grounded evidence only), `flags`, `unverifiedAssumptions`, `requiredEvidence`, `researchGapIds`, `cannotConclude` and, on later iterations, `previous` (status and whether it changed).
+- The status is derived from the linked hypotheses' existing states and is never stronger than them: all contradicted → `CONTRADICTED`; supported with no open competing explanation, cited evidence and wording that does not exceed them → `SUPPORTED`; causal wording without an identified causal hypothesis, mixed, untested or competing → `INSUFFICIENT`; no inspected hypothesis uses the cited evidence → `UNKNOWN`.
+- A citation that is not in the subject's evidence is reported `NOT_FOUND` with `CITATION_NOT_FOUND`; nothing is ever created from a claim. Keyword flags (causal wording, over-generalization, English and Japanese) are hints and can miss other wording.
+- `appendIteration` without `claims` keeps the run's claims and re-inspects them against the new analysis; earlier iterations keep their inspections.
+- Conformance: `21-claim-inspection`.
+
 ## Model bindings (#65 extension point)
 
 Routing policy (which model for which stage, cost budgets, escalation) belongs to consumers. The engine exposes only a minimal, provider-neutral extension point:
@@ -161,7 +172,7 @@ The request body is at most 16 MiB. A request carries at most 500 documents and 
 
 ### Conformance
 
-- `contracts/public-engine/v1/fixtures/` holds 20 fixtures. Each names its `engine` (`deterministic` or `model_backed`):
+- `contracts/public-engine/v1/fixtures/` holds 21 fixtures. Each names its `engine` (`deterministic` or `model_backed`):
   1. generic public-data subject (model-backed)
   2. commerce-like opaque subject (model-backed)
   3. deterministic Analytical Artifact
@@ -182,6 +193,7 @@ The request body is at most 16 MiB. A request carries at most 500 documents and 
   18. reasoning profiles (#109, model-backed)
   19. engine-state identity (#116)
   20. output locale (#125, model-backed)
+  21. claim inspection (#119, model-backed)
 - Fixtures 08 and 09 need an engine started with an input root containing `fixtures/data` and, for 08, a HEAVY adapter (`-input-root` and `-heavy-dir`).
 - `internal/http/public_conformance_test.go` starts a deterministic engine and a model-backed engine. It runs every fixture over plain HTTP with `internal/publicengine/conformance`. SDK repositories run the same fixture files against a live engine or recorded responses.
 - The model-backed engine in that test uses the scripted stand-in model from `internal/llm/scripted`, the same one `cmd/insight-scripted-llm` serves over HTTP for SDK repositories. Production code has no fake-model mode: the engine only ever talks to an OpenAI-compatible endpoint. Model-backed fixtures check contract behavior with that model. They do not measure the quality of a real model.

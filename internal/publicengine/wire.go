@@ -254,6 +254,21 @@ type CreateResearchRunRequest struct {
 	InputReferences      []string           `json:"inputReferences,omitempty"`
 	SemanticAnalysisMode string             `json:"semanticAnalysisMode,omitempty"`
 	ObservationWindow    *ObservationWindow `json:"observationWindow,omitempty"`
+	// Claims are external statements to inspect against the research state
+	// (#119). A claim is never evidence.
+	Claims []ResearchClaim `json:"claims,omitempty"`
+}
+
+// ResearchClaim is an external statement submitted for inspection.
+// evidenceReferences name documents (externalRef or documentId) or
+// observations; hypothesisReferences optionally name insight IDs.
+type ResearchClaim struct {
+	ID                   string   `json:"id"`
+	Statement            string   `json:"statement"`
+	SourceReference      string   `json:"sourceReference,omitempty"`
+	EvidenceReferences   []string `json:"evidenceReferences,omitempty"`
+	HypothesisReferences []string `json:"hypothesisReferences,omitempty"`
+	Assumptions          []string `json:"assumptions,omitempty"`
 }
 
 type AddedEvidenceLink struct {
@@ -269,6 +284,9 @@ type AppendIterationRequest struct {
 	Question          string              `json:"question,omitempty"`
 	AddedEvidence     []AddedEvidenceLink `json:"addedEvidence,omitempty"`
 	ObservationWindow *ObservationWindow  `json:"observationWindow,omitempty"`
+	// Claims replace the run's claims for this iteration; omitted keeps and
+	// re-inspects the current ones against the new evidence.
+	Claims []ResearchClaim `json:"claims,omitempty"`
 }
 
 type ResearchResult struct {
