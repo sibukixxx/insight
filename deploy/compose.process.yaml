@@ -1,0 +1,22 @@
+# Opt-in override: HEAVY preparation with PROCESS workers (#134) over raw
+# files in ./input (mounted read-only). Still no database or broker.
+#   docker compose -f compose.yaml -f deploy/compose.process.yaml up -d
+services:
+  insight:
+    command:
+      - serve
+      - -host
+      - 0.0.0.0
+      - -port
+      - "8787"
+      - -db
+      - /data/insight.db
+      - -no-browser
+      - -input-root
+      - /input
+      - -heavy-dir
+      - /data/heavy
+      - -runtime
+      - process
+    volumes:
+      - ./input:/input:ro

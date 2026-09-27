@@ -12,8 +12,10 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"insight-lab/internal/app"
 	"insight-lab/internal/execution"
@@ -59,6 +61,9 @@ func Main(ctx context.Context, args []string, stdout, stderr io.Writer, serve Se
 		fmt.Fprint(stdout, usage)
 		return ExitOK
 	}
+	if name == "health" {
+		return runHealth(ctx, rest, stdout, stderr)
+	}
 	if name == "worker" {
 		return runWorker(ctx, rest, os.Stdin, stdout, stderr)
 	}
@@ -97,6 +102,41 @@ func Main(ctx context.Context, args []string, stdout, stderr io.Writer, serve Se
 	if err := enc.Encode(out); err != nil {
 		return fail(stderr, err)
 	}
+	return ExitOK
+}
+
+// runHealth probes a running server's /api/health, so a container health
+// check needs no HTTP client in the image besides this binary. Exit 0 means
+// the server answered 200 with status ok.
+func runHealth(ctx context.Context, args []string, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("insight-lab health", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	url := fs.String("url", "http://127.0.0.1:8787/api/health", "health endpoint to probe")
+	timeout := fs.Duration("timeout", 3*time.Second, "probe timeout")
+	if err := fs.Parse(args); err != nil {
+		return ExitUsage
+	}
+	ctx, cancel := context.WithTimeout(ctx, *timeout)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, *url, nil)
+	if err != nil {
+		fmt.Fprintln(stderr, "insight-lab health:", err)
+		return ExitUsage
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Fprintln(stderr, "insight-lab health:", err)
+		return ExitInternal
+	}
+	defer resp.Body.Close()
+	var body struct {
+		Status string `json:"status"`
+	}
+	if resp.StatusCode != http.StatusOK || json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&body) != nil || body.Status != "ok" {
+		fmt.Fprintf(stderr, "insight-lab health: %s answered %d\n", *url, resp.StatusCode)
+		return ExitInternal
+	}
+	fmt.Fprintln(stdout, "ok")
 	return ExitOK
 }
 
@@ -202,6 +242,7 @@ Usage:
   insight-lab research get      -run R
   insight-lab research export   -run R [-out FILE]   (Research Artifact JSON)
   insight-lab status  -subject S
+  insight-lab health  [-url URL]              probe a running server (exit 0 when healthy)
   insight-lab worker  -input-root DIR          PROCESS runtime child: one WorkSpec on stdin, WorkResult on stdout
   insight-lab worker  -input-root DIR -broker URL   remote worker for -runtime distributed (builds with -tags jetstream)
 

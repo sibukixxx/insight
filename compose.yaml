@@ -1,0 +1,25 @@
+# Default deployment (#138): Insight only. It starts no database, broker or
+# other service, and keeps all state in the named volume `insight-data`.
+#   docker compose up -d            # http://127.0.0.1:8787
+#   docker compose down             # stops; data stays in the volume
+#   docker compose down -v          # ALSO DELETES ALL RESEARCH DATA
+# Optional setups live in deploy/ and are never started by default.
+services:
+  insight:
+    build: .
+    image: insight-lab:local
+    restart: unless-stopped
+    ports:
+      # Loopback only: Insight has no built-in authentication.
+      - "127.0.0.1:8787:8787"
+    environment:
+      # Optional model connection; empty keeps deterministic analysis only.
+      INSIGHT_LAB_API_KEY: ${INSIGHT_LAB_API_KEY:-}
+      INSIGHT_LAB_MODEL: ${INSIGHT_LAB_MODEL:-}
+      INSIGHT_LAB_BASE_URL: ${INSIGHT_LAB_BASE_URL:-}
+    volumes:
+      - insight-data:/data
+    stop_grace_period: 30s
+
+volumes:
+  insight-data:
