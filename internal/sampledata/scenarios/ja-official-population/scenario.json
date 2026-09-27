@@ -1,0 +1,57 @@
+{
+  "id": "ja-official-population",
+  "dataKind": "official",
+  "importKind": "documents",
+  "inputFile": "input.csv",
+  "inputSha256": "fea2fca87c3e83ef011d7fbea9839ed595431720391f2d3f02ed95d0d94693b2",
+  "rows": 8,
+  "sources": [
+    {
+      "kind": "official",
+      "publisher": "総務省統計局",
+      "survey": "国勢調査",
+      "dataset": "総人口（総数）",
+      "provider": "e-Stat 統計ダッシュボード API",
+      "indicatorCode": "0201010000000010000",
+      "regions": [
+        {
+          "code": "08201",
+          "name": "水戸市"
+        },
+        {
+          "code": "08212",
+          "name": "常陸太田市"
+        },
+        {
+          "code": "08220",
+          "name": "つくば市"
+        }
+      ],
+      "periods": [
+        "2015",
+        "2020"
+      ],
+      "unit": "人",
+      "url": "https://dashboard.e-stat.go.jp/",
+      "apiRequest": "https://dashboard.e-stat.go.jp/api/1.0/Json/getData?Lang=JP&IndicatorCode=0201010000000010000&RegionCode=08201,08212,08220&Cycle=3&IsSeasonalAdjustment=1&TimeFrom=2015CY00&TimeTo=2020CY00&MetaGetFlg=Y",
+      "retrievedAt": "2026-09-27T16:50:36.651Z",
+      "rawFile": "examples/demo-ja/official/raw/population_census_2015_2020.json",
+      "rawSha256": "163f1816517f73f6d1641b43e79ac1663371ef1ab6c0227d4b5bcff1ff7e55a5",
+      "license": "公共データ利用規約（第1.0版）（PDL1.0）",
+      "licenseUrl": "https://dashboard.e-stat.go.jp/static/terms",
+      "attribution": "出典：統計ダッシュボード（https://dashboard.e-stat.go.jp/）。統計ダッシュボード（https://dashboard.e-stat.go.jp/）のデータを加工して作成（Insight Lab デモ用に文章化）。このサービスは、統計ダッシュボードのAPI機能を使用していますが、サービスの内容は国によって保証されたものではありません。"
+    }
+  ],
+  "transform": {
+    "script": "examples/demo-ja/official/build.mjs",
+    "version": "1",
+    "description": "統計ダッシュボード API の保存済みレスポンス（茨城県3市の国勢調査総人口 2015・2020年）を1値1行の文章に変換し、公式メタデータの定義メモ2行を加えた。"
+  },
+  "limitations": [
+    "国勢調査の総人口は各回10月1日午前零時現在の時点値で、取得したのは2015年と2020年の2時点だけ。途中の年の推移は含まれない。",
+    "人口の増減は観測値であり、転入・転出や出生・死亡など変化の理由はこのデータからは分からない。",
+    "市区町村の値には日本人・外国人の別不詳及び年齢不詳を含む（系列注記）。",
+    "地域コード08201・08212・08220は統計ダッシュボードの地域メタデータ上2015年以前から変わっていないが、境界変更の有無そのものは確認していない。",
+    "取得日時点のスナップショットであり、その後の公表値の訂正は反映されない。"
+  ]
+}

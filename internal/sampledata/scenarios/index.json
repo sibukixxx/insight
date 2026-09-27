@@ -1,0 +1,5 @@
+[
+  {"id": "ja-shop-records", "projectName": "サンプル01 / Sample 01: 架空店舗の記録 (synthetic)"},
+  {"id": "ja-official-population", "projectName": "サンプル02 / Sample 02: 公的統計の人口 (official)"},
+  {"id": "ja-population-establishments", "projectName": "サンプル03 / Sample 03: 人口と事業所数 (mixed)"}
+]
