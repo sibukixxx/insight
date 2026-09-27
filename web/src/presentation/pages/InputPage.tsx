@@ -29,7 +29,7 @@ function InputView({ data, onChanged }: { data: InputWorkspace; onChanged: () =>
   const scenarioState = useAsync(() => samples.forProject(build, project.id), [samples, build, project.id]);
   const scenario = scenarioState.status === "ok" ? scenarioState.data : undefined;
   const sample: CsvSample | undefined = scenario && {
-    kind: scenario.importKind, rows: scenario.rows, downloadHref: exports.sampleInputLink(scenario.id),
+    kind: scenario.importKind, rows: scenario.rows, downloadHref: exports.sampleInputLink(scenario.id), projectHasDocuments: documents.length > 0,
     load: () => samples.loadInput(scenario.id),
   };
   const documentsFormat = formats.find((f) => f.kind === "documents");

@@ -187,6 +187,7 @@
   "input.profile.samples": "値の例",
   "input.profile.type": "型",
   "input.ready": "{count} 件の文書が準備できています。",
+  "input.sample.again": "このプロジェクトには既に文書があります。もう一度インポートすると、すべての行がもう1件ずつ追加されます。",
   "input.sample.hint": "{format}・{rows}行。自分のファイルと同じ「プレビュー → 取り込み」の手順で確認できます。",
   "input.sample.label": "サンプルCSV",
   "input.sample.preview": "この CSV をプレビュー",
