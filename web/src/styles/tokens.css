@@ -4,18 +4,23 @@
 :root {
   color-scheme: light;
 
-  --color-bg: #f4f5f7;
+  --color-bg: #f6f7fb;
   --color-surface: #ffffff;
   --color-surface-muted: #fafbfc;
   --color-surface-sunken: #f1f2f4;
   --color-border: #e2e4e9;
   --color-border-strong: #c9ccd3;
-  --color-text: #1d2129;
+  --color-text: #1f2937;
   --color-text-muted: #5f6673;
-  --color-accent: #2f6fed;
-  --color-accent-strong: #2557c7;
-  --color-accent-weak: #eaf0ff;
-  --color-accent-border: #c7d9ff;
+  --color-primary: #4f46e5;
+  --color-primary-hover: #3730a3;
+  --color-primary-soft: #eef2ff;
+  --color-secondary: #0e7490;
+  --color-secondary-soft: #ecfeff;
+  --color-accent: var(--color-primary);
+  --color-accent-strong: var(--color-primary-hover);
+  --color-accent-weak: var(--color-primary-soft);
+  --color-accent-border: #c7d2fe;
   --color-on-accent: #ffffff;
   --color-success: #1d7a44;
   --color-success-weak: #eafaf0;
@@ -28,7 +33,7 @@
   --color-highlight: #fff2a8;
   --color-violet-weak: #f5eaff;
   --color-violet: #6b34bd;
-  --color-focus: #2f6fed;
+  --color-focus: #4f46e5;
 
   --font-sans: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic", "Noto Sans JP", system-ui, -apple-system, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -70,9 +75,14 @@
   --color-border-strong: #454b58;
   --color-text: #e7e9ee;
   --color-text-muted: #a3a9b5;
-  --color-accent: #7aa2ff;
-  --color-accent-strong: #9bb9ff;
-  --color-accent-weak: #1e2a44;
+  --color-primary: #a5b4fc;
+  --color-primary-hover: #c7d2fe;
+  --color-primary-soft: #252551;
+  --color-secondary: #67e8f9;
+  --color-secondary-soft: #113541;
+  --color-accent: var(--color-primary);
+  --color-accent-strong: var(--color-primary-hover);
+  --color-accent-weak: var(--color-primary-soft);
   --color-accent-border: #2f4270;
   --color-on-accent: #0d1220;
   --color-success: #6fd39a;
@@ -86,6 +96,7 @@
   --color-highlight: #5c4f12;
   --color-violet-weak: #2c2140;
   --color-violet: #c3a5ff;
+  --color-focus: #a5b4fc;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -279,3 +279,5 @@ make web-e2e     # Playwright against real delivery/demo binaries and a local sc
 ## License
 
 Apache License 2.0. See [LICENSE](LICENSE).
+
+The Reference Web shows required inputs and pre-run blockers. With no configured model, import a supported analysis CSV to run deterministic dataset analysis. Optional research question, reasoning profile and output language are under Advanced settings.

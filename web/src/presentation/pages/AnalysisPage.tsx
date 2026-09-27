@@ -58,6 +58,7 @@ function AnalysisView({ data, onChanged }: { data: AnalysisWorkspace; onChanged:
   return (
     <ProjectFrame project={project} current="analysis" title={t("analysisPage.title")} subtitle={t("analysisPage.lead")}>
       <Card title={t("readiness.title")}>
+        {!readiness.canStart && <Notice kind="warning">{t("analysis.notReady")}</Notice>}
         <ReadinessList readiness={readiness} projectId={project.id} />
       </Card>
       <Card title={t("analysisPage.status")}>

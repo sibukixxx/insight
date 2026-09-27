@@ -73,8 +73,8 @@ export function HomePage() {
           <form class={onboarding.path} onSubmit={create}>
             <p class={onboarding.hint}>{t("home.newProjectHint")}</p>
             <div class={onboarding.inline}>
-              <Field label={t("home.projectNamePrompt")} htmlFor="new-project-name">
-                <input id="new-project-name" class={formStyles.control} type="text" required maxLength={200} value={name} onInput={(e) => setName(e.currentTarget.value)} />
+              <Field label={t("home.projectNamePrompt")} htmlFor="new-project-name" requirement="required" requirementLabel={t("common.required")}>
+                <input id="new-project-name" aria-label={t("home.projectNamePrompt")} class={formStyles.control} type="text" required maxLength={200} value={name} onInput={(e) => setName(e.currentTarget.value)} />
               </Field>
               <Button id="new-project" type="submit" variant={firstRun && !build.demoBuild ? "primary" : "secondary"} disabled={busy || !name.trim()}>{t("home.createProject")}</Button>
             </div>
