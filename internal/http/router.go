@@ -23,9 +23,11 @@ import (
 type Deps struct {
 	App *usecase.Application
 
-	Demo         *service.DemoLoader
-	Settings     *service.SettingsStore
-	JobManager   *service.JobManager
+	Demo       *service.DemoLoader
+	Settings   *service.SettingsStore
+	JobManager *service.JobManager
+	// Ingest serves large-CSV ingestion; the routes answer 501 when nil.
+	Ingest       *service.IngestManager
 	NewLLMClient func(service.Settings) llm.Client
 	// PublicEngine serves the Public Engine Contract under /api/public/v1.
 	// It is not mounted when nil.
@@ -44,7 +46,7 @@ func NewRouter(deps Deps) http.Handler {
 
 	h := &handler.Handler{
 		App:  deps.App,
-		Demo: deps.Demo, Settings: deps.Settings, JobManager: deps.JobManager,
+		Demo: deps.Demo, Settings: deps.Settings, JobManager: deps.JobManager, Ingest: deps.Ingest,
 		NewLLMClient: deps.NewLLMClient, Build: deps.Build,
 	}
 
@@ -74,6 +76,11 @@ func NewRouter(deps Deps) http.Handler {
 				r.Post("/documents/import", h.ImportDocumentsCSV)
 				r.Post("/documents/import/analysis", h.ImportAnalysisCSV)
 				r.Post("/documents/import/preview", h.PreviewImport)
+				r.Get("/ingests", h.ListIngests)
+				r.Post("/ingests", h.CreateIngest)
+				r.Get("/ingests/{ingestID}", h.GetIngest)
+				r.Post("/ingests/{ingestID}/cancel", h.CancelIngest)
+				r.Get("/ingests/{ingestID}/errors.csv", h.IngestErrors)
 				r.Post("/analysis", h.CreateAnalysis)
 				r.Get("/analyses", h.ListAnalyses)
 				r.Get("/analyses/compare", h.CompareProjectAnalyses)

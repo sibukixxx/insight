@@ -29,6 +29,7 @@ type Engine struct {
 	App        *usecase.Application
 	Settings   *service.SettingsStore
 	JobManager *service.JobManager
+	Ingest     *service.IngestManager
 	Public     *publicengine.Engine
 	Demo       *service.DemoLoader
 }
@@ -36,6 +37,7 @@ type Engine struct {
 // Close stops the analysis workers (after ctx is cancelled) and closes the DB.
 func (e *Engine) Close() error {
 	e.JobManager.Wait()
+	e.Ingest.Wait()
 	return e.DB.Close()
 }
 
@@ -95,6 +97,14 @@ func Open(ctx context.Context, cfg *Config) (*Engine, error) {
 		engineOpts = append(engineOpts, publicengine.WithInputResolver(prep.Resolver, prep.MaxRawBytes))
 	}
 	jobManager.Start(ctx, analysisWorkers)
+	ingest, err := service.NewIngestManager(sqlite.NewIngestRepository(db), cfg.IngestDir, cfg.IngestLimits)
+	if err != nil {
+		return nil, err
+	}
+	if err := ingest.Recover(ctx); err != nil {
+		return nil, fmt.Errorf("recover interrupted ingests: %w", err)
+	}
+	ingest.Start(ctx)
 	application := usecase.New(usecase.Repositories{
 		Projects: projects, Documents: documents, Observations: observations, Patterns: patterns,
 		Analyses: analyses, Insights: insights, Evidence: evidence, Research: research,
@@ -110,7 +120,7 @@ func Open(ctx context.Context, cfg *Config) (*Engine, error) {
 		}
 		return service.DefaultLLMClientFactory(current), current.Model, true
 	})
-	return &Engine{DB: db, App: application, Settings: settings, JobManager: jobManager, Public: publicEngine, Demo: demoLoader}, nil
+	return &Engine{DB: db, App: application, Settings: settings, JobManager: jobManager, Ingest: ingest, Public: publicEngine, Demo: demoLoader}, nil
 }
 
 // Run serves the API and, unless NoWeb, the embedded Reference Web.
@@ -126,7 +136,7 @@ func Run(ctx context.Context, cfg *Config) error {
 
 	router := httpapi.NewRouter(httpapi.Deps{
 		App:  application,
-		Demo: demoLoader, Settings: settings, JobManager: jobManager,
+		Demo: demoLoader, Settings: settings, JobManager: jobManager, Ingest: eng.Ingest,
 		NewLLMClient: service.DefaultLLMClientFactory,
 		PublicEngine: publicEngine,
 		NoWeb:        cfg.NoWeb,
@@ -183,6 +193,7 @@ func Run(ctx context.Context, cfg *Config) error {
 		return err
 	}
 	jobManager.Wait()
+	eng.Ingest.Wait()
 	return nil
 }
 

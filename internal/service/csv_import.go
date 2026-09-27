@@ -11,6 +11,7 @@ import (
 	"io"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"insight-lab/internal/domain"
 	"insight-lab/internal/repository"
@@ -123,6 +124,8 @@ func scanDocumentRows(reader *csv.Reader, projectID string, emit func(*domain.Do
 				return err
 			}
 			reason = err.Error()
+		case !validUTF8Record(record):
+			reason = invalidUTF8Reason
 		case len(record) < 4:
 			reason = "not enough columns"
 		case !domain.SourceType(strings.TrimSpace(record[1])).Valid():
@@ -150,6 +153,19 @@ func scanDocumentRows(reader *csv.Reader, projectID string, emit func(*domain.Do
 			return err
 		}
 	}
+}
+
+const invalidUTF8Reason = "row is not valid UTF-8"
+
+// validUTF8Record reports whether every field is valid UTF-8. A row in
+// another encoding is rejected rather than stored with replaced bytes.
+func validUTF8Record(record []string) bool {
+	for _, field := range record {
+		if !utf8.ValidString(field) {
+			return false
+		}
+	}
+	return true
 }
 
 // isFatalReadError reports whether a csv.Reader error came from the

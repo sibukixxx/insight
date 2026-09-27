@@ -25,9 +25,11 @@ type BuildInfo struct {
 type Handler struct {
 	App *usecase.Application
 
-	Demo         *service.DemoLoader
-	Settings     *service.SettingsStore
-	JobManager   *service.JobManager
+	Demo       *service.DemoLoader
+	Settings   *service.SettingsStore
+	JobManager *service.JobManager
+	// Ingest serves the large-CSV ingestion routes; nil disables them.
+	Ingest       *service.IngestManager
 	NewLLMClient func(service.Settings) llm.Client
 
 	Build BuildInfo

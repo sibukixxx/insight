@@ -52,17 +52,23 @@ func insertDocument(ctx context.Context, ex execer, d *domain.Document) error {
 	return err
 }
 
+// visibleDocument hides the rows of an ingest that is not READY: a large
+// ingest writes its documents in batches, and they become Evidence only
+// when the ingest finishes successfully.
+const visibleDocument = `(ingest_id IS NULL OR EXISTS (
+	SELECT 1 FROM ingest_jobs j WHERE j.id = documents.ingest_id AND j.state = 'READY'))`
+
 func (r *DocumentRepository) Get(ctx context.Context, id string) (*domain.Document, error) {
 	row := r.db.QueryRowContext(ctx,
 		`SELECT id, project_id, source, title, content, metadata, created_at
-		 FROM documents WHERE id = ?`, id)
+		 FROM documents WHERE id = ? AND `+visibleDocument, id)
 	return scanDocument(row)
 }
 
 func (r *DocumentRepository) ListByProject(ctx context.Context, projectID string) ([]*domain.Document, error) {
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT id, project_id, source, title, content, metadata, created_at
-		 FROM documents WHERE project_id = ? ORDER BY created_at ASC`, projectID)
+		 FROM documents WHERE project_id = ? AND `+visibleDocument+` ORDER BY created_at ASC`, projectID)
 	if err != nil {
 		return nil, err
 	}

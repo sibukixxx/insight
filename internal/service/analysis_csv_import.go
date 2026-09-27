@@ -65,7 +65,7 @@ func ImportAnalysisCSVWithManifest(ctx context.Context, documents repository.Doc
 	}
 
 	result := &AnalysisImportResult{}
-	groups, recordsRead, err := aggregateAnalysisRows(reader, columns, 0, func(e ImportRowError) error {
+	groups, recordsRead, err := aggregateAnalysisRows(reader, columns, analysisScanLimits{}, func(e ImportRowError) error {
 		result.Skipped++
 		result.Errors = append(result.Errors, e)
 		return nil
@@ -104,10 +104,16 @@ func readAnalysisHeader(reader *csv.Reader) (map[string]int, error) {
 	return columns, nil
 }
 
+// analysisScanLimits bounds an analysis CSV scan; a zero field is unbounded.
+type analysisScanLimits struct {
+	maxGroups int
+	maxRows   int64
+}
+
 // aggregateAnalysisRows counts valid rows per group. Memory grows with the
-// number of distinct groups, never with rows; maxGroups > 0 bounds it and
-// fails the scan once exceeded. Invalid rows go to reject.
-func aggregateAnalysisRows(reader *csv.Reader, columns map[string]int, maxGroups int, reject func(ImportRowError) error) (map[string]*analysisGroup, int, error) {
+// number of distinct groups, never with rows; limits fail the scan once a
+// bound is exceeded. Invalid rows go to reject.
+func aggregateAnalysisRows(reader *csv.Reader, columns map[string]int, limits analysisScanLimits, reject func(ImportRowError) error) (map[string]*analysisGroup, int, error) {
 	groups := map[string]*analysisGroup{}
 	row := 0
 	for {
@@ -119,6 +125,9 @@ func aggregateAnalysisRows(reader *csv.Reader, columns map[string]int, maxGroups
 			return nil, row, err
 		}
 		row++
+		if limits.maxRows > 0 && int64(row) > limits.maxRows {
+			return nil, row, fmt.Errorf("the file has more than %d data rows", limits.maxRows)
+		}
 		value := func(name string) string {
 			index := columns[name]
 			if index >= len(record) {
@@ -130,6 +139,8 @@ func aggregateAnalysisRows(reader *csv.Reader, columns map[string]int, maxGroups
 		switch {
 		case err != nil:
 			reason = err.Error()
+		case !validUTF8Record(record):
+			reason = invalidUTF8Reason
 		case value("corporate_number") == "":
 			reason = "corporate_number is empty"
 		default:
@@ -152,8 +163,8 @@ func aggregateAnalysisRows(reader *csv.Reader, columns map[string]int, maxGroups
 		key := strings.Join([]string{period, eventType, value("prefecture_name"), value("city_name"), provider, value("source_version")}, "\x00")
 		group := groups[key]
 		if group == nil {
-			if maxGroups > 0 && len(groups) >= maxGroups {
-				return nil, row, fmt.Errorf("analysis CSV has more than %d distinct groups", maxGroups)
+			if limits.maxGroups > 0 && len(groups) >= limits.maxGroups {
+				return nil, row, fmt.Errorf("analysis CSV has more than %d distinct groups", limits.maxGroups)
 			}
 			group = &analysisGroup{period: period, eventType: eventType, prefecture: value("prefecture_name"), city: value("city_name"), sourceProvider: provider, sourceVersion: value("source_version"), sourceFetchedAt: value("source_fetched_at")}
 			groups[key] = group
