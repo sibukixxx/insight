@@ -213,3 +213,59 @@ func TestRunDatasetPreAnalysisCollectsProvenanceAndCompatibilityWarnings(t *test
 		t.Errorf("RuleVersion = %q", pre.RuleVersion)
 	}
 }
+
+// #120: re-importing the same file under a new document ID must not become a
+// second, independent observation. The exact copy is collapsed onto the first
+// document, kept away from the model, and reported; the period comparison it
+// used to block can then be computed once.
+func TestRunDatasetPreAnalysisCountsAnExactReimportOnceWhenCopied(t *testing.T) {
+	docs := []*domain.Document{
+		datasetDoc("doc_a", "2026-01", "サンプル市", "ASSIGNED", "2", map[string]string{MetadataDatasetHash: "hash_a"}),
+		datasetDoc("doc_a_again", "2026-01", "サンプル市", "ASSIGNED", "2", map[string]string{MetadataDatasetHash: "hash_a"}),
+		datasetDoc("doc_b", "2026-02", "サンプル市", "ASSIGNED", "5", map[string]string{MetadataDatasetHash: "hash_b"}),
+	}
+
+	pre := RunDatasetPreAnalysis(docs, time.Now().UTC())
+
+	if len(pre.Observations) != 2 {
+		t.Fatalf("observations = %d, want 2 (the copy is the same evidence)", len(pre.Observations))
+	}
+	for _, o := range pre.Observations {
+		if o.DocumentID == "doc_a_again" {
+			t.Fatal("the re-imported copy was materialized as its own observation")
+		}
+	}
+	if !pre.Handled("doc_a_again") {
+		t.Error("the copy must be handled deterministically, not sent to the model as new evidence")
+	}
+	if len(pre.Comparisons) != 1 || pre.Comparisons[0].FromDocumentID != "doc_a" {
+		t.Errorf("comparisons = %+v, want one 2026-01 -> 2026-02 step from the original document", pre.Comparisons)
+	}
+	want := "document doc_a_again has the same content and metadata as doc_a; counted once as the same evidence"
+	found := false
+	for _, n := range pre.Notes {
+		found = found || n == want
+	}
+	if !found {
+		t.Errorf("notes = %v, want %q", pre.Notes, want)
+	}
+	if pre.RuleVersion != "dataset-preanalysis/v2" {
+		t.Errorf("RuleVersion = %q; collapsing copies changes the rule meaning", pre.RuleVersion)
+	}
+}
+
+// A second document for the same period with a different count is a
+// conflict, not a copy: it stays visible and still blocks the comparison.
+func TestRunDatasetPreAnalysisKeepsConflictingDuplicatePeriodWhenValuesDiffer(t *testing.T) {
+	docs := []*domain.Document{
+		datasetDoc("doc_a", "2026-01", "サンプル市", "ASSIGNED", "2", nil),
+		datasetDoc("doc_a_revised", "2026-01", "サンプル市", "ASSIGNED", "3", nil),
+		datasetDoc("doc_b", "2026-02", "サンプル市", "ASSIGNED", "5", nil),
+	}
+
+	pre := RunDatasetPreAnalysis(docs, time.Now().UTC())
+
+	if len(pre.Observations) != 3 || len(pre.Comparisons) != 0 {
+		t.Fatalf("observations=%d comparisons=%d, want 3 and 0 for a conflicting re-import", len(pre.Observations), len(pre.Comparisons))
+	}
+}

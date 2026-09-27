@@ -1,10 +1,10 @@
 {
   "caseId": "DB-F03",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "title": "Same source imported twice",
   "category": "FALSE_ASSOCIATION_GUARD",
   "mode": "DISCOVERY",
-  "trap": "The 2023 file is imported a second time under a new document ID; the copy must not count as independent evidence, and a duplicated window must not be silently averaged.",
+  "trap": "The 2023 file is imported a second time under a new document ID; the copy must count once as the same evidence, and a duplicated window with a different value must not be silently averaged.",
   "input": {
     "basis": "calendar-month",
     "population": "Fictional monthly visits",
@@ -101,23 +101,17 @@
       },
       {
         "preanalysis": "comparisons",
-        "count": 0
+        "count": 1
       },
       {
         "preanalysis": "notes",
-        "contains": "more than one document for period 2023"
+        "contains": "document visits-2023-reimport has the same content and metadata as visits-2023; counted once as the same evidence"
       },
       {
         "preanalysis": "observations",
         "count": 2
       }
-    ],
-    "knownFailure": {
-      "assertions": [
-        5
-      ],
-      "reason": "Dataset pre-analysis materializes one observation per document, so the re-imported 2023 file yields a second record_count observation. Dataset hashes, manifests and period comparisons already collapse the copy; the observation list does not."
-    }
+    ]
   },
   "forbiddenClaims": [
     "confirmed by two sources",
