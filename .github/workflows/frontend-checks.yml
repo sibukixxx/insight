@@ -1,0 +1,35 @@
+name: Frontend checks
+on:
+  pull_request:
+    paths:
+      - 'web/**'
+      - 'internal/web/**'
+      - 'internal/http/**'
+      - 'Makefile'
+      - '.github/workflows/frontend-checks.yml'
+permissions:
+  contents: read
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: web/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      # typecheck + lint + unit tests, rebuild, and fail if the committed
+      # internal/web/dist differs from the build output (stale assets).
+      - run: make web-check
+      # The pure-Go build must keep working from the committed dist.
+      - run: make build && make build-demo
+      - run: pnpm --dir web exec playwright install --with-deps chromium
+      - run: pnpm --dir web test:e2e
