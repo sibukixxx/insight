@@ -67,7 +67,7 @@ This ADR fixes what the default is, which kinds of state exist and who owns them
 | On-premises | Verified as the local binary on the operator's host | Host, backups, access control, TLS termination if exposed | Data directory on local disk | As local binary | No built-in authentication (only a loopback-origin check for browsers); keep the default localhost bind or front it with the operator's authenticating proxy |
 | BYO cloud compute (VM / container service on AWS, Google Cloud, Azure, others) | Not verified | Compute that runs the binary/container with a persistent local volume | That volume (not ephemeral container storage) | Platform secret injection | Same one-coordinator rule; serverless sandboxes without a persistent volume or long-running processes are unsuitable for the coordinator |
 | Cloudflare Workers and similar sandboxes | Not supported for the coordinator | — | — | — | May host an external client or a future external worker; compute-heavy operations need a Go worker elsewhere (Decision 6) |
-| Optional distributed workers | Not implemented (#135) | Broker and shared artifact store of the operator's choice | Coordinator state as above; artifacts in the shared store | Adapter credentials only; never LLM keys | Opt-in; an explicit distributed request without a broker fails |
+| Optional distributed workers | Experimental PoC, `-tags jetstream` builds only ([remote-runtime.md](../remote-runtime.md), #135) | A JetStream server and a read-only shared input root for worker hosts | Coordinator state as above; artifacts in the shared store | Adapter credentials only; never LLM keys | Opt-in; an explicit distributed request without a broker fails |
 
 ## How the follow-up issues implement this decision
 
@@ -76,7 +76,7 @@ This ADR fixes what the default is, which kinds of state exist and who owns them
 | #132 | Large CSV ingestion owns its staging directory beside the database and its `ingest_jobs` rows; nothing becomes Evidence until READY | Backend merged (#142); UI pending |
 | #133 | The `analyses` table is the queue of record; cancel, retry and restart recovery are durable, the API key is never persisted | Backend merged (#143); UI pending |
 | #134 | Versioned WorkSpec with an allowlisted operation; LOCAL and PROCESS placement; workers get no secrets and read only the input root | PR #144 |
-| #135 | DISTRIBUTED placement as an opt-in adapter: broker carries references, artifacts live in a shared store, at-least-once with fencing | Not started; depends on this ADR |
+| #135 | DISTRIBUTED placement as an opt-in adapter: broker carries references, artifacts live in a shared store, at-least-once with fencing | Experimental PoC ([remote-runtime.md](../remote-runtime.md)); production rollout postponed |
 | #137 | Persistence ports: separates research state, coordinator state and artifact refs; rejects unsafe multi-writer configurations | Not started |
 | #138 | Packaging: single-container default and opt-in Compose profiles that never start a database or broker by default | Not started |
 | #139 | Deployment conformance: the support matrix above becomes test-backed per adapter | Not started |

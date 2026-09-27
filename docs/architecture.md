@@ -101,6 +101,7 @@ Total I/O is one planning scan plus one read of each shard (about 2× the file) 
 | RuntimeMode | Flag | Placement |
 |---|---|---|
 | LOCAL (default) | `-runtime local` | in-process |
+| DISTRIBUTED (experimental) | `-runtime distributed -broker URL` | remote `insight-lab worker -broker URL -input-root DIR` processes through a broker adapter; only in `-tags jetstream` builds. See [remote-runtime.md](remote-runtime.md) |
 | PROCESS (opt-in) | `-runtime process` | one child `insight-lab worker -input-root DIR` per partition: WorkSpec on stdin, WorkResult on stdout, empty environment (no API keys), bounded output, 30-minute timeout, crash retried by the Heavy Runtime |
 
 RuntimeMode is independent of ExecutionProfile and fails at startup when its prerequisites (`-heavy-dir`, `-input-root`) are missing; it never downgrades silently. It is recorded as `runtimeMode` in the execution snapshot (outside the execution fingerprint) and reported in `GET /api/health` `capabilities.runtime`. LOCAL and PROCESS produce the same prepared artifact.
