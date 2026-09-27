@@ -35,6 +35,8 @@ export interface CsvSample {
   readonly kind: string;
   readonly rows: number;
   readonly downloadHref: string;
+  /** The project already has documents: importing again would add a second copy. */
+  readonly projectHasDocuments: boolean;
   readonly load: () => Promise<UploadFile>;
 }
 
@@ -97,9 +99,10 @@ export function CsvImport({ projectId, formats, onImported, sample }: { projectI
           <div>
             <p class={styles.sampleTitle}>{t("input.sample.title")}</p>
             <p class={styles.meta}>{t("input.sample.hint", { format: kindLabel(sample.kind), rows: sample.rows })}</p>
+            {sample.projectHasDocuments && <p class={styles.meta}>{t("input.sample.again")}</p>}
           </div>
           <div class={styles.kinds}>
-            <Button id="use-sample-csv" variant="primary" onClick={useSample} disabled={busy}>{t("input.sample.preview")}</Button>
+            <Button id="use-sample-csv" variant={sample.projectHasDocuments ? "secondary" : "primary"} onClick={useSample} disabled={busy}>{t("input.sample.preview")}</Button>
             <ButtonLink size="small" variant="ghost" href={sample.downloadHref} download>{t("samples.download")}</ButtonLink>
           </div>
         </div>

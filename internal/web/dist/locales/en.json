@@ -187,6 +187,7 @@
   "input.profile.samples": "Sample values",
   "input.profile.type": "Type",
   "input.ready": "{count} documents are ready.",
+  "input.sample.again": "This project already has documents. Importing the CSV again adds a second copy of every row.",
   "input.sample.hint": "{format}, {rows} rows. It goes through the same preview → import steps as your own file.",
   "input.sample.label": "Sample CSV",
   "input.sample.preview": "Preview this CSV",
