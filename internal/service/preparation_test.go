@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -101,6 +102,58 @@ func TestPrepareRefusesHeavyWithoutRuntimeAndLight(t *testing.T) {
 	for _, profile := range []execution.Profile{execution.ProfileHeavy, execution.ProfileLight} {
 		if _, err := p.Prepare(context.Background(), "p", []*domain.Document{raw}, profile, time.Now()); !errors.Is(err, execution.ErrProfileUnavailable) {
 			t.Errorf("%s: want ErrProfileUnavailable, got %v", profile, err)
+		}
+	}
+}
+
+// wireDispatcher round-trips every WorkSpec and WorkResult through JSON, as
+// a process or remote worker would receive them.
+type wireDispatcher struct {
+	worker execution.InProcess
+	calls  int
+}
+
+func (d *wireDispatcher) Mode() execution.RuntimeMode { return execution.RuntimeProcess }
+
+func (d *wireDispatcher) Dispatch(ctx context.Context, w execution.WorkSpec) (execution.WorkResult, error) {
+	d.calls++
+	raw, err := json.Marshal(w)
+	if err != nil {
+		return execution.WorkResult{}, err
+	}
+	var received execution.WorkSpec
+	if err := json.Unmarshal(raw, &received); err != nil {
+		return execution.WorkResult{}, err
+	}
+	res, err := d.worker.Dispatch(ctx, received)
+	if err != nil {
+		return execution.WorkResult{}, err
+	}
+	out, _ := json.Marshal(res)
+	var back execution.WorkResult
+	return back, json.Unmarshal(out, &back)
+}
+
+func TestHeavyShardsAndSerializedWorkersKeepTheStandardArtifactForAnyShardSize(t *testing.T) {
+	dir := t.TempDir()
+	multiline := "year,region,amount\n2024,east,10\n2024,\"we\nst\",5\n2025,east,12\n2025,west,\n2025,\"a,b\",7\n"
+	raw := rawRefDoc(t, dir, multiline)
+	resolver := input.Resolvers{"file": input.FileResolver{Root: dir}}
+	now := time.Now()
+	std, err := (&Preparation{Resolver: resolver}).Prepare(context.Background(), "p", []*domain.Document{raw}, execution.ProfileStandard, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := std[0].Metadata[MetadataAnalyticalArtifactHash]
+	for _, shardBytes := range []int64{1, 9, 30, 1 << 20} {
+		wire := &wireDispatcher{worker: execution.InProcess{Resolver: resolver}}
+		heavy := &Preparation{Resolver: resolver, Heavy: execution.NewLocalRuntime(t.TempDir(), 3), Dispatcher: wire, ShardBytes: shardBytes}
+		got, err := heavy.Prepare(context.Background(), "p", []*domain.Document{raw}, execution.ProfileHeavy, now)
+		if err != nil {
+			t.Fatalf("shard size %d: %v", shardBytes, err)
+		}
+		if got[0].Metadata[MetadataAnalyticalArtifactHash] != want {
+			t.Fatalf("shard size %d (%d partitions) changed the artifact", shardBytes, wire.calls)
 		}
 	}
 }

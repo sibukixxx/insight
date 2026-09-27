@@ -239,6 +239,9 @@ func TestIngestHTTPAdvertisesCapabilityAndAnswers501WhenDisabled(t *testing.T) {
 	var health struct {
 		Capabilities struct {
 			LargeIngest service.IngestCapability `json:"largeIngest"`
+			Runtime     struct {
+				Mode string `json:"mode"`
+			} `json:"runtime"`
 		} `json:"capabilities"`
 	}
 	if err := json.Unmarshal(serve(enabled, httptest.NewRequest(http.MethodGet, "/api/health", nil)).Body.Bytes(), &health); err != nil {
@@ -246,6 +249,9 @@ func TestIngestHTTPAdvertisesCapabilityAndAnswers501WhenDisabled(t *testing.T) {
 	}
 	if got := health.Capabilities.LargeIngest; !got.Enabled || got.MaxUploadBytes != service.DefaultIngestLimits().MaxUploadBytes {
 		t.Fatalf("capability = %+v", got)
+	}
+	if health.Capabilities.Runtime.Mode != "LOCAL" {
+		t.Fatalf("runtime mode = %q, want LOCAL by default", health.Capabilities.Runtime.Mode)
 	}
 
 	disabled := newImportTestRouter(t)

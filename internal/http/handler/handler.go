@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"insight-lab/internal/buildinfo"
+	"insight-lab/internal/execution"
 	"insight-lab/internal/llm"
 	"insight-lab/internal/service"
 	"insight-lab/internal/usecase"
@@ -33,6 +34,8 @@ type Handler struct {
 	NewLLMClient func(service.Settings) llm.Client
 
 	Build BuildInfo
+	// RuntimeMode is where HEAVY partitions run; empty means LOCAL.
+	RuntimeMode execution.RuntimeMode
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

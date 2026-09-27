@@ -1,6 +1,17 @@
 package handler
 
-import "net/http"
+import (
+	"net/http"
+
+	"insight-lab/internal/execution"
+)
+
+func (h *Handler) runtimeMode() execution.RuntimeMode {
+	if h.RuntimeMode == "" {
+		return execution.RuntimeLocal
+	}
+	return h.RuntimeMode
+}
 
 func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
@@ -10,6 +21,7 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 		"engine":     h.Build.Engine,
 		"capabilities": map[string]any{
 			"largeIngest": h.Ingest.Capability(),
+			"runtime":     map[string]any{"mode": h.runtimeMode(), "modes": []execution.RuntimeMode{execution.RuntimeLocal, execution.RuntimeProcess}},
 		},
 	})
 }

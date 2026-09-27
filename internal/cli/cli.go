@@ -12,9 +12,12 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 
 	"insight-lab/internal/app"
+	"insight-lab/internal/execution"
+	"insight-lab/internal/input"
 	"insight-lab/internal/publicengine"
 )
 
@@ -56,6 +59,9 @@ func Main(ctx context.Context, args []string, stdout, stderr io.Writer, serve Se
 		fmt.Fprint(stdout, usage)
 		return ExitOK
 	}
+	if name == "worker" {
+		return runWorker(ctx, rest, os.Stdin, stdout, stderr)
+	}
 	if name == "serve" {
 		fs := flag.NewFlagSet("insight-lab serve", flag.ContinueOnError)
 		fs.SetOutput(stderr)
@@ -90,6 +96,32 @@ func Main(ctx context.Context, args []string, stdout, stderr io.Writer, serve Se
 	}
 	if err := enc.Encode(out); err != nil {
 		return fail(stderr, err)
+	}
+	return ExitOK
+}
+
+// runWorker is the child side of the PROCESS runtime (#134): it executes
+// one WorkSpec read from stdin and writes the WorkResult to stdout. It
+// opens no database and reads no settings or credentials; its only access
+// to data is the -input-root sandbox.
+func runWorker(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("insight-lab worker", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	root := fs.String("input-root", "", "directory file: inputs are resolved in (required)")
+	if err := fs.Parse(args); err != nil {
+		return ExitUsage
+	}
+	if *root == "" || fs.NArg() > 0 {
+		fmt.Fprintln(stderr, "insight-lab worker: -input-root is required and no arguments are accepted")
+		return ExitUsage
+	}
+	rs := input.Resolvers{"file": input.FileResolver{Root: *root}}
+	if err := execution.ServeWorker(ctx, stdin, stdout, rs); err != nil {
+		fmt.Fprintln(stderr, "insight-lab worker:", err)
+		if errors.Is(err, execution.ErrWorkRejected) {
+			return ExitRejected
+		}
+		return ExitInternal
 	}
 	return ExitOK
 }
@@ -150,8 +182,9 @@ Usage:
   insight-lab research get      -run R
   insight-lab research export   -run R [-out FILE]   (Research Artifact JSON)
   insight-lab status  -subject S
+  insight-lab worker  -input-root DIR          PROCESS runtime child: one WorkSpec on stdin, WorkResult on stdout
 
-Engine flags (all commands): -db, -api-key, -model, -base-url, -input-root, -heavy-dir, -allowed-models
+Engine flags (all commands): -db, -api-key, -model, -base-url, -input-root, -heavy-dir, -runtime, -allowed-models
 Server flags: -host, -port, -no-browser, -no-web, -demo, -client
 
 Output is JSON on stdout. Errors are JSON on stderr with exit codes:

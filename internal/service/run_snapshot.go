@@ -86,6 +86,10 @@ type ExecutionSnapshot struct {
 	// changes how inputs are prepared and executed, never research meaning,
 	// so it does not change the execution fingerprint.
 	ExecutionProfile *execution.Resolution `json:"executionProfile,omitempty"`
+	// RuntimeMode is where HEAVY partitions ran (LOCAL or PROCESS, #134).
+	// Like the profile it is placement, not meaning: it is recorded outside
+	// ExecutionConfig and never changes the execution fingerprint.
+	RuntimeMode execution.RuntimeMode `json:"runtimeMode,omitempty"`
 }
 
 // BuildExecutionSnapshot captures the configuration a run will execute with.

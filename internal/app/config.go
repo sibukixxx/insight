@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"strings"
 
+	"insight-lab/internal/execution"
 	"insight-lab/internal/service"
 )
 
@@ -27,6 +28,9 @@ type Config struct {
 	// HeavyDir enables the HEAVY profile with the local Heavy Execution
 	// Adapter persisting job state in this directory. Empty disables HEAVY.
 	HeavyDir string
+	// Runtime places HEAVY partitions: LOCAL (in-process, default) or
+	// PROCESS (child worker processes of this binary, opt-in).
+	Runtime execution.RuntimeMode
 	// IngestDir stages large-CSV uploads (#132). It defaults to an "ingest"
 	// directory beside the database, so the standalone binary needs no flag.
 	IngestDir     string
@@ -61,6 +65,7 @@ func BindFlags(fs *flag.FlagSet) func() (*Config, error) {
 	baseURL := fs.String("base-url", "", "OpenAI-compatible base URL")
 	inputRoot := fs.String("input-root", os.Getenv("INSIGHT_LAB_INPUT_ROOT"), "directory that file: raw artifact references may read (empty disables raw references)")
 	allowedModels := fs.String("allowed-models", os.Getenv("INSIGHT_LAB_ALLOWED_MODELS"), "comma-separated models (besides -model) callers may bind to pipeline stages via modelBindings")
+	runtimeMode := fs.String("runtime", os.Getenv("INSIGHT_LAB_RUNTIME"), "where HEAVY partitions run: local (default) or process (child worker processes; needs -heavy-dir and -input-root)")
 	heavyDir := fs.String("heavy-dir", os.Getenv("INSIGHT_LAB_HEAVY_DIR"), "directory for local HEAVY job state (empty disables the HEAVY profile)")
 	ingestDir := fs.String("ingest-dir", os.Getenv("INSIGHT_LAB_INGEST_DIR"), "directory for staged large-CSV uploads (default: \"ingest\" beside the database)")
 	defaults := service.DefaultIngestLimits()
@@ -80,6 +85,13 @@ func BindFlags(fs *flag.FlagSet) func() (*Config, error) {
 			}
 			path = filepath.Join(dir, "insight.db")
 		}
+		mode, err := execution.ParseRuntimeMode(*runtimeMode)
+		if err != nil {
+			return nil, err
+		}
+		if mode == execution.RuntimeProcess && (*heavyDir == "" || *inputRoot == "") {
+			return nil, fmt.Errorf("-runtime process needs -heavy-dir and -input-root")
+		}
 		if *ingestMaxBytes <= 0 || *ingestMaxStaged <= 0 || *ingestMaxRows <= 0 {
 			return nil, fmt.Errorf("ingest limits must be positive")
 		}
@@ -92,7 +104,7 @@ func BindFlags(fs *flag.FlagSet) func() (*Config, error) {
 		return &Config{
 			Host: *host, Port: *port, DBPath: path, Demo: *demo, NoBrowser: *noBrowser, NoWeb: *noWeb,
 			APIKey: *apiKey, Model: *model, BaseURL: *baseURL, ClientName: *clientName,
-			InputRoot: *inputRoot, HeavyDir: *heavyDir, AllowedModels: splitList(*allowedModels),
+			InputRoot: *inputRoot, HeavyDir: *heavyDir, Runtime: mode, AllowedModels: splitList(*allowedModels),
 			IngestDir: ingest, IngestLimits: limits,
 		}, nil
 	}

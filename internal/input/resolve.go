@@ -31,6 +31,14 @@ type Resolver interface {
 type Resolvers map[string]Resolver
 
 func (rs Resolvers) Open(ctx context.Context, uri string) (io.ReadCloser, error) {
+	r, err := rs.resolverFor(uri)
+	if err != nil {
+		return nil, err
+	}
+	return r.Open(ctx, uri)
+}
+
+func (rs Resolvers) resolverFor(uri string) (Resolver, error) {
 	u, err := url.Parse(uri)
 	if err != nil || u.Scheme == "" {
 		return nil, fmt.Errorf("%w: %q is not an absolute URI", ErrUnavailable, uri)
@@ -39,7 +47,7 @@ func (rs Resolvers) Open(ctx context.Context, uri string) (io.ReadCloser, error)
 	if !ok {
 		return nil, fmt.Errorf("%w: no resolver configured for scheme %q", ErrUnavailable, u.Scheme)
 	}
-	return r.Open(ctx, uri)
+	return r, nil
 }
 
 // FileResolver resolves "file:<relative/path>" inside Root. Absolute paths

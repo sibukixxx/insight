@@ -72,6 +72,11 @@ func (m *JobManager) ConfigureExecution(prep *Preparation) {
 	m.planner = execution.DefaultPlanner(prep.Capabilities())
 }
 
+// RuntimeMode reports where HEAVY partitions run.
+func (m *JobManager) RuntimeMode() execution.RuntimeMode {
+	return m.preparation.RuntimeMode()
+}
+
 // ExecutionCapabilities reports what this engine can execute.
 func (m *JobManager) ExecutionCapabilities() execution.Capabilities {
 	return m.planner.Capabilities
@@ -229,11 +234,16 @@ func (m *JobManager) Enqueue(ctx context.Context, req EnqueueRequest) (*domain.A
 	if err != nil {
 		return nil, err
 	}
+	var runtimeMode execution.RuntimeMode
+	if resolution.Resolved == execution.ProfileHeavy {
+		runtimeMode = m.RuntimeMode()
+	}
 	execution, err := BuildExecutionSnapshotForRun(settings, req.SemanticAnalysisMode, req.ReasoningProfile, req.OutputLocale, m.build, now)
 	if err != nil {
 		return nil, fmt.Errorf("capture execution snapshot: %w", err)
 	}
 	execution.ExecutionProfile = &resolution
+	execution.RuntimeMode = runtimeMode
 	executionJSON, err := json.Marshal(execution)
 	if err != nil {
 		return nil, fmt.Errorf("encode execution snapshot: %w", err)
