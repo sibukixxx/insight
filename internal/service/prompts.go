@@ -169,3 +169,25 @@ Reasoning profile: GENERAL_RESEARCH.
 		return ""
 	}
 }
+
+// outputLocaleInstruction overrides the base prompt's source-language rule
+// only when a caller explicitly requested a locale (#125). Evidence stays
+// authoritative: quotes and every recorded value are copied, never translated.
+func outputLocaleInstruction(locale domain.OutputLocale) string {
+	var language string
+	switch locale {
+	case domain.OutputLocaleJaJP:
+		language = "Japanese"
+	case domain.OutputLocaleEnUS:
+		language = "English"
+	default:
+		return ""
+	}
+	return `
+
+Output locale: ` + string(locale) + `.
+- Write every generated natural-language field in ` + language + `, regardless of the language of the source material or research question.
+- Do not translate quote: it must remain an exact, character-for-character excerpt in the source language.
+- Keep numbers, units, dates, identifiers, source names, citations and enum codes exactly as they appear in the input.
+- Translating must not strengthen or weaken uncertainty, causal limitations, counter-evidence or what cannot be concluded.`
+}

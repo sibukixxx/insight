@@ -129,6 +129,9 @@ type EnqueueRequest struct {
 	// ReasoningProfile selects semantic specialization; empty means
 	// GENERAL_RESEARCH.
 	ReasoningProfile domain.ReasoningProfile
+	// OutputLocale is the explicitly requested language of generated text;
+	// empty means not requested (text follows the source language).
+	OutputLocale domain.OutputLocale
 	// ExecutionProfile is the requested strategy; empty means AUTO.
 	ExecutionProfile execution.Profile
 	// ModelBindings optionally binds pipeline stages to operator-allowed
@@ -149,6 +152,9 @@ func (m *JobManager) Enqueue(ctx context.Context, req EnqueueRequest) (*domain.A
 	if !req.ReasoningProfile.Valid() {
 		return nil, fmt.Errorf("invalid reasoning profile %q", req.ReasoningProfile)
 	}
+	if !req.OutputLocale.Valid() {
+		return nil, fmt.Errorf("unsupported output locale %q", req.OutputLocale)
+	}
 	if len(req.ResearchQuestion) > 2000 {
 		return nil, fmt.Errorf("research question is limited to 2000 characters")
 	}
@@ -163,7 +169,7 @@ func (m *JobManager) Enqueue(ctx context.Context, req EnqueueRequest) (*domain.A
 	if err != nil {
 		return nil, err
 	}
-	execution, err := BuildExecutionSnapshotForReasoningProfile(settings, req.SemanticAnalysisMode, req.ReasoningProfile, m.build, now)
+	execution, err := BuildExecutionSnapshotForRun(settings, req.SemanticAnalysisMode, req.ReasoningProfile, req.OutputLocale, m.build, now)
 	if err != nil {
 		return nil, fmt.Errorf("capture execution snapshot: %w", err)
 	}
@@ -174,7 +180,7 @@ func (m *JobManager) Enqueue(ctx context.Context, req EnqueueRequest) (*domain.A
 	}
 	a := &domain.Analysis{
 		ID: newID("ana"), ProjectID: req.ProjectID, Status: domain.AnalysisQueued, CreatedAt: now,
-		Label: req.Label, Note: req.Note, SemanticAnalysisMode: req.SemanticAnalysisMode, ResearchQuestion: req.ResearchQuestion, ReasoningProfile: req.ReasoningProfile,
+		Label: req.Label, Note: req.Note, SemanticAnalysisMode: req.SemanticAnalysisMode, ResearchQuestion: req.ResearchQuestion, ReasoningProfile: req.ReasoningProfile, OutputLocale: req.OutputLocale,
 		ExecutionSnapshot: string(executionJSON), ExecutionFingerprint: execution.ExecutionFingerprint,
 	}
 	if err := m.analyses.Create(ctx, a); err != nil {
@@ -222,6 +228,7 @@ func (m *JobManager) run(ctx context.Context, analysisID string) {
 		Documents: m.pipeline.Documents, Observations: m.pipeline.Observations,
 		Patterns: m.pipeline.Patterns, Insights: m.pipeline.Insights, Evidence: m.pipeline.Evidence,
 		LLM: client, Model: settings.Model, ResearchQuestion: a.ResearchQuestion, ReasoningProfile: a.ReasoningProfile.Normalize(),
+		OutputLocale: a.OutputLocale,
 	}
 
 	now := time.Now().UTC()

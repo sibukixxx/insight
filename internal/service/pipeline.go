@@ -39,6 +39,9 @@ type Pipeline struct {
 	// ReasoningProfile selects the explicit semantic specialization of the
 	// same shared pipeline. Empty normalizes to GENERAL_RESEARCH.
 	ReasoningProfile domain.ReasoningProfile
+	// OutputLocale is the explicitly requested language of generated text.
+	// Empty keeps the source-language rule of the base prompt.
+	OutputLocale domain.OutputLocale
 
 	// usage accumulates provider-reported tokens for the current run. A
 	// Pipeline value serves one run at a time and calls the model
@@ -566,7 +569,7 @@ func pipelineLLMSteps() []llmStep {
 }
 
 func (p *Pipeline) generate(ctx context.Context, step llmStep, messages []llm.Message) (*llm.GenerateResponse, error) {
-	systemPrompt := step.SystemPrompt + researchFocusInstruction(p.ResearchQuestion) + reasoningProfileInstruction(p.ReasoningProfile, step.Name)
+	systemPrompt := step.SystemPrompt + researchFocusInstruction(p.ResearchQuestion) + reasoningProfileInstruction(p.ReasoningProfile, step.Name) + outputLocaleInstruction(p.OutputLocale)
 	resp, err := p.LLM.Generate(ctx, llm.GenerateRequest{
 		SystemPrompt: systemPrompt, Messages: messages, Schema: step.Schema(), Temperature: step.Temperature,
 	})
