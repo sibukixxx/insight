@@ -76,7 +76,7 @@ func Open(ctx context.Context, cfg *Config) (*Engine, error) {
 	if n, err := analyses.FailInterrupted(ctx); err != nil {
 		return nil, fmt.Errorf("recover interrupted analyses: %w", err)
 	} else if n > 0 {
-		fmt.Fprintf(os.Stderr, "Marked %d unfinished analyses from the previous run as failed.\n", n)
+		fmt.Fprintf(os.Stderr, "Marked %d analyses interrupted by the previous run as failed (queued analyses resume when their configuration still matches).\n", n)
 	}
 
 	settings := service.NewSettingsStore(service.Settings{APIKey: cfg.APIKey, Model: cfg.Model, BaseURL: cfg.BaseURL})
