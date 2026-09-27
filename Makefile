@@ -9,7 +9,7 @@ BINDIR  := bin
 VERSION ?= $(shell git describe --tags --dirty 2>/dev/null)
 LDFLAGS := $(if $(VERSION),-X insight-lab/internal/buildinfo.Version=$(VERSION))
 
-.PHONY: build build-demo build-delivery build-all test test-golden vet clean cross-compile cross-compile-demo cross-compile-delivery eval-demo web-install web-build web-check web-test web-e2e
+.PHONY: build build-demo build-delivery build-all test test-golden vet clean cross-compile cross-compile-demo cross-compile-delivery eval-demo web-install web-build web-check web-test web-e2e docker-build docker-smoke
 
 build: build-delivery
 
@@ -49,6 +49,14 @@ web-check: web-test web-build
 # scripted local model; no paid LLM. Needs `pnpm --dir web exec playwright install chromium` once.
 web-e2e: web-build
 	pnpm --dir web test:e2e
+
+# Container packaging (#138): Docker is optional; the binary needs none of this.
+docker-build:
+	docker build --build-arg VERSION=$(VERSION) -t insight-lab:local .
+
+# Default Compose smoke: healthy, Insight only, data survives recreation.
+docker-smoke:
+	sh scripts/docker-smoke.sh
 
 test:
 	go test ./...

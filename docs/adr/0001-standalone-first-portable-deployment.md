@@ -62,8 +62,8 @@ This ADR fixes what the default is, which kinds of state exist and who owns them
 | Mode | Status | What the operator supplies | Persistent state | Credentials | Known limits |
 |---|---|---|---|---|---|
 | Local binary (`insight-lab serve`) | Verified | A host with the binary | Data directory: `insight.db`, `ingest/`; optional `-heavy-dir` | Optional model API key (flag/env) | One coordinator per database |
-| Local binary, PROCESS runtime | Implemented in PR #144 (#134); verified once merged | Same, plus `-runtime process -heavy-dir -input-root` | As above plus `-heavy-dir` | None passed to workers | Workers on the same host; per-partition process isolation, timeout and output limit |
-| Single container | Planned (#138) | A container runtime and one named volume for the data directory | The volume | Optional model API key via env/secret | No image or Compose file ships yet |
+| Local binary, PROCESS runtime | Verified (#134) | Same, plus `-runtime process -heavy-dir -input-root` | As above plus `-heavy-dir` | None passed to workers | Workers on the same host; per-partition process isolation, timeout and output limit |
+| Single container (`compose.yaml`) | Verified by `make docker-smoke` (#138) | A container runtime and one named volume for the data directory | The volume | Optional model API key via env/secret | Image is built locally; no published registry image yet |
 | On-premises | Verified as the local binary on the operator's host | Host, backups, access control, TLS termination if exposed | Data directory on local disk | As local binary | No built-in authentication (only a loopback-origin check for browsers); keep the default localhost bind or front it with the operator's authenticating proxy |
 | BYO cloud compute (VM / container service on AWS, Google Cloud, Azure, others) | Not verified | Compute that runs the binary/container with a persistent local volume | That volume (not ephemeral container storage) | Platform secret injection | Same one-coordinator rule; serverless sandboxes without a persistent volume or long-running processes are unsuitable for the coordinator |
 | Cloudflare Workers and similar sandboxes | Not supported for the coordinator | — | — | — | May host an external client or a future external worker; compute-heavy operations need a Go worker elsewhere (Decision 6) |
@@ -75,10 +75,10 @@ This ADR fixes what the default is, which kinds of state exist and who owns them
 |---|---|---|
 | #132 | Large CSV ingestion owns its staging directory beside the database and its `ingest_jobs` rows; nothing becomes Evidence until READY | Backend merged (#142); UI pending |
 | #133 | The `analyses` table is the queue of record; cancel, retry and restart recovery are durable, the API key is never persisted | Backend merged (#143); UI pending |
-| #134 | Versioned WorkSpec with an allowlisted operation; LOCAL and PROCESS placement; workers get no secrets and read only the input root | PR #144 |
+| #134 | Versioned WorkSpec with an allowlisted operation; LOCAL and PROCESS placement; workers get no secrets and read only the input root | Merged (#144) |
 | #135 | DISTRIBUTED placement as an opt-in adapter: broker carries references, artifacts live in a shared store, at-least-once with fencing | Not started; depends on this ADR |
-| #137 | Persistence ports: separates research state, coordinator state and artifact refs; rejects unsafe multi-writer configurations | Not started |
-| #138 | Packaging: single-container default and opt-in Compose profiles that never start a database or broker by default | Not started |
+| #137 | Persistence ports: separates research state, coordinator state and artifact refs; rejects unsafe multi-writer configurations | One-coordinator lock and [persistence.md](../persistence.md) merged (#146); external store not needed yet |
+| #138 | Packaging: single-container default and opt-in Compose profiles that never start a database or broker by default | Implemented ([deployment.md](../deployment.md)) |
 | #139 | Deployment conformance: the support matrix above becomes test-backed per adapter | Not started |
 | TechVit #66 / #67 | Managed job ↔ Core run correlation and distributed governance on the TechVit side, through the Public Contract only | Other repository |
 
