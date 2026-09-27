@@ -121,6 +121,8 @@ func NewRouter(deps Deps) http.Handler {
 
 		r.Get("/analysis/{analysisID}", h.GetAnalysis)
 		r.Get("/analysis/{analysisID}/events", h.AnalysisEvents)
+		r.Post("/analysis/{analysisID}/cancel", h.CancelAnalysis)
+		r.Post("/analysis/{analysisID}/retry", h.RetryAnalysis)
 		r.Get("/analysis/{analysisID}/compare/{otherID}", h.CompareAnalyses)
 
 		r.Get("/insights/{insightID}", h.GetInsight)

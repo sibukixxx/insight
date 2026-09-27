@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"insight-lab/internal/execution"
 	"insight-lab/internal/input"
+	"log/slog"
 	"strings"
 	"sync"
 	"time"
@@ -23,16 +24,20 @@ type SSEEvent struct {
 }
 
 // JobManager runs analyses asynchronously (a fixed pool of worker
-// goroutines pulling from an in-memory queue - no external queue system;
-// see docs/detailed-design.md §10) and fans progress out to any number of
-// SSE subscribers per analysis. Every state transition is also written to
-// the analyses table, so a browser refresh or an SSE reconnect can recover
-// current status via GET /api/analysis/{id} instead of depending on the
-// in-memory channel.
+// goroutines - no external queue system; see docs/detailed-design.md §10)
+// and fans progress out to any number of SSE subscribers per analysis. The
+// analyses table is the queue of record (#133): workers claim queued rows
+// with a conditional update, and cancellation, interruption and retry are
+// recorded there, so a restart, a browser refresh or an SSE reconnect
+// recovers the authoritative state via GET /api/analysis/{id}.
 type JobManager struct {
 	// AllowedModels are the models, besides the configured one, that callers
 	// may bind to pipeline stages (operator config; empty = configured only).
 	AllowedModels []string
+	// MaxQueued bounds how many analyses may wait for a worker; Enqueue
+	// fails with ErrAnalysisQueueFull beyond it. Zero means
+	// DefaultMaxQueuedAnalyses.
+	MaxQueued int
 
 	analyses     repository.AnalysisRepository
 	pipeline     *Pipeline
@@ -43,11 +48,15 @@ type JobManager struct {
 	mu          sync.Mutex
 	subscribers map[string]map[chan SSEEvent]struct{}
 	// pending holds, in memory only, the settings each queued run was
-	// enqueued with. The API key never leaves this map.
+	// enqueued with. The API key never leaves this map; a run queued before
+	// a restart resumes only when the current settings reproduce its
+	// execution fingerprint.
 	pending map[string]Settings
+	// cancels stops the context of each running analysis.
+	cancels map[string]context.CancelCauseFunc
 
-	queue chan string
-	wg    sync.WaitGroup
+	wake chan struct{}
+	wg   sync.WaitGroup
 
 	// planner and preparation implement ExecutionProfile (#91). Without
 	// ConfigureExecution only LIGHT/STANDARD are available and raw artifact
@@ -77,7 +86,8 @@ func NewJobManager(analyses repository.AnalysisRepository, pipeline *Pipeline, s
 		build:        buildinfo.Get(),
 		subscribers:  map[string]map[chan SSEEvent]struct{}{},
 		pending:      map[string]Settings{},
-		queue:        make(chan string, 32),
+		cancels:      map[string]context.CancelCauseFunc{},
+		wake:         make(chan struct{}, 1),
 		planner:      execution.DefaultPlanner(execution.Capabilities{}),
 	}
 }
@@ -86,9 +96,26 @@ func DefaultLLMClientFactory(s Settings) llm.Client {
 	return llm.NewOpenAIClient(s.BaseURL, s.APIKey, s.Model)
 }
 
-// RecoverInterrupted marks any analysis left "queued"/"running" by a
-// process that exited mid-run as failed. Call once at startup, before
-// Start.
+// DefaultMaxQueuedAnalyses is the admission bound when MaxQueued is zero.
+const DefaultMaxQueuedAnalyses = 256
+
+var (
+	// ErrAnalysisQueueFull rejects an enqueue beyond MaxQueued.
+	ErrAnalysisQueueFull = errors.New("the analysis queue is full; try again later")
+	// ErrAnalysisFinished means the analysis already reached a terminal
+	// status and cannot be cancelled.
+	ErrAnalysisFinished = errors.New("the analysis has already finished")
+	// ErrAnalysisNotRetryable means only a failed analysis can be retried.
+	ErrAnalysisNotRetryable = errors.New("only a failed analysis can be retried")
+
+	errCancelRequested = errors.New("cancelled by request")
+	errNeedsRequeue    = errors.New("the run was queued before the engine restarted and its execution configuration (engine build, prompts, models or provider) no longer matches; retry it as a new run")
+)
+
+// RecoverInterrupted marks any analysis left running by a process that
+// exited mid-run as failed (FailureInterrupted). Queued analyses stay
+// queued and are resumed by Start when their execution configuration is
+// still reproducible. Call once at startup, before Start.
 func (m *JobManager) RecoverInterrupted(ctx context.Context) (int, error) {
 	return m.analyses.FailInterrupted(ctx)
 }
@@ -98,21 +125,43 @@ func (m *JobManager) Start(ctx context.Context, workers int) {
 		m.wg.Add(1)
 		go m.worker(ctx)
 	}
+	m.signal()
 }
 
 func (m *JobManager) Wait() { m.wg.Wait() }
 
+func (m *JobManager) signal() {
+	select {
+	case m.wake <- struct{}{}:
+	default:
+	}
+}
+
 func (m *JobManager) worker(ctx context.Context) {
 	defer m.wg.Done()
 	for {
+		for ctx.Err() == nil {
+			a, err := m.analyses.ClaimNextQueued(ctx)
+			if errors.Is(err, repository.ErrNotFound) {
+				break
+			}
+			if err != nil {
+				if ctx.Err() == nil {
+					// Queued rows stay queued; look again shortly instead of
+					// stranding them until the next enqueue.
+					slog.Error("claim queued analysis", "error", err)
+					time.AfterFunc(time.Second, m.signal)
+				}
+				break
+			}
+			// Another idle worker may take the next queued run meanwhile.
+			m.signal()
+			m.run(ctx, a)
+		}
 		select {
 		case <-ctx.Done():
 			return
-		case analysisID, ok := <-m.queue:
-			if !ok {
-				return
-			}
-			m.run(ctx, analysisID)
+		case <-m.wake:
 		}
 	}
 }
@@ -137,6 +186,8 @@ type EnqueueRequest struct {
 	// ModelBindings optionally binds pipeline stages to operator-allowed
 	// models (ModelStages / AllowedModels).
 	ModelBindings map[string]string
+	// RetryOf links the run to the failed analysis it retries.
+	RetryOf string
 }
 
 // Enqueue creates the analysis row (status "queued") with the execution
@@ -157,6 +208,15 @@ func (m *JobManager) Enqueue(ctx context.Context, req EnqueueRequest) (*domain.A
 	}
 	if len(req.ResearchQuestion) > 2000 {
 		return nil, fmt.Errorf("research question is limited to 2000 characters")
+	}
+	maxQueued := m.MaxQueued
+	if maxQueued <= 0 {
+		maxQueued = DefaultMaxQueuedAnalyses
+	}
+	if queued, err := m.analyses.CountQueued(ctx); err != nil {
+		return nil, err
+	} else if queued >= maxQueued {
+		return nil, ErrAnalysisQueueFull
 	}
 	now := time.Now().UTC()
 	settings := m.settings.Get()
@@ -182,38 +242,63 @@ func (m *JobManager) Enqueue(ctx context.Context, req EnqueueRequest) (*domain.A
 		ID: newID("ana"), ProjectID: req.ProjectID, Status: domain.AnalysisQueued, CreatedAt: now,
 		Label: req.Label, Note: req.Note, SemanticAnalysisMode: req.SemanticAnalysisMode, ResearchQuestion: req.ResearchQuestion, ReasoningProfile: req.ReasoningProfile, OutputLocale: req.OutputLocale,
 		ExecutionSnapshot: string(executionJSON), ExecutionFingerprint: execution.ExecutionFingerprint,
+		RetryOf: req.RetryOf,
 	}
-	if err := m.analyses.Create(ctx, a); err != nil {
-		return nil, err
-	}
+	// The settings are registered before the row exists so a worker that
+	// claims the row at once always finds them.
 	m.mu.Lock()
 	m.pending[a.ID] = settings
 	m.mu.Unlock()
-	m.queue <- a.ID
+	if err := m.analyses.Create(ctx, a); err != nil {
+		m.mu.Lock()
+		delete(m.pending, a.ID)
+		m.mu.Unlock()
+		return nil, err
+	}
+	m.signal()
 	return a, nil
 }
 
-// errSettingsUnavailable means a queued run lost its enqueue-time settings,
-// which only happens if it was not enqueued by this process.
-var errSettingsUnavailable = errors.New("the settings this run was enqueued with are no longer available; enqueue it again")
-
-func (m *JobManager) run(ctx context.Context, analysisID string) {
-	a, err := m.analyses.Get(ctx, analysisID)
-	if err != nil {
-		return // analysis row is gone (e.g. project was deleted); nothing to run
-	}
-
+// run executes a claimed (running) analysis to exactly one terminal state.
+// When ctx ends first (shutdown) nothing terminal is written: the row stays
+// running and the next start marks it interrupted.
+func (m *JobManager) run(ctx context.Context, a *domain.Analysis) {
+	runCtx, cancel := context.WithCancelCause(ctx)
 	m.mu.Lock()
-	settings, ok := m.pending[analysisID]
-	delete(m.pending, analysisID)
+	m.cancels[a.ID] = cancel
+	settings, ok := m.pending[a.ID]
+	delete(m.pending, a.ID)
 	m.mu.Unlock()
+	defer func() {
+		m.mu.Lock()
+		delete(m.cancels, a.ID)
+		m.mu.Unlock()
+		cancel(nil)
+	}()
+	// A cancel requested between the claim and the registration above
+	// found no context to stop.
+	if fresh, err := m.analyses.Get(ctx, a.ID); err == nil && fresh.CancelRequestedAt != nil {
+		cancel(errCancelRequested)
+	}
+
+	var metrics *Metrics
+	var err error
 	if !ok {
-		m.fail(ctx, a, errSettingsUnavailable)
+		settings, err = m.resumeSettings(a)
+	}
+	if err == nil {
+		metrics, err = m.execute(runCtx, a, settings)
+	}
+	if ctx.Err() != nil {
 		return
 	}
+	m.finish(context.WithoutCancel(ctx), runCtx, a, metrics, err)
+}
+
+// execute runs the pipeline for a with settings and returns its metrics.
+func (m *JobManager) execute(ctx context.Context, a *domain.Analysis, settings Settings) (*Metrics, error) {
 	if err := m.recordSettingsDrift(a, settings); err != nil {
-		m.fail(ctx, a, err)
-		return
+		return nil, err
 	}
 
 	// Without a configured model the pipeline still runs its deterministic
@@ -234,19 +319,16 @@ func (m *JobManager) run(ctx context.Context, analysisID string) {
 	now := time.Now().UTC()
 	docs, err := m.pipeline.Documents.ListByProject(ctx, a.ProjectID)
 	if err != nil {
-		m.fail(ctx, a, fmt.Errorf("list documents: %w", err))
-		return
+		return nil, fmt.Errorf("list documents: %w", err)
 	}
 	analyzed, docs, err := m.prepareInputs(ctx, a, docs)
 	if err != nil {
-		m.fail(ctx, a, fmt.Errorf("prepare inputs: %w", err))
-		return
+		return nil, fmt.Errorf("prepare inputs: %w", err)
 	}
 	inputSnap := BuildInputSnapshotForQuestion(docs, pipeline.ResearchQuestion, now)
 	inputJSON, err := json.Marshal(inputSnap)
 	if err != nil {
-		m.fail(ctx, a, fmt.Errorf("encode input snapshot: %w", err))
-		return
+		return nil, fmt.Errorf("encode input snapshot: %w", err)
 	}
 	a.InputSnapshot, a.InputFingerprint = string(inputJSON), inputSnap.InputFingerprint
 	a.Status = domain.AnalysisRunning
@@ -254,26 +336,177 @@ func (m *JobManager) run(ctx context.Context, analysisID string) {
 	_ = m.analyses.Update(ctx, a)
 	m.broadcast(a.ID, SSEEvent{Event: "progress", Data: progressJSON("starting", 0, "Starting analysis...")})
 
-	metrics, err := pipeline.RunDocuments(ctx, a.ID, a.ProjectID, analyzed, func(step string, progress int, message string) {
+	return pipeline.RunDocuments(ctx, a.ID, a.ProjectID, analyzed, func(step string, progress int, message string) {
 		a.CurrentStep = step
 		a.Progress = progress
 		_ = m.analyses.Update(ctx, a)
 		m.broadcast(a.ID, SSEEvent{Event: "progress", Data: progressJSON(step, progress, message)})
 	})
-	if err != nil {
-		m.fail(ctx, a, err)
+}
+
+// finish writes the one terminal state of a run. Completion loses to a
+// cancel request recorded before it, so a cancelled run never turns into a
+// success and a success is never reported twice.
+func (m *JobManager) finish(ctx, runCtx context.Context, a *domain.Analysis, metrics *Metrics, runErr error) {
+	finished := time.Now().UTC()
+	a.FinishedAt = &finished
+	if runErr == nil {
+		metricsJSON, _ := json.Marshal(metrics)
+		a.Status, a.Progress, a.CurrentStep, a.Metrics = domain.AnalysisCompleted, 100, "completed", string(metricsJSON)
+		if ok, err := m.analyses.FinishRunning(ctx, a); err == nil && ok {
+			m.broadcast(a.ID, SSEEvent{Event: "completed", Data: fmt.Sprintf(`{"progress":100,"insightCount":%d}`, metrics.FinalInsightCount)})
+			return
+		}
+		a.Metrics = ""
+		runErr = errCancelRequested
+	}
+	switch {
+	case errors.Is(context.Cause(runCtx), errCancelRequested) || errors.Is(runErr, errCancelRequested):
+		a.FailureCode, a.Error = domain.FailureCancelled, errCancelRequested.Error()
+	case errors.Is(runErr, errNeedsRequeue):
+		a.FailureCode, a.Error = domain.FailureNeedsRequeue, runErr.Error()
+	default:
+		a.FailureCode, a.Error = domain.FailureError, runErr.Error()
+	}
+	a.Status = domain.AnalysisFailed
+	if ok, err := m.analyses.FinishRunning(ctx, a); err != nil || !ok {
 		return
 	}
+	m.broadcast(a.ID, terminalEvent(a))
+}
 
-	metricsJSON, _ := json.Marshal(metrics)
-	finished := time.Now().UTC()
-	a.Status = domain.AnalysisCompleted
-	a.Progress = 100
-	a.CurrentStep = "completed"
-	a.Metrics = string(metricsJSON)
-	a.FinishedAt = &finished
-	_ = m.analyses.Update(ctx, a)
-	m.broadcast(a.ID, SSEEvent{Event: "completed", Data: fmt.Sprintf(`{"progress":100,"insightCount":%d}`, metrics.FinalInsightCount)})
+// terminalEvent is the SSE event describing a finished analysis.
+func terminalEvent(a *domain.Analysis) SSEEvent {
+	if a.Status == domain.AnalysisCompleted {
+		return SSEEvent{Event: "completed", Data: `{"progress":100}`}
+	}
+	msg, _ := json.Marshal(map[string]string{"step": a.CurrentStep, "message": a.Error, "code": string(a.FailureCode)})
+	return SSEEvent{Event: "error", Data: string(msg)}
+}
+
+// TerminalEvent reports the SSE event for a finished analysis, so a
+// subscriber that connects after the end still receives it.
+func TerminalEvent(a *domain.Analysis) (SSEEvent, bool) {
+	if !a.Finished() {
+		return SSEEvent{}, false
+	}
+	return terminalEvent(a), true
+}
+
+// resumeSettings returns the settings for a run queued before a restart.
+// The API key was never persisted, so the run resumes with the current
+// settings only when they reproduce its recorded execution fingerprint
+// (same engine build, prompts, provider and models); otherwise it needs to
+// be retried as a new run.
+func (m *JobManager) resumeSettings(a *domain.Analysis) (Settings, error) {
+	var snap ExecutionSnapshot
+	if err := json.Unmarshal([]byte(a.ExecutionSnapshot), &snap); err != nil || a.ExecutionFingerprint == "" {
+		return Settings{}, errNeedsRequeue
+	}
+	current := m.settings.Get()
+	if snap.LLM != nil && !(len(snap.LLM.Models) == 1 && snap.LLM.Models[0].Stage == "all") {
+		current.StageModels = map[string]string{}
+		for _, b := range snap.LLM.Models {
+			current.StageModels[b.Stage] = b.Model
+		}
+	}
+	rebuilt, err := BuildExecutionSnapshotForRun(current, a.SemanticAnalysisMode, a.ReasoningProfile, a.OutputLocale, m.build, time.Now().UTC())
+	if err != nil || rebuilt.ExecutionFingerprint != a.ExecutionFingerprint {
+		return Settings{}, errNeedsRequeue
+	}
+	return current, nil
+}
+
+// Cancel stops an analysis. A queued run is cancelled at once; a running
+// one records the request and its context is cancelled, reaching model
+// calls and HEAVY partitions; its terminal state follows shortly after.
+// Cancelling a finished analysis fails with ErrAnalysisFinished.
+func (m *JobManager) Cancel(ctx context.Context, analysisID string) (*domain.Analysis, error) {
+	a, err := m.analyses.Get(ctx, analysisID)
+	if err != nil {
+		return nil, err
+	}
+	switch a.Status {
+	case domain.AnalysisQueued:
+		ok, err := m.analyses.CancelQueued(ctx, a.ID, errCancelRequested.Error())
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			return m.Cancel(ctx, analysisID) // claimed or finished meanwhile
+		}
+		m.mu.Lock()
+		delete(m.pending, a.ID)
+		m.mu.Unlock()
+		a, err = m.analyses.Get(ctx, a.ID)
+		if err != nil {
+			return nil, err
+		}
+		m.broadcast(a.ID, terminalEvent(a))
+		return a, nil
+	case domain.AnalysisRunning:
+		if _, err := m.analyses.RequestCancel(ctx, a.ID); err != nil {
+			return nil, err
+		}
+		m.mu.Lock()
+		cancel := m.cancels[a.ID]
+		m.mu.Unlock()
+		if cancel != nil {
+			cancel(errCancelRequested)
+		}
+		return m.analyses.Get(ctx, a.ID)
+	default:
+		return nil, ErrAnalysisFinished
+	}
+}
+
+// Retry enqueues a failed analysis again as a new run with the same
+// request (label, note, semantic mode, question, reasoning profile, output
+// locale, requested execution profile and model bindings) under the current
+// settings. It is idempotent: a failed analysis has at most one retry, and
+// asking again returns it with created false.
+func (m *JobManager) Retry(ctx context.Context, analysisID string) (retry *domain.Analysis, created bool, err error) {
+	orig, err := m.analyses.Get(ctx, analysisID)
+	if err != nil {
+		return nil, false, err
+	}
+	if orig.Status != domain.AnalysisFailed {
+		return nil, false, ErrAnalysisNotRetryable
+	}
+	if existing, err := m.analyses.FindRetry(ctx, orig.ID); err == nil {
+		return existing, false, nil
+	} else if !errors.Is(err, repository.ErrNotFound) {
+		return nil, false, err
+	}
+	req := EnqueueRequest{
+		ProjectID: orig.ProjectID, Label: orig.Label, Note: orig.Note, SemanticAnalysisMode: orig.SemanticAnalysisMode,
+		ResearchQuestion: orig.ResearchQuestion, ReasoningProfile: orig.ReasoningProfile, OutputLocale: orig.OutputLocale,
+		RetryOf: orig.ID,
+	}
+	var snap ExecutionSnapshot
+	if json.Unmarshal([]byte(orig.ExecutionSnapshot), &snap) == nil {
+		if snap.ExecutionProfile != nil {
+			req.ExecutionProfile = snap.ExecutionProfile.Requested
+		}
+		if snap.LLM != nil && !(len(snap.LLM.Models) == 1 && snap.LLM.Models[0].Stage == "all") {
+			req.ModelBindings = map[string]string{}
+			for _, b := range snap.LLM.Models {
+				req.ModelBindings[b.Stage] = b.Model
+			}
+		}
+	}
+	retry, err = m.Enqueue(ctx, req)
+	if errors.Is(err, repository.ErrConflict) {
+		existing, findErr := m.analyses.FindRetry(ctx, orig.ID)
+		if findErr != nil {
+			return nil, false, findErr
+		}
+		return existing, false, nil
+	}
+	if err != nil {
+		return nil, false, err
+	}
+	return retry, true, nil
 }
 
 // recordSettingsDrift marks the snapshot when the live settings no longer
@@ -295,17 +528,6 @@ func (m *JobManager) recordSettingsDrift(a *domain.Analysis, enqueued Settings) 
 	}
 	a.ExecutionSnapshot = string(encoded)
 	return nil
-}
-
-func (m *JobManager) fail(ctx context.Context, a *domain.Analysis, runErr error) {
-	finished := time.Now().UTC()
-	a.Status = domain.AnalysisFailed
-	a.Error = runErr.Error()
-	a.FinishedAt = &finished
-	_ = m.analyses.Update(ctx, a)
-
-	msg, _ := json.Marshal(map[string]string{"step": a.CurrentStep, "message": runErr.Error()})
-	m.broadcast(a.ID, SSEEvent{Event: "error", Data: string(msg)})
 }
 
 func progressJSON(step string, progress int, message string) string {

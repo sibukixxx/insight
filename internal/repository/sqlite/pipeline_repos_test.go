@@ -107,6 +107,10 @@ func TestAnalysisRepositoryFailInterrupted(t *testing.T) {
 
 	running := &domain.Analysis{ID: "ana_running", ProjectID: p.ID, Status: domain.AnalysisRunning, CreatedAt: time.Now().UTC()}
 	completed := &domain.Analysis{ID: "ana_done", ProjectID: p.ID, Status: domain.AnalysisCompleted, CreatedAt: time.Now().UTC()}
+	queued := &domain.Analysis{ID: "ana_queued", ProjectID: p.ID, Status: domain.AnalysisQueued, CreatedAt: time.Now().UTC()}
+	if err := repo.Create(ctx, queued); err != nil {
+		t.Fatalf("create queued: %v", err)
+	}
 	if err := repo.Create(ctx, running); err != nil {
 		t.Fatalf("create running: %v", err)
 	}
@@ -126,8 +130,11 @@ func TestAnalysisRepositoryFailInterrupted(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
-	if got.Status != domain.AnalysisFailed || got.Error != "interrupted" {
-		t.Errorf("got = %+v, want failed/interrupted", got)
+	if got.Status != domain.AnalysisFailed || got.Error != "interrupted" || got.FailureCode != domain.FailureInterrupted {
+		t.Errorf("got = %+v, want failed/interrupted with FailureInterrupted", got)
+	}
+	if stillQueued, err := repo.Get(ctx, "ana_queued"); err != nil || stillQueued.Status != domain.AnalysisQueued {
+		t.Errorf("a queued analysis stays queued for the durable queue, got %+v, %v", stillQueued, err)
 	}
 
 	stillDone, err := repo.Get(ctx, "ana_done")

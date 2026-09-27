@@ -12,6 +12,8 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"insight-lab/internal/domain"
+	"insight-lab/internal/execution"
+	"insight-lab/internal/repository"
 	"insight-lab/internal/service"
 	"insight-lab/internal/usecase"
 )
@@ -42,6 +44,14 @@ type analysisDTO struct {
 	InputSnapshot        json.RawMessage `json:"inputSnapshot,omitempty"`
 	ExecutionFingerprint string          `json:"executionFingerprint,omitempty"`
 	InputFingerprint     string          `json:"inputFingerprint,omitempty"`
+
+	// Lifecycle is the coordinator state (#133): QUEUED, RUNNING,
+	// CANCEL_REQUESTED, SUCCEEDED, FAILED, CANCELLED or INTERRUPTED. Status
+	// keeps the four legacy values for existing readers.
+	Lifecycle         string  `json:"lifecycle"`
+	FailureCode       string  `json:"failureCode,omitempty"`
+	CancelRequestedAt *string `json:"cancelRequestedAt,omitempty"`
+	RetryOf           string  `json:"retryOf,omitempty"`
 }
 
 func toAnalysisDTO(a *domain.Analysis) analysisDTO {
@@ -70,7 +80,57 @@ func toAnalysisDTO(a *domain.Analysis) analysisDTO {
 		dto.InputSnapshot = json.RawMessage(a.InputSnapshot)
 	}
 	dto.ExecutionFingerprint, dto.InputFingerprint = a.ExecutionFingerprint, a.InputFingerprint
+	dto.Lifecycle, dto.FailureCode, dto.RetryOf = string(a.Lifecycle()), string(a.FailureCode), a.RetryOf
+	if a.CancelRequestedAt != nil {
+		s := a.CancelRequestedAt.UTC().Format(time.RFC3339)
+		dto.CancelRequestedAt = &s
+	}
 	return dto
+}
+
+// writeAnalysisLifecycleError maps JobManager lifecycle errors to statuses.
+func writeAnalysisLifecycleError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, repository.ErrNotFound):
+		writeError(w, http.StatusNotFound, "analysis not found")
+	case errors.Is(err, service.ErrAnalysisQueueFull):
+		w.Header().Set("Retry-After", "5")
+		writeError(w, http.StatusServiceUnavailable, err.Error())
+	case errors.Is(err, service.ErrAnalysisFinished), errors.Is(err, service.ErrAnalysisNotRetryable):
+		writeError(w, http.StatusConflict, err.Error())
+	case errors.Is(err, service.ErrModelBindingUnavailable), errors.Is(err, execution.ErrProfileUnavailable):
+		writeError(w, http.StatusConflict, err.Error())
+	default:
+		writeError(w, http.StatusInternalServerError, err.Error())
+	}
+}
+
+// CancelAnalysis cancels a queued or running analysis and answers 202 with
+// its state: CANCELLED for a queued run, CANCEL_REQUESTED for a running one
+// until it stops. A finished analysis answers 409.
+func (h *Handler) CancelAnalysis(w http.ResponseWriter, r *http.Request) {
+	a, err := h.JobManager.Cancel(r.Context(), chi.URLParam(r, "analysisID"))
+	if err != nil {
+		writeAnalysisLifecycleError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusAccepted, toAnalysisDTO(a))
+}
+
+// RetryAnalysis enqueues a failed analysis again as a new run (202), or
+// returns the retry that already exists (200). Only failed analyses can be
+// retried (409 otherwise).
+func (h *Handler) RetryAnalysis(w http.ResponseWriter, r *http.Request) {
+	a, created, err := h.JobManager.Retry(r.Context(), chi.URLParam(r, "analysisID"))
+	if err != nil {
+		writeAnalysisLifecycleError(w, err)
+		return
+	}
+	status := http.StatusOK
+	if created {
+		status = http.StatusAccepted
+	}
+	writeJSON(w, status, toAnalysisDTO(a))
 }
 
 func (h *Handler) CreateAnalysis(w http.ResponseWriter, r *http.Request) {
@@ -109,7 +169,7 @@ func (h *Handler) CreateAnalysis(w http.ResponseWriter, r *http.Request) {
 		ProjectID: projectID, Label: strings.TrimSpace(req.Label), Note: strings.TrimSpace(req.Note), SemanticAnalysisMode: req.SemanticAnalysisMode, ResearchQuestion: strings.TrimSpace(req.ResearchQuestion), ReasoningProfile: req.ReasoningProfile.Normalize(), OutputLocale: req.OutputLocale,
 	})
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		writeAnalysisLifecycleError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusAccepted, toAnalysisDTO(a))
@@ -147,9 +207,10 @@ func (h *Handler) ListAnalyses(w http.ResponseWriter, r *http.Request) {
 }
 
 // AnalysisEvents streams progress/error/completed events over SSE (see
-// docs/detailed-design.md §9). A client that reloads mid-run should fall
-// back to GET /api/analysis/{id} for the current snapshot rather than
-// depend on catching every event.
+// docs/detailed-design.md §9). The stream opens with a "status" event (or,
+// for a finished analysis, its terminal event) read from the database after
+// subscribing, so a client that reconnects never waits for an event that
+// was already sent. GET /api/analysis/{id} stays the state of record.
 func (h *Handler) AnalysisEvents(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "analysisID")
 	if _, err := h.App.GetAnalysis(r.Context(), id); err != nil {
@@ -175,6 +236,19 @@ func (h *Handler) AnalysisEvents(w http.ResponseWriter, r *http.Request) {
 
 	ch := h.JobManager.Subscribe(id)
 	defer h.JobManager.Unsubscribe(id, ch)
+
+	current, err := h.App.GetAnalysis(r.Context(), id)
+	if err != nil {
+		return
+	}
+	if ev, done := service.TerminalEvent(current); done {
+		fmt.Fprintf(w, "event: %s\ndata: %s\n\n", ev.Event, ev.Data)
+		flusher.Flush()
+		return
+	}
+	status, _ := json.Marshal(map[string]any{"step": current.CurrentStep, "progress": current.Progress, "lifecycle": current.Lifecycle()})
+	fmt.Fprintf(w, "event: status\ndata: %s\n\n", status)
+	flusher.Flush()
 
 	for {
 		select {

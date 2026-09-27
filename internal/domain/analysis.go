@@ -30,6 +30,67 @@ const (
 	AnalysisFailed    AnalysisStatus = "failed"
 )
 
+// AnalysisFailureCode says why a failed analysis failed (#133). The legacy
+// status stays "failed" for every code, so readers that only know the four
+// statuses keep working; an empty code on a legacy row means not recorded.
+type AnalysisFailureCode string
+
+const (
+	// FailureError is a failure of the run itself (input, model, pipeline).
+	FailureError AnalysisFailureCode = "ERROR"
+	// FailureCancelled means a caller cancelled the run.
+	FailureCancelled AnalysisFailureCode = "CANCELLED"
+	// FailureInterrupted means the process stopped while the run was
+	// running. Model-backed stages may already have been called, so the run
+	// is never resumed in place; retry it as a new run.
+	FailureInterrupted AnalysisFailureCode = "INTERRUPTED"
+	// FailureNeedsRequeue means a queued run could not be resumed after a
+	// restart because its execution configuration (engine build, prompts,
+	// models or provider) is no longer what was captured at enqueue.
+	FailureNeedsRequeue AnalysisFailureCode = "NEEDS_REQUEUE"
+)
+
+// AnalysisLifecycle is the coordinator state derived from the stored status
+// and failure code.
+type AnalysisLifecycle string
+
+const (
+	LifecycleQueued          AnalysisLifecycle = "QUEUED"
+	LifecycleRunning         AnalysisLifecycle = "RUNNING"
+	LifecycleCancelRequested AnalysisLifecycle = "CANCEL_REQUESTED"
+	LifecycleSucceeded       AnalysisLifecycle = "SUCCEEDED"
+	LifecycleFailed          AnalysisLifecycle = "FAILED"
+	LifecycleCancelled       AnalysisLifecycle = "CANCELLED"
+	LifecycleInterrupted     AnalysisLifecycle = "INTERRUPTED"
+)
+
+// Lifecycle maps the stored state to the coordinator state machine.
+func (a *Analysis) Lifecycle() AnalysisLifecycle {
+	switch a.Status {
+	case AnalysisQueued:
+		return LifecycleQueued
+	case AnalysisRunning:
+		if a.CancelRequestedAt != nil {
+			return LifecycleCancelRequested
+		}
+		return LifecycleRunning
+	case AnalysisCompleted:
+		return LifecycleSucceeded
+	}
+	switch a.FailureCode {
+	case FailureCancelled:
+		return LifecycleCancelled
+	case FailureInterrupted, FailureNeedsRequeue:
+		return LifecycleInterrupted
+	}
+	return LifecycleFailed
+}
+
+// Finished reports whether the analysis reached a terminal status.
+func (a *Analysis) Finished() bool {
+	return a.Status == AnalysisCompleted || a.Status == AnalysisFailed
+}
+
 type Analysis struct {
 	ID          string
 	ProjectID   string
@@ -63,4 +124,11 @@ type Analysis struct {
 	StartedAt            *time.Time
 	FinishedAt           *time.Time
 	CreatedAt            time.Time
+
+	// FailureCode is set when Status is failed by a lifecycle-aware engine.
+	FailureCode AnalysisFailureCode
+	// CancelRequestedAt is when a caller asked to cancel the running run.
+	CancelRequestedAt *time.Time
+	// RetryOf is the failed analysis this run retries, if any.
+	RetryOf string
 }
