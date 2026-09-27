@@ -83,6 +83,24 @@ The `analyses` table is the queue of record. Workers claim the oldest `queued` r
 - **Retry.** `POST /api/analysis/{id}/retry` enqueues a failed run again as a new analysis with the same request (label, note, semantic mode, question, reasoning profile, output locale, requested execution profile, model bindings) under the current settings. A failed run has at most one retry (`202` new, `200` existing). HEAVY preparation keeps its deterministic job ID, so a retry resumes partitions the Heavy Runtime already finished.
 - **SSE.** `GET /api/analysis/{id}/events` opens with a `status` event, or the terminal event of a finished run, read after subscribing; `GET /api/analysis/{id}` stays the state of record.
 
+### Portable HEAVY work (#134)
+
+HEAVY preparation no longer hands the Heavy Runtime a Go callback that rescans the whole CSV per partition. It now:
+
+1. scans the raw file **once** to cut byte shards that each hold whole records (a newline inside a quoted field is never a boundary) and verifies the registered sha256 and size;
+2. describes each shard as a versioned, serializable `WorkSpec` (`insight-lab.work/v1`): the allowlisted operation `csv-aggregate-shard/1`, the input URI, header and shard byte ranges, the sha256 of the header-plus-shard bytes, the declarative spec and its sha256, and result limits. No closures, commands, SQL, credentials or host paths;
+3. dispatches it to a worker, which reads only its ranges, aggregates them with the same `input.AggregateCSV`, verifies the bytes' hash and returns a `WorkResult` echoing the job, partition, operation and content hash;
+4. accepts a result only when it answers that exact spec and its result hash matches, then merges the partial aggregates on the coordinator.
+
+Total I/O is one planning scan plus one read of each shard (about 2× the file) instead of N+1 full scans. Shard IDs derive from byte offsets, so `LocalRuntime` still resumes finished partitions; state from before this change (`rows-mod-*` partitions) is simply recomputed. CSV row numbers in a shard's parse error are relative to the shard.
+
+| RuntimeMode | Flag | Placement |
+|---|---|---|
+| LOCAL (default) | `-runtime local` | in-process |
+| PROCESS (opt-in) | `-runtime process` | one child `insight-lab worker -input-root DIR` per partition: WorkSpec on stdin, WorkResult on stdout, empty environment (no API keys), bounded output, 30-minute timeout, crash retried by the Heavy Runtime |
+
+RuntimeMode is independent of ExecutionProfile and fails at startup when its prerequisites (`-heavy-dir`, `-input-root`) are missing; it never downgrades silently. It is recorded as `runtimeMode` in the execution snapshot (outside the execution fingerprint) and reported in `GET /api/health` `capabilities.runtime`. LOCAL and PROCESS produce the same prepared artifact.
+
 ## Five independent axes
 
 | Axis | Values | Meaning |

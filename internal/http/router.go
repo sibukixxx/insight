@@ -10,6 +10,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
 
+	"insight-lab/internal/execution"
 	"insight-lab/internal/http/handler"
 	appmw "insight-lab/internal/http/middleware"
 	"insight-lab/internal/http/public"
@@ -34,6 +35,8 @@ type Deps struct {
 	PublicEngine *publicengine.Engine
 	// NoWeb disables the embedded Reference Web; only the APIs are served.
 	NoWeb bool
+	// RuntimeMode is where HEAVY partitions run (LOCAL or PROCESS).
+	RuntimeMode execution.RuntimeMode
 
 	Build handler.BuildInfo
 }
@@ -47,7 +50,7 @@ func NewRouter(deps Deps) http.Handler {
 	h := &handler.Handler{
 		App:  deps.App,
 		Demo: deps.Demo, Settings: deps.Settings, JobManager: deps.JobManager, Ingest: deps.Ingest,
-		NewLLMClient: deps.NewLLMClient, Build: deps.Build,
+		NewLLMClient: deps.NewLLMClient, Build: deps.Build, RuntimeMode: deps.RuntimeMode,
 	}
 
 	r.Route("/api", func(r chi.Router) {

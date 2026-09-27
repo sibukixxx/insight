@@ -24,9 +24,15 @@ const MetadataPreparedFrom = "public_prepared_from"
 // Both use the same deterministic processor, so the prepared artifact — and
 // every research result derived from it — is identical across profiles.
 type Preparation struct {
-	Resolver    input.Resolver
-	Heavy       execution.Runtime
-	Partitions  int
+	Resolver input.Resolver
+	Heavy    execution.Runtime
+	// Dispatcher places HEAVY partitions (#134): nil runs them in this
+	// process; a ProcessDispatcher runs each in a child worker process.
+	Dispatcher execution.Dispatcher
+	// Partitions is the target number of HEAVY shards; zero means 4.
+	Partitions int
+	// ShardBytes, when positive, fixes the shard size instead.
+	ShardBytes  int64
 	MaxRawBytes int64
 	// Concurrency bounds how many raw artifacts are prepared at once
 	// (STANDARD bounded concurrency, #91). Zero means 2. Output order and
@@ -36,6 +42,22 @@ type Preparation struct {
 
 func (p *Preparation) Capabilities() execution.Capabilities {
 	return execution.Capabilities{HeavyRuntime: p != nil && p.Heavy != nil}
+}
+
+// RuntimeMode is where HEAVY partitions run.
+func (p *Preparation) RuntimeMode() execution.RuntimeMode {
+	return p.dispatcher().Mode()
+}
+
+func (p *Preparation) dispatcher() execution.Dispatcher {
+	if p != nil && p.Dispatcher != nil {
+		return p.Dispatcher
+	}
+	var rs input.Resolver
+	if p != nil {
+		rs = p.Resolver
+	}
+	return execution.InProcess{Resolver: rs}
 }
 
 // Prepare returns new artifact documents for raw references that have a
@@ -149,24 +171,33 @@ func (p *Preparation) aggregate(ctx context.Context, jobID string, ref input.Raw
 		if p.Heavy == nil {
 			return nil, fmt.Errorf("%w: HEAVY requires a configured Heavy Execution Adapter", execution.ErrProfileUnavailable)
 		}
-		k := p.Partitions
-		if k <= 0 {
-			k = 4
+		// One bounded scan plans whole-record byte shards and verifies the
+		// registered bytes; each partition then reads only its own shard.
+		plan, err := p.planShards(ctx, ref)
+		if err != nil {
+			return nil, err
+		}
+		if len(plan.Shards) == 0 {
+			return input.NewAggregate(), nil
 		}
 		job := execution.JobSpec{ID: jobID}
-		for i := 0; i < k; i++ {
-			job.Partitions = append(job.Partitions, fmt.Sprintf("rows-mod-%d-of-%d", i, k))
+		work := make(map[string]execution.WorkSpec, len(plan.Shards))
+		for _, shard := range plan.Shards {
+			w := execution.NewCSVAggregateShardSpec(jobID, ref.URI, plan, shard, spec)
+			job.Partitions = append(job.Partitions, w.PartitionID)
+			work[w.PartitionID] = w
 		}
+		dispatcher := p.dispatcher()
 		state, err := p.Heavy.Run(ctx, job, func(ctx context.Context, partition string) (json.RawMessage, error) {
-			var i, n int64
-			if _, err := fmt.Sscanf(partition, "rows-mod-%d-of-%d", &i, &n); err != nil {
-				return nil, err
+			w, ok := work[partition]
+			if !ok {
+				return nil, fmt.Errorf("unknown partition %q", partition)
 			}
-			agg, err := p.scan(ctx, ref, spec, func(row int64) bool { return row%n == i })
+			res, err := dispatcher.Dispatch(ctx, w)
 			if err != nil {
 				return nil, err
 			}
-			return json.Marshal(agg)
+			return execution.Accept(w, res)
 		})
 		if err != nil {
 			return nil, err
@@ -182,6 +213,33 @@ func (p *Preparation) aggregate(ctx context.Context, jobID string, ref input.Raw
 		return merged, nil
 	}
 	return nil, fmt.Errorf("%w: profile %s does not prepare raw artifacts", execution.ErrProfileUnavailable, profile)
+}
+
+// planShards scans the raw bytes once to cut whole-record shards and
+// checks them against the registered sha256 and size.
+func (p *Preparation) planShards(ctx context.Context, ref input.RawArtifactRef) (input.CSVShardPlan, error) {
+	rc, err := p.Resolver.Open(ctx, ref.URI)
+	if err != nil {
+		return input.CSVShardPlan{}, err
+	}
+	defer rc.Close()
+	v := input.NewVerifyingReader(rc, p.MaxRawBytes)
+	target := p.ShardBytes
+	if target <= 0 {
+		k := p.Partitions
+		if k <= 0 {
+			k = 4
+		}
+		target = max(ref.SizeBytes/int64(k)+1, 1<<20)
+	}
+	plan, err := input.PlanCSVShards(ctx, v, target)
+	if err != nil {
+		return input.CSVShardPlan{}, err
+	}
+	if _, err := v.Check(ref); err != nil {
+		return input.CSVShardPlan{}, fmt.Errorf("raw artifact changed after registration: %w", err)
+	}
+	return plan, nil
 }
 
 // scan streams the raw bytes once, aggregates the rows keep accepts and

@@ -7,6 +7,7 @@ import (
 	"insight-lab/internal/input"
 	"net/http"
 	"os"
+	"path/filepath"
 	"time"
 
 	"insight-lab/internal/buildinfo"
@@ -93,6 +94,17 @@ func Open(ctx context.Context, cfg *Config) (*Engine, error) {
 		if cfg.HeavyDir != "" {
 			prep.Heavy = execution.NewLocalRuntime(cfg.HeavyDir, 4)
 		}
+		if cfg.Runtime == execution.RuntimeProcess {
+			exe, err := execution.WorkerExecutable()
+			if err != nil {
+				return nil, fmt.Errorf("locate worker executable: %w", err)
+			}
+			root, err := filepath.Abs(cfg.InputRoot)
+			if err != nil {
+				return nil, err
+			}
+			prep.Dispatcher = execution.ProcessDispatcher{Executable: exe, Args: []string{"worker", "-input-root", root}}
+		}
 		jobManager.ConfigureExecution(prep)
 		engineOpts = append(engineOpts, publicengine.WithInputResolver(prep.Resolver, prep.MaxRawBytes))
 	}
@@ -140,6 +152,7 @@ func Run(ctx context.Context, cfg *Config) error {
 		NewLLMClient: service.DefaultLLMClientFactory,
 		PublicEngine: publicEngine,
 		NoWeb:        cfg.NoWeb,
+		RuntimeMode:  jobManager.RuntimeMode(),
 		Build: handler.BuildInfo{
 			DemoBuild:  sampledata.Embedded,
 			ClientName: cfg.ClientName,
