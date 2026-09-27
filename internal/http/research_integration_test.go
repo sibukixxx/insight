@@ -191,6 +191,13 @@ func TestResearchHTTPPromotionReviewAndTransition(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// The browser review page loads the run itself before any iteration route.
+	fetched := httptest.NewRecorder()
+	router.ServeHTTP(fetched, httptest.NewRequest(http.MethodGet, "/api/research-runs/"+run.ID, nil))
+	if fetched.Code != http.StatusOK {
+		t.Fatalf("get run: %d %s", fetched.Code, fetched.Body.String())
+	}
+
 	reviewURL := "/api/research-runs/" + run.ID + "/iterations/" + run.Iterations[0].ID + "/promotion-review"
 	reviewReq := httptest.NewRequest(http.MethodPut, reviewURL, bytes.NewBufferString(`{"contribution":"CORRECTION","humanReviewCompleted":false}`))
 	reviewReq.Header.Set("content-type", "application/json")
