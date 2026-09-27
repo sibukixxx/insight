@@ -130,8 +130,15 @@ func TestIngestDocumentsAreInvisibleUntilReadyAndCarryTheFileHash(t *testing.T) 
 			t.Fatalf("document metadata = %v", d.Metadata)
 		}
 	}
-	if _, err := os.Stat(filepath.Join(f.dir, job.ID)); !errors.Is(err, os.ErrNotExist) {
-		t.Fatalf("staging directory kept after a READY ingest without rejected rows: %v", err)
+	// Staging cleanup follows the READY transition.
+	for deadline := time.Now().Add(5 * time.Second); ; time.Sleep(5 * time.Millisecond) {
+		_, err := os.Stat(filepath.Join(f.dir, job.ID))
+		if errors.Is(err, os.ErrNotExist) {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("staging directory kept after a READY ingest without rejected rows: %v", err)
+		}
 	}
 }
 
