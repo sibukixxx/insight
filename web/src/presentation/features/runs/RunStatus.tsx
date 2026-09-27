@@ -18,7 +18,9 @@ export function RunStatus({ run, live }: { run: AnalysisRun | undefined; live?: 
   if (run.status === "failed" && !live) return <Notice kind="error">{t("analysis.failed", { message: run.error ?? "" })}</Notice>;
   const step = live?.step ?? run.currentStep;
   const known = labelKey(STEP_LABELS, step);
-  const stepText = known ? t(known) : live?.message ?? (step ? step : label(RUN_STATUS_LABELS, run.status));
+  // A snapshot of a queued run has no step yet; its status code is labelled too.
+  const statusKey = labelKey(RUN_STATUS_LABELS, step);
+  const stepText = known ? t(known) : statusKey ? t(statusKey) : live?.message ?? (step ? step : label(RUN_STATUS_LABELS, run.status));
   const progress = live?.progress ?? run.progress;
   return (
     <div class={styles.status} role="status" aria-live="polite">
