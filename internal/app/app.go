@@ -33,25 +33,49 @@ type Engine struct {
 	Ingest     *service.IngestManager
 	Public     *publicengine.Engine
 	Demo       *service.DemoLoader
+
+	lock *engineLock
 }
 
-// Close stops the analysis workers (after ctx is cancelled) and closes the DB.
+// Close stops the analysis workers (after ctx is cancelled), closes the DB
+// and releases the database to other processes.
 func (e *Engine) Close() error {
+	defer e.lock.release()
 	e.JobManager.Wait()
 	e.Ingest.Wait()
 	return e.DB.Close()
 }
 
-// Open wires the engine and starts analysis workers bound to ctx.
+// Open takes exclusive ownership of the database, wires the engine and
+// starts analysis workers bound to ctx. It fails with ErrEngineInUse while
+// another Insight process (server or headless command) owns the database.
 func Open(ctx context.Context, cfg *Config) (*Engine, error) {
+	lock, err := lockEngine(cfg.DBPath)
+	if err != nil {
+		return nil, err
+	}
+	eng, err := open(ctx, cfg)
+	if err != nil {
+		lock.release()
+		return nil, err
+	}
+	eng.lock = lock
+	return eng, nil
+}
+
+func open(ctx context.Context, cfg *Config) (_ *Engine, err error) {
 	db, err := sqlite.Open(cfg.DBPath)
 	if err != nil {
 		return nil, fmt.Errorf("open database: %w", err)
 	}
+	defer func() {
+		if err != nil {
+			db.Close()
+		}
+	}()
 	publicRepo := sqlite.NewPublicRepository(db)
 	state, err := publicRepo.EngineState(ctx)
 	if err != nil {
-		db.Close()
 		return nil, err
 	}
 
@@ -143,7 +167,7 @@ func Run(ctx context.Context, cfg *Config) error {
 	if err != nil {
 		return err
 	}
-	defer func() { cancel(); eng.DB.Close() }()
+	defer func() { cancel(); eng.Close() }()
 	application, settings, jobManager, publicEngine, demoLoader := eng.App, eng.Settings, eng.JobManager, eng.Public, eng.Demo
 
 	router := httpapi.NewRouter(httpapi.Deps{

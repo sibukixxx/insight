@@ -139,3 +139,22 @@ func TestHeadlessResearchFlowEndToEnd(t *testing.T) {
 		t.Fatalf("status: %+v", st)
 	}
 }
+
+func TestHeadlessCommandRefusesADatabaseAnotherEngineOwns(t *testing.T) {
+	db := filepath.Join(t.TempDir(), "owned.db")
+	cfg, err := app.ParseConfig([]string{"-db", db})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	eng, err := app.Open(ctx, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { cancel(); eng.Close() }()
+
+	r := run(t, "engine", "-db", db)
+	if r.code != ExitConflict || errorCode(t, r) != "ENGINE_IN_USE" {
+		t.Fatalf("exit %d, stderr %s", r.code, r.stderr)
+	}
+}

@@ -9,6 +9,7 @@ This directory contains three different kinds of documentation. Keeping them sep
 | [Architecture map](architecture.md) | Canonical Engine → Public Contract → optional SDK → execution profiles picture (#95) |
 | [Frontend architecture](frontend-architecture.md) | Reference Web: TypeScript/Preact onion layers, CSS Modules, build/embed, screens and tests (#128) |
 | [Public Engine Contract v1](public-engine-contract.md) | The language-neutral boundary consumers and the standalone SDKs use: transport, semantics, errors, versioning, conformance fixtures (#59) |
+| [Persistence and state ownership](persistence.md) | What Insight persists, who owns it, the one-coordinator lock, transaction boundaries, backup, and what a future external store must provide (#137) |
 | [Analytical Artifact contract](analytical-artifact-contract.md) | Import/export contract for deterministic results produced outside Insight; external producers use the SDK `analytical` packages (#69) |
 | [Project scope](project-scope.md) | What belongs in the public OSS project and what does not |
 | [BYO-Evidence boundary](byo-evidence-boundary.md) | Insight Lab reasons over provided evidence and never fetches it; how missing evidence leaves and re-enters the loop |
