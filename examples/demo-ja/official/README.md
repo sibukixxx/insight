@@ -31,6 +31,7 @@ Insight Lab のデモシナリオ `ja-official-population`（公的統計）と 
 
 - 統計ダッシュボードのコピーライトポリシー <https://dashboard.e-stat.go.jp/static/terms>: 「公共データ利用規約（第1.0版）」（PDL1.0）
 - 参考: e-Stat 本体の利用規約 <https://www.e-stat.go.jp/terms-of-use> は政府標準利用規約（第2.0版）準拠で CC BY 4.0 と互換と書かれています。このデータの取得元は統計ダッシュボードなので、上の PDL1.0 が適用されます
+- `raw/stat_*_gaiyo*.html` は総務省統計局サイトの調査概要ページをそのまま保存したもので、統計局ウェブサイトの利用規約（政府標準利用規約（第2.0版）準拠、出典：総務省統計局ウェブサイト）に従います。調査期日の確認にだけ使い、CSV には期日以外を転記していません
 - CSV に変換した時点で「編集・加工」にあたるため、次の3つをすべて表示します（`scenario.json` の `attribution`、各行末にも出典を記載）
   - 出典：統計ダッシュボード（https://dashboard.e-stat.go.jp/）
   - 統計ダッシュボード（https://dashboard.e-stat.go.jp/）のデータを加工して作成（Insight Lab デモ用に文章化）
