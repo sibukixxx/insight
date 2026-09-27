@@ -206,6 +206,9 @@ footer.privacy {
 .header-actions { display: flex; align-items: center; gap: 12px; }
 .settings-link { font-size: 13px; color: var(--text-muted); }
 .settings-link:hover { color: var(--accent); text-decoration: none; }
+.locale-select { padding: 4px 6px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; background: #fff; color: var(--text); }
+.locale-select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.locale-setting { display: flex; align-items: center; gap: 8px; }
 .brand a { color: var(--text); }
 .brand a:hover { text-decoration: none; }
 

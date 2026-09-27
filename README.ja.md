@@ -54,6 +54,12 @@ Model-backed分析ではOpenAI互換endpointを指定します。
 
 Model未設定でも、決定論的なingestion、validation、temporal operation、対応済みanalytical processingは利用できます。Model生成のHypothesisにはModel設定が必要です。
 
+### ブラウザUIの表示言語
+
+Reference Browser UIは日本語と英語に対応しています。ヘッダーの「日本語 / English」、または「設定 → 表示言語」で切り替えます。選択はブラウザ（`localStorage`）に保存され、未保存の場合はブラウザの言語設定に従い、どちらでもなければ英語になります。
+
+切り替わるのはUIのラベル・メッセージ・日時と数値の書式だけです。Evidence、原文、引用、サーバーのメッセージ、ID、enumコードは翻訳せず、Modelが研究テキストを書く言語も変わりません。Model出力の言語は別の設定です（#125）。
+
 ## 何をするソフトウェアか
 
 基本フロー:

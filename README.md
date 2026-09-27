@@ -86,6 +86,12 @@ For model-backed analysis, configure an OpenAI-compatible endpoint:
 
 Without a model, deterministic ingestion, validation, temporal operations, and supported analytical processing remain available. Model-generated hypotheses require a configured model.
 
+### Browser UI language
+
+The reference browser UI is available in English and Japanese. Switch with the 日本語 / English selector in the header or under Settings → Display language. The choice is stored in the browser (`localStorage`); without a saved choice the UI follows the browser language and falls back to English.
+
+The selector changes UI labels, messages and date/number formatting only. It does not translate evidence, source text, quotes, server messages, IDs or enum codes, and it does not change the language the model writes research text in. Model output language is a separate concern (#125).
+
 ## What it does
 
 The core research flow is:
