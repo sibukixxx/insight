@@ -215,7 +215,13 @@ Enable local raw-file references or a Heavy Runtime directory with:
 ./bin/insight-lab serve -input-root ./data -heavy-dir ./heavy
 ```
 
-See [Architecture](docs/architecture.md).
+HEAVY partitions run in-process by default (`-runtime local`). To isolate them in child worker processes of the same binary, opt in with `-runtime process` (or `INSIGHT_LAB_RUNTIME=process`); it needs `-heavy-dir` and `-input-root` and no other service. Results are identical in both modes.
+
+```sh
+./bin/insight-lab serve -input-root ./data -heavy-dir ./heavy -runtime process
+```
+
+See [Architecture](docs/architecture.md#portable-heavy-work-134).
 
 ## Operational responsibility
 
