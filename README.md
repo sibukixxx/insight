@@ -238,6 +238,8 @@ Managed products may provide these functions around Insight Core, but they are n
 
 The default deployment is the single binary with SQLite and a local data directory; it needs no database server, broker, Docker or cloud account. External PostgreSQL, brokers and object stores are optional adapters, never prerequisites, and one server process owns one SQLite database. See [ADR 0001: Standalone-first portable deployment](docs/adr/0001-standalone-first-portable-deployment.md).
 
+To run it in a container instead of as a binary, `docker compose up -d` starts Insight alone with its data in a named volume, published on `127.0.0.1:8787`; no database or broker is started. See [Deployment](docs/deployment.md) for configuration, backup and upgrades.
+
 ## Non-goals
 
 Insight Core is not:

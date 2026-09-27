@@ -20,7 +20,7 @@ import (
 type command func(ctx context.Context, args []string, stderr io.Writer) (any, error)
 
 var commands = map[string]command{
-	"serve": nil, "help": nil, "worker": nil,
+	"serve": nil, "help": nil, "worker": nil, "health": nil,
 	"engine":   runEngine,
 	"subject":  group(map[string]command{"create": subjectCreate}),
 	"evidence": group(map[string]command{"add": evidenceAdd}),

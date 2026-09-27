@@ -24,3 +24,17 @@ func TestParseConfigRuntimeIsLocalByDefaultAndProcessNeedsHeavyDirAndInputRoot(t
 		t.Fatalf("process runtime = %q, %v", cfg.Runtime, err)
 	}
 }
+
+func TestParseConfigReadsModelSettingsFromEnvironmentUnlessFlagsOverride(t *testing.T) {
+	t.Setenv("INSIGHT_LAB_MODEL", "env-model")
+	t.Setenv("INSIGHT_LAB_BASE_URL", "http://env.invalid/v1")
+	db := filepath.Join(t.TempDir(), "i.db")
+	cfg, err := ParseConfig([]string{"-db", db})
+	if err != nil || cfg.Model != "env-model" || cfg.BaseURL != "http://env.invalid/v1" {
+		t.Fatalf("from env = %q %q, %v", cfg.Model, cfg.BaseURL, err)
+	}
+	cfg, err = ParseConfig([]string{"-db", db, "-model", "flag-model"})
+	if err != nil || cfg.Model != "flag-model" {
+		t.Fatalf("flag must win: %q, %v", cfg.Model, err)
+	}
+}
