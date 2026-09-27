@@ -230,6 +230,8 @@ Insight Lab is self-hosted software. The operator is responsible for:
 
 Managed products may provide these functions around Insight Core, but they are not part of the OSS research semantics.
 
+The default deployment is the single binary with SQLite and a local data directory; it needs no database server, broker, Docker or cloud account. External PostgreSQL, brokers and object stores are optional adapters, never prerequisites, and one server process owns one SQLite database. See [ADR 0001: Standalone-first portable deployment](docs/adr/0001-standalone-first-portable-deployment.md).
+
 ## Non-goals
 
 Insight Core is not:
