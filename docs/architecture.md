@@ -63,6 +63,26 @@ POST /api/projects/{id}/ingests  (raw text/csv, or multipart: kind, manifest, th
 - **Retention.** The staged upload is deleted when the job finishes; the error export stays with the job. The receipt previews the first documents as `scope: SAMPLE`.
 - **Standalone.** The ingest directory defaults to `ingest/` beside the database (`-ingest-dir` / `INSIGHT_LAB_INGEST_DIR` override it); no extra service is needed. `GET /api/health` reports `capabilities.largeIngest`. Only the Go-supported CSV kinds (`documents`, `analysis`) are accepted; raw-reference registration stays with `RAW_ARTIFACT`.
 
+### Analysis lifecycle (#133)
+
+The `analyses` table is the queue of record. Workers claim the oldest `queued` row with a conditional update, so nothing about a waiting run lives only in memory except the API key it was enqueued with.
+
+| Lifecycle | Stored status / failure code | Meaning |
+|---|---|---|
+| QUEUED | `queued` | Waiting; admission is bounded (`DefaultMaxQueuedAnalyses` = 256, beyond it `503` + `Retry-After`) |
+| RUNNING / CANCEL_REQUESTED | `running` (+ `cancel_requested_at`) | Claimed by a worker |
+| SUCCEEDED | `completed` | Results recorded |
+| FAILED | `failed` / `ERROR` | The run itself failed |
+| CANCELLED | `failed` / `CANCELLED` | `POST /api/analysis/{id}/cancel` |
+| INTERRUPTED | `failed` / `INTERRUPTED` or `NEEDS_REQUEUE` | Stopped by a restart |
+
+- **Legacy compatibility.** `status` keeps the four values `queued / running / completed / failed`; the Reference API adds `lifecycle`, `failureCode`, `cancelRequestedAt` and `retryOf`. The Public Engine Contract v1 is unchanged: a cancelled or interrupted run is `failed` with its reason in `error`.
+- **Terminal correctness.** Every terminal write is conditional on the row still being `running`; completion additionally requires that no cancel was requested. A run cancelled while its pipeline finished is recorded as CANCELLED, never as a success, and no run is finished twice.
+- **Cancel.** A queued run is cancelled at once. A running run records the request and its context is cancelled, which reaches model calls and stops the Heavy Runtime from starting or retrying partitions (a partition already scanning finishes its read). A finished run answers `409`.
+- **Restart.** A run that was `running` is marked INTERRUPTED and is never resumed in place: model-backed stages may already have been called, and model calls are not exactly-once. A `queued` run resumes only when the current settings reproduce its recorded execution fingerprint (engine build, prompts, provider and models); otherwise it fails with `NEEDS_REQUEUE`. The API key is never persisted. On graceful shutdown a running run is left for this recovery rather than recorded as a failure.
+- **Retry.** `POST /api/analysis/{id}/retry` enqueues a failed run again as a new analysis with the same request (label, note, semantic mode, question, reasoning profile, output locale, requested execution profile, model bindings) under the current settings. A failed run has at most one retry (`202` new, `200` existing). HEAVY preparation keeps its deterministic job ID, so a retry resumes partitions the Heavy Runtime already finished.
+- **SSE.** `GET /api/analysis/{id}/events` opens with a `status` event, or the terminal event of a finished run, read after subscribing; `GET /api/analysis/{id}` stays the state of record.
+
 ## Five independent axes
 
 | Axis | Values | Meaning |

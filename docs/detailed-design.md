@@ -308,6 +308,8 @@ CREATE INDEX idx_evidence_insight ON evidence(insight_id);
 
 起動時: `running`/`queued` のまま残っている analyses を `failed`（error='interrupted'）に更新する。**[変更: P0-3 対応]**
 
+**[変更: #133]** 起動時に `failed` にするのは `running` の行だけ（`failure_code = INTERRUPTED`）。`queued` の行は durable queue としてそのまま残し、実行設定が再現できる場合に再開する（詳細は [architecture.md](architecture.md#analysis-lifecycle-133)）。
+
 ## 9. HTTP API
 
 ```
