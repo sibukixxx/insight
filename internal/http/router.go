@@ -83,8 +83,10 @@ func NewRouter(deps Deps) http.Handler {
 			})
 		})
 
-		r.Get("/research-runs/{runID}", h.GetResearchRun)
+		// The run itself is served inside the Route: a sibling Get on the same
+		// pattern is shadowed by the mounted subrouter and answers 404.
 		r.Route("/research-runs/{runID}", func(r chi.Router) {
+			r.Get("/", h.GetResearchRun)
 			r.Post("/iterations", h.AppendResearchIteration)
 			r.Get("/iterations/{iterationID}", h.GetResearchIteration)
 			r.Get("/compare/{fromIterationID}/{toIterationID}", h.CompareResearchIterations)
