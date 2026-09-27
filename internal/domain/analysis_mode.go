@@ -65,7 +65,11 @@ type ResearchClaim struct {
 	Statement          string   `json:"statement"`
 	SourceReference    string   `json:"sourceReference,omitempty"`
 	EvidenceReferences []string `json:"evidenceReferences,omitempty"`
-	Assumptions        []string `json:"assumptions,omitempty"`
+	// HypothesisReferences optionally name the hypotheses (insight IDs) the
+	// claim asserts. Without them, claim inspection links every hypothesis
+	// whose evidence the claim cites.
+	HypothesisReferences []string `json:"hypothesisReferences,omitempty"`
+	Assumptions          []string `json:"assumptions,omitempty"`
 }
 
 func (c ResearchClaim) Validate() error {
