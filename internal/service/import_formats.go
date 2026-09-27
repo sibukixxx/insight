@@ -125,16 +125,24 @@ type ImportPreview struct {
 }
 
 // discardDocuments satisfies DocumentRepository for a dry run: writes are
-// captured, never stored.
-type discardDocuments struct{ created []*domain.Document }
+// counted and the first PreviewDocumentLimit kept, never stored.
+type discardDocuments struct {
+	kept  []*domain.Document
+	total int
+}
 
 func (d *discardDocuments) Create(_ context.Context, doc *domain.Document) error {
-	d.created = append(d.created, doc)
+	d.total++
+	if len(d.kept) < PreviewDocumentLimit {
+		d.kept = append(d.kept, doc)
+	}
 	return nil
 }
 
-func (d *discardDocuments) CreateBatch(_ context.Context, docs []*domain.Document) error {
-	d.created = append(d.created, docs...)
+func (d *discardDocuments) CreateBatch(ctx context.Context, docs []*domain.Document) error {
+	for _, doc := range docs {
+		_ = d.Create(ctx, doc)
+	}
 	return nil
 }
 
@@ -180,8 +188,8 @@ func PreviewImport(ctx context.Context, kind, projectID string, r io.Reader) (*I
 	if preview.Errors == nil {
 		preview.Errors = []ImportRowError{}
 	}
-	preview.TotalDocuments = len(sink.created)
-	preview.Documents = sink.created[:min(len(sink.created), PreviewDocumentLimit)]
+	preview.TotalDocuments = sink.total
+	preview.Documents = sink.kept
 	if profile, err := triage.ProfileCSV(data); err != nil {
 		preview.ProfileError = err.Error()
 	} else {
