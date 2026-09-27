@@ -11,7 +11,8 @@ export default defineConfig({
   plugins: [preact()],
   build: {
     outDir,
-    emptyOutDir: false,
+    // dist holds only build output; nothing in it is hand-written.
+    emptyOutDir: true,
     assetsDir: "assets",
     sourcemap: false,
   },
