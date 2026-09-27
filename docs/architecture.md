@@ -24,6 +24,10 @@ User / App / downstream product (e.g. TechVit Insight)
 - **SDKs** are thin clients in separate repositories. They are convenient, never required: everything is reachable over HTTP/JSON.
 - The engine never depends on an SDK or on any consumer repository.
 
+## Deployment
+
+Insight is standalone-first: the default is one Go binary with SQLite and the local filesystem, and no documented feature (including HEAVY) needs a network database, broker, Docker or cloud account. External PostgreSQL, brokers and object stores are **optional** adapters, never prerequisites, and one coordinator process owns one SQLite database. See [ADR 0001](adr/0001-standalone-first-portable-deployment.md) for state ownership, the single/multi-coordinator boundary and the support matrix.
+
 ## Input path
 
 ```text
