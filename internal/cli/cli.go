@@ -108,6 +108,8 @@ func runWorker(ctx context.Context, args []string, stdin io.Reader, stdout, stde
 	fs := flag.NewFlagSet("insight-lab worker", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	root := fs.String("input-root", "", "directory file: inputs are resolved in (required)")
+	brokerURL := fs.String("broker", os.Getenv("INSIGHT_LAB_BROKER"), "pull WorkSpecs from this broker until stopped (remote worker, #135) instead of one from stdin")
+	name := fs.String("name", "", "worker name reported with results")
 	if err := fs.Parse(args); err != nil {
 		return ExitUsage
 	}
@@ -116,6 +118,22 @@ func runWorker(ctx context.Context, args []string, stdin io.Reader, stdout, stde
 		return ExitUsage
 	}
 	rs := input.Resolvers{"file": input.FileResolver{Root: *root}}
+	if *brokerURL != "" {
+		b, err := execution.OpenBroker(ctx, *brokerURL)
+		if err != nil {
+			fmt.Fprintln(stderr, "insight-lab worker:", err)
+			return ExitCapabilityUnavailable
+		}
+		defer b.Close()
+		if *name == "" {
+			*name, _ = os.Hostname()
+		}
+		if err := execution.RunRemoteWorker(ctx, b, rs, *name); err != nil {
+			fmt.Fprintln(stderr, "insight-lab worker:", err)
+			return ExitInternal
+		}
+		return ExitOK
+	}
 	if err := execution.ServeWorker(ctx, stdin, stdout, rs); err != nil {
 		fmt.Fprintln(stderr, "insight-lab worker:", err)
 		if errors.Is(err, execution.ErrWorkRejected) {
@@ -185,8 +203,9 @@ Usage:
   insight-lab research export   -run R [-out FILE]   (Research Artifact JSON)
   insight-lab status  -subject S
   insight-lab worker  -input-root DIR          PROCESS runtime child: one WorkSpec on stdin, WorkResult on stdout
+  insight-lab worker  -input-root DIR -broker URL   remote worker for -runtime distributed (builds with -tags jetstream)
 
-Engine flags (all commands): -db, -api-key, -model, -base-url, -input-root, -heavy-dir, -runtime, -allowed-models
+Engine flags (all commands): -db, -api-key, -model, -base-url, -input-root, -heavy-dir, -runtime, -broker, -allowed-models
 Server flags: -host, -port, -no-browser, -no-web, -demo, -client
 
 Output is JSON on stdout. Errors are JSON on stderr with exit codes:
