@@ -10,8 +10,7 @@ This directory contains three different kinds of documentation. Keeping them sep
 | [ADR 0001: Standalone-first portable deployment](adr/0001-standalone-first-portable-deployment.md) | Default = one Go binary + SQLite; state ownership, optional adapters, single-coordinator boundary and support matrix (#136) |
 | [Frontend architecture](frontend-architecture.md) | Reference Web: TypeScript/Preact onion layers, CSS Modules, build/embed, screens and tests (#128) |
 | [Public Engine Contract v1](public-engine-contract.md) | The language-neutral boundary consumers and the standalone SDKs use: transport, semantics, errors, versioning, conformance fixtures (#59) |
-| [Deployment conformance](deployment-conformance.md) | Topologies verified vs not, and which tests check each dimension (same results across runtimes, no silent downgrade, restart, secrets, backpressure) (#139) |
-| [Deployment](deployment.md) | Default single-container Compose (Insight only, one volume), configuration precedence, optional setups, backup/upgrade/rollback (#138) |
+| [Remote runtime (experimental)](remote-runtime.md) | DISTRIBUTED placement through a broker-neutral port and the build-tagged JetStream PoC: guarantees, tests, cost and the postponement decision (#135) |
 | [Persistence and state ownership](persistence.md) | What Insight persists, who owns it, the one-coordinator lock, transaction boundaries, backup, and what a future external store must provide (#137) |
 | [Analytical Artifact contract](analytical-artifact-contract.md) | Import/export contract for deterministic results produced outside Insight; external producers use the SDK `analytical` packages (#69) |
 | [Project scope](project-scope.md) | What belongs in the public OSS project and what does not |

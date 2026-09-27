@@ -1,6 +1,8 @@
 package app
 
 import (
+	"context"
+	"errors"
 	"path/filepath"
 	"testing"
 
@@ -25,16 +27,19 @@ func TestParseConfigRuntimeIsLocalByDefaultAndProcessNeedsHeavyDirAndInputRoot(t
 	}
 }
 
-func TestParseConfigReadsModelSettingsFromEnvironmentUnlessFlagsOverride(t *testing.T) {
-	t.Setenv("INSIGHT_LAB_MODEL", "env-model")
-	t.Setenv("INSIGHT_LAB_BASE_URL", "http://env.invalid/v1")
+func TestDistributedRuntimeNeedsABrokerAndABuildWithItsAdapter(t *testing.T) {
 	db := filepath.Join(t.TempDir(), "i.db")
-	cfg, err := ParseConfig([]string{"-db", db})
-	if err != nil || cfg.Model != "env-model" || cfg.BaseURL != "http://env.invalid/v1" {
-		t.Fatalf("from env = %q %q, %v", cfg.Model, cfg.BaseURL, err)
+	heavy, root := t.TempDir(), t.TempDir()
+	if _, err := ParseConfig([]string{"-db", db, "-runtime", "distributed", "-heavy-dir", heavy, "-input-root", root}); err == nil {
+		t.Fatal("distributed runtime without -broker was accepted")
 	}
-	cfg, err = ParseConfig([]string{"-db", db, "-model", "flag-model"})
-	if err != nil || cfg.Model != "flag-model" {
-		t.Fatalf("flag must win: %q, %v", cfg.Model, err)
+	cfg, err := ParseConfig([]string{"-db", db, "-runtime", "distributed", "-heavy-dir", heavy, "-input-root", root, "-broker", "nats://127.0.0.1:1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if _, err := Open(ctx, cfg); !errors.Is(err, execution.ErrNoBrokerAdapter) {
+		t.Fatalf("a default build must refuse the distributed runtime instead of running locally: %v", err)
 	}
 }
