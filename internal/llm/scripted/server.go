@@ -10,9 +10,16 @@ import (
 
 // Answer returns the scripted answer for one pipeline step.
 func Answer(schemaName, input string) (json.RawMessage, error) {
+	return AnswerWithSystem(schemaName, "", input)
+}
+
+// AnswerWithSystem also passes the system prompt, so instructions such as
+// an explicit output locale reach the scripted model.
+func AnswerWithSystem(schemaName, system, input string) (json.RawMessage, error) {
 	resp, err := Model{}.Generate(context.Background(), llm.GenerateRequest{
-		Messages: []llm.Message{{Role: "user", Content: input}},
-		Schema:   llm.Schema{Name: schemaName},
+		SystemPrompt: system,
+		Messages:     []llm.Message{{Role: "user", Content: input}},
+		Schema:       llm.Schema{Name: schemaName},
 	})
 	if err != nil {
 		return nil, err
@@ -28,6 +35,7 @@ func Handler() http.Handler {
 	mux.HandleFunc("POST /chat/completions", func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
 			Messages []struct {
+				Role    string `json:"role"`
 				Content string `json:"content"`
 			} `json:"messages"`
 			ResponseFormat struct {
@@ -40,7 +48,13 @@ func Handler() http.Handler {
 			writeError(w, "request must carry messages and a json_schema response_format")
 			return
 		}
-		content, err := Answer(req.ResponseFormat.JSONSchema.Name, req.Messages[len(req.Messages)-1].Content)
+		var system string
+		for _, m := range req.Messages {
+			if m.Role == "system" {
+				system += m.Content
+			}
+		}
+		content, err := AnswerWithSystem(req.ResponseFormat.JSONSchema.Name, system, req.Messages[len(req.Messages)-1].Content)
 		if err != nil {
 			writeError(w, err.Error())
 			return
