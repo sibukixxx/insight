@@ -22,6 +22,7 @@ This directory contains three different kinds of documentation. Keeping them sep
 | [Temporal evidence and analytics pack](temporal-evidence.md) | Temporal Analytical Artifacts, Observation Delta (#70) and declarative temporal operations (#73) |
 | [Longitudinal research](longitudinal-research.md) | Re-observing one question over time, as-of windows and the timeline read model (#71, #68) |
 | [Evaluation](evaluation/README.md) | How to run and inspect repeatable model-backed evaluation |
+| [Claim Inspection](claim-inspection.md) | Deterministic inspection of external claims against existing evidence and hypothesis states (#119) |
 | [Discovery Benchmark](evaluation/discovery-benchmark.md) | Deterministic discovery / no-discovery / false-association cases, baseline, known failures (#120) |
 | [Data Triage](data-triage.md) | Deterministic Dataset Profile and auditable, versioned Selection Plans that choose what deterministic processing looks at (#92) |
 

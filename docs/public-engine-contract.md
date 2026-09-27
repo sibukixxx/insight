@@ -138,7 +138,7 @@ Consumers (LLM output, human reports, other apps) can submit external claims to 
 - The status is derived from the linked hypotheses' existing states and is never stronger than them: all contradicted → `CONTRADICTED`; supported with no open competing explanation, cited evidence and wording that does not exceed them → `SUPPORTED`; causal wording without an identified causal hypothesis, mixed, untested or competing → `INSUFFICIENT`; no inspected hypothesis uses the cited evidence → `UNKNOWN`.
 - A citation that is not in the subject's evidence is reported `NOT_FOUND` with `CITATION_NOT_FOUND`; nothing is ever created from a claim. Keyword flags (causal wording, over-generalization, English and Japanese) are hints and can miss other wording.
 - `appendIteration` without `claims` keeps the run's claims and re-inspects them against the new analysis; earlier iterations keep their inspections.
-- Conformance: `21-claim-inspection`.
+- Conformance: `21-claim-inspection`. Design notes: [`claim-inspection.md`](claim-inspection.md).
 
 ## Model bindings (#65 extension point)
 
