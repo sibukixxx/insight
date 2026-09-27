@@ -1,7 +1,7 @@
 // Package web embeds the static frontend so the whole application ships as
-// one binary. The frontend is plain HTML/CSS/JS (no build step) so it can
-// be committed and embedded directly without a Node toolchain being part
-// of the Go build.
+// one binary. dist/ is generated from the TypeScript sources in web/ by
+// `make web-build` and committed, so `make build` needs no Node toolchain;
+// `make web-check` fails when the committed dist/ no longer matches web/.
 package web
 
 import (

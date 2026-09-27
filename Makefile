@@ -9,7 +9,7 @@ BINDIR  := bin
 VERSION ?= $(shell git describe --tags --dirty 2>/dev/null)
 LDFLAGS := $(if $(VERSION),-X insight-lab/internal/buildinfo.Version=$(VERSION))
 
-.PHONY: build build-demo build-delivery test test-golden vet clean cross-compile cross-compile-demo cross-compile-delivery eval-demo
+.PHONY: build build-demo build-delivery build-all test test-golden vet clean cross-compile cross-compile-demo cross-compile-delivery eval-demo web-install web-build web-check web-test web-e2e
 
 build: build-delivery
 
@@ -20,6 +20,35 @@ build-delivery:
 # 商談デモ用ビルド。サンプルインタビューデータを埋め込む（internal/sampledata/embed_demo.go）。
 build-demo:
 	go build -ldflags "$(LDFLAGS)" -tags demo -o $(BINDIR)/$(BINARY)-demo $(PKG)
+
+# Frontend (web/ → internal/web/dist). The committed dist/ keeps `make build`
+# Node-free; these targets need Node 22+ and pnpm.
+WEB_DIST := internal/web/dist
+
+web-install:
+	pnpm --dir web install --frozen-lockfile
+
+web-build: web-install
+	pnpm --dir web build
+
+# Frontend + Go single binary.
+build-all: web-build build
+
+web-test: web-install
+	pnpm --dir web typecheck
+	pnpm --dir web lint
+	pnpm --dir web test
+
+# Fails when the committed dist/ is not the build output of web/ (stale or
+# hand-edited assets, or files the build no longer produces).
+web-check: web-test web-build
+	@git diff --exit-code -- $(WEB_DIST) || (echo "internal/web/dist is stale: run make web-build and commit it" >&2; exit 1)
+	@test -z "$$(git ls-files --others --exclude-standard -- $(WEB_DIST))" || (echo "untracked files in internal/web/dist:" >&2; git ls-files --others --exclude-standard -- $(WEB_DIST) >&2; exit 1)
+
+# Browser E2E against real Go binaries (delivery and demo builds) with the
+# scripted local model; no paid LLM. Needs `pnpm --dir web exec playwright install chromium` once.
+web-e2e: web-build
+	pnpm --dir web test:e2e
 
 test:
 	go test ./...

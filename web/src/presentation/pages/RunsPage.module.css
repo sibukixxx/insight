@@ -1,0 +1,13 @@
+.tableWrap { overflow-x: auto; border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.table { width: 100%; border-collapse: collapse; font-size: var(--font-size-sm); }
+.table th, .table td { padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--color-border); text-align: left; vertical-align: top; }
+.table th { background: var(--color-surface-muted); font-size: var(--font-size-xs); color: var(--color-text-muted); white-space: nowrap; }
+.table tr:last-child td { border-bottom: none; }
+.table td { overflow-wrap: anywhere; }
+.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--space-3); align-items: end; }
+.axes { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-3); margin-bottom: var(--space-3); }
+.axis { padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-muted); display: grid; gap: var(--space-1); font-size: var(--font-size-sm); }
+.axisLabel { font-size: var(--font-size-xs); color: var(--color-text-muted); font-weight: 700; }
+.explanation { margin: var(--space-3) 0 0; padding-left: var(--space-5); font-size: var(--font-size-sm); color: var(--color-text-muted); }
+.changes { margin: var(--space-1) 0 0; padding-left: var(--space-4); }

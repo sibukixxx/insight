@@ -1,0 +1,14 @@
+.hero { padding: var(--space-8) 0 var(--space-6); display: grid; gap: var(--space-3); }
+.hero h1 { font-size: var(--font-size-2xl); }
+.lead { color: var(--color-text-muted); font-size: var(--font-size-base); max-width: 720px; }
+.steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--space-3); list-style: none; padding: 0; margin: var(--space-4) 0 0; }
+.step { display: grid; gap: var(--space-1); padding: var(--space-4); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); font-size: var(--font-size-sm); }
+.stepNum { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--color-accent-weak); color: var(--color-accent); font-weight: 800; }
+.stepTitle { font-weight: 700; font-size: var(--font-size-md); }
+.stepHint { color: var(--color-text-muted); }
+.paths { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--space-4); }
+.path { display: grid; gap: var(--space-3); align-content: start; }
+.pathTitle { font-weight: 700; }
+.hint { color: var(--color-text-muted); font-size: var(--font-size-sm); }
+.inline { display: flex; gap: var(--space-2); flex-wrap: wrap; align-items: flex-end; }
+.inline > :first-child { flex: 1 1 220px; }
