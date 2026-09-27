@@ -74,6 +74,9 @@ func (a *Application) CreateResearchRun(ctx context.Context, in CreateResearchRu
 	iteration.InputSnapshot = in.InputSnapshot
 	iteration.Claims = append([]domain.ResearchClaim(nil), in.Claims...)
 	iteration = service.FinalizeResearchIteration(domain.ResearchRun{}, iteration, nil, now)
+	if iteration.ClaimInspections, err = a.inspectClaims(ctx, in.ProjectID, analysis.ID, insights, iteration, nil); err != nil {
+		return nil, err
+	}
 	run := &domain.ResearchRun{ID: newID("run"), ProjectID: in.ProjectID, Question: strings.TrimSpace(in.Question), Iterations: []domain.ResearchIteration{iteration}, CreatedAt: now}
 	if err := a.repos.Research.CreateRun(ctx, run); err != nil {
 		return nil, fmt.Errorf("create research run: %w", err)
@@ -131,7 +134,14 @@ func (a *Application) buildAppendedIteration(ctx context.Context, run *domain.Re
 	if latest, ok := run.LatestIteration(); ok {
 		iteration.PreviousIterationID = latest.ID
 	}
-	iteration.Claims = append([]domain.ResearchClaim(nil), in.Claims...)
+	// Claims are re-inspected on every iteration against its new evidence;
+	// a request without claims keeps the run's current ones.
+	claims := in.Claims
+	previous, hasPrevious := run.LatestIteration()
+	if len(claims) == 0 && hasPrevious {
+		claims = previous.Claims
+	}
+	iteration.Claims = append([]domain.ResearchClaim(nil), claims...)
 	snapshot := in.InputSnapshot
 	if len(snapshot.ArtifactReferences) == 0 {
 		snapshot.ArtifactReferences = append([]string(nil), in.InputReferences...)
@@ -146,6 +156,13 @@ func (a *Application) buildAppendedIteration(ctx context.Context, run *domain.Re
 	}
 	iteration.InputSnapshot = snapshot
 	iteration = service.FinalizeResearchIterationWithLinks(*run, iteration, in.AddedEvidence, in.AddedEvidenceLinks, now)
+	var prior *domain.ResearchIteration
+	if hasPrevious {
+		prior = &previous
+	}
+	if iteration.ClaimInspections, err = a.inspectClaims(ctx, run.ProjectID, analysis.ID, insights, iteration, prior); err != nil {
+		return domain.ResearchIteration{}, err
+	}
 	if previous, ok := run.LatestIteration(); ok && iteration.Delta != nil {
 		if note := a.instrumentNote(ctx, previous.AnalysisID, iteration.AnalysisID); note != "" {
 			iteration.Delta.Explanation = append(iteration.Delta.Explanation, note)
@@ -443,4 +460,46 @@ func (a *Application) GetResearchTimeline(ctx context.Context, runID string) (*d
 		}
 	}
 	return &timeline, nil
+}
+
+// inspectClaims checks the iteration's claims against the analysis it was
+// built from (#119). It reads evidence, observations and documents; it never
+// writes any, so a claim can never become evidence.
+func (a *Application) inspectClaims(ctx context.Context, projectID, analysisID string, insights []*domain.Insight, iteration domain.ResearchIteration, previous *domain.ResearchIteration) ([]domain.ClaimInspection, error) {
+	if len(iteration.Claims) == 0 {
+		return nil, nil
+	}
+	withEvidence := make([]*domain.Insight, 0, len(insights))
+	for _, insight := range insights {
+		if insight == nil {
+			continue
+		}
+		copied := *insight
+		if len(copied.Evidence) == 0 && a.repos.Evidence != nil {
+			evidence, err := a.repos.Evidence.ListByInsight(ctx, insight.ID)
+			if err != nil {
+				return nil, fmt.Errorf("load evidence of %s: %w", insight.ID, err)
+			}
+			for _, e := range evidence {
+				copied.Evidence = append(copied.Evidence, *e)
+			}
+		}
+		withEvidence = append(withEvidence, &copied)
+	}
+	observations, err := a.repos.Observations.ListByAnalysis(ctx, analysisID)
+	if err != nil {
+		return nil, fmt.Errorf("load observations: %w", err)
+	}
+	documents, err := a.repos.Documents.ListByProject(ctx, projectID)
+	if err != nil {
+		return nil, fmt.Errorf("load documents: %w", err)
+	}
+	inspections, err := service.InspectClaims(service.ClaimInspectionInput{
+		Claims: iteration.Claims, Insights: withEvidence, Observations: observations, Documents: documents,
+		ResearchGaps: iteration.ResearchGaps, Previous: previous,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrInvalidInput, err)
+	}
+	return inspections, nil
 }

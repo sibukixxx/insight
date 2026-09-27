@@ -1,0 +1,136 @@
+{
+  "caseId": "CI-02",
+  "version": "0.1.0",
+  "domain": "technical-diagnostics",
+  "title": "Claims about a latency regression, one with an invented source",
+  "input": {
+    "documents": [
+      {
+        "id": "doc-latency",
+        "externalRef": "latency-dashboard",
+        "source": "record",
+        "content": "p95 latency rose from 180 ms to 420 ms after the 2026-05-02 cache configuration change."
+      }
+    ],
+    "observations": [
+      {
+        "id": "obs-latency",
+        "documentId": "doc-latency",
+        "quote": "p95 latency rose from 180 ms to 420 ms after the 2026-05-02 cache configuration change."
+      }
+    ],
+    "insights": [
+      {
+        "id": "h-cache",
+        "title": "Cache configuration change",
+        "hypothesisSetId": "s1",
+        "role": "PRIMARY",
+        "causalStatus": "OBSERVED_ASSOCIATION",
+        "validationStatus": "SUPPORTED",
+        "identificationStatus": "NOT_IDENTIFIED",
+        "missingEvidence": [
+          "latency with the previous cache configuration restored"
+        ],
+        "evidence": [
+          {
+            "id": "ev-1",
+            "insightId": "h-cache",
+            "documentId": "doc-latency",
+            "observationId": "obs-latency",
+            "quote": "p95 latency rose from 180 ms to 420 ms after the 2026-05-02 cache configuration change.",
+            "type": "support"
+          }
+        ]
+      },
+      {
+        "id": "h-traffic",
+        "title": "Traffic spike",
+        "hypothesisSetId": "s1",
+        "role": "COMPETING",
+        "causalStatus": "CAUSAL_HYPOTHESIS",
+        "validationStatus": "CONTRADICTED",
+        "identificationStatus": "NOT_IDENTIFIED",
+        "evidence": [
+          {
+            "id": "ev-2",
+            "insightId": "h-traffic",
+            "documentId": "doc-latency",
+            "observationId": "obs-latency",
+            "quote": "p95 latency rose from 180 ms to 420 ms after the 2026-05-02 cache configuration change.",
+            "type": "counter"
+          }
+        ]
+      }
+    ],
+    "researchGaps": [
+      {
+        "id": "gap-rollback",
+        "need": "a rollback measurement",
+        "affectedHypothesisIds": [
+          "h-cache"
+        ]
+      }
+    ],
+    "claims": [
+      {
+        "id": "a-timing",
+        "statement": "Latency rose after the cache configuration change.",
+        "evidenceReferences": [
+          "latency-dashboard"
+        ],
+        "hypothesisReferences": [
+          "h-cache"
+        ],
+        "assumptions": [
+          "the dashboard sampled the same endpoints"
+        ]
+      },
+      {
+        "id": "b-invented",
+        "statement": "Latency rose because the database was undersized.",
+        "evidenceReferences": [
+          "db-capacity-report"
+        ]
+      },
+      {
+        "id": "c-unknown-hypothesis",
+        "statement": "A memory leak explains the regression.",
+        "evidenceReferences": [
+          "obs-latency"
+        ],
+        "hypothesisReferences": [
+          "h-memory-leak"
+        ]
+      }
+    ]
+  },
+  "expected": [
+    {
+      "claimId": "a-timing",
+      "status": "SUPPORTED",
+      "flags": []
+    },
+    {
+      "claimId": "b-invented",
+      "status": "UNKNOWN",
+      "flags": [
+        "CAUSAL_LANGUAGE_WITHOUT_IDENTIFICATION",
+        "CITATION_NOT_FOUND"
+      ]
+    },
+    {
+      "claimId": "c-unknown-hypothesis",
+      "status": "UNKNOWN",
+      "flags": [
+        "HYPOTHESIS_NOT_FOUND"
+      ]
+    }
+  ],
+  "humanReview": {
+    "status": "PENDING",
+    "reviewer": null,
+    "reviewedAt": null,
+    "outcome": null,
+    "notes": "The invented capacity report must not be treated as evidence; the timing claim stays an association."
+  }
+}

@@ -302,7 +302,21 @@
         "analysisId": {"type": "string", "minLength": 1},
         "inputReferences": {"type": "array", "items": {"type": "string"}},
         "semanticAnalysisMode": {"type": "string", "enum": ["DISCOVERY", "DATASET_ANALYSIS", "RESEARCH_REVIEW"]},
-        "observationWindow": {"$ref": "#/$defs/ObservationWindow"}
+        "observationWindow": {"$ref": "#/$defs/ObservationWindow"},
+        "claims": {"type": "array", "maxItems": 50, "items": {"$ref": "#/$defs/ResearchClaim"}, "description": "External statements to inspect against this research state (#119). Inspections appear in artifact.claimInspections. A claim is never evidence and gets no independent truth score."}
+      }
+    },
+    "ResearchClaim": {
+      "type": "object",
+      "description": "An external statement submitted for claim inspection (#119). A reused id with different content is INVALID_REQUEST.",
+      "required": ["id", "statement"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1, "maxLength": 128},
+        "statement": {"type": "string", "minLength": 1, "maxLength": 2000},
+        "sourceReference": {"type": "string", "maxLength": 512, "description": "Where the claim comes from (report, author, URL). Recorded, never fetched."},
+        "evidenceReferences": {"type": "array", "maxItems": 50, "items": {"type": "string", "minLength": 1, "maxLength": 256}, "description": "Documents (externalRef or documentId) or observations the claim cites. A reference not in the subject's evidence is reported NOT_FOUND, never turned into evidence."},
+        "hypothesisReferences": {"type": "array", "maxItems": 50, "items": {"type": "string", "minLength": 1, "maxLength": 256}, "description": "Optional insight IDs the claim asserts. Omitted: every hypothesis whose evidence the claim cites is linked."},
+        "assumptions": {"type": "array", "maxItems": 20, "items": {"type": "string", "maxLength": 2000}, "description": "Premises the claim depends on. Reported as unverified; never evaluated."}
       }
     },
     "ObservationWindow": {
@@ -336,7 +350,8 @@
         "analysisId": {"type": "string", "minLength": 1},
         "question": {"type": "string", "maxLength": 2000},
         "addedEvidence": {"type": "array", "items": {"$ref": "#/$defs/AddedEvidenceLink"}},
-        "observationWindow": {"$ref": "#/$defs/ObservationWindow"}
+        "observationWindow": {"$ref": "#/$defs/ObservationWindow"},
+        "claims": {"type": "array", "maxItems": 50, "items": {"$ref": "#/$defs/ResearchClaim"}, "description": "Replaces the run's claims for this iteration. Omitted keeps the current claims and re-inspects them against the new evidence; each inspection records its previous status."}
       }
     },
     "ResearchResult": {

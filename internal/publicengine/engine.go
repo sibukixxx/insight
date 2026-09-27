@@ -522,9 +522,13 @@ func (e *Engine) CreateResearchRun(ctx context.Context, subjectID string, req Cr
 		if analysisQuestion := analysisResearchQuestion(analysis); analysisQuestion != "" && analysisQuestion != question {
 			return 0, nil, newError(CodeInvalidRequest, "research question does not match the question-conditioned analysis")
 		}
+		claims, err := toDomainClaims(req.Claims)
+		if err != nil {
+			return 0, nil, err
+		}
 		run, err := e.app.CreateResearchRun(ctx, usecase.CreateResearchRunInput{
 			ProjectID: subject.ProjectID, AnalysisID: req.AnalysisID, Question: question,
-			InputReferences: req.InputReferences, AnalysisMode: mode, ObservationWindow: req.ObservationWindow,
+			InputReferences: req.InputReferences, AnalysisMode: mode, ObservationWindow: req.ObservationWindow, Claims: claims,
 		})
 		if err != nil {
 			return 0, nil, err
@@ -566,9 +570,13 @@ func (e *Engine) AppendIteration(ctx context.Context, researchRunID string, req 
 			references = append(references, link.Reference)
 			links = append(links, domain.AddedEvidenceLink{Reference: link.Reference, GapIDs: link.GapIDs, Note: link.Note})
 		}
+		claims, err := toDomainClaims(req.Claims)
+		if err != nil {
+			return 0, nil, err
+		}
 		if _, err := e.app.AppendResearchIteration(ctx, usecase.AppendResearchIterationInput{
 			RunID: run.ID, AnalysisID: req.AnalysisID, Question: effectiveQuestion,
-			AddedEvidence: references, AddedEvidenceLinks: links, ObservationWindow: req.ObservationWindow,
+			AddedEvidence: references, AddedEvidenceLinks: links, ObservationWindow: req.ObservationWindow, Claims: claims,
 		}); err != nil {
 			return 0, nil, err
 		}
@@ -579,6 +587,72 @@ func (e *Engine) AppendIteration(ctx context.Context, researchRunID string, req 
 		result, err := e.researchResult(ctx, run.ProjectID, updated)
 		return http.StatusCreated, result, err
 	})
+}
+
+// Claim limits keep an inspection request bounded (#119).
+const (
+	maxClaims            = 50
+	maxClaimIDLength     = 128
+	maxClaimRefs         = 50
+	maxClaimRefLength    = 256
+	maxClaimAssumptions  = 20
+	maxClaimTextLength   = 2000
+	maxClaimSourceLength = 512
+)
+
+// toDomainClaims validates public claims. A claim id reused for different
+// content is ambiguous and rejected here rather than guessed.
+func toDomainClaims(in []ResearchClaim) ([]domain.ResearchClaim, error) {
+	if len(in) > maxClaims {
+		return nil, newError(CodeInvalidRequest, "at most %d claims are accepted", maxClaims)
+	}
+	refs := func(i int, field string, values []string) ([]string, error) {
+		if len(values) > maxClaimRefs {
+			return nil, newError(CodeInvalidRequest, "claims[%d].%s is limited to %d entries", i, field, maxClaimRefs)
+		}
+		out := make([]string, 0, len(values))
+		for _, v := range values {
+			v = strings.TrimSpace(v)
+			if v == "" || len(v) > maxClaimRefLength {
+				return nil, newError(CodeInvalidRequest, "claims[%d].%s entries must be 1-%d characters", i, field, maxClaimRefLength)
+			}
+			out = append(out, v)
+		}
+		return out, nil
+	}
+	out := make([]domain.ResearchClaim, 0, len(in))
+	contents := map[string]string{}
+	for i, c := range in {
+		id, statement := strings.TrimSpace(c.ID), strings.TrimSpace(c.Statement)
+		if id == "" || len(id) > maxClaimIDLength || statement == "" || len(statement) > maxClaimTextLength || len(c.SourceReference) > maxClaimSourceLength {
+			return nil, newError(CodeInvalidRequest, "claims[%d] needs an id (1-%d), a statement (1-%d) and a sourceReference of at most %d characters", i, maxClaimIDLength, maxClaimTextLength, maxClaimSourceLength)
+		}
+		if len(c.Assumptions) > maxClaimAssumptions {
+			return nil, newError(CodeInvalidRequest, "claims[%d].assumptions is limited to %d entries", i, maxClaimAssumptions)
+		}
+		for _, a := range c.Assumptions {
+			if len(a) > maxClaimTextLength {
+				return nil, newError(CodeInvalidRequest, "claims[%d].assumptions entries are limited to %d characters", i, maxClaimTextLength)
+			}
+		}
+		evidence, err := refs(i, "evidenceReferences", c.EvidenceReferences)
+		if err != nil {
+			return nil, err
+		}
+		hypotheses, err := refs(i, "hypothesisReferences", c.HypothesisReferences)
+		if err != nil {
+			return nil, err
+		}
+		claim := domain.ResearchClaim{ID: id, Statement: statement, SourceReference: strings.TrimSpace(c.SourceReference),
+			EvidenceReferences: evidence, HypothesisReferences: hypotheses, Assumptions: append([]string(nil), c.Assumptions...)}
+		content, _ := json.Marshal(claim)
+		if prior, ok := contents[id]; ok && prior != string(content) {
+			return nil, newError(CodeInvalidRequest, "claims[%d]: id %q is already used for a different claim", i, id)
+		}
+		contents[id] = string(content)
+		out = append(out, claim)
+	}
+	return out, nil
 }
 
 // GetResearchRun returns the latest iteration of a research run.

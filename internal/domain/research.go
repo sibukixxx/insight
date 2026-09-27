@@ -324,7 +324,10 @@ type ResearchIteration struct {
 	HypothesisSetIDs    []string           `json:"hypothesisSetIds,omitempty"`
 	InsightIDs          []string           `json:"insightIds,omitempty"`
 	Claims              []ResearchClaim    `json:"claims,omitempty"`
-	HypothesisStates    []HypothesisState  `json:"hypothesisStates,omitempty"`
+	// ClaimInspections are the deterministic inspections of Claims against
+	// this iteration's research state (#119); empty when no claim was given.
+	ClaimInspections []ClaimInspection `json:"claimInspections,omitempty"`
+	HypothesisStates []HypothesisState `json:"hypothesisStates,omitempty"`
 	// Expectations are the first-class validation targets carried on this
 	// iteration: those built from this iteration's own insights plus any
 	// frozen expectation derived from a prior iteration. They are never
