@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"insight-lab/internal/execution"
 	"insight-lab/internal/input"
+	"log/slog"
 	"strings"
 	"sync"
 	"time"
@@ -141,8 +142,17 @@ func (m *JobManager) worker(ctx context.Context) {
 	for {
 		for ctx.Err() == nil {
 			a, err := m.analyses.ClaimNextQueued(ctx)
+			if errors.Is(err, repository.ErrNotFound) {
+				break
+			}
 			if err != nil {
-				break // nothing queued (or the database is closing)
+				if ctx.Err() == nil {
+					// Queued rows stay queued; look again shortly instead of
+					// stranding them until the next enqueue.
+					slog.Error("claim queued analysis", "error", err)
+					time.AfterFunc(time.Second, m.signal)
+				}
+				break
 			}
 			// Another idle worker may take the next queued run meanwhile.
 			m.signal()
