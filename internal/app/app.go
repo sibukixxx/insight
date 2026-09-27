@@ -34,7 +34,8 @@ type Engine struct {
 	Public     *publicengine.Engine
 	Demo       *service.DemoLoader
 
-	lock *engineLock
+	lock   *engineLock
+	broker execution.Broker
 }
 
 // Close stops the analysis workers (after ctx is cancelled), closes the DB
@@ -43,6 +44,9 @@ func (e *Engine) Close() error {
 	defer e.lock.release()
 	e.JobManager.Wait()
 	e.Ingest.Wait()
+	if e.broker != nil {
+		e.broker.Close()
+	}
 	return e.DB.Close()
 }
 
@@ -64,6 +68,12 @@ func Open(ctx context.Context, cfg *Config) (*Engine, error) {
 }
 
 func open(ctx context.Context, cfg *Config) (_ *Engine, err error) {
+	var broker execution.Broker
+	defer func() {
+		if err != nil && broker != nil {
+			broker.Close()
+		}
+	}()
 	db, err := sqlite.Open(cfg.DBPath)
 	if err != nil {
 		return nil, fmt.Errorf("open database: %w", err)
@@ -129,6 +139,14 @@ func open(ctx context.Context, cfg *Config) (_ *Engine, err error) {
 			}
 			prep.Dispatcher = execution.ProcessDispatcher{Executable: exe, Args: []string{"worker", "-input-root", root}}
 		}
+		if cfg.Runtime == execution.RuntimeDistributed {
+			b, err := execution.OpenBroker(ctx, cfg.Broker)
+			if err != nil {
+				return nil, fmt.Errorf("distributed runtime: %w", err)
+			}
+			broker = b
+			prep.Dispatcher = execution.RemoteDispatcher{Broker: b}
+		}
 		jobManager.ConfigureExecution(prep)
 		engineOpts = append(engineOpts, publicengine.WithInputResolver(prep.Resolver, prep.MaxRawBytes))
 	}
@@ -156,7 +174,7 @@ func open(ctx context.Context, cfg *Config) (_ *Engine, err error) {
 		}
 		return service.DefaultLLMClientFactory(current), current.Model, true
 	})
-	return &Engine{DB: db, App: application, Settings: settings, JobManager: jobManager, Ingest: ingest, Public: publicEngine, Demo: demoLoader}, nil
+	return &Engine{broker: broker, DB: db, App: application, Settings: settings, JobManager: jobManager, Ingest: ingest, Public: publicEngine, Demo: demoLoader}, nil
 }
 
 // Run serves the API and, unless NoWeb, the embedded Reference Web.

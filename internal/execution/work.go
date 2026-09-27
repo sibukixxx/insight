@@ -234,17 +234,21 @@ type RuntimeMode string
 const (
 	RuntimeLocal   RuntimeMode = "LOCAL"
 	RuntimeProcess RuntimeMode = "PROCESS"
+	// RuntimeDistributed dispatches to remote workers through a broker
+	// adapter (#135). It is opt-in and needs a build that registers one.
+	RuntimeDistributed RuntimeMode = "DISTRIBUTED"
 )
 
-// ParseRuntimeMode accepts local or process (any case); empty is LOCAL.
+// ParseRuntimeMode accepts local, process or distributed (any case); empty
+// is LOCAL.
 func ParseRuntimeMode(s string) (RuntimeMode, error) {
 	switch m := RuntimeMode(bytes.ToUpper([]byte(s))); m {
 	case "":
 		return RuntimeLocal, nil
-	case RuntimeLocal, RuntimeProcess:
+	case RuntimeLocal, RuntimeProcess, RuntimeDistributed:
 		return m, nil
 	}
-	return "", fmt.Errorf("unknown runtime %q (want local or process)", s)
+	return "", fmt.Errorf("unknown runtime %q (want local, process or distributed)", s)
 }
 
 // Dispatcher delivers one WorkSpec to a worker and returns its answer.

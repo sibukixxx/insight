@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -156,5 +157,26 @@ func TestHeadlessCommandRefusesADatabaseAnotherEngineOwns(t *testing.T) {
 	r := run(t, "engine", "-db", db)
 	if r.code != ExitConflict || errorCode(t, r) != "ENGINE_IN_USE" {
 		t.Fatalf("exit %d, stderr %s", r.code, r.stderr)
+	}
+}
+
+func TestHealthExitsZeroOnlyForAHealthyServer(t *testing.T) {
+	ok := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"status":"ok"}`))
+	}))
+	defer ok.Close()
+	down := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	defer down.Close()
+	var out, errOut bytes.Buffer
+	if code := Main(context.Background(), []string{"health", "-url", ok.URL}, &out, &errOut, nil); code != ExitOK || out.String() != "ok\n" {
+		t.Fatalf("healthy: exit %d out %q err %q", code, out.String(), errOut.String())
+	}
+	if code := Main(context.Background(), []string{"health", "-url", down.URL}, &out, &errOut, nil); code != ExitInternal {
+		t.Fatalf("unhealthy: exit %d", code)
+	}
+	if code := Main(context.Background(), []string{"health", "-url", "http://127.0.0.1:1/api/health"}, &out, &errOut, nil); code != ExitInternal {
+		t.Fatalf("unreachable: exit %d", code)
 	}
 }

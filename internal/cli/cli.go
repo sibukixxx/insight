@@ -12,8 +12,10 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"insight-lab/internal/app"
 	"insight-lab/internal/execution"
@@ -59,6 +61,9 @@ func Main(ctx context.Context, args []string, stdout, stderr io.Writer, serve Se
 		fmt.Fprint(stdout, usage)
 		return ExitOK
 	}
+	if name == "health" {
+		return runHealth(ctx, rest, stdout, stderr)
+	}
 	if name == "worker" {
 		return runWorker(ctx, rest, os.Stdin, stdout, stderr)
 	}
@@ -100,6 +105,41 @@ func Main(ctx context.Context, args []string, stdout, stderr io.Writer, serve Se
 	return ExitOK
 }
 
+// runHealth probes a running server's /api/health, so a container health
+// check needs no HTTP client in the image besides this binary. Exit 0 means
+// the server answered 200 with status ok.
+func runHealth(ctx context.Context, args []string, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("insight-lab health", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	url := fs.String("url", "http://127.0.0.1:8787/api/health", "health endpoint to probe")
+	timeout := fs.Duration("timeout", 3*time.Second, "probe timeout")
+	if err := fs.Parse(args); err != nil {
+		return ExitUsage
+	}
+	ctx, cancel := context.WithTimeout(ctx, *timeout)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, *url, nil)
+	if err != nil {
+		fmt.Fprintln(stderr, "insight-lab health:", err)
+		return ExitUsage
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Fprintln(stderr, "insight-lab health:", err)
+		return ExitInternal
+	}
+	defer resp.Body.Close()
+	var body struct {
+		Status string `json:"status"`
+	}
+	if resp.StatusCode != http.StatusOK || json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&body) != nil || body.Status != "ok" {
+		fmt.Fprintf(stderr, "insight-lab health: %s answered %d\n", *url, resp.StatusCode)
+		return ExitInternal
+	}
+	fmt.Fprintln(stdout, "ok")
+	return ExitOK
+}
+
 // runWorker is the child side of the PROCESS runtime (#134): it executes
 // one WorkSpec read from stdin and writes the WorkResult to stdout. It
 // opens no database and reads no settings or credentials; its only access
@@ -108,6 +148,8 @@ func runWorker(ctx context.Context, args []string, stdin io.Reader, stdout, stde
 	fs := flag.NewFlagSet("insight-lab worker", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	root := fs.String("input-root", "", "directory file: inputs are resolved in (required)")
+	brokerURL := fs.String("broker", os.Getenv("INSIGHT_LAB_BROKER"), "pull WorkSpecs from this broker until stopped (remote worker, #135) instead of one from stdin")
+	name := fs.String("name", "", "worker name reported with results")
 	if err := fs.Parse(args); err != nil {
 		return ExitUsage
 	}
@@ -116,6 +158,22 @@ func runWorker(ctx context.Context, args []string, stdin io.Reader, stdout, stde
 		return ExitUsage
 	}
 	rs := input.Resolvers{"file": input.FileResolver{Root: *root}}
+	if *brokerURL != "" {
+		b, err := execution.OpenBroker(ctx, *brokerURL)
+		if err != nil {
+			fmt.Fprintln(stderr, "insight-lab worker:", err)
+			return ExitCapabilityUnavailable
+		}
+		defer b.Close()
+		if *name == "" {
+			*name, _ = os.Hostname()
+		}
+		if err := execution.RunRemoteWorker(ctx, b, rs, *name); err != nil {
+			fmt.Fprintln(stderr, "insight-lab worker:", err)
+			return ExitInternal
+		}
+		return ExitOK
+	}
 	if err := execution.ServeWorker(ctx, stdin, stdout, rs); err != nil {
 		fmt.Fprintln(stderr, "insight-lab worker:", err)
 		if errors.Is(err, execution.ErrWorkRejected) {
@@ -184,9 +242,11 @@ Usage:
   insight-lab research get      -run R
   insight-lab research export   -run R [-out FILE]   (Research Artifact JSON)
   insight-lab status  -subject S
+  insight-lab health  [-url URL]              probe a running server (exit 0 when healthy)
   insight-lab worker  -input-root DIR          PROCESS runtime child: one WorkSpec on stdin, WorkResult on stdout
+  insight-lab worker  -input-root DIR -broker URL   remote worker for -runtime distributed (builds with -tags jetstream)
 
-Engine flags (all commands): -db, -api-key, -model, -base-url, -input-root, -heavy-dir, -runtime, -allowed-models
+Engine flags (all commands): -db, -api-key, -model, -base-url, -input-root, -heavy-dir, -runtime, -broker, -allowed-models
 Server flags: -host, -port, -no-browser, -no-web, -demo, -client
 
 Output is JSON on stdout. Errors are JSON on stderr with exit codes:

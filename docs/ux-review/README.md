@@ -1,6 +1,7 @@
 # UI/UX follow-up review
 
-Baseline: main `e963631` (includes #129 and #130). This change completes form
+Screenshot baseline: main `e963631` (includes #129 and #130).
+Before finishing, main `e9f0a20` (#147–#149) was merged into the work branch. This change completes form
 feedback and the CSV-to-analysis flow without replacing the frontend or
 changing Go APIs, import contracts, research semantics, or delivery/demo tags.
 Indigo/Cyan tokens and the #130 readiness rules are retained.
@@ -57,3 +58,11 @@ retains its existing locally scrollable tab strip.
 The generated `internal/web/dist` is rebuilt from source and committed; the
 post-commit `make web-check` verifies reproducibility against git. No Go or
 public-contract sources are changed.
+
+## GitHub Actions
+
+[Frontend checks run 36330665901](https://github.com/sibukixxx/insight/actions/runs/36330665901)
+failed before any steps ran. GitHub reports: “The job was not started because
+your account is locked due to a billing issue.” This is an account/billing
+restriction, separate from the successful local checks above. No successful
+GitHub Actions run is claimed.
