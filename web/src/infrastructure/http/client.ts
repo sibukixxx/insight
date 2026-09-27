@@ -9,6 +9,8 @@ export interface HttpClient {
   getJson<T>(path: string, decode: (body: unknown) => T): Promise<T>;
   sendJson<T>(method: "POST" | "PUT" | "DELETE", path: string, body: unknown, decode: (body: unknown) => T): Promise<T>;
   sendForm<T>(path: string, form: FormData, decode: (body: unknown) => T): Promise<T>;
+  /** A non-JSON download (e.g. a CSV) as a Blob; errors as for JSON. */
+  getBlob(path: string): Promise<Blob>;
 }
 
 export type Fetch = (input: string, init?: RequestInit) => Promise<Response>;
@@ -49,6 +51,23 @@ export function createHttpClient(fetchImpl: Fetch = (input, init) => fetch(input
     sendJson: (method, path, body, decode) =>
       request(path, { method, headers: json, body: body === undefined ? null : JSON.stringify(body) }, decode),
     sendForm: (path, form, decode) => request(path, { method: "POST", body: form }, decode),
+    getBlob: async (path) => {
+      let res: Response;
+      try {
+        res = await fetchImpl(path, {});
+      } catch (e) {
+        throw new AppError("network", e instanceof Error ? e.message : String(e));
+      }
+      if (res.ok) return res.blob();
+      // Reuse the JSON path for the server's {"error": ...} message.
+      const text = await res.text();
+      let message = `${res.status} ${res.statusText}`.trim();
+      try {
+        const body = JSON.parse(text) as { error?: unknown };
+        if (typeof body.error === "string") message = body.error;
+      } catch { /* keep the status line */ }
+      throw new AppError("http", message, res.status);
+    },
   };
 }
 

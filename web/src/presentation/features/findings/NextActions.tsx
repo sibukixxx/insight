@@ -25,7 +25,7 @@ export function NextActions({ projectId, run, next }: { projectId: string; run: 
       <li class={styles.action}>
         <strong>{t("next.report.title")}</strong>
         <span class={styles.actionHint}>{t("next.report.hint")}</span>
-        <ButtonLink size="small" variant="primary" href={exports.reportLink(projectId, run.id)} download>{t("project.downloadReport")}</ButtonLink>
+        <ButtonLink size="small" href={exports.reportLink(projectId, run.id)} download>{t("project.downloadReport")}</ButtonLink>
       </li>
       <li class={styles.action}>
         <strong>{t("next.quality.title")}</strong>

@@ -7,4 +7,5 @@ export interface LinkPort {
   researchReport(researchRunId: string): string;
   researchArtifact(researchRunId: string): string;
   approvedResearchArtifact(researchRunId: string): string;
+  sampleInput(scenarioId: string): string;
 }

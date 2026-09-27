@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { AppError } from "../../application/errors";
-import { httpAnalysis, httpEvidence } from "./adapters";
+import { httpAnalysis, httpEvidence, httpSamples } from "./adapters";
 import { createHttpClient, type Fetch } from "./client";
 import { decodeRun } from "./dto";
 
@@ -22,6 +22,31 @@ describe("http client", () => {
     const error = await http.getJson("/api/analysis/x", decodeRun).catch((e: unknown) => e);
     expect(error).toBeInstanceOf(AppError);
     expect(error).toMatchObject({ kind: "invalid-response" });
+  });
+});
+
+describe("sample scenarios", () => {
+  it("downloads the scenario CSV byte for byte and keeps the server's refusal verbatim", async () => {
+    const csv = "id,source,title,content\nr001,record,架空,架空データ。\n";
+    const ok = httpSamples(createHttpClient(async (url) => new Response(url.endsWith("/input.csv") ? csv : "[]", { status: 200 })));
+    const upload = await ok.input("ja-shop-records");
+    expect(upload.name).toBe("insight-sample-ja-shop-records.csv");
+    expect(await upload.blob.text()).toBe(csv);
+    const refused = httpSamples(createHttpClient(respond(409, { error: "this build does not include demo data; start a demo build instead" })));
+    await expect(refused.input("ja-shop-records")).rejects.toMatchObject({ kind: "http", status: 409, message: "this build does not include demo data; start a demo build instead" });
+  });
+
+  it("decodes provenance and keeps absent optional fields absent", async () => {
+    const samples = httpSamples(createHttpClient(respond(200, [{
+      id: "ja-official-population", projectId: "demo-scenario-ja-official-population", projectName: "Sample 02", dataKind: "official",
+      importKind: "documents", inputFile: "input.csv", inputSha256: "fea2", rows: 8,
+      sources: [{ kind: "official", publisher: "総務省統計局", unit: "人", regions: [{ code: "08201", name: "水戸市" }], periods: ["2015", "2020"] }],
+      transform: { script: "examples/demo-ja/official/build.mjs", version: "1", description: "d" }, limitations: ["l"],
+    }])));
+    const [scenario] = await samples.list();
+    expect(scenario?.sources[0]).toMatchObject({ kind: "official", unit: "人", regions: [{ code: "08201", name: "水戸市" }] });
+    expect(scenario?.sources[0]?.license).toBeUndefined();
+    expect(scenario?.sources[0]?.rows).toEqual([]);
   });
 });
 

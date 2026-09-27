@@ -7,6 +7,7 @@ import { Field, formStyles } from "../components/Field";
 import { Notice } from "../components/Notice";
 import { EmptyState, ErrorState, Loading } from "../components/States";
 import { GettingStarted } from "../features/onboarding/GettingStarted";
+import { SampleGallery } from "../features/samples/Samples";
 import onboarding from "../features/onboarding/Onboarding.module.css";
 import { useAsync } from "../hooks/useAsync";
 import { useI18n } from "../i18n/I18nProvider";
@@ -46,15 +47,28 @@ export function HomePage() {
     );
   };
 
+  const jumpTo = (id: string) => {
+    const target = document.getElementById(id);
+    target?.scrollIntoView({ block: "start" });
+    target?.focus({ preventScroll: true });
+  };
+
   return (
     <div class={styles.stack}>
-      <div class={onboarding.hero}>
-        <h1>Insight Lab</h1>
+      <section class={onboarding.hero} aria-labelledby="home-title">
+        <p class={onboarding.eyebrow}>{t("app.tagline")}</p>
+        <h1 id="home-title">Insight Lab</h1>
         <p class={onboarding.lead}>{t("home.lead")}</p>
+        <div class={onboarding.heroActions}>
+          {build.demoBuild && <Button variant="primary" onClick={() => jumpTo("samples")}>{t("home.hero.trySample")}</Button>}
+          <button type="button" class={onboarding.onInk} onClick={() => jumpTo("new-project-name")}>{t("home.hero.ownCsv")}</button>
+        </div>
         {firstRun && <GettingStarted />}
-      </div>
+      </section>
 
       {error && <Notice kind="error">{error}</Notice>}
+
+      {build.demoBuild && state.status === "ok" && <SampleGallery projects={state.data.projects} onError={setError} />}
 
       <div class={onboarding.paths}>
         <Card title={t("home.sample.title")}>
@@ -62,7 +76,7 @@ export function HomePage() {
             {build.demoBuild ? (
               <>
                 <p class={onboarding.hint}>{t("home.sample.hint")}</p>
-                <div><Button id="try-demo" variant={firstRun ? "primary" : "secondary"} onClick={openSample} disabled={busy}>{t("home.tryDemo")}</Button></div>
+                <div><Button id="try-demo" onClick={openSample} disabled={busy}>{t("home.tryDemo")}</Button></div>
               </>
             ) : (
               <>

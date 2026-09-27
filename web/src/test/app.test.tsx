@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/preact";
 import { describe, expect, it } from "vitest";
-import { fakePorts, fakeState } from "./fakePorts";
+import { fakePorts, fakeState, sampleScenario } from "./fakePorts";
 import { renderApp } from "./renderApp";
 
 const xss = "<img src=x onerror=\"window.__xss=1\">";
@@ -29,6 +29,79 @@ describe("Home", () => {
     fireEvent.click(screen.getByRole("button", { name: "Create" }));
     await waitFor(() => expect(window.location.hash).toBe("#/projects/p1/input"));
     expect(ports.projects.create).toHaveBeenCalledWith("Market study");
+  });
+});
+
+describe("sample gallery", () => {
+  const demo = { build: { demoBuild: true, clientName: "" } } as const;
+  const official = sampleScenario({
+    id: "ja-official-population", projectId: "demo-scenario-ja-official-population", dataKind: "official", rows: 8,
+    sources: [{ kind: "official", publisher: "総務省統計局", survey: "国勢調査", unit: "人", url: "https://dashboard.e-stat.go.jp/", license: "PDL1.0", licenseUrl: "https://dashboard.e-stat.go.jp/static/terms", retrievedAt: "2026-09-27T16:50:00Z", rawSha256: "163f", rows: [], regions: [{ code: "08201", name: "水戸市" }], periods: ["2015", "2020"] }],
+  });
+
+  it("asks what to investigate and labels each sample's data kind and input before any analysis", async () => {
+    renderApp(fakePorts(fakeState({ projects: [], samples: [sampleScenario(), official] })), demo);
+    const gallery = await screen.findByRole("region", { name: "What would you like to investigate?" });
+    const cards = within(gallery).getAllByRole("listitem");
+    expect(cards).toHaveLength(2);
+    expect(within(cards[0] as HTMLElement).getByText("Synthetic data")).toBeTruthy();
+    expect(within(cards[1] as HTMLElement).getByText("Real data (official statistics)")).toBeTruthy();
+    expect(within(cards[0] as HTMLElement).getByText("Documents CSV, 9 rows (accepted as is)")).toBeTruthy();
+    expect(within(cards[1] as HTMLElement).getByText("総務省統計局 「国勢調査」")).toBeTruthy();
+    expect(within(gallery).getByText(/They are not results/)).toBeTruthy();
+    // No model: the gallery says what works without one instead of promising analysis.
+    expect(within(gallery).getByText(/No AI model is connected/)).toBeTruthy();
+    expect(within(gallery).queryByText(/View the results/)).toBeNull();
+  });
+
+  it("opens the scenario's own project on its input page and previews the bundled CSV through the ordinary importer", async () => {
+    const ports = fakePorts(fakeState({ projects: [], samples: [sampleScenario()] }));
+    renderApp(ports, demo);
+    fireEvent.click(await screen.findByRole("button", { name: "Try this example" }));
+    await waitFor(() => expect(window.location.hash).toBe("#/projects/demo-scenario-ja-shop-records/input"));
+    expect(ports.samples.openProject).toHaveBeenCalledWith("ja-shop-records");
+    const panel = await screen.findByRole("region", { name: "Find what changed in fictional shop records — and what is still missing" });
+    expect(within(panel).getByText("Synthetic data")).toBeTruthy();
+    fireEvent.click(screen.getByText("Source, retrieval and transformation record"));
+    expect(within(panel).getByText("All data is fictional.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Preview this CSV" }));
+    await waitFor(() => expect(ports.evidence.preview).toHaveBeenCalledWith("demo-scenario-ja-shop-records", "documents", expect.objectContaining({ name: "insight-sample-ja-shop-records.csv" })));
+    expect(ports.samples.input).toHaveBeenCalledWith("ja-shop-records");
+  });
+
+  it("links to the last completed run of a sample that was already analysed", async () => {
+    const scenario = sampleScenario();
+    const state = fakeState({
+      projects: [{ id: scenario.projectId, name: "Sample 01", createdAt: "" }], samples: [scenario],
+      runs: [{ id: "r9", projectId: scenario.projectId, status: "completed", progress: 100, createdAt: "2026-01-01T00:00:00Z" }],
+      settings: { model: "m", baseUrl: "http://x", maskedApiKey: "", hasApiKey: false, configured: true },
+    });
+    renderApp(fakePorts(state), demo);
+    const link = await screen.findByRole("link", { name: /View the results of the last completed run/ });
+    expect(link.getAttribute("href")).toBe("#/projects/demo-scenario-ja-shop-records/findings?run=r9");
+    expect(screen.getByText(/AI model connected \(m\)/)).toBeTruthy();
+  });
+
+  it("keeps the data kind visible on the other screens of a sample project", async () => {
+    const scenario = official;
+    renderApp(fakePorts(fakeState({ projects: [{ id: scenario.projectId, name: "Sample 02", createdAt: "" }], samples: [scenario] })), { ...demo, hash: `#/projects/${scenario.projectId}/analysis` });
+    expect(await screen.findByText("Sample project:")).toBeTruthy();
+    expect(screen.getByText("Real data (official statistics)")).toBeTruthy();
+  });
+
+  it("never asks a delivery build for samples", async () => {
+    const ports = fakePorts(fakeState({ samples: [sampleScenario()] }));
+    renderApp(ports);
+    await screen.findByText("Project One");
+    expect(screen.queryByRole("region", { name: "What would you like to investigate?" })).toBeNull();
+    expect(ports.samples.list).not.toHaveBeenCalled();
+  });
+
+  it("shows the gallery in Japanese with the same data-kind distinction", async () => {
+    renderApp(fakePorts(fakeState({ projects: [], samples: [sampleScenario()] })), { ...demo, locale: "ja" });
+    expect(await screen.findByRole("heading", { name: "何を調べてみますか？" })).toBeTruthy();
+    expect(screen.getByText("架空データ")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "この例で試す" })).toBeTruthy();
   });
 });
 
