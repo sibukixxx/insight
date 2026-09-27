@@ -35,6 +35,9 @@ type ExecutionConfig struct {
 	ExecutionMode        ExecutionMode       `json:"executionMode"`
 	SemanticAnalysisMode domain.AnalysisMode      `json:"semanticAnalysisMode,omitempty"`
 	ReasoningProfile     domain.ReasoningProfile `json:"reasoningProfile,omitempty"`
+	// OutputLocale is the explicitly requested language of generated text
+	// (#125). Empty (not requested) is omitted, so legacy fingerprints hold.
+	OutputLocale domain.OutputLocale `json:"outputLocale,omitempty"`
 	RuleVersions         map[string]string   `json:"ruleVersions"`
 	PromptVersion        string              `json:"promptVersion,omitempty"`
 	// PromptFingerprint (v2) covers prompts, response schemas, temperatures
@@ -95,10 +98,17 @@ func BuildExecutionSnapshot(settings Settings, semantic domain.AnalysisMode, bui
 // as execution/instrument configuration. It must not alter the evidence/input
 // fingerprint.
 func BuildExecutionSnapshotForReasoningProfile(settings Settings, semantic domain.AnalysisMode, profile domain.ReasoningProfile, build buildinfo.Info, at time.Time) (ExecutionSnapshot, error) {
+	return BuildExecutionSnapshotForRun(settings, semantic, profile, "", build, at)
+}
+
+// BuildExecutionSnapshotForRun also records the requested output locale
+// (#125). Like the reasoning profile it is execution configuration: it
+// changes the execution fingerprint and never the input fingerprint.
+func BuildExecutionSnapshotForRun(settings Settings, semantic domain.AnalysisMode, profile domain.ReasoningProfile, locale domain.OutputLocale, build buildinfo.Info, at time.Time) (ExecutionSnapshot, error) {
 	profile = profile.Normalize()
 	config := ExecutionConfig{
 		EngineVersion: build.Version, GitCommit: build.Commit, GitDirty: build.Dirty,
-		ExecutionMode: ExecutionModeDeterministic, SemanticAnalysisMode: semantic, ReasoningProfile: profile,
+		ExecutionMode: ExecutionModeDeterministic, SemanticAnalysisMode: semantic, ReasoningProfile: profile, OutputLocale: locale,
 		RuleVersions: map[string]string{
 			"datasetPreanalysis": datasetPreAnalysisRuleVersion, "analyticalArtifact": analyticalArtifactRuleVersion, "grounding": groundingRuleVersion,
 		},
