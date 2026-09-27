@@ -59,6 +59,9 @@ func NewRouter(deps Deps) http.Handler {
 		}
 		r.Get("/health", h.Health)
 		r.Post("/demo", h.CreateDemoProject)
+		r.Get("/demo/scenarios", h.ListDemoScenarios)
+		r.Get("/demo/scenarios/{scenarioID}/input.csv", h.DemoScenarioInput)
+		r.Post("/demo/scenarios/{scenarioID}/project", h.CreateDemoScenarioProject)
 
 		r.Get("/settings", h.GetSettings)
 		r.Put("/settings", h.UpdateSettings)

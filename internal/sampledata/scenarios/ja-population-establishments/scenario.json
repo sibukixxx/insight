@@ -1,0 +1,133 @@
+{
+  "id": "ja-population-establishments",
+  "dataKind": "mixed",
+  "importKind": "documents",
+  "inputFile": "input.csv",
+  "inputSha256": "3e6f0e9483b8af6e03ac1e36fd76976a278870fc7099fd8c606698cea0e1f0c4",
+  "rows": 12,
+  "sources": [
+    {
+      "kind": "official",
+      "publisher": "総務省統計局",
+      "survey": "国勢調査",
+      "dataset": "総人口（総数）",
+      "provider": "e-Stat 統計ダッシュボード API",
+      "indicatorCode": "0201010000000010000",
+      "regions": [
+        {
+          "code": "08201",
+          "name": "水戸市"
+        },
+        {
+          "code": "08212",
+          "name": "常陸太田市"
+        },
+        {
+          "code": "08220",
+          "name": "つくば市"
+        }
+      ],
+      "periods": [
+        "2020"
+      ],
+      "unit": "人",
+      "url": "https://dashboard.e-stat.go.jp/",
+      "apiRequest": "https://dashboard.e-stat.go.jp/api/1.0/Json/getData?Lang=JP&IndicatorCode=0201010000000010000&RegionCode=08201,08212,08220&Cycle=3&IsSeasonalAdjustment=1&TimeFrom=2015CY00&TimeTo=2020CY00&MetaGetFlg=Y",
+      "retrievedAt": "2026-09-27T16:50:36.651Z",
+      "rawFile": "examples/demo-ja/official/raw/population_census_2015_2020.json",
+      "rawSha256": "163f1816517f73f6d1641b43e79ac1663371ef1ab6c0227d4b5bcff1ff7e55a5",
+      "license": "公共データ利用規約（第1.0版）（PDL1.0）",
+      "licenseUrl": "https://dashboard.e-stat.go.jp/static/terms",
+      "attribution": "出典：統計ダッシュボード（https://dashboard.e-stat.go.jp/）。統計ダッシュボード（https://dashboard.e-stat.go.jp/）のデータを加工して作成（Insight Lab デモ用に文章化）。このサービスは、統計ダッシュボードのAPI機能を使用していますが、サービスの内容は国によって保証されたものではありません。"
+    },
+    {
+      "kind": "official",
+      "publisher": "総務省統計局",
+      "survey": "経済センサス",
+      "dataset": "事業所数（民営）（～2016年）",
+      "provider": "e-Stat 統計ダッシュボード API",
+      "indicatorCode": "0701010001000010010",
+      "regions": [
+        {
+          "code": "08201",
+          "name": "水戸市"
+        },
+        {
+          "code": "08212",
+          "name": "常陸太田市"
+        },
+        {
+          "code": "08220",
+          "name": "つくば市"
+        }
+      ],
+      "periods": [
+        "2016"
+      ],
+      "unit": "事業所",
+      "url": "https://dashboard.e-stat.go.jp/",
+      "apiRequest": "https://dashboard.e-stat.go.jp/api/1.0/Json/getData?Lang=JP&IndicatorCode=0701010001000010010&RegionCode=08201,08212,08220&Cycle=3&IsSeasonalAdjustment=1&TimeFrom=2016CY00&TimeTo=2016CY00&MetaGetFlg=Y",
+      "retrievedAt": "2026-09-27T16:50:37.166Z",
+      "rawFile": "examples/demo-ja/official/raw/establishments_private_2016.json",
+      "rawSha256": "40a4004776d1d1d81d2a5c6a892aa4a2d5a9ecbaf8362f1ed17e782f2201f8f0",
+      "license": "公共データ利用規約（第1.0版）（PDL1.0）",
+      "licenseUrl": "https://dashboard.e-stat.go.jp/static/terms",
+      "attribution": "出典：統計ダッシュボード（https://dashboard.e-stat.go.jp/）。統計ダッシュボード（https://dashboard.e-stat.go.jp/）のデータを加工して作成（Insight Lab デモ用に文章化）。このサービスは、統計ダッシュボードのAPI機能を使用していますが、サービスの内容は国によって保証されたものではありません。"
+    },
+    {
+      "kind": "official",
+      "publisher": "総務省統計局",
+      "survey": "経済センサス",
+      "dataset": "事業所数（民営）",
+      "provider": "e-Stat 統計ダッシュボード API",
+      "indicatorCode": "0701010001000010012",
+      "regions": [
+        {
+          "code": "08201",
+          "name": "水戸市"
+        },
+        {
+          "code": "08212",
+          "name": "常陸太田市"
+        },
+        {
+          "code": "08220",
+          "name": "つくば市"
+        }
+      ],
+      "periods": [
+        "2021"
+      ],
+      "unit": "事業所",
+      "url": "https://dashboard.e-stat.go.jp/",
+      "apiRequest": "https://dashboard.e-stat.go.jp/api/1.0/Json/getData?Lang=JP&IndicatorCode=0701010001000010012&RegionCode=08201,08212,08220&Cycle=3&IsSeasonalAdjustment=1&TimeFrom=2021CY00&TimeTo=2021CY00&MetaGetFlg=Y",
+      "retrievedAt": "2026-09-27T16:50:36.793Z",
+      "rawFile": "examples/demo-ja/official/raw/establishments_private_2021.json",
+      "rawSha256": "b2a0b3382d830f959d2c7fcd087170df20a37c8ca825d74cf15d6985d94fe41e",
+      "license": "公共データ利用規約（第1.0版）（PDL1.0）",
+      "licenseUrl": "https://dashboard.e-stat.go.jp/static/terms",
+      "attribution": "出典：統計ダッシュボード（https://dashboard.e-stat.go.jp/）。統計ダッシュボード（https://dashboard.e-stat.go.jp/）のデータを加工して作成（Insight Lab デモ用に文章化）。このサービスは、統計ダッシュボードのAPI機能を使用していますが、サービスの内容は国によって保証されたものではありません。"
+    },
+    {
+      "kind": "synthetic",
+      "description": "Insight demo 用に作成した架空メモ（3件）。実在の人物・企業・調査ではない。",
+      "rows": [
+        "memo-report-01",
+        "memo-interview-01",
+        "memo-support-01"
+      ]
+    }
+  ],
+  "transform": {
+    "script": "examples/demo-ja/official/build.mjs",
+    "version": "1",
+    "description": "統計ダッシュボード API の保存済みレスポンス（茨城県3市の国勢調査総人口 2020年、経済センサス事業所数（民営）2016・2021年）を1値1行の文章に変換し、架空メモ3行を加えた。"
+  },
+  "limitations": [
+    "人口（国勢調査 2020年10月1日時点）と事業所数（経済センサス 2016年6月1日・2021年6月1日時点）は調査年・時点・対象が異なり、同一時点の比率として組み合わせられない。",
+    "事業所数は民営事業所のみで、国及び地方公共団体の事業所を含まない。",
+    "2016年と2021年の事業所数は統計ダッシュボード上で別系列として登録されており、増減として比べる前に対象範囲と定義の連続性を確認する必要がある。",
+    "家賃・商圏・競合・交通・購買力は取得しておらず、人口と事業所数だけでは候補地域の優劣は判断できない。",
+    "架空メモ3件は実在の人物・企業・調査ではなく、公的統計の値を含まない。未取得の欄は0を意味しない。"
+  ]
+}

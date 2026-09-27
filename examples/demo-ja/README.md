@@ -1,24 +1,25 @@
-# 日本語デモの最小サンプル (#151)
+# 日本語デモのサンプル (#151)
 
-このフォルダは **インポート仕様に適合する例** と公式統計の取得先を明確に区別します。01〜03の値・文章はすべて架空データです。**公的統計の実数は同梱していません。** 04は公式取得先の参照であり、`REFERENCE_ONLY_NOT_FETCHED` と明記しています。
+ブラウザの Home 「何を調べてみますか？」から選べる3つのサンプルの元データです。**デモビルド（`make build-demo`）にだけ埋め込まれ、納品ビルドには含まれません**（`internal/sampledata/scenarios_delivery_test.go` がバイナリを検査します）。
 
-| File | Current supported use |
-| --- | --- |
-| `01-ja-shop-records-documents.csv` | 現行ブラウザの「文書CSV」→ プレビュー → インポート → 調査。固定列 `id,source,title,content` (UTF-8) |
-| `02-ja-composite-documents.csv` | 同じ文書CSV。複数の架空資料の調査例。2025年人口と2021年事業所数を同時点の比率にしない |
-| `03-numeric-raw-aggregation.csv` | **通常の文書CSVには投入不可**。対応済みRAW_ARTIFACT `csv-aggregate/v1` の明示的な `-input-root` 設定、または別製品TechVit Insightのmanaged CSV producer向け。空欄は欠損で0ではない |
-| `04-official-source-catalog.json` | e-Statの公的統計取得候補。現時点ではリンクのみで実数未取得 |
+| サンプル | データ | 入力 | 置き場所 |
+| --- | --- | --- | --- |
+| 01 架空店舗の記録から、変化と足りない情報を調べる | 架空データ（9行） | 文書CSV `id,source,title,content` | `internal/sampledata/scenarios/ja-shop-records/` |
+| 02 日本の公的統計から、人口の変化を調べる | 実データ：国勢調査 総人口（茨城県 水戸市・常陸太田市・つくば市、2015/2020）（8行） | 文書CSV | `internal/sampledata/scenarios/ja-official-population/` |
+| 03 人口と事業所数を合わせて、比べられること・比べられないことを調べる | 混合：国勢調査 2020 ＋ 経済センサス 事業所数（民営）2016/2021 ＋ 架空メモ3件（12行） | 文書CSV | `internal/sampledata/scenarios/ja-population-establishments/` |
 
-## 初回の3操作
+各ディレクトリの `scenario.json` に、データ種別、入力CSVの sha256、出典（作成機関・系列コード・地域・期間・単位・取得日時・ライセンス・元ファイル sha256）、変換方法、限界を記録しています。公的統計の取得と変換は [`official/README.md`](official/README.md) を参照してください（`node examples/demo-ja/official/build.mjs --check` でオフライン再現を確認できます）。
 
-1. Insightのプロジェクト画面で `01-ja-shop-records-documents.csv` を文書CSVとしてプレビューし、取り込む。
-2. 問い「売上が増加したという観測を、何が説明できて何がまだ分からないか？」を入力する。
-3. モデルが設定されていれば分析を実行し、原文への根拠、対立する説明、データ不足を確認する。モデル未設定時はモデル生成の説明を使えると表示しない。
+## ブラウザでの手順（README や CLI は不要）
 
-複合的な調査例は `02` を別プロジェクトに取り込み、資料ごとの時点・定義・未取得情報の違いを確認する。**Cross-Dataset Discovery #118 を実装済みと装わない**。
+1. デモビルドを起動し、Home の「何を調べてみますか？」でサンプルの「この例で試す」を押す（専用プロジェクトが作られ、2回目以降は同じプロジェクトを開く）。
+2. 入力画面の「この CSV をプレビュー」で、自分のファイルと同じ「プレビュー → インポート」を行う。
+3. 分析を実行し、結果・根拠（原文の引用）・限界を確認する。
 
-## 次の段階（このPRの範囲外）
-- #151で実データのe-Stat CSV取得・出典/ハッシュ/ライセンス固定と、デモビルド専用の選択ギャラリーを追加。
-- #131が使いやすいブラウザ取り込み・進捗・分析・成果確認の実経路を担当。
-- private TechVit Insight #54が同じ日本の公的データを managed Selection Plan → sealed Analytical Artifact → note/顧客レポートに利用。
-- サンプルを `web/public` に配置しない。公開用/納品用バイナリへ架空デモが混入しないことを実装時にテストする。
+3つとも**文書CSV**のため、分析の実行には AI モデルの接続が必要です。モデル未接続でもプレビュー・取り込み・出典の確認はできます。モデルなしで分析まで試せるのは、分析用CSV（法人の登録・変更記録）の決定論的集計だけです。
+
+## 通常の文書CSVとして扱えないもの
+
+`03-numeric-raw-aggregation.csv`（`year,region,amount`）は**文書CSVにも分析用CSVにも投入できません**。対応済み RAW_ARTIFACT `csv-aggregate/v1` の明示的な `-input-root` 設定、または別製品 TechVit Insight の managed CSV producer 向けの例です。空欄は欠損で 0 ではありません。ギャラリーには載せていません。
+
+Draft 時点にあった架空の複合調査 CSV（`02-ja-composite-documents.csv`）と取得前カタログ（`04-official-source-catalog.json`）は、実データを使うサンプル 02/03 に置き換えたため削除しました。

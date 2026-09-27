@@ -1,0 +1,74 @@
+{
+  "files": [
+    {
+      "name": "population_census_2015_2020.json",
+      "url": "https://dashboard.e-stat.go.jp/api/1.0/Json/getData?Lang=JP&IndicatorCode=0201010000000010000&RegionCode=08201,08212,08220&Cycle=3&IsSeasonalAdjustment=1&TimeFrom=2015CY00&TimeTo=2020CY00&MetaGetFlg=Y",
+      "retrievedAt": "2026-09-27T16:50:36.651Z",
+      "bytes": 3846,
+      "sha256": "163f1816517f73f6d1641b43e79ac1663371ef1ab6c0227d4b5bcff1ff7e55a5"
+    },
+    {
+      "name": "establishments_private_2021.json",
+      "url": "https://dashboard.e-stat.go.jp/api/1.0/Json/getData?Lang=JP&IndicatorCode=0701010001000010012&RegionCode=08201,08212,08220&Cycle=3&IsSeasonalAdjustment=1&TimeFrom=2021CY00&TimeTo=2021CY00&MetaGetFlg=Y",
+      "retrievedAt": "2026-09-27T16:50:36.793Z",
+      "bytes": 2707,
+      "sha256": "b2a0b3382d830f959d2c7fcd087170df20a37c8ca825d74cf15d6985d94fe41e"
+    },
+    {
+      "name": "establishments_private_2016.json",
+      "url": "https://dashboard.e-stat.go.jp/api/1.0/Json/getData?Lang=JP&IndicatorCode=0701010001000010010&RegionCode=08201,08212,08220&Cycle=3&IsSeasonalAdjustment=1&TimeFrom=2016CY00&TimeTo=2016CY00&MetaGetFlg=Y",
+      "retrievedAt": "2026-09-27T16:50:37.166Z",
+      "bytes": 2788,
+      "sha256": "40a4004776d1d1d81d2a5c6a892aa4a2d5a9ecbaf8362f1ed17e782f2201f8f0"
+    },
+    {
+      "name": "regions_ibaraki.json",
+      "url": "https://dashboard.e-stat.go.jp/api/1.0/Json/getRegionInfo?Lang=JP&ParentRegionCode=08000",
+      "retrievedAt": "2026-09-27T16:50:37.210Z",
+      "bytes": 8375,
+      "sha256": "88924e1d37d32be0be606bb528c0732d31e396488d6c7e7f1de08e5a1713dd2a"
+    },
+    {
+      "name": "statinfo_kokusei.json",
+      "url": "https://dashboard.e-stat.go.jp/api/1.0/Json/getStatInfo?Lang=JP&StatCode=00200521",
+      "retrievedAt": "2026-09-27T16:50:37.244Z",
+      "bytes": 921,
+      "sha256": "afa4eeb89650876df8387c6839a0a96d3eaeb8e7fd6e8f090349d236963e231c"
+    },
+    {
+      "name": "statinfo_ecensus.json",
+      "url": "https://dashboard.e-stat.go.jp/api/1.0/Json/getStatInfo?Lang=JP&StatCode=00200552",
+      "retrievedAt": "2026-09-27T16:50:37.690Z",
+      "bytes": 1495,
+      "sha256": "34ef4f57f30c84d86edeeb35a6838e46f2ebd1d36fac154dd61ee00b5ee1b34e"
+    },
+    {
+      "name": "stat_kokusei_2015_gaiyou.html",
+      "url": "https://www.stat.go.jp/data/kokusei/2015/gaiyou.html",
+      "retrievedAt": "2026-09-27T16:50:37.856Z",
+      "bytes": 20766,
+      "sha256": "c2f37e1c387e7408e6cdeb81d1a05d41891c0d4ba1ea9e335c9d7c57e9bbc18e"
+    },
+    {
+      "name": "stat_kokusei_2020_gaiyou.html",
+      "url": "https://www.stat.go.jp/data/kokusei/2020/gaiyou.html",
+      "retrievedAt": "2026-09-27T16:50:38.217Z",
+      "bytes": 23177,
+      "sha256": "34599e64bc7a30bde0642d7d9c14022eb053ccd94dbb9930ab98598683d3ce38"
+    },
+    {
+      "name": "stat_ecensus_2016_gaiyo.html",
+      "url": "https://www.stat.go.jp/data/e-census/2016/gaiyo.html",
+      "retrievedAt": "2026-09-27T16:50:38.318Z",
+      "bytes": 26243,
+      "sha256": "301b9163ba93ff53e57604f34b15be561c59bb0dfdd4fad9bcc81c77d8294fb8"
+    },
+    {
+      "name": "stat_ecensus_2021_gaiyo.html",
+      "url": "https://www.stat.go.jp/data/e-census/2021/gaiyo.html",
+      "retrievedAt": "2026-09-27T16:50:38.423Z",
+      "bytes": 26800,
+      "sha256": "0ca68bcf506e9230f3ba6a1f5b929b87f0b9787c33f7dd3cc5019c21dfbf4ed1"
+    }
+  ]
+}
