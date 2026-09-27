@@ -7,6 +7,7 @@ This directory contains three different kinds of documentation. Keeping them sep
 | Document | Purpose |
 | --- | --- |
 | [Architecture map](architecture.md) | Canonical Engine → Public Contract → optional SDK → execution profiles picture (#95) |
+| [Frontend architecture](frontend-architecture.md) | Reference Web: TypeScript/Preact onion layers, CSS Modules, build/embed, screens and tests (#128) |
 | [Public Engine Contract v1](public-engine-contract.md) | The language-neutral boundary consumers and the standalone SDKs use: transport, semantics, errors, versioning, conformance fixtures (#59) |
 | [Analytical Artifact contract](analytical-artifact-contract.md) | Import/export contract for deterministic results produced outside Insight; external producers use the SDK `analytical` packages (#69) |
 | [Project scope](project-scope.md) | What belongs in the public OSS project and what does not |

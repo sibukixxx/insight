@@ -54,6 +54,10 @@ Model-backed分析ではOpenAI互換endpointを指定します。
 
 Model未設定でも、決定論的なingestion、validation、temporal operation、対応済みanalytical processingは利用できます。Model生成のHypothesisにはModel設定が必要です。
 
+### ブラウザUI
+
+`serve` の後に `http://127.0.0.1:8787` を開きます。初回も README や CLI は不要です。ホームで3つの手順（根拠を追加 → 分析を実行 → 根拠を確認して書き出す）を案内し、デモビルドではサンプルプロジェクトを開けます。入力画面には、このサーバーが実際に受け付ける形式（テキスト貼り付け、文書 CSV、法人イベント分析 CSV）だけを表示し、ヘッダーのみの CSV テンプレートと、保存前のサーバー側プレビュー（行エラーと Data Triage のデータセットプロファイル）を提供します。PDF や Excel などは直接取り込めません。
+
 ### ブラウザUIの表示言語
 
 Reference Browser UIは日本語と英語に対応しています。ヘッダーの「日本語 / English」、または「設定 → 表示言語」で切り替えます。選択はブラウザ（`localStorage`）に保存され、未保存の場合はブラウザの言語設定に従い、どちらでもなければ英語になります。
@@ -214,10 +218,22 @@ Golden evaluation:
 make test-golden
 ```
 
+ブラウザUI（`web/` の TypeScript/Preact ソースを、コミット済みの `internal/web/dist/` にビルド。Node 22+ と pnpm が必要）:
+
+```sh
+make web-build   # web/ から internal/web/dist を再生成
+make build-all   # web-build + Go バイナリ
+make web-check   # 型検査・lint・単体テスト、コミット済み dist が古ければ失敗
+make web-e2e     # 実際の納品版/デモ版バイナリとローカルのスクリプトモデルで Playwright
+```
+
+`make build` 自体は Node 不要で、コミット済みの `internal/web/dist` を埋め込みます。詳細は [Frontend architecture](docs/frontend-architecture.md)。
+
 ## Documentation
 
 - [Documentation index](docs/README.md)
 - [Architecture](docs/architecture.md)
+- [Frontend architecture](docs/frontend-architecture.md)
 - [Public Engine Contract v1](docs/public-engine-contract.md)
 - [Research loop](docs/research-loop.md)
 - [Temporal evidence](docs/temporal-evidence.md)
