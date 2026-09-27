@@ -90,6 +90,10 @@ Without a model, deterministic ingestion, validation, temporal operations, and s
 
 Open `http://127.0.0.1:8787` after `serve`. A first run needs no README or CLI: the home screen explains the three steps (add evidence → run an analysis → inspect evidence and export), a demo build offers the sample project, and the Input screen lists exactly the formats this server accepts (pasted text, the documents CSV and the corporate-event analysis CSV), with header-only CSV templates and a server-side preview (row errors and the Data Triage dataset profile) before anything is stored. PDF, Excel and other files are not ingested directly.
 
+Create a project with just its name. Fields identify required, optional and later inputs; missing inputs appear beside the field and in a focusable error summary. Documents CSV is the default, with specialized analysis CSV under **Other input formats**. Download the selected server-provided template, select a file, review the dry-run counts and row errors, then explicitly confirm the import.
+
+Analysis shows ready, blocked, running or unknown settings, with reasons beside the start button. Without a configured model, import supported analysis CSV for deterministic dataset analysis; text-only evidence needs a model. Research question, reasoning profile and output language are optional under Advanced settings, with the effective choices visible when collapsed. After completion, open findings and download the report. See [UI review and screenshots](docs/ux-review/README.md).
+
 ### Large CSV ingestion
 
 Files beyond the 32 MiB preview limit can be ingested asynchronously through the API: `POST /api/projects/{id}/ingests?kind=documents|analysis` streams the file to a staged copy under `ingest/` beside the database and returns a receipt (`QUEUED → VALIDATING → READY | FAILED | CANCELLED`). Poll `GET /api/projects/{id}/ingests/{ingestId}`, cancel with `POST …/cancel`, and download every rejected row from `…/errors.csv`. Documents become Evidence only when the ingest is READY; resubmitting the same bytes returns the same receipt. Browser UI support follows separately. See [docs/architecture.md](docs/architecture.md#large-csv-ingestion-132) for limits, restart and retention.
@@ -293,5 +297,3 @@ make web-e2e     # Playwright against real delivery/demo binaries and a local sc
 ## License
 
 Apache License 2.0. See [LICENSE](LICENSE).
-
-The Reference Web shows required inputs and pre-run blockers. With no configured model, import a supported analysis CSV to run deterministic dataset analysis. Optional research question, reasoning profile and output language are under Advanced settings.

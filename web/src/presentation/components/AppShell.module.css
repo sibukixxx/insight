@@ -42,3 +42,5 @@
   .tagline { display: none; }
   .main { padding: var(--space-4) var(--space-3) var(--space-8); }
 }
+.localeSelect select, .settingsLink { min-height: 44px; }
+.settingsLink { display: inline-flex; align-items: center; }

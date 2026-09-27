@@ -15,9 +15,13 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   reporter: [["list"]],
-  use: { trace: "retain-on-failure", screenshot: "only-on-failure", acceptDownloads: true },
+  use: { launchOptions: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE } : {}, trace: "retain-on-failure", screenshot: "only-on-failure", acceptDownloads: true },
   projects: [
     { name: "delivery", testMatch: /delivery\.spec\.ts/, use: { ...devices["Desktop Chrome"], baseURL: `http://127.0.0.1:${DELIVERY}` } },
+    ...["en", "ja"].flatMap((locale) => [false, true].map((mobile) => ({
+      name: `delivery-ux-${mobile ? "mobile" : "desktop"}-${locale}`, testMatch: /ux\.spec\.ts/,
+      use: { ...(mobile ? devices["Pixel 7"] : devices["Desktop Chrome"]), locale, baseURL: `http://127.0.0.1:${DELIVERY}` },
+    }))),
     { name: "demo", testMatch: /demo\.spec\.ts/, use: { ...devices["Desktop Chrome"], baseURL: `http://127.0.0.1:${DEMO}` } },
     { name: "demo-mobile", testMatch: /demo\.spec\.ts/, grep: /@mobile/, use: { ...devices["Pixel 7"], baseURL: `http://127.0.0.1:${DEMO_MOBILE}` } },
   ],

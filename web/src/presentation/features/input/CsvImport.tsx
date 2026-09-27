@@ -1,9 +1,12 @@
-import { useId, useState } from "preact/hooks";
+import { useEffect, useId, useState } from "preact/hooks";
 import { matchesFormat } from "../../../application/usecases/importEvidence";
 import type { UploadFile } from "../../../application/ports";
 import { IMPORT_KIND_LABELS, labelKey } from "../../../domain/codes";
 import type { DocumentImportResult, ImportFormat, ImportPreview } from "../../../domain/models";
 import { Button } from "../../components/Button";
+import { Field, formStyles } from "../../components/Field";
+import { focusField, ValidationSummary } from "../../components/ValidationSummary";
+import { FormatGuide } from "./FormatGuide";
 import { Disclosure } from "../../components/Disclosure";
 import { Notice } from "../../components/Notice";
 import { useI18n } from "../../i18n/I18nProvider";
@@ -31,10 +34,11 @@ export function CsvImport({ projectId, formats, onImported }: { projectId: strin
   const { t } = i18n;
   const { input } = useUseCases();
   const fileInputId = useId();
-  const [kind, setKind] = useState(formats[0]?.kind ?? "documents");
+  const [kind, setKind] = useState(formats.find((f) => f.kind === "documents")?.kind ?? formats[0]?.kind ?? "");
   const [step, setStep] = useState<Step>({ state: "idle" });
   const [dragging, setDragging] = useState(false);
   const format = formats.find((f) => f.kind === kind);
+  useEffect(() => { if (step.state === "error") focusField(fileInputId); }, [step, fileInputId]);
 
   const choose = (file: File | undefined) => {
     if (!file || !format) return;
@@ -64,34 +68,55 @@ export function CsvImport({ projectId, formats, onImported }: { projectId: strin
 
   return (
     <div class={styles.chooser}>
-      <fieldset class={styles.kinds}>
-        <legend>{t("input.csv.kind")}</legend>
-        {formats.map((f) => (
+      <p class={styles.meta}>{t("input.csv.steps")}</p>
+      <ValidationSummary errors={step.state === "error" ? [{ id: fileInputId, label: t("project.csvFile"), message: step.message }] : []} />
+      <fieldset class={styles.kinds} aria-describedby={`${fileInputId}-selected`}>
+        <legend>{t("input.csv.kind")} <span class={formStyles.required}>{t("common.required")}</span></legend>
+        {formats.filter((f) => f.kind === "documents").map((f) => (
           <label key={f.kind} class={styles.kind}>
-            <input type="radio" name="import-kind" value={f.kind} checked={kind === f.kind} disabled={busy}
+            <input type="radio" name="import-kind" value={f.kind} checked={kind === f.kind} required aria-required="true" disabled={busy}
               onChange={() => { setKind(f.kind); setStep({ state: "idle" }); }} />
             {kindLabel(f.kind)}
           </label>
         ))}
+        {formats.some((f) => f.kind !== "documents") && <Disclosure summary={t("input.csv.otherFormats")} open={kind !== "documents"}>
+          {formats.filter((f) => f.kind !== "documents").map((f) => (
+            <label key={f.kind} class={styles.kind}>
+              <input type="radio" name="import-kind" value={f.kind} checked={kind === f.kind} required aria-required="true" disabled={busy}
+                onChange={() => { setKind(f.kind); setStep({ state: "idle" }); }} />
+              {kindLabel(f.kind)}
+            </label>
+          ))}
+        </Disclosure>}
       </fieldset>
-
+      <p id={`${fileInputId}-selected`} class={styles.meta}>{t("input.csv.selectedFormat", { format: kindLabel(kind) })}</p>
+      {format ? <FormatGuide formats={[format]} /> : <Notice kind="warning">{t("input.csv.noFormats")}</Notice>}
       <div
         class={[styles.drop, dragging && styles.dragging].filter(Boolean).join(" ")}
         onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
         onDragLeave={() => setDragging(false)}
-        onDrop={(e) => { e.preventDefault(); setDragging(false); if (!busy) choose(e.dataTransfer?.files[0]); }}
+        onDrop={(e) => {
+          e.preventDefault(); setDragging(false);
+          if (busy || !format || !e.dataTransfer?.files.length) return;
+          const control = document.getElementById(fileInputId);
+          if (control instanceof HTMLInputElement) control.files = e.dataTransfer.files;
+          choose(e.dataTransfer.files[0]);
+        }}
       >
-        <label for={fileInputId}>{t("input.csv.dropHint", { extensions: format?.extensions.join(", ") ?? "" })}</label>
-        <input id={fileInputId} type="file" name="file" accept={format ? [...format.extensions, ...format.mediaTypes].join(",") : undefined}
-          aria-label={t("project.csvFile")} disabled={busy}
-          onChange={(e) => { choose(e.currentTarget.files?.[0]); e.currentTarget.value = ""; }} />
+        <Field label={t("project.csvFile")} htmlFor={fileInputId} requirement="required"
+          hint={t("input.csv.dropHint", { extensions: format?.extensions.join(", ") ?? "" })}
+          error={step.state === "error" ? step.message : undefined}>
+          {(control) => <input {...control} key={kind} class={formStyles.control} type="file" name="file"
+            accept={format ? [...format.extensions, ...format.mediaTypes].join(",") : undefined} disabled={busy || !format}
+            onChange={(e) => choose(e.currentTarget.files?.[0])} />}
+        </Field>
         {"file" in step && step.file && <span class={styles.fileName}>{step.file.name}</span>}
       </div>
 
       {step.state === "previewing" && <Notice>{t("input.csv.previewing")}</Notice>}
-      {step.state === "error" && <Notice kind="error">{step.message}</Notice>}
       {step.state === "done" && (
         <Notice kind="success">
+          <p>{t("input.csv.importedNext")}</p>
           {step.result.recordsRead !== undefined
             ? t("project.analysisCsvImported", { read: step.result.recordsRead, imported: step.result.imported, skipped: step.result.skipped })
             : t("project.csvImported", { imported: step.result.imported, skipped: step.result.skipped })}
@@ -108,12 +133,14 @@ function PreviewPanel({ preview, busy, onConfirm, onCancel }: { preview: ImportP
   const { t, number } = useI18n();
   const stats = [
     [preview.recordsRead, t("input.preview.rows")],
+    [preview.importable, t("input.preview.importable")],
     [preview.totalDocuments, t("input.preview.documents")],
     [preview.skipped, t("input.preview.skipped")],
   ] as const;
   return (
     <section aria-label={t("input.preview.title")}>
       <h3>{t("input.preview.title")}</h3>
+      <p class={styles.meta}>{t("input.preview.confirmHint")}</p>
       <div class={styles.summary}>
         {stats.map(([value, text]) => (
           <div key={text} class={styles.stat}><div class={styles.statValue}>{number(value)}</div><div class={styles.statLabel}>{text}</div></div>

@@ -84,10 +84,13 @@ describe("CSV import", () => {
     expect(ports.evidence.preview).not.toHaveBeenCalled();
   });
 
-  it("offers header-only templates for every server-reported format", async () => {
+  it("offers the selected server format template and groups other formats", async () => {
     renderApp(fakePorts(), { hash: "#/projects/p1/input" });
     const links = await screen.findAllByRole("link", { name: /Download template/ });
-    expect(links.map((a) => a.getAttribute("href"))).toEqual(["/template/documents", "/template/analysis"]);
+    expect(links.map((a) => a.getAttribute("href"))).toEqual(["/template/documents"]);
+    fireEvent.click(screen.getByText("Other input formats (specialized analysis)"));
+    fireEvent.click(screen.getByRole("radio", { name: "Corporate-event analysis CSV" }));
+    expect((await screen.findByRole("link", { name: /Download template/ })).getAttribute("href")).toBe("/template/analysis");
   });
 });
 
@@ -96,14 +99,14 @@ describe("analysis", () => {
 
   it("blocks a run without evidence and points to the input page", async () => {
     renderApp(fakePorts(), { hash: "#/projects/p1/analysis" });
-    expect(await screen.findByText("No evidence yet. Add text or import a CSV first.")).toBeTruthy();
+    expect(await screen.findAllByText("No evidence yet. Add text or import a CSV first.")).toBeTruthy();
     expect((screen.getByRole("button", { name: "Run analysis" }) as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it("warns when no model is configured, shows the failure and retries with the same settings", async () => {
-    const ports = fakePorts(fakeState({ documents: [{ id: "d1", projectId: "p1", source: "web", title: "", content: "x", metadata: {}, createdAt: "" }], runs: [failed] }));
+  it("shows a server failure and retries when its prerequisites are available", async () => {
+    const ports = fakePorts(fakeState({ documents: [{ id: "d1", projectId: "p1", source: "dataset", title: "", content: "x", metadata: {}, createdAt: "" }], runs: [failed] }));
     renderApp(ports, { hash: "#/projects/p1/analysis" });
-    expect(await screen.findByText(/No model is configured and there are no dataset documents/)).toBeTruthy();
+    expect(await screen.findByText(/No model is configured: the run is deterministic/)).toBeTruthy();
     expect(screen.getByText("Failed: the LLM is not configured")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Retry with the same settings" }));
     await waitFor(() => expect(ports.analysis.start).toHaveBeenCalledWith("p1", { researchQuestion: "why?", reasoningProfile: "CUSTOMER_INSIGHT", outputLocale: "" }));
@@ -129,5 +132,56 @@ describe("workspace", () => {
     renderApp(fakePorts(), { hash: "#/projects/nope" });
     expect(await screen.findByRole("alert")).toBeTruthy();
     expect(screen.getByText("project not found")).toBeTruthy();
+  });
+});
+
+describe("field feedback and readiness guards", () => {
+  it("focuses the missing project name, connects descriptions and keeps summary links on the route", async () => {
+    const ports = fakePorts(fakeState({ projects: [] }));
+    renderApp(ports);
+    fireEvent.click(await screen.findByRole("button", { name: "Create" }));
+    const name = screen.getByLabelText("Project name");
+    await waitFor(() => expect(document.activeElement).toBe(name));
+    expect(name.getAttribute("aria-required")).toBe("true");
+    expect(name.getAttribute("aria-invalid")).toBe("true");
+    for (const id of name.getAttribute("aria-describedby")?.split(" ") ?? []) expect(document.getElementById(id)).not.toBeNull();
+    fireEvent.click(within(screen.getByRole("alert")).getByRole("link"));
+    expect(window.location.hash).toBe("#/");
+    expect(document.activeElement).toBe(name);
+    expect(ports.projects.create).not.toHaveBeenCalled();
+    fireEvent.input(name, { target: { value: "Study" } });
+    expect(name.getAttribute("aria-invalid")).toBe("false");
+  });
+
+  it("marks source and content required, title optional and prevents whitespace-only content", async () => {
+    const ports = fakePorts();
+    renderApp(ports, { hash: "#/projects/p1/input" });
+    const content = await screen.findByLabelText("Content");
+    expect(screen.getByLabelText("Source type").getAttribute("aria-required")).toBe("true");
+    expect(screen.getByLabelText("Title").hasAttribute("required")).toBe(false);
+    fireEvent.input(content, { target: { value: "   " } });
+    fireEvent.click(screen.getByRole("button", { name: "Add document" }));
+    await waitFor(() => expect(document.activeElement).toBe(content));
+    expect(content.getAttribute("aria-invalid")).toBe("true");
+    expect(ports.evidence.addText).not.toHaveBeenCalled();
+  });
+
+  it("required-later model settings do not prevent saving an unconfigured server", async () => {
+    const ports = fakePorts();
+    renderApp(ports, { hash: "#/settings" });
+    const model = await screen.findByLabelText("Model");
+    expect(model.hasAttribute("required")).toBe(false);
+    expect(model.getAttribute("aria-required")).toBe("false");
+    expect(document.getElementById("settings-model-requirement")?.textContent).toBe("Required later");
+  });
+
+  it("cannot submit or retry a text-only project without a model", async () => {
+    const ports = fakePorts(fakeState({ documents: [{ id: "d1", projectId: "p1", source: "web", title: "", content: "x", metadata: {}, createdAt: "" }], runs: [{ id: "r1", projectId: "p1", status: "failed", progress: 0, createdAt: "" }] }));
+    renderApp(ports, { hash: "#/projects/p1/analysis" });
+    const start = await screen.findByRole("button", { name: "Run analysis" });
+    expect((start as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.submit(start.closest("form") as HTMLFormElement);
+    fireEvent.click(screen.getByRole("button", { name: "Retry with the same settings" }));
+    expect(ports.analysis.start).not.toHaveBeenCalled();
   });
 });

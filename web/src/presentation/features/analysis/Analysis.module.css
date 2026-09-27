@@ -10,3 +10,7 @@
 .checkBody { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .fix { flex: none; font-weight: 600; }
 .live { margin-bottom: var(--space-4); }
+.state { font-weight: 700; margin-bottom: var(--space-3); }
+.check { flex-wrap: wrap; }
+.fix { min-height: 44px; display: inline-flex; align-items: center; }
+@media (max-width: 600px) { .checkBody { flex-basis: calc(100% - 40px); } }

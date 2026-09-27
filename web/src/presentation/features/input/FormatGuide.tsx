@@ -19,10 +19,6 @@ export function FormatGuide({ formats }: { formats: readonly ImportFormat[] }) {
   return (
     <>
       <ul class={styles.formats}>
-        <li class={styles.format}>
-          <span class={styles.formatTitle}>{t("input.format.text.title")}</span>
-          <span class={styles.formatHint}>{t("input.format.text.hint")}</span>
-        </li>
         {formats.map((f) => {
           const hint = HINTS[f.kind];
           return (
@@ -32,13 +28,14 @@ export function FormatGuide({ formats }: { formats: readonly ImportFormat[] }) {
               <span class={styles.meta}>{t("input.format.fileType", { extensions: f.extensions.join(", "), encoding: f.encoding })}</span>
               <span class={styles.meta}>{t("input.format.columns")}</span>
               <ul class={styles.columns} aria-label={t("input.format.columns")}>
-                {f.columns.map((c) => <li key={c.name}><code>{c.name}</code>{c.required ? "" : ` ${t("input.format.optional")}`}</li>)}
+                {f.columns.map((c) => <li key={c.name}><code>{c.name}</code>{c.required ? ` ${t("common.required")}` : ` ${t("input.format.optional")}`}</li>)}
               </ul>
               <ButtonLink size="small" href={exports.templateLink(f.kind)} download>{"↓"} {t("input.format.template")}</ButtonLink>
             </li>
           );
         })}
       </ul>
+      <p class={styles.meta}>{t("input.format.text.title")}{": "}{t("input.format.text.hint")}</p>
       <div class={styles.unsupported}>
         <Notice kind="info">{t("input.format.unsupported")}</Notice>
       </div>

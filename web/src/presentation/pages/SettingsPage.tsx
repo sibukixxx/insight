@@ -45,8 +45,8 @@ export function SettingsPage() {
       <PageHeader back={{ href: "#/", label: t("nav.back") }} title={t("nav.settings")} />
       <div class={styles.stack}>
         <Card title={t("settings.displayLanguage")}>
-          <Field label={t("locale.label")} htmlFor="locale-select-settings" hint={t("settings.localeHint")}>
-            <LocaleSelect id="locale-select-settings" />
+          <Field label={t("locale.label")} htmlFor="locale-select-settings" hint={t("settings.localeHint")} requirement="optional">
+            {(control) => (<LocaleSelect {...control} />)}
           </Field>
         </Card>
         <Card title={t("settings.llm")} description={t("settings.llmHint")}>
@@ -57,15 +57,15 @@ export function SettingsPage() {
               <Notice kind={state.data.configured ? "success" : "info"}>
                 {state.data.configured ? t("settings.statusConfigured", { model: state.data.model }) : t("settings.statusNotConfigured")}
               </Notice>
-              <Field label={t("settings.baseUrl")} htmlFor="settings-base-url">
-                <input id="settings-base-url" name="baseUrl" type="text" class={formStyles.control} defaultValue={state.data.baseUrl} placeholder="https://api.openai.com/v1" />
-              </Field>
-              <Field label={t("settings.model")} htmlFor="settings-model">
-                <input id="settings-model" name="model" type="text" class={formStyles.control} defaultValue={state.data.model} placeholder="gpt-5" />
-              </Field>
-              <Field label={state.data.hasApiKey ? t("settings.apiKeyConfigured", { masked: state.data.maskedApiKey }) : t("settings.apiKey")} htmlFor="settings-api-key" hint={t("settings.apiKeyHint")}>
-                <input id="settings-api-key" name="apiKey" type="password" autoComplete="off" class={formStyles.control} placeholder={state.data.hasApiKey ? t("settings.apiKeyReplace") : "sk-..."} />
-              </Field>
+              <Field label={t("settings.baseUrl")} htmlFor="settings-base-url" hint={t("form.modelLaterHint")} requirement="required-later">
+            {(control) => (<input {...control} name="baseUrl" type="text" class={formStyles.control} defaultValue={state.data.baseUrl} placeholder="https://api.openai.com/v1" />)}
+          </Field>
+              <Field label={t("settings.model")} htmlFor="settings-model" hint={t("form.modelLaterHint")} requirement="required-later">
+            {(control) => (<input {...control} name="model" type="text" class={formStyles.control} defaultValue={state.data.model} placeholder="gpt-5" />)}
+          </Field>
+              <Field label={state.data.hasApiKey ? t("settings.apiKeyConfigured", { masked: state.data.maskedApiKey }) : t("settings.apiKey")} htmlFor="settings-api-key" hint={t("settings.apiKeyHint")} requirement="optional">
+            {(control) => (<input {...control} name="apiKey" type="password" autoComplete="off" class={formStyles.control} placeholder={state.data.hasApiKey ? t("settings.apiKeyReplace") : "sk-..."} />)}
+          </Field>
               {feedback && <Notice kind={feedback.kind}>{feedback.text}</Notice>}
               <div class={formStyles.actions}>
                 <Button type="submit" variant="primary" disabled={busy}>{t("settings.save")}</Button>

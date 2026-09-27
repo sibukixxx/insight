@@ -39,8 +39,9 @@ test("create a project, download a template, preview and import an analysis CSV"
   expect(readFileSync(await template.path(), "utf8")).toBe("id,source,title,content\n");
 
   await page.getByLabel("CSV file").setInputFiles(fixture("report.pdf"));
-  await expect(page.getByText("report.pdf is not a supported file. Supported: .csv.")).toBeVisible();
+  await expect(page.getByText("report.pdf is not a supported file. Supported: .csv.", { exact: true })).toBeVisible();
 
+  await page.getByText("Other input formats (specialized analysis)").click();
   await page.getByRole("radio", { name: "Corporate-event analysis CSV" }).check();
   await page.getByLabel("CSV file").setInputFiles(fixture("analysis.csv"));
   const preview = page.getByRole("region", { name: "Preview" });
@@ -115,17 +116,18 @@ test("deep links, back/forward and the locale switch keep the route", async ({ p
   await expect(page.getByText("The selected run was not found in this project; showing the latest completed run.")).toBeVisible();
 });
 
-test("without a model and without datasets the run fails visibly and can be retried", async ({ page }) => {
+test("without a model and without datasets text evidence is blocked before starting", async ({ page }) => {
   await page.goto("/");
   await page.getByLabel("Project name").fill("E2E text only");
   await page.getByRole("button", { name: "Create" }).click();
   await page.getByLabel("Content").fill("An interview note that only a model could analyze.");
   await page.getByRole("button", { name: "Add document" }).click();
   await page.getByRole("link", { name: /Go to analysis/ }).click();
-  await expect(page.locator("[data-check=model]")).toHaveAttribute("data-level", "warning");
-  await page.getByRole("button", { name: "Run analysis" }).click();
-  await expect(page.getByRole("alert").filter({ hasText: "the LLM is not configured" }).first()).toBeVisible({ timeout: 60_000 });
-  await expect(page.getByRole("button", { name: "Retry with the same settings" })).toBeEnabled();
+  await expect(page.locator("[data-check=model]")).toHaveAttribute("data-level", "blocked");
+  await expect(page.locator("#analysis-start-help")).toContainText("No model is configured and there are no dataset documents");
+  await expect(page.getByRole("button", { name: "Run analysis" })).toBeDisabled();
+  const runs = await page.request.get(`/api/projects/${await projectId(page)}/analyses`);
+  expect(await runs.json()).toEqual([]);
   await page.getByRole("link", { name: "Open settings" }).click();
   await expect(page).toHaveURL(/#\/settings$/);
 });
@@ -142,4 +144,43 @@ test("an API error is shown with a way back", async ({ page }) => {
   await expect(page.getByRole("alert")).toContainText("project not found");
   await page.getByRole("link", { name: /Back/ }).first().click();
   await expect(page.getByRole("heading", { level: 1, name: "Insight Lab" })).toBeVisible();
+});
+
+
+test("a real server-side failure stays visible and retry preserves run settings", async ({ page }) => {
+  // Source=dataset is not sufficient to produce countable observations.
+  const p = await (await page.request.post("/api/projects", { data: { name: "E2E server failure" } })).json() as { id: string };
+  await page.request.post(`/api/projects/${p.id}/documents`, { data: { source: "dataset", content: "Uncountable dataset note." } });
+  await page.goto(`/#/projects/${p.id}/analysis`);
+  await page.getByText("Advanced settings (optional)").click();
+  await page.locator("#research-question").fill("What changed?");
+  await page.locator("#reasoning-profile").selectOption("CUSTOMER_INSIGHT");
+  await page.locator("#output-locale").selectOption("ja-JP");
+  await page.getByRole("button", { name: "Run analysis" }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "the LLM is not configured" }).first()).toBeVisible();
+  await page.getByRole("button", { name: "Retry with the same settings" }).click();
+  await expect.poll(async () => {
+    const runs = await (await page.request.get(`/api/projects/${p.id}/analyses`)).json() as { status: string }[];
+    return runs.filter((r) => r.status === "failed").length;
+  }).toBe(2);
+  const runs = await (await page.request.get(`/api/projects/${p.id}/analyses`)).json() as { researchQuestion: string; reasoningProfile: string; outputLocale: string }[];
+  for (const run of runs) expect(run).toMatchObject({ researchQuestion: "What changed?", reasoningProfile: "CUSTOMER_INSIGHT", outputLocale: "ja-JP" });
+});
+
+test("an active API snapshot prevents a second start", async ({ page }) => {
+  const p = await (await page.request.post("/api/projects", { data: { name: "E2E active run" } })).json() as { id: string };
+  await page.request.post(`/api/projects/${p.id}/documents`, { data: { source: "dataset", content: "Dataset evidence." } });
+  // Hold a running snapshot to avoid timing-dependent tests on a fast local run.
+  const run = { id: "active-fixture", projectId: p.id, status: "running", progress: 10, createdAt: "2026-01-01T00:00:00Z" };
+  await page.route(`**/api/projects/${p.id}/analyses`, (route) => route.fulfill({ json: [run] }));
+  await page.route("**/api/analysis/active-fixture", (route) => route.fulfill({ json: run }));
+  await page.route("**/api/analysis/active-fixture/events", (route) => route.fulfill({ contentType: "text/event-stream", body: 'event: progress\ndata: {"progress":10,"step":"running"}\n\n' }));
+  let starts = 0;
+  page.on("request", (req) => { if (req.method() === "POST" && req.url().endsWith(`/api/projects/${p.id}/analysis`)) starts++; });
+  await page.goto(`/#/projects/${p.id}/analysis`);
+  await expect(page.locator("[data-readiness]")).toHaveAttribute("data-readiness", "running");
+  await expect(page.locator("#run-analysis")).toBeDisabled();
+  await page.locator("#run-analysis").evaluate((button) => button.closest("form")?.requestSubmit());
+  expect(starts).toBe(0);
+  await expect(page.locator("#analysis-start-help")).toContainText("still in progress");
 });

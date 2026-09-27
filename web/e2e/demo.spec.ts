@@ -44,6 +44,7 @@ test("run history compares two runs without ranking them", async ({ page }, test
   await page.goto("/");
   await page.locator("main a[href^='#/projects/']").first().click();
   await page.getByRole("navigation", { name: "Project sections" }).getByRole("link", { name: "Analysis" }).click();
+  await page.getByText("Advanced settings (optional)").click();
   await page.getByLabel("Language of model-written text").selectOption("ja-JP");
   await page.getByRole("button", { name: "Run analysis" }).click();
   await expect(page.getByText("The latest run is complete. Review its findings and evidence.")).toBeVisible({ timeout: 80_000 });

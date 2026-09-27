@@ -129,14 +129,13 @@ hashes show Home, as before.
 | `#/settings` | Display language, LLM settings, connection test |
 
 Technical detail (provenance chips, all runs, dataset profile) sits in
-collapsed "Advanced" disclosures. There is no cancel action because the API has
-no cancel endpoint.
+collapsed "Advanced" disclosures. The reference UI does not expose the newer job cancellation API yet.
 
 ## CSS
 
 - `styles/tokens.css` — color, spacing, type, radius tokens. Components use
   tokens only; a dark token set exists behind `html[data-theme="dark"]`
-  (opt-in until reviewed for contrast).
+  (opt-in; text/semantic token pairs are covered by WCAG AA contrast tests).
 - `styles/reset.css`, `styles/global.css` — element defaults only.
 - Every component/feature/page imports its own `*.module.css`. JavaScript sets
   only dynamic custom properties (e.g. `--meter-value` for progress bars).
@@ -173,3 +172,49 @@ that `dist/locales` matches `web/public/locales`. ESLint
   settings, API error) and demo builds with `cmd/insight-scripted-llm`
   (sample → analysis → evidence → report on desktop and a Pixel 7 viewport;
   run comparison). No paid LLM is called. Ports 8811–8815.
+
+## Form feedback and readiness follow-up
+
+`Field` uses explicit `requirement` (`required`, `required-later`, `optional`)
+and a render prop: `children(controlProps)`. The caller spreads these props on
+the actual input/select/textarea. Field owns the label association, native
+`required`, `aria-required`, `aria-invalid`, and description IDs for the
+requirement, hint, example and error. It does not clone or rewrite children.
+`required-later` stays natively optional for the current save operation.
+
+`useFormValidation` and `ValidationSummary` keep presentation feedback local:
+errors appear inline and in a live summary, links focus the control without
+changing the hash route, and invalid submit focuses the first error after
+rendering. Checks mirror Go: project name and document source/content are
+trimmed and required (`internal/usecase/application.go`); a research question
+is required for a new research action (`internal/usecase/research.go`), but
+optional for starting an analysis. Promotion requires a contribution value.
+Settings can be saved empty; model and base URL are only needed for model use.
+Server validation remains authoritative. No research/input contracts changed.
+
+CSV choices, extensions, columns and templates come from `import-formats`.
+Documents is selected by default when offered. Other server formats are in a
+disclosure. Selection calls the existing nonpersistent preview; only explicit
+confirmation calls import. Counts, rejected rows, filename and next action
+remain visible. The large asynchronous ingest API is outside this UI change.
+
+Readiness preserves the #130 guards: no evidence, an active run, or known
+missing model with no dataset prevents start. A dataset keeps deterministic
+analysis available without a model. Unknown settings are a separate warning,
+not proof that a run must fail. Start and retry handlers also guard against
+blocked/active state. The server may still reject an unprocessable dataset;
+real failure/retry coverage is independent of blocked-start coverage.
+
+Advanced settings show effective choices outside the disclosure: open
+question, GENERAL_RESEARCH, and source/question language detection by default.
+An empty output locale delegates to the engine's language inference, not the
+saved settings language. Explicit selections remain visible when collapsed.
+
+The delivery E2E suite covers blocked start, settings navigation, deterministic
+execution, a mocked active-run snapshot preventing duplicate submission, and
+a real API failure with retry. Additional English/Japanese desktop/mobile
+projects cover validation focus, descriptions, keyboard disclosure, template,
+preview, import, analysis, report, no horizontal overflow and reduced motion.
+`PLAYWRIGHT_CHROMIUM_EXECUTABLE` optionally selects an installed compatible
+Chromium; otherwise Playwright uses its managed browser. See
+[review evidence](ux-review/README.md) for environment and verification limits.
