@@ -92,7 +92,10 @@ type ResearchArtifact struct {
 	AddedEvidenceLinks   []domain.AddedEvidenceLink            `json:"addedEvidenceLinks,omitempty"`
 	InputSnapshot        domain.InputSetSnapshot               `json:"inputSnapshot,omitempty"`
 	Claims               []domain.ResearchClaim                `json:"claims,omitempty"`
-	InsightDelta         *domain.InsightDelta                  `json:"insightDelta,omitempty"`
+	// ClaimInspections check Claims against this iteration's research state
+	// (#119). Each carries its rule version; none is an independent truth score.
+	ClaimInspections []domain.ClaimInspection `json:"claimInspections,omitempty"`
+	InsightDelta     *domain.InsightDelta     `json:"insightDelta,omitempty"`
 
 	Readiness          domain.ReadinessAssessment `json:"decisionReadiness"`
 	EffectiveReadiness domain.DecisionReadiness   `json:"effectiveDecisionReadiness"`
@@ -185,6 +188,7 @@ func (a *Application) GetResearchArtifact(ctx context.Context, runID string) (*R
 		AddedEvidenceLinks:   iteration.AddedEvidenceLinks,
 		InputSnapshot:        iteration.InputSnapshot,
 		Claims:               iteration.Claims,
+		ClaimInspections:     iteration.ClaimInspections,
 		InsightDelta:         iteration.Delta,
 		Readiness:            iteration.Readiness, EffectiveReadiness: iteration.EffectiveReadiness(),
 		StopDecision: iteration.Stop, HumanOverrides: iteration.HumanOverrides,

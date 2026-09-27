@@ -402,6 +402,24 @@ func writeResearchLoop(b *strings.Builder, report ProjectReport) {
 			}
 			b.WriteByte('\n')
 		}
+		if len(latest.ClaimInspections) > 0 {
+			b.WriteString("**Claim inspection (derived from the hypotheses' existing states; not a truth score):**\n\n")
+			for _, ci := range latest.ClaimInspections {
+				var flags []string
+				for _, f := range ci.Flags {
+					flags = append(flags, string(f.Code))
+				}
+				change := ""
+				if ci.Previous != nil && ci.Previous.Changed {
+					change = fmt.Sprintf(" (was `%s`)", ci.Previous.Status)
+				}
+				fmt.Fprintf(b, "- `%s` `%s`%s; flags=[%s]\n", markdownInline(ci.ClaimID), ci.Status, change, strings.Join(flags, ", "))
+				for _, c := range ci.CannotConclude {
+					fmt.Fprintf(b, "  - cannot conclude: %s\n", markdownInline(c))
+				}
+			}
+			b.WriteByte('\n')
+		}
 	}
 	b.WriteString("## Inputs / Provenance\n\n")
 	if len(run.Iterations) > 0 {
