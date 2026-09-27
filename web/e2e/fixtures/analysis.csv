@@ -1,0 +1,7 @@
+corporate_number,name,kind,prefecture_code,prefecture_name,city_code,city_name,assignment_date,update_date,change_date,close_date,close_cause,event_type,source_provider,source_version,source_fetched_at
+9000000000001,Fixture A,株式会社,13,フィクスチャ都,101,フィクスチャ市,2026-01-05,,,,,ASSIGNED,e2e_fixture,v1,2026-03-01T00:00:00Z
+9000000000002,Fixture B,株式会社,13,フィクスチャ都,101,フィクスチャ市,2026-01-12,,,,,ASSIGNED,e2e_fixture,v1,2026-03-01T00:00:00Z
+9000000000003,Fixture C,株式会社,13,フィクスチャ都,101,フィクスチャ市,2026-02-03,,,,,ASSIGNED,e2e_fixture,v1,2026-03-01T00:00:00Z
+9000000000004,Fixture D,合同会社,13,フィクスチャ都,102,フィクスチャ区,2026-01-20,2026-02-10,,,,UPDATED,e2e_fixture,v1,2026-03-01T00:00:00Z
+9000000000005,Fixture E,株式会社,13,フィクスチャ都,102,フィクスチャ区,2025-11-01,,,2026-02-15,,CLOSED,e2e_fixture,v1,2026-03-01T00:00:00Z
+,Missing number,株式会社,13,フィクスチャ都,101,フィクスチャ市,2026-01-05,,,,,ASSIGNED,e2e_fixture,v1,2026-03-01T00:00:00Z

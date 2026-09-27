@@ -3,6 +3,7 @@ package web
 import (
 	"encoding/json"
 	"io"
+	"io/fs"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -14,7 +15,8 @@ import (
 )
 
 // The browser UI shows every screen string through dictionaries under
-// dist/locales (#124). These tests keep the dictionaries and app.js in step:
+// dist/locales (#124), built from web/public/locales. These tests keep the
+// dictionaries and the TypeScript sources under web/src in step:
 // a key used on screen must exist, every locale must translate every key
 // with the same parameters, and no screen copy may stay hard-coded.
 
@@ -33,13 +35,35 @@ func loadDictionary(t *testing.T, locale string) map[string]string {
 	return dict
 }
 
-func readAppJS(t *testing.T) string {
+// frontendSource concatenates the TypeScript UI sources under web/src
+// (tests excluded): the sources the dist/ bundle is built from.
+func frontendSource(t *testing.T) string {
 	t.Helper()
-	raw, err := os.ReadFile(filepath.Join("dist", "app.js"))
+	var b strings.Builder
+	root := filepath.Join("..", "..", "web", "src")
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
+		}
+		ext := filepath.Ext(path)
+		if (ext != ".ts" && ext != ".tsx") || strings.Contains(path, ".test.") || strings.Contains(path, string(filepath.Separator)+"test"+string(filepath.Separator)) {
+			return nil
+		}
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		b.WriteString("\n// file: " + filepath.ToSlash(path) + "\n")
+		b.Write(raw)
+		return nil
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	return string(raw)
+	if b.Len() == 0 {
+		t.Fatal("no frontend sources found under web/src")
+	}
+	return b.String()
 }
 
 var placeholderPattern = regexp.MustCompile(`\{(\w+)\}`)
@@ -79,67 +103,72 @@ func TestLocaleDictionariesHaveSameKeysAndPlaceholdersWhenCompared(t *testing.T)
 }
 
 var (
-	textCallPattern = regexp.MustCompile(`\bth?\("([^"]+)"`)
-	keyLiteral      = regexp.MustCompile(`"([a-z][a-zA-Z]*(?:\.[a-zA-Z]+)+)"`)
+	textCallPattern = regexp.MustCompile(`\bt(?:Rich)?\("([^"]+)"`)
+	keyLiteral      = regexp.MustCompile(`"([a-z][a-zA-Z]*(?:\.[a-zA-Z0-9]+)+)"`)
 )
 
-func TestAppJSUsesOnlyDefinedKeysAndEveryKeyIsUsedWhenScanned(t *testing.T) {
+func TestFrontendUsesOnlyDefinedKeysAndEveryKeyIsUsedWhenScanned(t *testing.T) {
 	en := loadDictionary(t, "en")
-	js := readAppJS(t)
+	src := frontendSource(t)
 	namespaces := map[string]bool{}
 	for key := range en {
 		namespaces[strings.SplitN(key, ".", 2)[0]] = true
 	}
 	used := map[string]bool{}
-	for _, m := range textCallPattern.FindAllStringSubmatch(js, -1) {
+	for _, m := range textCallPattern.FindAllStringSubmatch(src, -1) {
 		used[m[1]] = true
 	}
-	for _, m := range keyLiteral.FindAllStringSubmatch(js, -1) {
+	for _, m := range keyLiteral.FindAllStringSubmatch(src, -1) {
 		if namespaces[strings.SplitN(m[1], ".", 2)[0]] {
 			used[m[1]] = true
 		}
 	}
 	for key := range used {
 		if _, ok := en[key]; !ok {
-			t.Errorf("app.js uses %q, which en.json does not define", key)
+			t.Errorf("web/src uses %q, which en.json does not define", key)
 		}
 	}
 	for key := range en {
-		if !strings.Contains(js, `"`+key+`"`) {
-			t.Errorf("en.json defines %q, which app.js never uses", key)
+		if !strings.Contains(src, `"`+key+`"`) {
+			t.Errorf("en.json defines %q, which web/src never uses", key)
 		}
 	}
 }
 
-// Text between tags and user-facing attributes must come from dictionaries.
-// Brand, sample values and code tokens are the only literals allowed.
-func TestAppJSHasNoHardCodedScreenCopyWhenScanned(t *testing.T) {
-	js := readAppJS(t)
+// JSX text is checked by ESLint (react/jsx-no-literals). User-facing
+// attributes are checked here so `make test` guards them without Node:
+// brand, sample values and code tokens are the only literals allowed.
+func TestFrontendHasNoHardCodedAttributeCopyWhenScanned(t *testing.T) {
+	src := frontendSource(t)
 	allowed := map[string]bool{
-		"Insight Lab": true, "https://api.openai.com/v1": true, "gpt-5": true, "sk-...": true,
-		"make build-demo": true,
+		"https://api.openai.com/v1": true, "gpt-5": true, "sk-...": true,
 	}
 	word := regexp.MustCompile(`[A-Za-z]{2,}`)
-	textNode := regexp.MustCompile(`>([^<>]*)<`)
-	attribute := regexp.MustCompile(`\b(?:placeholder|title|aria-label|alt)="([^"]*)"`)
-	check := func(kind, s string) {
-		stripped := regexp.MustCompile(`\$\{[^}]*\}?`).ReplaceAllString(s, "")
-		stripped = regexp.MustCompile(`&[a-z]+;`).ReplaceAllString(stripped, "")
-		stripped = strings.TrimSpace(stripped)
-		if stripped == "" || allowed[stripped] || !word.MatchString(stripped) {
-			return
+	attribute := regexp.MustCompile(`\b(?:placeholder|title|aria-label|alt|label|summary)="([^"]*)"`)
+	for _, m := range attribute.FindAllStringSubmatch(src, -1) {
+		text := strings.TrimSpace(m[1])
+		if text == "" || allowed[text] || !word.MatchString(text) {
+			continue
 		}
-		// Template fragments such as `${cond ? "x" : ""}` leave code, not copy.
-		if strings.ContainsAny(stripped, "(){};=`") {
-			return
+		t.Errorf("hard-coded attribute copy in web/src: %q", text)
+	}
+}
+
+// dist/locales is copied from web/public/locales by the build; a stale copy
+// would serve different text than the sources define.
+func TestDistLocalesMatchFrontendSourcesWhenCompared(t *testing.T) {
+	for _, locale := range locales {
+		built, err := os.ReadFile(filepath.Join("dist", "locales", locale+".json"))
+		if err != nil {
+			t.Fatal(err)
 		}
-		t.Errorf("hard-coded %s copy in app.js: %q", kind, stripped)
-	}
-	for _, m := range textNode.FindAllStringSubmatch(js, -1) {
-		check("text", m[1])
-	}
-	for _, m := range attribute.FindAllStringSubmatch(js, -1) {
-		check("attribute", m[1])
+		source, err := os.ReadFile(filepath.Join("..", "..", "web", "public", "locales", locale+".json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(built) != string(source) {
+			t.Errorf("dist/locales/%s.json differs from web/public/locales/%s.json; run make web-build", locale, locale)
+		}
 	}
 }
 
@@ -156,6 +185,34 @@ func TestHandlerServesLocaleDictionariesAsJSONWhenRequested(t *testing.T) {
 		var dict map[string]string
 		if res.StatusCode != http.StatusOK || json.Unmarshal(body, &dict) != nil || len(dict) == 0 {
 			t.Fatalf("/locales/%s.json: status %d, body is not a dictionary: %.80s", locale, res.StatusCode, body)
+		}
+	}
+}
+
+var assetReference = regexp.MustCompile(`(?:src|href)="/(assets/[^"]+)"`)
+
+// The embedded index.html must reference bundle files that are embedded too.
+func TestHandlerServesIndexWhoseAssetsAreEmbeddedWhenRequested(t *testing.T) {
+	server := httptest.NewServer(Handler())
+	defer server.Close()
+	res, err := http.Get(server.URL + "/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := io.ReadAll(res.Body)
+	res.Body.Close()
+	refs := assetReference.FindAllStringSubmatch(string(body), -1)
+	if len(refs) < 2 {
+		t.Fatalf("index.html references %d bundle assets, want a script and a stylesheet: %.200s", len(refs), body)
+	}
+	for _, ref := range refs {
+		res, err := http.Get(server.URL + "/" + ref[1])
+		if err != nil {
+			t.Fatal(err)
+		}
+		res.Body.Close()
+		if res.StatusCode != http.StatusOK || strings.HasPrefix(res.Header.Get("Content-Type"), "text/html") {
+			t.Errorf("/%s: status %d, content type %q", ref[1], res.StatusCode, res.Header.Get("Content-Type"))
 		}
 	}
 }

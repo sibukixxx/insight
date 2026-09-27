@@ -1,0 +1,15 @@
+.stack { display: grid; gap: var(--space-4); }
+.trail { background: var(--color-surface); border: 1px dashed var(--color-border-strong); border-radius: var(--radius-lg); padding: var(--space-5); }
+.sectionTitle { font-size: var(--font-size-base); font-weight: 700; margin-bottom: var(--space-1); }
+.subtitle { font-size: var(--font-size-sm); font-weight: 700; color: var(--color-text-muted); margin: var(--space-2) 0; }
+.hint { color: var(--color-text-muted); font-size: var(--font-size-sm); margin-bottom: var(--space-3); }
+.fields { display: grid; gap: var(--space-3); }
+.field { padding: var(--space-3); border-radius: var(--radius-md); background: var(--color-surface-muted); overflow-wrap: anywhere; }
+.field dd { margin: 0; white-space: pre-wrap; }
+.fact { background: var(--color-accent-weak); }
+.latent { background: var(--color-warning-weak); }
+.interpretation { background: var(--color-violet-weak); }
+.alternative { background: var(--color-success-weak); }
+.money { background: var(--color-warning-weak); border: 1px solid var(--color-warning-border); }
+.evidenceGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--space-4); align-items: start; }
+@media (max-width: 600px) { .trail { padding: var(--space-4); } }

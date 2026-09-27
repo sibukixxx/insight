@@ -59,6 +59,9 @@ func NewRouter(deps Deps) http.Handler {
 		r.Put("/settings", h.UpdateSettings)
 		r.Post("/settings/test", h.TestSettings)
 
+		r.Get("/import-formats", h.ListImportFormats)
+		r.Get("/import-formats/{kind}/template.csv", h.ImportTemplate)
+
 		r.Route("/projects", func(r chi.Router) {
 			r.Get("/", h.ListProjects)
 			r.Post("/", h.CreateProject)
@@ -70,6 +73,7 @@ func NewRouter(deps Deps) http.Handler {
 				r.Post("/documents", h.CreateDocument)
 				r.Post("/documents/import", h.ImportDocumentsCSV)
 				r.Post("/documents/import/analysis", h.ImportAnalysisCSV)
+				r.Post("/documents/import/preview", h.PreviewImport)
 				r.Post("/analysis", h.CreateAnalysis)
 				r.Get("/analyses", h.ListAnalyses)
 				r.Get("/analyses/compare", h.CompareProjectAnalyses)

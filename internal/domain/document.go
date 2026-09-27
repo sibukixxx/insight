@@ -23,6 +23,16 @@ const (
 	SourceOther    SourceType = "other"
 )
 
+// SourceTypes lists every accepted source type, generic sources first, in
+// the order the browser UI offers them.
+func SourceTypes() []SourceType {
+	return []SourceType{
+		SourceDocument, SourceReport, SourcePaper, SourceWeb, SourceRecord, SourceOther,
+		SourceDataset, SourceInterview, SourceReview, SourceSupport, SourceSales, SourceSurvey,
+		SourceJobPosting, SourceSocialPost,
+	}
+}
+
 func (s SourceType) Valid() bool {
 	switch s {
 	case SourceInterview, SourceReview, SourceSupport, SourceSales, SourceSurvey,

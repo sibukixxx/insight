@@ -9,6 +9,9 @@ Evidence-first analysis engine. Keep observations, expectations, mismatches, com
 - `make test-golden` — golden evaluation harness
 - `make vet`
 - `make eval-demo` — real-LLM evaluation; requires configured API credentials
+- `make web-build` / `make build-all` — rebuild `internal/web/dist` from `web/` (Node 22+, pnpm) / plus the Go binary
+- `make web-check` — frontend typecheck, lint, unit tests, and stale-`dist` detection
+- `make web-e2e` — Playwright E2E against real delivery/demo binaries with the local scripted model (no paid LLM)
 
 ## Shared rules
 - Never present an observation, anecdote, or model output as a validated insight without its evidence state and limitations.
@@ -20,6 +23,7 @@ Evidence-first analysis engine. Keep observations, expectations, mismatches, com
 - Core/domain changes: `make test && make vet`.
 - Insight scoring/evaluation changes: also run `make test-golden`.
 - Demo-only changes: verify both normal and `demo` build paths remain separated.
+- Browser UI changes: edit `web/` only (never hand-edit `internal/web/dist`), keep the onion layer rules in `docs/frontend-architecture.md`, add en/ja dictionary keys together, then `make web-check` and commit the rebuilt `dist`; run `make web-e2e` for flow changes. No sample data under `web/public` (it would ship in delivery builds).
 - Public contract changes (`contracts/public-engine/v1`, `contracts/analytical-artifact/v1`): `make test` (drift and conformance tests), update `docs/public-engine-contract.md` in the same PR, then resync the snapshots in `insight-sdk-go` and `insight-sdk-js` (`contract/PROVENANCE.md`) and release a new SDK minor version. The SDK repositories never lead; this repository is authoritative.
 
 ## Done
