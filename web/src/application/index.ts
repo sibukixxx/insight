@@ -7,6 +7,7 @@ import { importEvidenceUseCases } from "./usecases/importEvidence";
 import { localeUseCases } from "./usecases/locale";
 import { researchUseCases } from "./usecases/research";
 import { resultsUseCases } from "./usecases/results";
+import { samplesUseCases } from "./usecases/samples";
 import { settingsUseCases } from "./usecases/settings";
 import { systemUseCases } from "./usecases/system";
 import { workspaceUseCases } from "./usecases/workspace";
@@ -25,6 +26,7 @@ export function createUseCases(ports: Ports) {
     settings: settingsUseCases(ports),
     exports: exportUseCases(ports),
     locale: localeUseCases(ports),
+    samples: samplesUseCases(ports),
   };
 }
 

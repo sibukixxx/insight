@@ -82,7 +82,7 @@ function AnalysisView({ data, onChanged }: { data: AnalysisWorkspace; onChanged:
       </Card>
       <Card title={t("analysisPage.newRun")}>
         {error && <Notice kind="error" spaced>{error}</Notice>}
-        <AnalysisForm readiness={readiness} busy={busy} onStart={onStart} />
+        <AnalysisForm readiness={readiness} busy={busy} onStart={onStart} emphasized={!(latest?.status === "completed" && !watching)} />
       </Card>
     </ProjectFrame>
   );

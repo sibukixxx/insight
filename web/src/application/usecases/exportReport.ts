@@ -9,5 +9,7 @@ export function exportUseCases({ links }: Pick<Ports, "links">) {
     researchReportLink: (researchRunId: string): string => links.researchReport(researchRunId),
     researchArtifactLink: (researchRunId: string): string => links.researchArtifact(researchRunId),
     approvedArtifactLink: (researchRunId: string): string => links.approvedResearchArtifact(researchRunId),
+    /** The exact input CSV of a bundled sample scenario (demo builds). */
+    sampleInputLink: (scenarioId: string): string => links.sampleInput(scenarioId),
   };
 }

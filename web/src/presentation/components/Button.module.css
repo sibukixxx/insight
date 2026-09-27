@@ -20,7 +20,7 @@
 .button:hover { border-color: var(--color-accent); color: var(--color-accent); text-decoration: none; }
 .button:disabled, .button[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
 
-.primary { background: var(--color-accent); border-color: var(--color-accent); color: var(--color-on-accent); }
+.primary { background: var(--color-accent); border-color: var(--color-accent); color: var(--color-on-accent); box-shadow: 0 2px 8px rgb(85 70 255 / 28%); }
 .primary:hover { background: var(--color-accent-strong); border-color: var(--color-accent-strong); color: var(--color-on-accent); }
 
 .ghost { background: transparent; border-color: transparent; color: var(--color-accent); padding-inline: var(--space-2); }

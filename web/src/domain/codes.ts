@@ -135,3 +135,28 @@ export const IMPORT_KIND_LABELS: LabelTable = {
 export function labelKey(table: LabelTable, code: string | undefined): MessageKey | undefined {
   return code !== undefined && Object.prototype.hasOwnProperty.call(table, code) ? table[code] : undefined;
 }
+
+export const SAMPLE_DATA_KIND_LABELS: LabelTable = {
+  synthetic: "samples.kind.synthetic",
+  official: "samples.kind.official",
+  mixed: "samples.kind.mixed",
+};
+
+export const SAMPLE_SOURCE_KIND_LABELS: LabelTable = {
+  synthetic: "samples.sourceKind.synthetic",
+  official: "samples.sourceKind.official",
+};
+
+/** Pre-analysis copy of each bundled scenario: what it is for, not what it found. */
+export interface SampleCopy {
+  readonly title: MessageKey;
+  readonly question: MessageKey;
+  readonly learn: MessageKey;
+  readonly caution: MessageKey;
+}
+
+export const SAMPLE_COPY: Readonly<Record<string, SampleCopy>> = {
+  "ja-shop-records": { title: "samples.shop.title", question: "samples.shop.question", learn: "samples.shop.learn", caution: "samples.shop.caution" },
+  "ja-official-population": { title: "samples.population.title", question: "samples.population.question", learn: "samples.population.learn", caution: "samples.population.caution" },
+  "ja-population-establishments": { title: "samples.mixed.title", question: "samples.mixed.question", learn: "samples.mixed.learn", caution: "samples.mixed.caution" },
+};

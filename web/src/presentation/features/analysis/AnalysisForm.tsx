@@ -11,9 +11,11 @@ interface Props {
   readonly readiness: Readiness;
   readonly busy: boolean;
   readonly onStart: (input: StartAnalysisInput) => void;
+  /** False once a completed run's "View results" is the screen's main action. */
+  readonly emphasized?: boolean;
 }
 
-export function AnalysisForm({ readiness, busy, onStart }: Props) {
+export function AnalysisForm({ readiness, busy, onStart, emphasized = true }: Props) {
   const { t, label } = useI18n();
   const [question, setQuestion] = useState("");
   const [profile, setProfile] = useState("GENERAL_RESEARCH");
@@ -45,7 +47,7 @@ export function AnalysisForm({ readiness, busy, onStart }: Props) {
         )}
       </div>
       <div class={formStyles.actions}>
-        <Button id="run-analysis" type="submit" variant="primary" aria-describedby="analysis-start-help" disabled={!readiness.canStart || busy}>{t("project.runAnalysis")}</Button>
+        <Button id="run-analysis" type="submit" variant={emphasized ? "primary" : "secondary"} aria-describedby="analysis-start-help" disabled={!readiness.canStart || busy}>{t("project.runAnalysis")}</Button>
       </div>
     </form>
   );

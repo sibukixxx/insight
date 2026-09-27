@@ -4,7 +4,7 @@
 import { createUseCases, type UseCases } from "../application";
 import type { Ports } from "../application/ports";
 import {
-  httpAnalysis, httpEvidence, httpLinks, httpProjects, httpResearch, httpResults, httpSettings, httpSystem,
+  httpAnalysis, httpEvidence, httpLinks, httpProjects, httpResearch, httpResults, httpSamples, httpSettings, httpSystem,
 } from "../infrastructure/http/adapters";
 import { createHttpClient } from "../infrastructure/http/client";
 import { browserLocaleStore } from "../infrastructure/i18n/localeStore";
@@ -23,6 +23,7 @@ export function createPorts(): Ports {
     settings: httpSettings(http),
     links: httpLinks,
     locale: browserLocaleStore(),
+    samples: httpSamples(http),
   };
 }
 

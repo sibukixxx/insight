@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { vi } from "vitest";
 import type { Ports } from "../application/ports";
 import type { Dictionaries } from "../domain/locale";
-import type { AnalysisRun, EvidenceDocument, ImportFormat, Insight, LlmSettings, Project } from "../domain/models";
+import type { AnalysisRun, EvidenceDocument, ImportFormat, Insight, LlmSettings, Project, SampleScenario } from "../domain/models";
 
 const localesDir = resolve(dirname(fileURLToPath(import.meta.url)), "../../public/locales");
 export const dictionaries: Dictionaries = {
@@ -24,6 +24,7 @@ export interface FakeState {
   runs: AnalysisRun[];
   insights: Insight[];
   settings: LlmSettings;
+  samples: SampleScenario[];
 }
 
 export function fakeState(overrides: Partial<FakeState> = {}): FakeState {
@@ -33,6 +34,7 @@ export function fakeState(overrides: Partial<FakeState> = {}): FakeState {
     runs: [],
     insights: [],
     settings: { model: "", baseUrl: "", maskedApiKey: "", hasApiKey: false, configured: false },
+    samples: [],
     ...overrides,
   };
 }
@@ -79,8 +81,32 @@ export function fakePorts(state: FakeState = fakeState()) {
     links: {
       projectReport: (p: string, r: string) => `/report/${p}/${r}`, importTemplate: (k: string) => `/template/${k}`,
       researchReport: () => "", researchArtifact: () => "", approvedResearchArtifact: () => "",
+      sampleInput: (id: string) => `/sample/${id}.csv`,
+    },
+    samples: {
+      list: vi.fn(async () => state.samples),
+      openProject: vi.fn(async (id: string) => {
+        const scenario = state.samples.find((s) => s.id === id);
+        if (!scenario) throw new Error("unknown sample scenario");
+        let p = state.projects.find((x) => x.id === scenario.projectId);
+        if (!p) { p = { id: scenario.projectId, name: scenario.projectName, createdAt: "" }; state.projects.push(p); }
+        return p;
+      }),
+      input: vi.fn(async (id: string) => ({ name: `insight-sample-${id}.csv`, blob: new Blob(["id,source,title,content\n"], { type: "text/csv" }) })),
     },
     locale: { loadDictionaries: vi.fn(async () => dictionaries), savedLocale: vi.fn(() => undefined), saveLocale: vi.fn(), browserLanguages: () => ["en"] },
   } satisfies Ports;
   return ports;
+}
+
+/** A synthetic sample scenario as GET /api/demo/scenarios returns it. */
+export function sampleScenario(overrides: Partial<SampleScenario> = {}): SampleScenario {
+  return {
+    id: "ja-shop-records", projectId: "demo-scenario-ja-shop-records", projectName: "Sample 01",
+    dataKind: "synthetic", importKind: "documents", inputSha256: "49979dc0", rows: 9,
+    sources: [{ kind: "synthetic", description: "fictional", rows: ["r001"], regions: [], periods: [] }],
+    transform: { script: "", version: "1", description: "hand-written" },
+    limitations: ["All data is fictional."],
+    ...overrides,
+  };
 }

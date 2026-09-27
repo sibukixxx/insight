@@ -23,6 +23,8 @@ for (const [theme, set] of Object.entries({ light, dark })) {
       ["on-accent", "primary"], ["on-accent", "primary-hover"],
       ["primary", "primary-soft"], ["secondary", "secondary-soft"],
       ["success", "success-weak"], ["danger", "danger-weak"], ["warning", "warning-weak"],
+      ["text", "bg"], ["primary", "surface"], ["primary", "bg"], ["on-ink", "ink"], ["on-ink-muted", "ink"], ["on-ink", "ink-raised"],
+      ["info", "info-weak"], ["hypothesis", "hypothesis-weak"], ["text", "data-weak"],
     ])("%s text on %s meets AA", (foreground, background) => {
       const a = luminance(color(set, `--color-${foreground}`));
       const b = luminance(color(set, `--color-${background}`));
@@ -30,3 +32,19 @@ for (const [theme, set] of Object.entries({ light, dark })) {
     });
   });
 }
+
+// Data Cyan is decoration only: it must never be mistaken for a text color on
+// a light surface, and it must stay visible as a bar or border next to text.
+describe("Data Cyan usage", () => {
+  const ratio = (fg: string, bg: string) => {
+    const a = luminance(color(light, fg)); const b = luminance(color(light, bg));
+    return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+  };
+  it("is too light for text on white, so it is not used as a text token", () => {
+    expect(ratio("--color-data", "--color-surface")).toBeLessThan(4.5);
+    expect(css).not.toMatch(/--color-text[\w-]*:\s*var\(--color-data\)/);
+  });
+  it("still reaches 3:1 against Deep Ink as a non-text accent", () => {
+    expect(ratio("--color-data", "--color-ink")).toBeGreaterThanOrEqual(3);
+  });
+});

@@ -4,7 +4,7 @@ import type {
   AnalysisRun, BuildInfo, ColumnProfile, DatasetProfile, DocumentImportResult, Evidence, EvidenceDocument,
   ExecutionSnapshot, ImportFormat, ImportPreview, ImportRowError, Insight, InsightDetail, LlmSettings, Pattern,
   PatternObservation, Project, QualityFlag, ResearchIteration, ResearchRun, ResearchRunSummary, RunComparison,
-  RunMetrics, RunProvenance,
+  RunMetrics, RunProvenance, SampleScenario, SampleSource,
 } from "../../domain/models";
 import {
   arr, bool, boolRecord, compact, num, numberRecord, numOrNull, obj, optArr, optNum, optStr, str, stringItem,
@@ -267,3 +267,48 @@ export function decodeComparison(v: unknown): RunComparison {
 }
 
 export const list = <T>(decode: (v: unknown, path: string) => T, path: string) => (v: unknown): T[] => arr(v, path, decode);
+
+function decodeSampleSource(v: unknown, path: string): SampleSource {
+  const o = obj(v, path);
+  return {
+    kind: str(o, "kind", path),
+    description: optStr(o, "description", path),
+    rows: optArr(o, "rows", path, stringItem),
+    publisher: optStr(o, "publisher", path),
+    survey: optStr(o, "survey", path),
+    dataset: optStr(o, "dataset", path),
+    provider: optStr(o, "provider", path),
+    indicatorCode: optStr(o, "indicatorCode", path),
+    regions: optArr(o, "regions", path, (r, p) => { const ro = obj(r, p); return { code: str(ro, "code", p), name: str(ro, "name", p) }; }),
+    periods: optArr(o, "periods", path, stringItem),
+    unit: optStr(o, "unit", path),
+    url: optStr(o, "url", path),
+    retrievedAt: optStr(o, "retrievedAt", path),
+    rawFile: optStr(o, "rawFile", path),
+    rawSha256: optStr(o, "rawSha256", path),
+    license: optStr(o, "license", path),
+    licenseUrl: optStr(o, "licenseUrl", path),
+    attribution: optStr(o, "attribution", path),
+  };
+}
+
+export function decodeSampleScenario(v: unknown, path: string): SampleScenario {
+  const o = obj(v, path);
+  const transform = obj(o.transform, `${path}.transform`);
+  return {
+    id: str(o, "id", path),
+    projectId: str(o, "projectId", path),
+    projectName: str(o, "projectName", path),
+    dataKind: str(o, "dataKind", path),
+    importKind: str(o, "importKind", path),
+    inputSha256: str(o, "inputSha256", path),
+    rows: num(o, "rows", path),
+    sources: optArr(o, "sources", path, decodeSampleSource),
+    transform: {
+      script: strOrEmpty(transform, "script", `${path}.transform`),
+      version: strOrEmpty(transform, "version", `${path}.transform`),
+      description: strOrEmpty(transform, "description", `${path}.transform`),
+    },
+    limitations: optArr(o, "limitations", path, stringItem),
+  };
+}
