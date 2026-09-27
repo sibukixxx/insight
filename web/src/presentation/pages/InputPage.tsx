@@ -4,7 +4,6 @@ import { Card } from "../components/Card";
 import { Loading, PageError } from "../components/States";
 import { CsvImport } from "../features/input/CsvImport";
 import { DocumentList } from "../features/input/DocumentList";
-import { FormatGuide } from "../features/input/FormatGuide";
 import { TextEvidenceForm } from "../features/input/TextEvidenceForm";
 import { useAsync } from "../hooks/useAsync";
 import { useI18n } from "../i18n/I18nProvider";
@@ -33,10 +32,8 @@ function InputView({ data, onChanged }: { data: InputWorkspace; onChanged: () =>
           <ButtonLink variant="primary" href={projectHash(project.id, "analysis")}>{t("nextStep.analysis.action")} {"→"}</ButtonLink>
         </div>
       )}
-      <Card title={t("input.formats.title")} description={t("input.formats.hint")}>
-        <FormatGuide formats={formats} />
-      </Card>
-      <div class={styles.split}>
+      <p class={styles.hint}>{t("input.formats.title")}{": "}{t("input.formats.hint")}</p>
+      <div class={styles.stack}>
         <Card title={t("project.importCsv")} description={t("input.csv.hint")}>
           <CsvImport projectId={project.id} formats={formats} onImported={onChanged} />
         </Card>

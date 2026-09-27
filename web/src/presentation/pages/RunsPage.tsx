@@ -78,11 +78,11 @@ function ComparePicker({ projectId, options, pair }: { projectId: string; option
   const [a, setA] = useState(pair?.[0] ?? options[1]?.[0] ?? "");
   const [b, setB] = useState(pair?.[1] ?? options[0]?.[0] ?? "");
   const select = (id: string, value: string, set: (v: string) => void, labelText: string) => (
-    <Field label={labelText} htmlFor={id}>
-      <select id={id} class={formStyles.control} value={value} onChange={(e) => set(e.currentTarget.value)}>
+    <Field label={labelText} htmlFor={id} requirement="optional">
+            {(control) => (<select {...control} id={id} class={formStyles.control} value={value} onChange={(e) => set(e.currentTarget.value)}>
         {options.map(([runId, text]) => <option key={runId} value={runId}>{text}</option>)}
-      </select>
-    </Field>
+      </select>)}
+          </Field>
   );
   return (
     <form class={styles.pair} onSubmit={(e) => { e.preventDefault(); navigate({ name: "runs", projectId, from: a, to: b }); }}>

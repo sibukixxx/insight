@@ -24,3 +24,11 @@ textarea.control { min-height: 140px; resize: vertical; line-height: 1.6; }
 .check input { margin-top: 0.35em; flex: none; }
 
 @media (max-width: 600px) { .row { grid-template-columns: 1fr; } }
+.labelRow { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); }
+.required, .optional { font-size: var(--font-size-xs); }
+.summary { padding: var(--space-3) var(--space-4); background: var(--color-danger-weak); border: 1px solid var(--color-danger); border-radius: var(--radius-md); }
+.summary p { font-weight: 700; }
+.summary ul { padding-left: var(--space-5); }
+.summary a { display: inline-flex; align-items: center; min-height: 44px; overflow-wrap: anywhere; color: var(--color-danger); text-decoration: underline; }
+.field input, .field textarea, .field select { scroll-margin-top: 100px; }
+.check { min-height: 44px; align-items: center; }

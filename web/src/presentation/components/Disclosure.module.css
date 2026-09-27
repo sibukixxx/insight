@@ -2,3 +2,4 @@
 .summary { cursor: pointer; font-size: var(--font-size-sm); font-weight: 600; color: var(--color-text-muted); }
 .summary:hover { color: var(--color-accent); }
 .body { margin-top: var(--space-3); }
+.summary { min-height: 44px; padding-block: var(--space-2); }

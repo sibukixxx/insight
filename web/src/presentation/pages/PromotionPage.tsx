@@ -1,4 +1,6 @@
 import { useState } from "preact/hooks";
+import { ValidationSummary } from "../components/ValidationSummary";
+import { useFormValidation } from "../hooks/useFormValidation";
 import type { PromotionView } from "../../application/usecases/research";
 import { CONTRIBUTION_LABELS, PROMOTION_JUDGMENTS, PROMOTION_STATE_LABELS, TERMINAL_PROMOTION_STATES } from "../../domain/codes";
 import type { PromotionReview, ResearchIteration } from "../../domain/models";
@@ -35,6 +37,7 @@ function Promotion({ view, iteration, onChanged }: { view: PromotionView; iterat
   const { research, exports } = useUseCases();
   const [error, setError] = useState<string | undefined>(undefined);
   const [busy, setBusy] = useState(false);
+  const validation = useFormValidation();
   const runId = view.run.id;
   const state = iteration.promotion?.state || "DRAFT";
   const terminal = TERMINAL_PROMOTION_STATES.includes(state);
@@ -47,6 +50,7 @@ function Promotion({ view, iteration, onChanged }: { view: PromotionView; iterat
   const onReview = (e: Event) => {
     e.preventDefault();
     const data = new FormData(e.currentTarget as HTMLFormElement);
+    if (busy || !validation.validate(data.get("contribution") ? [] : [{ id: "promotion-contribution", label: "promotion.contribution", message: "form.selectValue" }])) return;
     const review = Object.fromEntries(PROMOTION_JUDGMENTS.map(([key]) => [key, data.has(key)])) as Omit<PromotionReview, "contribution">;
     submit(research.submitReview(runId, iteration.id, { ...review, contribution: String(data.get("contribution") ?? "") }));
   };
@@ -75,13 +79,14 @@ function Promotion({ view, iteration, onChanged }: { view: PromotionView; iterat
       {!terminal && (
         <>
           <Card title={t("promotion.reviewTitle")} description={t("promotion.reviewHint")}>
-            <form id="promotion-review" class={formStyles.form} onSubmit={onReview}>
-              <Field label={t("promotion.contribution")} htmlFor="promotion-contribution">
-                <select id="promotion-contribution" name="contribution" class={formStyles.control} required>
+            <form id="promotion-review" class={formStyles.form} noValidate onSubmit={onReview}>
+              <ValidationSummary errors={validation.errors} />
+              <Field label={t("promotion.contribution")} htmlFor="promotion-contribution" error={validation.error("promotion-contribution")} requirement="required">
+            {(control) => (<select {...control} name="contribution" onChange={() => validation.clear("promotion-contribution")} class={formStyles.control}>
                   <option value="">{t("promotion.chooseContribution")}</option>
                   {Object.keys(CONTRIBUTION_LABELS).map((code) => <option key={code} value={code}>{label(CONTRIBUTION_LABELS, code)}</option>)}
-                </select>
-              </Field>
+                </select>)}
+          </Field>
               {PROMOTION_JUDGMENTS.map(([key, labelKey]) => (
                 <label key={key} class={formStyles.check}><input type="checkbox" name={key} /> {t(labelKey)}</label>
               ))}

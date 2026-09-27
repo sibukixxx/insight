@@ -10,6 +10,8 @@ const LEVEL_LABELS = { ok: "readiness.level.ok", info: "readiness.level.info", w
 export function ReadinessList({ readiness, projectId }: { readiness: Readiness; projectId: string }) {
   const { t } = useI18n();
   return (
+    <>
+    <p role="status" class={styles.state} data-readiness={readiness.status}>{t(({ ready: "readiness.ready", blocked: "analysis.notReady", running: "readiness.running", unknown: "readiness.unknown" } as const)[readiness.status])}</p>
     <ul class={styles.checks} aria-label={t("readiness.title")}>
       {readiness.checks.map((c) => (
         <li key={c.id} class={`${styles.check} ${styles[c.level]}`} data-check={c.id} data-level={c.level}>
@@ -18,8 +20,10 @@ export function ReadinessList({ readiness, projectId }: { readiness: Readiness; 
           <span class={styles.checkBody}>{t(c.message, c.params)}</span>
           {c.fix === "input" && <a class={styles.fix} href={buildHash({ name: "input", projectId })}>{t("readiness.fixInput")}</a>}
           {c.fix === "settings" && <a class={styles.fix} href="#/settings">{t("readiness.fixSettings")}</a>}
+          {c.message === "readiness.noModelNoDataset" && <a class={styles.fix} href={buildHash({ name: "input", projectId })}>{t("readiness.fixDataset")}</a>}
         </li>
       ))}
     </ul>
+    </>
   );
 }

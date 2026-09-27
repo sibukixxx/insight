@@ -20,6 +20,7 @@ export interface ReadinessCheck {
 export interface Readiness {
   readonly checks: readonly ReadinessCheck[];
   readonly canStart: boolean;
+  readonly status: "ready" | "blocked" | "running" | "unknown";
 }
 
 export function assessReadiness(documents: readonly EvidenceDocument[], runs: readonly AnalysisRun[], settings: LlmSettings | undefined): Readiness {
@@ -46,5 +47,6 @@ export function assessReadiness(documents: readonly EvidenceDocument[], runs: re
     checks.push({ id: "model", level: "blocked", message: "readiness.noModelNoDataset", fix: "settings" });
   }
 
-  return { checks, canStart: !checks.some((c) => c.level === "blocked") };
+  const blocked = checks.some((c) => c.level === "blocked");
+  return { checks, canStart: !blocked, status: active ? "running" : blocked ? "blocked" : settings === undefined ? "unknown" : "ready" };
 }

@@ -1,4 +1,6 @@
 import { useState } from "preact/hooks";
+import { ValidationSummary } from "../../components/ValidationSummary";
+import { useFormValidation } from "../../hooks/useFormValidation";
 import { SOURCE_LABELS } from "../../../domain/codes";
 import { Button } from "../../components/Button";
 import { Field, formStyles } from "../../components/Field";
@@ -11,38 +13,46 @@ export function TextEvidenceForm({ projectId, sourceTypes, onAdded }: { projectI
   const { t, label } = useI18n();
   const { input } = useUseCases();
   const [busy, setBusy] = useState(false);
+  const validation = useFormValidation();
   const [error, setError] = useState<string | undefined>(undefined);
   const [notice, setNotice] = useState<string | undefined>(undefined);
-  const sources = sourceTypes.length ? sourceTypes : Object.keys(SOURCE_LABELS);
+  const sources = sourceTypes;
   const onSubmit = (e: Event) => {
     e.preventDefault();
     const form = e.currentTarget as HTMLFormElement;
     const data = new FormData(form);
+    const source = String(data.get("source") ?? "");
+    const content = String(data.get("content") ?? "");
+    if (busy || !validation.validate([
+      ...(!sources.includes(source) ? [{ id: "paste-source", label: "project.sourceType" as const, message: "form.selectValue" as const }] : []),
+      ...(!content.trim() ? [{ id: "paste-content", label: "project.docContent" as const, message: "form.requiredValue" as const }] : []),
+    ])) return;
     setBusy(true);
     setError(undefined);
     setNotice(undefined);
     input.addTextEvidence(projectId, {
       source: String(data.get("source") ?? ""), title: String(data.get("title") ?? ""), content: String(data.get("content") ?? ""),
     }).then(
-      (doc) => { form.reset(); setNotice(t("input.text.added", { title: doc.title || t("project.untitled") })); onAdded(); },
+      (doc) => { form.reset(); validation.clear(); setNotice(t("input.text.added", { title: doc.title || t("project.untitled") })); onAdded(); },
       (err: unknown) => setError(errorMessage(err, t)),
     ).finally(() => setBusy(false));
   };
   return (
-    <form id="paste-form" class={formStyles.form} onSubmit={onSubmit}>
+    <form id="paste-form" class={formStyles.form} noValidate onSubmit={onSubmit}>
+      <ValidationSummary errors={validation.errors} />
       <div class={formStyles.row}>
-        <Field label={t("project.sourceType")} htmlFor="paste-source" requirement="required" requirementLabel={t("common.required")}>
-          <select id="paste-source" name="source" class={formStyles.control}>
+        <Field label={t("project.sourceType")} htmlFor="paste-source" hint={t("form.sourceHint")} error={validation.error("paste-source")} requirement="required" requirementLabel={t("common.required")}>
+            {(control) => (<select {...control} name="source" onChange={() => validation.clear("paste-source")} class={formStyles.control}>
             {sources.map((code) => <option key={code} value={code}>{label(SOURCE_LABELS, code)}</option>)}
-          </select>
-        </Field>
-        <Field label={t("project.docTitle")} htmlFor="paste-title" requirement="optional" requirementLabel={t("common.optional")}>
-          <input id="paste-title" name="title" type="text" class={formStyles.control} placeholder={t("project.docTitlePlaceholder")} />
-        </Field>
+          </select>)}
+          </Field>
+        <Field label={t("project.docTitle")} htmlFor="paste-title" hint={t("form.titleHint")} requirement="optional" requirementLabel={t("common.optional")}>
+            {(control) => (<input {...control} name="title" type="text" class={formStyles.control} placeholder={t("project.docTitlePlaceholder")} />)}
+          </Field>
       </div>
-      <Field label={t("project.docContent")} htmlFor="paste-content" requirement="required" requirementLabel={t("common.required")}>
-        <textarea id="paste-content" aria-label={t("project.docContent")} name="content" class={formStyles.control} placeholder={t("project.docContentPlaceholder")} required />
-      </Field>
+      <Field label={t("project.docContent")} htmlFor="paste-content" hint={t("form.contentHint")} example={t("form.contentExample")} error={validation.error("paste-content")} requirement="required" requirementLabel={t("common.required")}>
+            {(control) => (<textarea {...control} aria-label={t("project.docContent")} name="content" onInput={() => validation.clear("paste-content")} class={formStyles.control} placeholder={t("project.docContentPlaceholder")} />)}
+          </Field>
       {error && <Notice kind="error">{error}</Notice>}
       {notice && <Notice kind="success">{notice}</Notice>}
       <div class={formStyles.actions}>

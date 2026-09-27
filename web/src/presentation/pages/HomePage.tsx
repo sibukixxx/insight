@@ -1,4 +1,6 @@
 import { useState } from "preact/hooks";
+import { ValidationSummary } from "../components/ValidationSummary";
+import { useFormValidation } from "../hooks/useFormValidation";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { Field, formStyles } from "../components/Field";
@@ -20,6 +22,7 @@ export function HomePage() {
   const state = useAsync(() => dashboard.loadDashboard(), [dashboard]);
   const [error, setError] = useState<string | undefined>(undefined);
   const [busy, setBusy] = useState(false);
+  const validation = useFormValidation();
   const [name, setName] = useState("");
 
   const firstRun = state.status === "ok" && state.data.projects.length === 0;
@@ -34,7 +37,7 @@ export function HomePage() {
   };
   const create = (e: Event) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (busy || !validation.validate(name.trim() ? [] : [{ id: "new-project-name", label: "home.projectNamePrompt", message: "form.requiredValue" }])) return;
     setBusy(true);
     setError(undefined);
     dashboard.createProject(name).then(
@@ -70,13 +73,14 @@ export function HomePage() {
           </div>
         </Card>
         <Card title={t("home.newProject")}>
-          <form class={onboarding.path} onSubmit={create}>
+          <form class={onboarding.path} noValidate onSubmit={create}>
+            <ValidationSummary errors={validation.errors} />
             <p class={onboarding.hint}>{t("home.newProjectHint")}</p>
             <div class={onboarding.inline}>
-              <Field label={t("home.projectNamePrompt")} htmlFor="new-project-name" requirement="required" requirementLabel={t("common.required")}>
-                <input id="new-project-name" aria-label={t("home.projectNamePrompt")} class={formStyles.control} type="text" required maxLength={200} value={name} onInput={(e) => setName(e.currentTarget.value)} />
-              </Field>
-              <Button id="new-project" type="submit" variant={firstRun && !build.demoBuild ? "primary" : "secondary"} disabled={busy || !name.trim()}>{t("home.createProject")}</Button>
+              <Field label={t("home.projectNamePrompt")} htmlFor="new-project-name" hint={t("form.projectHint")} example={t("form.projectExample")} error={validation.error("new-project-name")} requirement="required" requirementLabel={t("common.required")}>
+            {(control) => (<input {...control} aria-label={t("home.projectNamePrompt")} class={formStyles.control} type="text" value={name} onInput={(e) => { setName(e.currentTarget.value); validation.clear("new-project-name"); }} />)}
+          </Field>
+              <Button id="new-project" type="submit" variant={firstRun && !build.demoBuild ? "primary" : "secondary"} disabled={busy}>{t("home.createProject")}</Button>
             </div>
           </form>
         </Card>
