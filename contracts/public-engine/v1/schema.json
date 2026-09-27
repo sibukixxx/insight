@@ -107,10 +107,16 @@
         "inputSourceKinds": {"type": "array", "items": {"type": "string", "enum": ["INLINE_DOCUMENT", "ANALYTICAL_ARTIFACT", "RAW_ARTIFACT"]}},
         "supportedReasoningProfiles": {"type": "array", "items": {"type": "string", "enum": ["GENERAL_RESEARCH", "CUSTOMER_INSIGHT"]}, "description": "Semantic reasoning specializations supported by the same research core."},
         "defaultReasoningProfile": {"type": "string", "enum": ["GENERAL_RESEARCH", "CUSTOMER_INSIGHT"], "description": "Profile used when startAnalysis omits reasoningProfile; currently GENERAL_RESEARCH."},
+        "supportedOutputLocales": {"type": "array", "items": {"$ref": "#/$defs/OutputLocale"}, "description": "Locales startAnalysis.outputLocale accepts (#125). There is no default: an omitted outputLocale keeps generated text in the language of the source material or research question."},
         "modelRouting": {"$ref": "#/$defs/ModelRouting"},
         "modelBacked": {"type": "boolean", "description": "True when analyses use a configured model and can form hypotheses. False means deterministic only: research runs are refused with ANALYSIS_HAS_NO_HYPOTHESES."},
         "state": {"$ref": "#/$defs/EngineState"}
       }
+    },
+    "OutputLocale": {
+      "type": "string",
+      "enum": ["ja-JP", "en-US"],
+      "description": "Explicit language for model-generated text. Exact, case-sensitive tags; other spellings are rejected, not guessed."
     },
     "EngineState": {
       "type": "object",
@@ -209,6 +215,7 @@
         "semanticAnalysisMode": {"type": "string", "enum": ["DISCOVERY", "DATASET_ANALYSIS", "RESEARCH_REVIEW"]},
         "researchQuestion": {"type": "string", "maxLength": 2000, "description": "Optional domain-neutral research question that focuses model-backed semantic analysis. It is semantic input, not execution configuration; the input fingerprint changes when the question changes."},
         "reasoningProfile": {"type": "string", "enum": ["GENERAL_RESEARCH", "CUSTOMER_INSIGHT"], "description": "Optional semantic specialization of the shared research core. Omitted means GENERAL_RESEARCH. The profile is execution/semantic configuration and does not change evidence identity."},
+        "outputLocale": {"$ref": "#/$defs/OutputLocale", "description": "Optional language for new model-generated explanatory text (#125). Omitted keeps the source-language rule and is never replaced by a UI or browser locale. Execution configuration: it changes the execution fingerprint, never the input fingerprint. Quotes, numbers, units, IDs and enum codes are never translated. Unsupported values are INVALID_REQUEST."},
         "executionProfile": {"$ref": "#/$defs/ExecutionProfile"},
         "modelBindings": {"type": "object", "maxProperties": 16, "additionalProperties": {"type": "string", "minLength": 1, "maxLength": 128}, "description": "Stage -> model. Unknown stage is INVALID_REQUEST; a model the operator did not allow (or no model endpoint) is MODEL_BINDING_UNAVAILABLE."}
       }
@@ -235,6 +242,7 @@
         "semanticAnalysisMode": {"type": "string"},
         "researchQuestion": {"type": "string", "description": "The question that focused this analysis, when one was supplied."},
         "reasoningProfile": {"type": "string", "enum": ["GENERAL_RESEARCH", "CUSTOMER_INSIGHT"], "description": "Resolved semantic reasoning profile used by this analysis."},
+        "outputLocale": {"$ref": "#/$defs/OutputLocale", "description": "The output locale this analysis requested. Absent when none was requested (including runs recorded before #125)."},
         "executionMode": {"type": "string", "enum": ["deterministic", "model_backed"]},
         "executionProfile": {"$ref": "#/$defs/ExecutionProfileResolution"},
         "engine": {"$ref": "#/$defs/EngineBuild"},

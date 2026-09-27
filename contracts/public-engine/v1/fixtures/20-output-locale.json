@@ -1,0 +1,275 @@
+{
+  "fixture": "20-output-locale",
+  "contractVersion": "1",
+  "covers": "#125 explicit ja-JP / en-US output locale for new model-generated text; omission keeps legacy behaviour, quotes stay verbatim, and locale changes execution identity only",
+  "engine": "model_backed",
+  "steps": [
+    {
+      "op": "getEngine",
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "supportedOutputLocales[0]",
+          "equals": "ja-JP"
+        },
+        {
+          "path": "supportedOutputLocales[1]",
+          "equals": "en-US"
+        },
+        {
+          "path": "defaultOutputLocale",
+          "exists": false
+        }
+      ]
+    },
+    {
+      "op": "createSubject",
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-subject",
+        "subject": {
+          "namespace": "conformance",
+          "id": "locale-${uniq}"
+        }
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "subjectId": "subjectId"
+      }
+    },
+    {
+      "op": "addEvidence",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-evidence",
+        "documents": [
+          {
+            "externalRef": "e1",
+            "source": "document",
+            "content": "The observed measure rose from 120 to 150 units in 2024-03."
+          }
+        ]
+      },
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "op": "startAnalysis",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-omitted",
+        "researchQuestion": "What explanations are consistent with the observed change?"
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "omittedAnalysisId": "analysisId"
+      }
+    },
+    {
+      "op": "waitForAnalysis",
+      "params": {
+        "subjectId": "${subjectId}",
+        "analysisId": "${omittedAnalysisId}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "status",
+          "equals": "completed"
+        },
+        {
+          "path": "outputLocale",
+          "exists": false
+        },
+        {
+          "path": "provenance.execution.outputLocale",
+          "exists": false
+        }
+      ]
+    },
+    {
+      "op": "startAnalysis",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-ja",
+        "researchQuestion": "What explanations are consistent with the observed change?",
+        "outputLocale": "ja-JP"
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "jaAnalysisId": "analysisId"
+      }
+    },
+    {
+      "op": "waitForAnalysis",
+      "params": {
+        "subjectId": "${subjectId}",
+        "analysisId": "${jaAnalysisId}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "status",
+          "equals": "completed"
+        },
+        {
+          "path": "outputLocale",
+          "equals": "ja-JP"
+        },
+        {
+          "path": "provenance.execution.outputLocale",
+          "equals": "ja-JP"
+        }
+      ]
+    },
+    {
+      "op": "startAnalysis",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-en",
+        "researchQuestion": "What explanations are consistent with the observed change?",
+        "outputLocale": "en-US"
+      },
+      "expect": {
+        "ok": true
+      },
+      "save": {
+        "enAnalysisId": "analysisId"
+      }
+    },
+    {
+      "op": "waitForAnalysis",
+      "params": {
+        "subjectId": "${subjectId}",
+        "analysisId": "${enAnalysisId}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "status",
+          "equals": "completed"
+        },
+        {
+          "path": "outputLocale",
+          "equals": "en-US"
+        },
+        {
+          "path": "provenance.execution.outputLocale",
+          "equals": "en-US"
+        }
+      ]
+    },
+    {
+      "op": "getAnalysisResults",
+      "params": {
+        "subjectId": "${subjectId}",
+        "analysisId": "${jaAnalysisId}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "observations[0].quote",
+          "equals": "The observed measure rose from 120 to 150 units in 2024-03."
+        },
+        {
+          "path": "observations[0].behavior",
+          "equals": "記録: The observed measure rose from 120 to 150 units in 2024-03."
+        }
+      ]
+    },
+    {
+      "op": "compareAnalyses",
+      "params": {
+        "subjectId": "${subjectId}",
+        "analysisId": "${omittedAnalysisId}",
+        "otherAnalysisId": "${jaAnalysisId}"
+      },
+      "expect": {
+        "ok": true
+      },
+      "assert": [
+        {
+          "path": "comparison.input.state",
+          "equals": "SAME"
+        },
+        {
+          "path": "comparison.execution.state",
+          "equals": "CHANGED"
+        },
+        {
+          "path": "comparison.attribution",
+          "equals": "EXECUTION_CHANGE"
+        },
+        {
+          "path": "comparison.execution.changes[0].field",
+          "equals": "outputLocale"
+        },
+        {
+          "path": "comparison.execution.changes[0].to",
+          "equals": "ja-JP"
+        }
+      ]
+    },
+    {
+      "op": "startAnalysis",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-bad-0",
+        "researchQuestion": "What explanations are consistent with the observed change?",
+        "outputLocale": "ja"
+      },
+      "expect": {
+        "errorCode": "INVALID_REQUEST",
+        "httpStatus": 400
+      }
+    },
+    {
+      "op": "startAnalysis",
+      "params": {
+        "subjectId": "${subjectId}"
+      },
+      "request": {
+        "contractVersion": "1",
+        "idempotencyKey": "${uniq}-bad-1",
+        "researchQuestion": "What explanations are consistent with the observed change?",
+        "outputLocale": "fr-FR"
+      },
+      "expect": {
+        "errorCode": "INVALID_REQUEST",
+        "httpStatus": 400
+      }
+    }
+  ]
+}

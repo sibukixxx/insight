@@ -89,6 +89,7 @@ func (e *Engine) Engine() EngineInfo {
 		InputSourceKinds:          input.Kinds(),
 		SupportedReasoningProfiles: []string{string(domain.ReasoningGeneralResearch), string(domain.ReasoningCustomerInsight)},
 		DefaultReasoningProfile:    string(domain.ReasoningGeneralResearch),
+		SupportedOutputLocales:     supportedOutputLocales(),
 		ModelRouting:              e.modelRouting(),
 		ModelBacked:               e.modelBacked != nil && e.modelBacked(),
 		State:                     e.engineState(),
@@ -104,6 +105,14 @@ func WithEngineState(state *repository.EngineState) Option {
 		}
 		e.state = &EngineState{StateID: state.StateID, CreatedAt: state.CreatedAt.UTC().Format(time.RFC3339Nano)}
 	}
+}
+
+func supportedOutputLocales() []string {
+	out := make([]string, 0, len(domain.SupportedOutputLocales))
+	for _, l := range domain.SupportedOutputLocales {
+		out = append(out, string(l))
+	}
+	return out
 }
 
 func (e *Engine) engineState() *EngineState {
@@ -366,6 +375,10 @@ func (e *Engine) StartAnalysis(ctx context.Context, subjectID string, req StartA
 		if !reasoning.Valid() {
 			return 0, nil, newError(CodeInvalidRequest, "unknown reasoningProfile %q", req.ReasoningProfile)
 		}
+		outputLocale := domain.OutputLocale(req.OutputLocale)
+		if !outputLocale.Valid() {
+			return 0, nil, newError(CodeInvalidRequest, "unsupported outputLocale %q; supported: %s", req.OutputLocale, strings.Join(supportedOutputLocales(), ", "))
+		}
 		profile, err := execution.Parse(req.ExecutionProfile)
 		if err != nil {
 			return 0, nil, newError(CodeInvalidRequest, "%v", err)
@@ -373,7 +386,7 @@ func (e *Engine) StartAnalysis(ctx context.Context, subjectID string, req StartA
 		if len(req.ModelBindings) > 16 {
 			return 0, nil, newError(CodeInvalidRequest, "modelBindings is limited to 16 stages")
 		}
-		analysis, err := e.jobs.Enqueue(ctx, service.EnqueueRequest{ProjectID: subject.ProjectID, Label: strings.TrimSpace(req.Label), Note: strings.TrimSpace(req.Note), SemanticAnalysisMode: mode, ResearchQuestion: researchQuestion, ReasoningProfile: reasoning, ExecutionProfile: profile, ModelBindings: req.ModelBindings})
+		analysis, err := e.jobs.Enqueue(ctx, service.EnqueueRequest{ProjectID: subject.ProjectID, Label: strings.TrimSpace(req.Label), Note: strings.TrimSpace(req.Note), SemanticAnalysisMode: mode, ResearchQuestion: researchQuestion, ReasoningProfile: reasoning, OutputLocale: outputLocale, ExecutionProfile: profile, ModelBindings: req.ModelBindings})
 		if err != nil {
 			return 0, nil, err
 		}
@@ -453,7 +466,7 @@ func toAnalysisRun(subjectID string, a *domain.Analysis) AnalysisRun {
 	run := AnalysisRun{
 		ContractVersion: ContractVersion, SubjectID: subjectID, AnalysisID: a.ID, Status: string(a.Status), Error: a.Error,
 		Label: a.Label, Note: a.Note, SemanticAnalysisMode: string(a.SemanticAnalysisMode), ReasoningProfile: string(a.ReasoningProfile.Normalize()),
-		ExecutionFingerprint: a.ExecutionFingerprint, InputFingerprint: a.InputFingerprint,
+		OutputLocale: string(a.OutputLocale), ExecutionFingerprint: a.ExecutionFingerprint, InputFingerprint: a.InputFingerprint,
 		CreatedAt: formatTime(a.CreatedAt), StartedAt: formatTimePtr(a.StartedAt), FinishedAt: formatTimePtr(a.FinishedAt),
 	}
 	run.ResearchQuestion = strings.TrimSpace(a.ResearchQuestion)

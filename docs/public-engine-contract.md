@@ -119,6 +119,16 @@ Consumers persist only references to Core-owned state (subject IDs, analysis IDs
 - Out of scope for now: a monotonic `stateRevision` / high-water mark that would show a restored state predates recorded references, and a per-iteration content digest (`getResearchRun` artifacts carry a per-export `exportedAt`, so compare `iterationId`, not artifact bytes).
 - Conformance: `19-engine-state-identity`.
 
+## Output locale (#125)
+
+Callers may request the language of new model-generated explanatory text. The decision record is [`output-locale.md`](output-locale.md).
+
+- `startAnalysis.outputLocale` accepts exactly `ja-JP` or `en-US`; anything else is `INVALID_REQUEST`. `EngineInfo.supportedOutputLocales` lists them. There is no default.
+- Omitted means not requested: generated text follows the language of the source material or research question, as before. The engine never substitutes a UI or browser locale, and records nothing, so execution fingerprints of existing runs are unchanged.
+- A requested locale is execution configuration: it appears in `AnalysisRun.outputLocale` and `provenance.execution.outputLocale`, changes the execution fingerprint, never the input fingerprint, and run comparison reports it as `EXECUTION_CHANGE` on `outputLocale`.
+- Quotes, numbers, units, dates, IDs, source names and enum codes are never translated. Research runs inherit the locale of their analysis; they do not regenerate text.
+- Conformance: `20-output-locale`.
+
 ## Model bindings (#65 extension point)
 
 Routing policy (which model for which stage, cost budgets, escalation) belongs to consumers. The engine exposes only a minimal, provider-neutral extension point:
@@ -151,7 +161,7 @@ The request body is at most 16 MiB. A request carries at most 500 documents and 
 
 ### Conformance
 
-- `contracts/public-engine/v1/fixtures/` holds 19 fixtures. Each names its `engine` (`deterministic` or `model_backed`):
+- `contracts/public-engine/v1/fixtures/` holds 20 fixtures. Each names its `engine` (`deterministic` or `model_backed`):
   1. generic public-data subject (model-backed)
   2. commerce-like opaque subject (model-backed)
   3. deterministic Analytical Artifact
@@ -171,6 +181,7 @@ The request body is at most 16 MiB. A request carries at most 500 documents and 
   17. model bindings (#65, model-backed; needs `-allowed-models scripted-model-large`)
   18. reasoning profiles (#109, model-backed)
   19. engine-state identity (#116)
+  20. output locale (#125, model-backed)
 - Fixtures 08 and 09 need an engine started with an input root containing `fixtures/data` and, for 08, a HEAVY adapter (`-input-root` and `-heavy-dir`).
 - `internal/http/public_conformance_test.go` starts a deterministic engine and a model-backed engine. It runs every fixture over plain HTTP with `internal/publicengine/conformance`. SDK repositories run the same fixture files against a live engine or recorded responses.
 - The model-backed engine in that test uses the scripted stand-in model from `internal/llm/scripted`, the same one `cmd/insight-scripted-llm` serves over HTTP for SDK repositories. Production code has no fake-model mode: the engine only ever talks to an OpenAI-compatible endpoint. Model-backed fixtures check contract behavior with that model. They do not measure the quality of a real model.

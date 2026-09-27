@@ -52,6 +52,10 @@ type EngineInfo struct {
 	InputSourceKinds           []string               `json:"inputSourceKinds,omitempty"`
 	SupportedReasoningProfiles []string               `json:"supportedReasoningProfiles,omitempty"`
 	DefaultReasoningProfile    string                 `json:"defaultReasoningProfile,omitempty"`
+	// SupportedOutputLocales lists the locales startAnalysis.outputLocale
+	// accepts (#125). There is deliberately no default: omission keeps
+	// generated text in the language of the source material.
+	SupportedOutputLocales []string `json:"supportedOutputLocales,omitempty"`
 	// ModelRouting advertises per-run model bindings (#65 extension point).
 	ModelRouting *ModelRouting `json:"modelRouting,omitempty"`
 	// ModelBacked is true when analyses use a configured model and can form
@@ -176,7 +180,10 @@ type StartAnalysisRequest struct {
 	// open-ended discovery.
 	ResearchQuestion     string `json:"researchQuestion,omitempty"`
 	ReasoningProfile     string `json:"reasoningProfile,omitempty"`
-	ExecutionProfile     string `json:"executionProfile,omitempty"`
+	// OutputLocale optionally requests the language of new model-generated
+	// text (ja-JP / en-US). Execution configuration, never evidence.
+	OutputLocale     string `json:"outputLocale,omitempty"`
+	ExecutionProfile string `json:"executionProfile,omitempty"`
 	// ModelBindings maps pipeline stages (EngineInfo.modelRouting.stages) to
 	// operator-allowed models. Execution config only; never semantics.
 	ModelBindings map[string]string `json:"modelBindings,omitempty"`
@@ -198,6 +205,7 @@ type AnalysisRun struct {
 	SemanticAnalysisMode string                      `json:"semanticAnalysisMode,omitempty"`
 	ResearchQuestion     string                      `json:"researchQuestion,omitempty"`
 	ReasoningProfile     string                      `json:"reasoningProfile,omitempty"`
+	OutputLocale         string                      `json:"outputLocale,omitempty"`
 	ExecutionMode        string                      `json:"executionMode,omitempty"`
 	ExecutionProfile     *ExecutionProfileResolution `json:"executionProfile,omitempty"`
 	Engine               *EngineBuild                `json:"engine,omitempty"`

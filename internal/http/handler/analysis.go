@@ -35,6 +35,7 @@ type analysisDTO struct {
 	SemanticAnalysisMode string `json:"semanticAnalysisMode,omitempty"`
 	ResearchQuestion     string `json:"researchQuestion,omitempty"`
 	ReasoningProfile     string `json:"reasoningProfile,omitempty"`
+	OutputLocale         string `json:"outputLocale,omitempty"`
 	// ExecutionSnapshot and InputSnapshot are absent for runs recorded before
 	// snapshots existed. A missing snapshot means "not recorded".
 	ExecutionSnapshot    json.RawMessage `json:"executionSnapshot,omitempty"`
@@ -61,6 +62,7 @@ func toAnalysisDTO(a *domain.Analysis) analysisDTO {
 		dto.Metrics = json.RawMessage(a.Metrics)
 	}
 	dto.Label, dto.Note, dto.SemanticAnalysisMode, dto.ResearchQuestion, dto.ReasoningProfile = a.Label, a.Note, string(a.SemanticAnalysisMode), a.ResearchQuestion, string(a.ReasoningProfile.Normalize())
+	dto.OutputLocale = string(a.OutputLocale)
 	if json.Valid([]byte(a.ExecutionSnapshot)) {
 		dto.ExecutionSnapshot = json.RawMessage(a.ExecutionSnapshot)
 	}
@@ -83,6 +85,7 @@ func (h *Handler) CreateAnalysis(w http.ResponseWriter, r *http.Request) {
 		SemanticAnalysisMode domain.AnalysisMode `json:"semanticAnalysisMode"`
 		ResearchQuestion     string                  `json:"researchQuestion"`
 		ReasoningProfile     domain.ReasoningProfile `json:"reasoningProfile"`
+		OutputLocale         domain.OutputLocale     `json:"outputLocale"`
 	}
 	if r.ContentLength != 0 {
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil && !errors.Is(err, io.EOF) {
@@ -98,8 +101,12 @@ func (h *Handler) CreateAnalysis(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, fmt.Sprintf("invalid reasoningProfile %q", req.ReasoningProfile))
 		return
 	}
+	if !req.OutputLocale.Valid() {
+		writeError(w, http.StatusBadRequest, fmt.Sprintf("unsupported outputLocale %q", req.OutputLocale))
+		return
+	}
 	a, err := h.JobManager.Enqueue(r.Context(), service.EnqueueRequest{
-		ProjectID: projectID, Label: strings.TrimSpace(req.Label), Note: strings.TrimSpace(req.Note), SemanticAnalysisMode: req.SemanticAnalysisMode, ResearchQuestion: strings.TrimSpace(req.ResearchQuestion), ReasoningProfile: req.ReasoningProfile.Normalize(),
+		ProjectID: projectID, Label: strings.TrimSpace(req.Label), Note: strings.TrimSpace(req.Note), SemanticAnalysisMode: req.SemanticAnalysisMode, ResearchQuestion: strings.TrimSpace(req.ResearchQuestion), ReasoningProfile: req.ReasoningProfile.Normalize(), OutputLocale: req.OutputLocale,
 	})
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
