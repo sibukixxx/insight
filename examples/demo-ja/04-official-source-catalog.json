@@ -1,0 +1,21 @@
+{
+  "status": "REFERENCE_ONLY_NOT_FETCHED",
+  "note": "No official statistical values are bundled. Verify dataset/indicator, retrieval, reuse, period, population, geographic code and sha256 before an official-data demo.",
+  "sources": [
+    {
+      "name": "e-Stat Statistics Dashboard API",
+      "url": "https://dashboard.e-stat.go.jp/static/api",
+      "purpose": "Registration-free CSV/JSON official source; select exact municipality/indicator/period at acquisition"
+    },
+    {
+      "name": "2025 resident registry municipal population table 25-03",
+      "url": "https://www.e-stat.go.jp/stat-search/files?stat_infid=000040306653",
+      "purpose": "Municipality 2025 population; check population definition"
+    },
+    {
+      "name": "2021 Economic Census establishments and workers table 1-2",
+      "url": "https://www.e-stat.go.jp/stat-search/database?statdisp_id=0004005641",
+      "purpose": "Separate year 2021 business establishments; do not combine as same-year numerator/denominator with 2025 population"
+    }
+  ]
+}
