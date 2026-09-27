@@ -143,6 +143,8 @@ func fail(stderr io.Writer, err error) int {
 		out.Error.Code, out.Error.Message, out.ExitCode = "USAGE", err.Error(), ExitUsage
 	case errors.Is(err, errAnalysisFailed):
 		out.Error.Code, out.Error.Message, out.ExitCode = "ANALYSIS_FAILED", err.Error(), ExitAnalysisFailed
+	case errors.Is(err, app.ErrEngineInUse):
+		out.Error.Code, out.Error.Message, out.ExitCode = "ENGINE_IN_USE", err.Error(), ExitConflict
 	default:
 		ce := publicengine.AsError(err)
 		out.Error.Code, out.Error.Message, out.ExitCode = string(ce.Code), ce.Message, exitCodeFor(ce.Code)
