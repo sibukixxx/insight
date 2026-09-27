@@ -1,6 +1,8 @@
 package service
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"sort"
 	"strconv"
@@ -13,7 +15,7 @@ import (
 // datasetPreAnalysisRuleVersion is stored in the analysis provenance so a
 // reader of a report knows which deterministic rules produced the numbers.
 // Bump it whenever the extraction or arithmetic below changes meaning.
-const datasetPreAnalysisRuleVersion = "dataset-preanalysis/v1"
+const datasetPreAnalysisRuleVersion = "dataset-preanalysis/v2"
 
 // DatasetPreAnalysis is everything the pipeline can establish from dataset
 // documents without a model (Issue #16): grounded count observations,
@@ -60,7 +62,10 @@ func RunDatasetPreAnalysis(docs []*domain.Document, now time.Time) DatasetPreAna
 	pre := DatasetPreAnalysis{RuleVersion: datasetPreAnalysisRuleVersion, handled: map[string]bool{}}
 
 	var obsNotes, cmpNotes []string
-	pre.Observations, obsNotes = MaterializeDatasetObservations(docs, now)
+	// v2 (#120): an exact re-import is the same evidence, not a second source.
+	unique, copyNotes := collapseDatasetCopies(docs, pre.handled)
+	pre.Notes = append(pre.Notes, copyNotes...)
+	pre.Observations, obsNotes = MaterializeDatasetObservations(unique, now)
 	for _, o := range pre.Observations {
 		pre.handled[o.DocumentID] = true
 	}
@@ -69,7 +74,7 @@ func RunDatasetPreAnalysis(docs []*domain.Document, now time.Time) DatasetPreAna
 		pre.handled[o.DocumentID] = true
 	}
 	pre.Observations = append(pre.Observations, artifactObservations...)
-	pre.Comparisons, cmpNotes = ComputeDatasetComparisons(docs)
+	pre.Comparisons, cmpNotes = ComputeDatasetComparisons(unique)
 	pre.Notes = append(append(append(pre.Notes, obsNotes...), artifactNotes...), cmpNotes...)
 
 	hashes := map[string]bool{}
@@ -90,6 +95,35 @@ func RunDatasetPreAnalysis(docs []*domain.Document, now time.Time) DatasetPreAna
 	sort.Slice(pre.Manifests, func(i, j int) bool { return pre.Manifests[i].DatasetID < pre.Manifests[j].DatasetID })
 	pre.CompatibilityWarnings = CheckDatasetCompatibility(pre.Manifests)
 	return pre
+}
+
+// collapseDatasetCopies drops dataset documents whose source, content and
+// metadata are identical to an earlier document (the same file imported
+// again under a new ID). Each copy is marked handled so it never reaches
+// the model as new evidence, and a note names the document it repeats. A
+// document that differs in any value - for example a revised count for the
+// same period - is not a copy and stays, so the conflict remains visible.
+func collapseDatasetCopies(docs []*domain.Document, handled map[string]bool) ([]*domain.Document, []string) {
+	firstByIdentity := map[string]string{}
+	var unique []*domain.Document
+	var notes []string
+	for _, d := range docs {
+		if d.Source != domain.SourceDataset {
+			unique = append(unique, d)
+			continue
+		}
+		metadataHash, _ := Fingerprint(d.Metadata)
+		sum := sha256.Sum256([]byte(d.Content))
+		identity := string(d.Source) + "\x00" + hex.EncodeToString(sum[:]) + "\x00" + metadataHash
+		if first, ok := firstByIdentity[identity]; ok {
+			handled[d.ID] = true
+			notes = append(notes, fmt.Sprintf("document %s has the same content and metadata as %s; counted once as the same evidence", d.ID, first))
+			continue
+		}
+		firstByIdentity[identity] = d.ID
+		unique = append(unique, d)
+	}
+	return unique, notes
 }
 
 // MaterializeDatasetObservations turns every dataset document that carries a

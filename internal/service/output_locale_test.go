@@ -10,17 +10,19 @@ import (
 	"insight-lab/internal/domain"
 )
 
-// An omitted output locale is not a new configuration: every run recorded
-// before #125 must keep its execution fingerprint byte for byte. The pinned
-// values were captured from the engine before OutputLocale existed.
+// An omitted output locale is not a new configuration: it must not change
+// the execution fingerprint. The pinned values are the fingerprints of the
+// same configuration without OutputLocale (first captured before #125
+// existed). A deliberate rule-version bump changes them for every run and
+// must re-pin them; a locale change never may.
 func TestOutputLocaleUnsetKeepsLegacyExecutionFingerprints(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
 		settings Settings
 		want     string
 	}{
-		{"model-backed", modelSettings(), "sha256:1cd2045eaaf7c030c067c3f05771212200c0988edd98b0415df234250cea123a"},
-		{"deterministic", Settings{}, "sha256:ddaac309c3234b742b73dee252dbfa392e6d7ef6957581057a4214cf839fd218"},
+		{"model-backed", modelSettings(), "sha256:3bb9b8425ebb4759c53ca0291180f37b0362b932634b17eb3c01f298d56e075f"},
+		{"deterministic", Settings{}, "sha256:cf95a66b64d7a3152ea81a2377a5dee079459cce7c53d5f68ad0f218e3960006"},
 	} {
 		got, err := BuildExecutionSnapshotForRun(tc.settings, domain.AnalysisModeDiscovery, domain.ReasoningGeneralResearch, "", testBuild, time.Unix(1, 0))
 		if err != nil {

@@ -7,10 +7,10 @@
       "category": "FALSE_ASSOCIATION_GUARD",
       "mode": "RESEARCH_REVIEW",
       "inputFingerprint": "sha256:6dff83a549d6635b8c48f6e7c2c99f6eff490034388f666fdca5f7460a697679",
-      "executionFingerprint": "sha256:27cf21a0566b11391643b1eadc8e5f64a446c95d43ce300f3d933c252a852df8",
+      "executionFingerprint": "sha256:0e422f1374085d0c87146f1858e69348f7b1ecfb7a321e7e29e7f6e2c73ac731",
       "ruleVersions": {
         "analyticalArtifact": "analytical-artifact/v1",
-        "datasetPreanalysis": "dataset-preanalysis/v1",
+        "datasetPreanalysis": "dataset-preanalysis/v2",
         "grounding": "grounding/v1",
         "temporalOperation": "insight-lab.temporal-operation/v1"
       },
@@ -46,10 +46,10 @@
       "category": "FALSE_ASSOCIATION_GUARD",
       "mode": "DATASET_ANALYSIS",
       "inputFingerprint": "sha256:d0e57f781f3a0817d1bd8eb55993d5d409ecf81e1fb87db27aca05981d7b4558",
-      "executionFingerprint": "sha256:9d8f4e50d44efb63ebbdd63be23b3627ab47b62bf3e23e455a9b7f504cb81694",
+      "executionFingerprint": "sha256:bc6858eb2f926a1d746b540bf056a6ef57b6b005d12690c7e32198d3fb627ee8",
       "ruleVersions": {
         "analyticalArtifact": "analytical-artifact/v1",
-        "datasetPreanalysis": "dataset-preanalysis/v1",
+        "datasetPreanalysis": "dataset-preanalysis/v2",
         "grounding": "grounding/v1",
         "temporalOperation": "insight-lab.temporal-operation/v1"
       },
@@ -79,14 +79,14 @@
     },
     {
       "caseId": "DB-F03",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "category": "FALSE_ASSOCIATION_GUARD",
       "mode": "DISCOVERY",
       "inputFingerprint": "sha256:05fb92af311545410073f2c76be34d24477147244ba682fd1e02cc3ac3707d4a",
-      "executionFingerprint": "sha256:e023e27b1c171be8f7d8e704ab5395f267f95b14c3dd0197ccd9faf38b855dea",
+      "executionFingerprint": "sha256:6c592693a97c06bd372058d05dbfc45cd5c6516f3864aaf1c82aa3309a4ccdb7",
       "ruleVersions": {
         "analyticalArtifact": "analytical-artifact/v1",
-        "datasetPreanalysis": "dataset-preanalysis/v1",
+        "datasetPreanalysis": "dataset-preanalysis/v2",
         "grounding": "grounding/v1",
         "temporalOperation": "insight-lab.temporal-operation/v1"
       },
@@ -117,21 +117,20 @@
         {
           "index": 3,
           "passed": true,
-          "observed": "count=0 "
+          "observed": "count=1 2023-\u003e2024"
         },
         {
           "index": 4,
           "passed": true,
-          "observed": "series \"visits / Site S\" has more than one document for period 2023; comparisons skipped until the duplicate import is resolved"
+          "observed": "document visits-2023-reimport has the same content and metadata as visits-2023; counted once as the same evidence"
         },
         {
           "index": 5,
-          "passed": false,
-          "observed": "count=3"
+          "passed": true,
+          "observed": "count=2"
         }
       ],
-      "outcome": "KNOWN_FAILURE",
-      "knownFailureReason": "Dataset pre-analysis materializes one observation per document, so the re-imported 2023 file yields a second record_count observation. Dataset hashes, manifests and period comparisons already collapse the copy; the observation list does not."
+      "outcome": "PASS"
     },
     {
       "caseId": "DB-N01",
@@ -139,10 +138,10 @@
       "category": "VALID_NO_DISCOVERY",
       "mode": "DISCOVERY",
       "inputFingerprint": "sha256:f23b323d2c277849c0747edf2d1445ae9bca3f72e9cf52dceea30d87489d1cbd",
-      "executionFingerprint": "sha256:e023e27b1c171be8f7d8e704ab5395f267f95b14c3dd0197ccd9faf38b855dea",
+      "executionFingerprint": "sha256:6c592693a97c06bd372058d05dbfc45cd5c6516f3864aaf1c82aa3309a4ccdb7",
       "ruleVersions": {
         "analyticalArtifact": "analytical-artifact/v1",
-        "datasetPreanalysis": "dataset-preanalysis/v1",
+        "datasetPreanalysis": "dataset-preanalysis/v2",
         "grounding": "grounding/v1",
         "temporalOperation": "insight-lab.temporal-operation/v1"
       },
@@ -173,10 +172,10 @@
       "category": "VALID_NO_DISCOVERY",
       "mode": "DISCOVERY",
       "inputFingerprint": "sha256:417dc59f7d5dc6b09a5acceb412fdc18cd9243dad4d337ca13b1ac394513ecc2",
-      "executionFingerprint": "sha256:e023e27b1c171be8f7d8e704ab5395f267f95b14c3dd0197ccd9faf38b855dea",
+      "executionFingerprint": "sha256:6c592693a97c06bd372058d05dbfc45cd5c6516f3864aaf1c82aa3309a4ccdb7",
       "ruleVersions": {
         "analyticalArtifact": "analytical-artifact/v1",
-        "datasetPreanalysis": "dataset-preanalysis/v1",
+        "datasetPreanalysis": "dataset-preanalysis/v2",
         "grounding": "grounding/v1",
         "temporalOperation": "insight-lab.temporal-operation/v1"
       },
@@ -218,10 +217,10 @@
       "category": "VALID_NO_DISCOVERY",
       "mode": "DATASET_ANALYSIS",
       "inputFingerprint": "sha256:b383dc477b0a62386ac86343ed2c4ae3d309a2e481f3b22e9645c00aa5ea2d0d",
-      "executionFingerprint": "sha256:9d8f4e50d44efb63ebbdd63be23b3627ab47b62bf3e23e455a9b7f504cb81694",
+      "executionFingerprint": "sha256:bc6858eb2f926a1d746b540bf056a6ef57b6b005d12690c7e32198d3fb627ee8",
       "ruleVersions": {
         "analyticalArtifact": "analytical-artifact/v1",
-        "datasetPreanalysis": "dataset-preanalysis/v1",
+        "datasetPreanalysis": "dataset-preanalysis/v2",
         "grounding": "grounding/v1",
         "temporalOperation": "insight-lab.temporal-operation/v1"
       },
@@ -252,10 +251,10 @@
       "category": "POSITIVE_DISCOVERY",
       "mode": "DISCOVERY",
       "inputFingerprint": "sha256:3b9569362610a9bf3d51fe1e4cedcca8e0534cab4311981401afff122eb35fe6",
-      "executionFingerprint": "sha256:e023e27b1c171be8f7d8e704ab5395f267f95b14c3dd0197ccd9faf38b855dea",
+      "executionFingerprint": "sha256:6c592693a97c06bd372058d05dbfc45cd5c6516f3864aaf1c82aa3309a4ccdb7",
       "ruleVersions": {
         "analyticalArtifact": "analytical-artifact/v1",
-        "datasetPreanalysis": "dataset-preanalysis/v1",
+        "datasetPreanalysis": "dataset-preanalysis/v2",
         "grounding": "grounding/v1",
         "temporalOperation": "insight-lab.temporal-operation/v1"
       },
@@ -291,10 +290,10 @@
       "category": "POSITIVE_DISCOVERY",
       "mode": "DATASET_ANALYSIS",
       "inputFingerprint": "sha256:69eb9363489e59a712801b23f1173813d2b3e8581985fe6431f18f7b27d60b1f",
-      "executionFingerprint": "sha256:9d8f4e50d44efb63ebbdd63be23b3627ab47b62bf3e23e455a9b7f504cb81694",
+      "executionFingerprint": "sha256:bc6858eb2f926a1d746b540bf056a6ef57b6b005d12690c7e32198d3fb627ee8",
       "ruleVersions": {
         "analyticalArtifact": "analytical-artifact/v1",
-        "datasetPreanalysis": "dataset-preanalysis/v1",
+        "datasetPreanalysis": "dataset-preanalysis/v2",
         "grounding": "grounding/v1",
         "temporalOperation": "insight-lab.temporal-operation/v1"
       },
@@ -325,10 +324,10 @@
       "category": "POSITIVE_DISCOVERY",
       "mode": "DATASET_ANALYSIS",
       "inputFingerprint": "sha256:6c4ba8f54609c3750926c3fc14793741834107ed66e024625932ef42b0652bd6",
-      "executionFingerprint": "sha256:9d8f4e50d44efb63ebbdd63be23b3627ab47b62bf3e23e455a9b7f504cb81694",
+      "executionFingerprint": "sha256:bc6858eb2f926a1d746b540bf056a6ef57b6b005d12690c7e32198d3fb627ee8",
       "ruleVersions": {
         "analyticalArtifact": "analytical-artifact/v1",
-        "datasetPreanalysis": "dataset-preanalysis/v1",
+        "datasetPreanalysis": "dataset-preanalysis/v2",
         "grounding": "grounding/v1",
         "temporalOperation": "insight-lab.temporal-operation/v1"
       },
@@ -355,7 +354,7 @@
     }
   ],
   "summary": {
-    "KNOWN_FAILURE": 2,
-    "PASS": 7
+    "KNOWN_FAILURE": 1,
+    "PASS": 8
   }
 }
