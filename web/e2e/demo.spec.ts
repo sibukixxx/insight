@@ -52,3 +52,34 @@ test("run history compares two runs without ranking them", async ({ page }, test
   await expect(comparison).toBeVisible();
   await expect(comparison).toContainText("Differences between runs are not evidence of cause");
 });
+
+test("evaluation, patterns and the research publication review work on a completed run", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === "demo-mobile", "desktop only");
+  await page.goto("/");
+  await page.locator("main a[href^='#/projects/']").first().click();
+  const sections = page.getByRole("navigation", { name: "Project sections" });
+
+  await sections.getByRole("link", { name: "Evaluation" }).click();
+  await expect(page.getByText("Evidence Coverage", { exact: true })).toBeVisible();
+  await expect(page.getByText(/observation candidates were verified against source text/)).toBeVisible();
+
+  await sections.getByRole("link", { name: "Traces and patterns" }).click();
+  const quote = page.locator("main article button[aria-expanded]").first();
+  await expect(quote).toBeVisible();
+  await quote.click();
+  await expect(page.locator("main article mark").first()).toBeVisible();
+
+  await sections.getByRole("link", { name: "Research publications" }).click();
+  await page.getByLabel("Research question").fill("Did the program change the outcome?");
+  await page.getByRole("button", { name: "Create from latest completed analysis" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Did the program change the outcome?" })).toBeVisible();
+  const state = page.getByRole("region", { name: "Publication state" });
+  await expect(state.locator("h2 code")).toHaveText(/^[A-Z_]+$/);
+  await page.getByLabel("Contribution").selectOption("REPLICATION");
+  await page.getByLabel("I completed the human review of this output").check();
+  await page.getByRole("button", { name: "Save review and assess readiness" }).click();
+  await expect(state.locator("h2 code")).toHaveText(/^[A-Z_]+$/);
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  await page.getByRole("link", { name: /Back to research publications/ }).click();
+  await expect(page.getByRole("link", { name: "Did the program change the outcome?" })).toBeVisible();
+});
