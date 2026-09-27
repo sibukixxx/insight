@@ -90,6 +90,10 @@ Without a model, deterministic ingestion, validation, temporal operations, and s
 
 Open `http://127.0.0.1:8787` after `serve`. A first run needs no README or CLI: the home screen explains the three steps (add evidence → run an analysis → inspect evidence and export), a demo build offers the sample project, and the Input screen lists exactly the formats this server accepts (pasted text, the documents CSV and the corporate-event analysis CSV), with header-only CSV templates and a server-side preview (row errors and the Data Triage dataset profile) before anything is stored. PDF, Excel and other files are not ingested directly.
 
+### Large CSV ingestion
+
+Files beyond the 32 MiB preview limit can be ingested asynchronously through the API: `POST /api/projects/{id}/ingests?kind=documents|analysis` streams the file to a staged copy under `ingest/` beside the database and returns a receipt (`QUEUED → VALIDATING → READY | FAILED | CANCELLED`). Poll `GET /api/projects/{id}/ingests/{ingestId}`, cancel with `POST …/cancel`, and download every rejected row from `…/errors.csv`. Documents become Evidence only when the ingest is READY; resubmitting the same bytes returns the same receipt. Browser UI support follows separately. See [docs/architecture.md](docs/architecture.md#large-csv-ingestion-132) for limits, restart and retention.
+
 ### Browser UI language
 
 The reference browser UI is available in English and Japanese. Switch with the 日本語 / English selector in the header or under Settings → Display language. The choice is stored in the browser (`localStorage`); without a saved choice the UI follows the browser language and falls back to English.
