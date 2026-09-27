@@ -1,0 +1,13 @@
+.git
+.github
+bin
+reports
+z-ai
+web/node_modules
+web/test-results
+web/playwright-report
+**/*.db
+**/*.db-wal
+**/*.db-shm
+**/*.db.lock
+**/__pycache__
