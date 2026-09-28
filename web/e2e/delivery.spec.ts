@@ -47,7 +47,7 @@ test("create a project, download a template, preview and import an analysis CSV"
   const preview = page.getByRole("region", { name: "Preview" });
   await expect(preview).toBeVisible();
   await expect(preview.getByText("Row 6: corporate_number is empty")).toBeVisible();
-  await preview.getByText("Advanced: dataset profile").click();
+  await preview.getByText("Advanced: column summary (dataset profile)").click();
   await expect(preview.getByRole("cell", { name: "corporate_number" })).toBeVisible();
   await expect(page.getByText("0 documents in this project")).toBeVisible();
 
