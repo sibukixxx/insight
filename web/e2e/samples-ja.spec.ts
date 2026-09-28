@@ -32,6 +32,9 @@ test("サンプル選択 → CSV 取り込み → 分析 → 根拠 → レポ�
   await page.getByRole("button", { name: "この CSV をプレビュー" }).click();
   const preview = page.getByRole("region", { name: "プレビュー", exact: true });
   await expect(preview).toContainText("9");
+  // #141: no internal versioning or placeholder-like copy on the input page.
+  await expect(page.locator("main")).toContainText("取り込めるのは、下に示す CSV 形式");
+  await expect(page.locator("main")).not.toContainText(/旧形式|対応している入力:/);
   await shot(page, "02-input-preview");
   await preview.getByRole("button", { name: "インポート" }).click();
   const next = page.getByRole("region", { name: "次のステップ", exact: true });
@@ -49,6 +52,10 @@ test("サンプル選択 → CSV 取り込み → 分析 → 根拠 → レポ�
   await page.getByRole("link", { name: /結果を見る/ }).click();
   const findings = page.locator("main a[href^='#/insights/']");
   await expect(findings.first()).toBeVisible();
+  // #141: the run is named in Japanese; its raw ID is not a heading.
+  await expect(page.getByRole("heading", { name: "表示中の実行のインサイト" })).toBeVisible();
+  await expect(page.locator("main")).not.toContainText(/\bRun\b/);
+  await expect(page.locator("main h2, main h1").filter({ hasText: /ana_|run_/ })).toHaveCount(0);
   await shot(page, "04-findings");
   await findings.first().click();
   await expect(page.getByRole("list", { name: "根拠のつながり" })).toBeVisible();
@@ -57,6 +64,7 @@ test("サンプル選択 → CSV 取り込み → 分析 → 根拠 → レポ�
   await quote.click();
   // The quote is the imported Japanese source text, unchanged.
   await expect(page.locator("#evidence mark").first()).toContainText("架空データ");
+  await expect(page.locator("main")).not.toContainText("旧形式");
   await shot(page, "05-evidence");
 
   await page.getByRole("link", { name: /プロジェクトへ戻る/ }).click();

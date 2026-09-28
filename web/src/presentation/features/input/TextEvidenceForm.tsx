@@ -1,7 +1,7 @@
 import { useState } from "preact/hooks";
 import { ValidationSummary } from "../../components/ValidationSummary";
 import { useFormValidation } from "../../hooks/useFormValidation";
-import { SOURCE_LABELS } from "../../../domain/codes";
+import { SOURCE_LABELS, groupSourceTypes } from "../../../domain/codes";
 import { Button } from "../../components/Button";
 import { Field, formStyles } from "../../components/Field";
 import { Notice } from "../../components/Notice";
@@ -17,6 +17,8 @@ export function TextEvidenceForm({ projectId, sourceTypes, onAdded }: { projectI
   const [error, setError] = useState<string | undefined>(undefined);
   const [notice, setNotice] = useState<string | undefined>(undefined);
   const sources = sourceTypes;
+  const groups = groupSourceTypes(sources);
+  const option = (codes: readonly string[]) => codes.map((code) => <option key={code} value={code}>{label(SOURCE_LABELS, code)}</option>);
   const onSubmit = (e: Event) => {
     e.preventDefault();
     const form = e.currentTarget as HTMLFormElement;
@@ -43,7 +45,10 @@ export function TextEvidenceForm({ projectId, sourceTypes, onAdded }: { projectI
       <div class={formStyles.row}>
         <Field label={t("project.sourceType")} htmlFor="paste-source" hint={t("form.sourceHint")} error={validation.error("paste-source")} requirement="required" requirementLabel={t("common.required")}>
             {(control) => (<select {...control} name="source" onChange={() => validation.clear("paste-source")} class={formStyles.control}>
-            {sources.map((code) => <option key={code} value={code}>{label(SOURCE_LABELS, code)}</option>)}
+            {groups.customerResearch.length === 0 ? option(groups.general) : (<>
+              <optgroup label={t("source.group.general")}>{option(groups.general)}</optgroup>
+              <optgroup label={t("source.group.customerResearch")}>{option(groups.customerResearch)}</optgroup>
+            </>)}
           </select>)}
           </Field>
         <Field label={t("project.docTitle")} htmlFor="paste-title" hint={t("form.titleHint")} requirement="optional" requirementLabel={t("common.optional")}>

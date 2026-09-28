@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/preact";
 import { describe, expect, it } from "vitest";
-import { fakePorts, fakeState, sampleScenario } from "./fakePorts";
+import { fakePorts, fakeState, formats, sampleScenario } from "./fakePorts";
 import { renderApp } from "./renderApp";
 
 const xss = "<img src=x onerror=\"window.__xss=1\">";
@@ -285,5 +285,74 @@ describe("field feedback and readiness guards", () => {
     fireEvent.submit(start.closest("form") as HTMLFormElement);
     fireEvent.click(screen.getByRole("button", { name: "Retry with the same settings" }));
     expect(ports.analysis.start).not.toHaveBeenCalled();
+  });
+});
+
+describe("terminology (#141)", () => {
+  const done = { id: "ana_1234abcd", projectId: "p1", status: "completed", progress: 100, createdAt: "", finishedAt: "2026-01-02T00:00:00Z", metrics: { provenance: { mode: "deterministic", ruleVersion: "v1" } } };
+
+  it("names a run in Japanese and keeps its raw ID out of headings but inspectable", async () => {
+    const { container } = renderApp(fakePorts(fakeState({ runs: [done] })), { hash: "#/projects/p1/findings?run=ana_1234abcd", locale: "ja" });
+    expect(await screen.findByRole("heading", { name: "表示中の実行のインサイト" })).toBeTruthy();
+    expect(screen.getByText(/に完了した実行$/)).toBeTruthy();
+    expect(screen.getByLabelText("結果を表示する実行")).toBeTruthy();
+    for (const heading of screen.getAllByRole("heading")) expect(heading.textContent).not.toContain("ana_1234abcd");
+    expect(container.querySelector("[data-run-id]")?.getAttribute("data-run-id")).toBe("ana_1234abcd");
+    expect(screen.getByText("ana_1234abcd").tagName).toBe("CODE");
+    expect(container.textContent).not.toMatch(/\bRun\b/);
+  });
+
+  it("labels customer-research sources without internal versioning and keeps their option values", async () => {
+    const ports = fakePorts(fakeState({ documents: [{ id: "d1", projectId: "p1", source: "interview", title: "Memo", content: "x", metadata: {}, createdAt: "" }] }));
+    const withLegacy = formats.map((f) => (f.kind === "documents" ? { ...f, sourceTypes: ["document", "web", "interview", "job_posting", "future_kind"] } : f));
+    ports.system.importFormats.mockResolvedValue(withLegacy);
+    const { container } = renderApp(ports, { hash: "#/projects/p1/input", locale: "ja" });
+    const select = await screen.findByLabelText("ソースの種類") as HTMLSelectElement;
+    const groups = [...select.querySelectorAll("optgroup")].map((g) => [g.label, [...g.querySelectorAll("option")].map((o) => o.value)]);
+    expect(groups).toEqual([["一般的な資料", ["document", "web", "future_kind"]], ["顧客・市場調査向け", ["interview", "job_posting"]]]);
+    expect(within(select).getByRole("option", { name: "future_kind" })).toBeTruthy();
+    expect(screen.getAllByText("インタビュー").length).toBeGreaterThan(0);
+    expect(container.textContent).not.toMatch(/旧形式|legacy/);
+  });
+
+  it("explains the accepted inputs in one sentence instead of a label-like line", async () => {
+    const { container } = renderApp(fakePorts(), { hash: "#/projects/p1/input", locale: "ja" });
+    expect(await screen.findByText(/^取り込めるのは、下に示す CSV 形式/)).toBeTruthy();
+    expect(container.textContent).not.toContain("対応している入力:");
+  });
+
+  const insight = {
+    id: "i1", projectId: "p1", analysisId: "ana_1234abcd", title: "Finding", observation: "", statedNeed: "", latentNeed: "A hypothesis", hypothesis: "",
+    jtbd: "  ", expectation: "", surprisingFact: "", rationale: "", interpretation: "Reading", alternativeInterpretation: "Other reading",
+    productOpportunity: "", monetizationAngle: "", confidence: 0.4, qualityFlags: [], createdAt: "", evidence: [], patterns: [],
+  };
+
+  it("hides empty customer-research insight fields and shows other missing fields as not recorded", async () => {
+    const ports = fakePorts();
+    ports.results.insight.mockResolvedValue(insight);
+    const { container } = renderApp(ports, { hash: "#/insights/i1", locale: "ja" });
+    const details = (await screen.findByRole("heading", { name: "詳細" })).closest("section") ?? container;
+    expect(within(details as HTMLElement).queryByText(/表明されたニーズ|JTBD|プロダクト機会|収益化/)).toBeNull();
+    expect(within(details as HTMLElement).getByText("未記録")).toBeTruthy();
+    expect([...container.querySelectorAll("dd")].map((d) => d.textContent)).not.toContain("-");
+  });
+
+  it("shows a customer-research insight field when it has a value", async () => {
+    const ports = fakePorts();
+    ports.results.insight.mockResolvedValue({ ...insight, statedNeed: "Faster refunds" });
+    renderApp(ports, { hash: "#/insights/i1" });
+    expect(await screen.findByText("Stated need (customer-research field)")).toBeTruthy();
+    expect(screen.getByText("Faster refunds")).toBeTruthy();
+    expect(screen.queryByText(/Job to be done/)).toBeNull();
+  });
+
+  it("keeps unreadable settings explicitly unknown in Japanese, never ready", async () => {
+    const ports = fakePorts(fakeState({ documents: [{ id: "d1", projectId: "p1", source: "web", title: "", content: "x", metadata: {}, createdAt: "" }] }));
+    ports.settings.get.mockRejectedValue(new Error("unavailable"));
+    const { container } = renderApp(ports, { hash: "#/projects/p1/analysis", locale: "ja" });
+    expect(await screen.findByText("設定を取得できないため、状態は不明です。開始時にサーバーが確認します。")).toBeTruthy();
+    expect(container.querySelector("[data-readiness]")?.getAttribute("data-readiness")).toBe("unknown");
+    expect(container.textContent).not.toContain("実行可能");
+    expect(container.textContent).not.toContain("UNKNOWN");
   });
 });
