@@ -24,6 +24,7 @@ This directory contains three different kinds of documentation. Keeping them sep
 | [Evaluation](evaluation/README.md) | How to run and inspect repeatable model-backed evaluation |
 | [Claim Inspection](claim-inspection.md) | Deterministic inspection of external claims against existing evidence and hypothesis states (#119) |
 | [Discovery Benchmark](evaluation/discovery-benchmark.md) | Deterministic discovery / no-discovery / false-association cases, baseline, known failures (#120) |
+| [Acceptance matrix](testing/acceptance-matrix.md) | Which user-visible behavior is proven by which test and run command, and what is still pending (#156) |
 | [Data Triage](data-triage.md) | Deterministic Dataset Profile and auditable, versioned Selection Plans that choose what deterministic processing looks at (#92) |
 
 ## Architecture and implementation
