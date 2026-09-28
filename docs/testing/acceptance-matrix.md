@@ -6,7 +6,7 @@ One page that says which user-visible behavior is proven, which test proves it, 
 - **proved (E2E)** — asserted only by the browser suite against a real binary; re-run with `make web-e2e`.
 - **pending** — no test asserts it yet; the reason is given.
 
-Routes and payload shapes are not listed here: the OpenAPI documents in `docs/openapi/public-engine-v1.yaml` and `docs/openapi/reference-api.yaml` (#157) own the route inventory. Test names below are `file:TestName` (Go) or `file › "title"` (Playwright).
+Routes and payload shapes are not listed here: the OpenAPI documents in `docs/openapi/public-engine-v1.json` and `docs/openapi/reference-api.json` (#157) own the route inventory. Test names below are `file:TestName` (Go) or `file › "title"` (Playwright).
 
 ## Scopes
 
