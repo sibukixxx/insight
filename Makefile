@@ -9,7 +9,7 @@ BINDIR  := bin
 VERSION ?= $(shell git describe --tags --dirty 2>/dev/null)
 LDFLAGS := $(if $(VERSION),-X insight-lab/internal/buildinfo.Version=$(VERSION))
 
-.PHONY: build build-demo build-delivery build-all test test-golden vet clean openapi openapi-check cross-compile cross-compile-demo cross-compile-delivery eval-demo web-install web-build web-check web-test web-e2e docker-build docker-smoke
+.PHONY: build build-demo build-delivery build-all test test-golden vet clean openapi openapi-check openapi-lint openapi-ui cross-compile cross-compile-demo cross-compile-delivery eval-demo web-install web-build web-check web-test web-e2e docker-build docker-smoke
 
 build: build-delivery
 
@@ -67,6 +67,16 @@ openapi:
 openapi-check:
 	go run ./cmd/insight-openapi -check
 	go test ./internal/openapigen ./internal/http -run 'OpenAPI|Spec'
+
+# Needs network once to fetch the pinned linter (not a project dependency).
+openapi-lint:
+	pnpm dlx --package=@redocly/cli@2.54.3 redocly lint docs/openapi/public-engine-v1.json docs/openapi/reference-api.json
+
+# Developer-only Swagger UI on 127.0.0.1 (never shipped; not under web/).
+# Try-it-out needs `insight-lab serve` running; see docs/openapi/README.md.
+openapi-ui:
+	pnpm --dir tools/openapi-docs install --frozen-lockfile
+	node tools/openapi-docs/serve.mjs
 
 test:
 	go test ./...

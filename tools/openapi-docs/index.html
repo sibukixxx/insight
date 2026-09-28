@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Insight Lab API (dev-only Swagger UI)</title>
+    <link rel="icon" type="image/png" href="/swagger-ui/favicon-32x32.png" />
+    <link rel="stylesheet" href="/swagger-ui/swagger-ui.css" />
+    <style>
+      body { margin: 0; }
+      .dev-banner { font: 14px/1.4 system-ui, sans-serif; padding: 8px 16px; background: #fff4ce; border-bottom: 1px solid #e0c96b; }
+    </style>
+  </head>
+  <body>
+    <div class="dev-banner">
+      Developer-only API browser (not shipped). <strong>Public Engine v1</strong> is the stable, SDK-backed contract.
+      The <strong>Reference API</strong> is non-public and non-stable; operations tagged <code>x-build: demo</code> only work in demo builds.
+      Try-it-out calls the local insight-lab server through this page's /api proxy.
+    </div>
+    <div id="swagger-ui"></div>
+    <script src="/swagger-ui/swagger-ui-bundle.js"></script>
+    <script src="/swagger-ui/swagger-ui-standalone-preset.js"></script>
+    <script>
+      window.ui = SwaggerUIBundle({
+        urls: [
+          { url: "/openapi/public-engine-v1.json", name: "Public Engine v1 (stable, SDK contract)" },
+          { url: "/openapi/reference-api.json", name: "Reference API (non-public, non-stable, partial)" },
+        ],
+        "urls.primaryName": "Public Engine v1 (stable, SDK contract)",
+        dom_id: "#swagger-ui",
+        deepLinking: true,
+        showExtensions: true,
+        presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
+        layout: "StandaloneLayout",
+      });
+    </script>
+  </body>
+</html>

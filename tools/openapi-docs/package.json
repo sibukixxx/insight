@@ -1,0 +1,16 @@
+{
+  "name": "insight-lab-openapi-docs",
+  "private": true,
+  "description": "Developer-only Swagger UI for docs/openapi. Never shipped: not part of web/ or internal/web/dist.",
+  "type": "module",
+  "packageManager": "pnpm@12.4.2",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "serve": "node serve.mjs"
+  },
+  "devDependencies": {
+    "swagger-ui-dist": "5.33.0"
+  }
+}
