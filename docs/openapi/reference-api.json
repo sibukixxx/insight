@@ -1,0 +1,665 @@
+{
+  "openapi": "3.1.0",
+  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+  "info": {
+    "title": "Insight Lab Reference API (non-public, non-stable)",
+    "version": "0.0.0-reference",
+    "summary": "Partial description of the Reference Web's own HTTP API. NOT the Public Engine Contract.",
+    "license": {
+      "name": "Apache-2.0",
+      "identifier": "Apache-2.0"
+    },
+    "description": "The Reference API serves the embedded Reference Web (internal/http/router.go). It is **not** part of the Public Engine Contract, has **no stability or compatibility promise**, and is **not** what the Go/TypeScript SDKs target; integrations should use the Public Engine (docs/openapi/public-engine-v1.json, /api/public/v1). This file is hand-maintained and deliberately incomplete: `x-coverage` lists which router routes are described and which are not yet described. A route missing from `paths` is a documentation gap, not a missing server feature, and nothing here is described that the router does not serve. The drift test internal/http/openapi_drift_test.go fails when `x-coverage` and the router diverge.\n\nErrors are JSON `{\"error\": \"<message>\"}` (not the Public Engine ErrorResponse). Operations marked `x-build: demo` are registered in every build but only do useful work in a `-tags demo` build; their delivery-build response is documented per operation.\n\nThe server rejects browser requests whose `Origin` is not loopback (localhost, 127.0.0.1, ::1) with 403 `forbidden origin`, sends no CORS headers and serves no OPTIONS preflight, so browser clients must be same-origin (see docs/openapi/README.md). There is no authentication: the server binds to 127.0.0.1 by default and `/api/settings` handles the LLM API key, so never expose the port."
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "Same origin as the page."
+    }
+  ],
+  "security": [],
+  "tags": [
+    {
+      "name": "reference-system",
+      "description": "Health and build information."
+    },
+    {
+      "name": "reference-projects",
+      "description": "Projects."
+    },
+    {
+      "name": "reference-import",
+      "description": "CSV import formats and templates."
+    },
+    {
+      "name": "reference-analysis",
+      "description": "Analysis lifecycle."
+    },
+    {
+      "name": "reference-reports",
+      "description": "Markdown exports."
+    },
+    {
+      "name": "reference-demo",
+      "description": "Demo-build-only routes (x-build: demo)."
+    }
+  ],
+  "paths": {
+    "/api/health": {
+      "get": {
+        "operationId": "refGetHealth",
+        "tags": [
+          "reference-system"
+        ],
+        "summary": "Liveness, build kind and optional capabilities",
+        "description": "Always 200 while the process serves requests. Used by `insight-lab health` and the Docker healthcheck.",
+        "responses": {
+          "200": {
+            "description": "Server is up.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/projects": {
+      "get": {
+        "operationId": "refListProjects",
+        "tags": [
+          "reference-projects"
+        ],
+        "summary": "List projects",
+        "responses": {
+          "200": {
+            "description": "All projects (possibly empty).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Project"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Storage failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "refCreateProject",
+        "tags": [
+          "reference-projects"
+        ],
+        "summary": "Create a project",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProjectRequest"
+              },
+              "example": {
+                "name": "My project"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Body is not JSON (`invalid JSON body`) or `name` is empty (`name is required`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Storage failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/import-formats/{kind}/template.csv": {
+      "get": {
+        "operationId": "refGetImportTemplate",
+        "tags": [
+          "reference-import"
+        ],
+        "summary": "Header-only CSV template for one import kind",
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "description": "Import kind.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "documents",
+                "analysis"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "CSV template, served as an attachment (`Content-Disposition: attachment; filename=\"insight-lab-<kind>-template.csv\"`).",
+            "headers": {
+              "Content-Disposition": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "text/csv; charset=utf-8": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown import kind.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/projects/{projectID}/report.md": {
+      "get": {
+        "operationId": "refExportProjectReport",
+        "tags": [
+          "reference-reports"
+        ],
+        "summary": "Markdown report of one project's analysis run",
+        "parameters": [
+          {
+            "name": "projectID",
+            "in": "path",
+            "required": true,
+            "description": "Identifier issued by this server.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "analysisId",
+            "in": "query",
+            "required": false,
+            "description": "Analysis run to report; omitted = the run the server resolves for the project.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Markdown report, served as an attachment (`insight-report.md`).",
+            "headers": {
+              "Content-Disposition": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "text/markdown; charset=utf-8": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No completed analysis run is available yet, or the analysis is not in this project.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The requested scope mixes analysis runs.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Storage failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/analysis/{analysisID}/events": {
+      "get": {
+        "operationId": "refStreamAnalysisEvents",
+        "tags": [
+          "reference-analysis"
+        ],
+        "summary": "Server-Sent Events for one analysis",
+        "description": "Opens with an `event: status` frame (`data` = {step, progress, lifecycle}) or, for a finished analysis, its terminal frame. Then `progress` frames follow until one `completed` or `error` frame, after which the server closes the stream. `GET /api/analysis/{analysisID}` stays the state of record. Swagger UI cannot render a live stream; use `EventSource` or a streaming HTTP client.",
+        "parameters": [
+          {
+            "name": "analysisID",
+            "in": "path",
+            "required": true,
+            "description": "Identifier issued by this server.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Event stream (`Cache-Control: no-cache`). Event names: status, progress, completed, error.",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "event: status\ndata: {\"step\":\"...\",\"progress\":0,\"lifecycle\":\"...\"}\n\n"
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown analysis.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Storage failure or the response writer cannot stream.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/demo": {
+      "post": {
+        "operationId": "refCreateDemoProject",
+        "tags": [
+          "reference-demo"
+        ],
+        "x-build": "demo",
+        "summary": "Load the fixed demo project (demo builds)",
+        "description": "Registered in every build. A delivery build has no sample data compiled in and always answers 409.",
+        "responses": {
+          "200": {
+            "description": "Demo project (demo build).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Delivery build: `this build does not include demo data; start a demo build instead`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Loading the demo failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/demo/scenarios": {
+      "get": {
+        "operationId": "refListDemoScenarios",
+        "tags": [
+          "reference-demo"
+        ],
+        "x-build": "demo",
+        "summary": "Bundled sample scenarios with provenance (demo builds)",
+        "description": "Registered in every build. A delivery build bundles no scenarios and answers an empty array. Item fields beyond `id` and `projectId` come from internal/sampledata.Scenario and are not yet documented here.",
+        "responses": {
+          "200": {
+            "description": "Scenarios (empty in delivery builds).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DemoScenario"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Reading the bundled scenarios failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        }
+      },
+      "Project": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC 3339, UTC."
+          }
+        }
+      },
+      "CreateProjectRequest": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "DemoScenario": {
+        "type": "object",
+        "required": [
+          "id",
+          "projectId"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "projectId": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      },
+      "Health": {
+        "type": "object",
+        "required": [
+          "status",
+          "demoBuild",
+          "clientName",
+          "engine",
+          "capabilities"
+        ],
+        "properties": {
+          "status": {
+            "const": "ok"
+          },
+          "demoBuild": {
+            "type": "boolean",
+            "description": "true for a `-tags demo` build."
+          },
+          "clientName": {
+            "type": "string",
+            "description": "Client name stamped on a delivery build; may be empty."
+          },
+          "engine": {
+            "type": "object",
+            "required": [
+              "version",
+              "commit",
+              "dirty"
+            ],
+            "properties": {
+              "version": {
+                "type": "string"
+              },
+              "commit": {
+                "type": "string"
+              },
+              "dirty": {
+                "type": "string",
+                "description": "\"true\", \"false\" or UNKNOWN."
+              }
+            },
+            "description": "Build identity; every value the build does not carry is UNKNOWN."
+          },
+          "capabilities": {
+            "type": "object",
+            "required": [
+              "largeIngest",
+              "runtime"
+            ],
+            "properties": {
+              "largeIngest": {
+                "type": "object",
+                "required": [
+                  "enabled"
+                ],
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "kinds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "maxUploadBytes": {
+                    "type": "integer"
+                  },
+                  "maxRows": {
+                    "type": "integer"
+                  }
+                },
+                "description": "Only `enabled:false` when the server has no ingest manager; `insight-lab serve` always configures one."
+              },
+              "runtime": {
+                "type": "object",
+                "required": [
+                  "mode",
+                  "modes",
+                  "brokers"
+                ],
+                "properties": {
+                  "mode": {
+                    "enum": [
+                      "LOCAL",
+                      "PROCESS",
+                      "DISTRIBUTED"
+                    ]
+                  },
+                  "modes": {
+                    "type": "array",
+                    "items": {
+                      "enum": [
+                        "LOCAL",
+                        "PROCESS",
+                        "DISTRIBUTED"
+                      ]
+                    }
+                  },
+                  "brokers": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Broker URL schemes compiled into this binary."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "x-stability": "none",
+  "x-coverage": {
+    "description": "Route inventory of internal/http/router.go NewRouter (without the /api/public/v1 mount, which public-engine-v1.json describes, and without the embedded web catch-all). `covered` routes are described in `paths`; `notYetCovered` routes are served but not yet described. Entries are `METHOD /path` with the router's own parameter names. Enforced by internal/http/openapi_drift_test.go.",
+    "routerSource": "internal/http/router.go",
+    "covered": [
+      "GET /api/analysis/{analysisID}/events",
+      "POST /api/demo",
+      "GET /api/demo/scenarios",
+      "GET /api/health",
+      "GET /api/import-formats/{kind}/template.csv",
+      "GET /api/projects",
+      "POST /api/projects",
+      "GET /api/projects/{projectID}/report.md"
+    ],
+    "notYetCovered": [
+      "GET /api/analysis/{analysisID}",
+      "POST /api/analysis/{analysisID}/cancel",
+      "GET /api/analysis/{analysisID}/compare/{otherID}",
+      "POST /api/analysis/{analysisID}/retry",
+      "GET /api/demo/scenarios/{scenarioID}/input.csv",
+      "POST /api/demo/scenarios/{scenarioID}/project",
+      "GET /api/documents/{documentID}",
+      "GET /api/import-formats",
+      "GET /api/insights/{insightID}",
+      "GET /api/insights/{insightID}/evidence",
+      "GET /api/projects/{projectID}",
+      "DELETE /api/projects/{projectID}",
+      "GET /api/projects/{projectID}/analyses",
+      "GET /api/projects/{projectID}/analyses/compare",
+      "POST /api/projects/{projectID}/analysis",
+      "POST /api/projects/{projectID}/documents",
+      "GET /api/projects/{projectID}/documents",
+      "POST /api/projects/{projectID}/documents/import",
+      "POST /api/projects/{projectID}/documents/import/analysis",
+      "POST /api/projects/{projectID}/documents/import/preview",
+      "GET /api/projects/{projectID}/evaluation",
+      "GET /api/projects/{projectID}/ingests",
+      "POST /api/projects/{projectID}/ingests",
+      "GET /api/projects/{projectID}/ingests/{ingestID}",
+      "POST /api/projects/{projectID}/ingests/{ingestID}/cancel",
+      "GET /api/projects/{projectID}/ingests/{ingestID}/errors.csv",
+      "GET /api/projects/{projectID}/insights",
+      "GET /api/projects/{projectID}/metrics-history",
+      "GET /api/projects/{projectID}/patterns",
+      "GET /api/projects/{projectID}/research-runs",
+      "POST /api/projects/{projectID}/research-runs",
+      "GET /api/research-runs/{runID}",
+      "GET /api/research-runs/{runID}/approved-artifact.json",
+      "GET /api/research-runs/{runID}/artifact.json",
+      "GET /api/research-runs/{runID}/compare/{fromIterationID}/{toIterationID}",
+      "GET /api/research-runs/{runID}/handoff",
+      "POST /api/research-runs/{runID}/iterations",
+      "GET /api/research-runs/{runID}/iterations/{iterationID}",
+      "GET /api/research-runs/{runID}/iterations/{iterationID}/evaluation",
+      "PUT /api/research-runs/{runID}/iterations/{iterationID}/evaluation",
+      "PUT /api/research-runs/{runID}/iterations/{iterationID}/override",
+      "PUT /api/research-runs/{runID}/iterations/{iterationID}/promotion-review",
+      "PUT /api/research-runs/{runID}/iterations/{iterationID}/promotion-transition",
+      "GET /api/research-runs/{runID}/report.md",
+      "POST /api/research-runs/{runID}/scenario-sets",
+      "POST /api/research-runs/{runID}/scenario-sets/scaffold",
+      "POST /api/research-runs/{runID}/scenario-sets/{scenarioSetID}/evaluations",
+      "GET /api/research-runs/{runID}/scenarios",
+      "GET /api/research-runs/{runID}/timeline",
+      "GET /api/settings",
+      "PUT /api/settings",
+      "POST /api/settings/test"
+    ]
+  }
+}

@@ -9,7 +9,7 @@ BINDIR  := bin
 VERSION ?= $(shell git describe --tags --dirty 2>/dev/null)
 LDFLAGS := $(if $(VERSION),-X insight-lab/internal/buildinfo.Version=$(VERSION))
 
-.PHONY: build build-demo build-delivery build-all test test-golden vet clean cross-compile cross-compile-demo cross-compile-delivery eval-demo web-install web-build web-check web-test web-e2e docker-build docker-smoke
+.PHONY: build build-demo build-delivery build-all test test-golden vet clean openapi openapi-check cross-compile cross-compile-demo cross-compile-delivery eval-demo web-install web-build web-check web-test web-e2e docker-build docker-smoke
 
 build: build-delivery
 
@@ -57,6 +57,16 @@ docker-build:
 # Default Compose smoke: healthy, Insight only, data survives recreation.
 docker-smoke:
 	sh scripts/docker-smoke.sh
+
+# OpenAPI 3.1 (#157, docs/openapi/README.md). public-engine-v1.json is
+# generated from contracts/public-engine/v1/schema.json; reference-api.json is
+# hand-maintained. `make test` already runs the staleness and drift tests.
+openapi:
+	go run ./cmd/insight-openapi
+
+openapi-check:
+	go run ./cmd/insight-openapi -check
+	go test ./internal/openapigen ./internal/http -run 'OpenAPI|Spec'
 
 test:
 	go test ./...

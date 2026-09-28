@@ -1,0 +1,5231 @@
+{
+  "components": {
+    "schemas": {
+      "AddEvidenceRequest": {
+        "description": "At least one document, analytical artifact or input source is required. Artifacts follow contracts/analytical-artifact/v1/schema.json.",
+        "properties": {
+          "analyticalArtifacts": {
+            "items": {
+              "type": "object"
+            },
+            "maxItems": 50,
+            "type": "array"
+          },
+          "contractVersion": {
+            "$ref": "#/components/schemas/ContractVersion"
+          },
+          "documents": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceDocument"
+            },
+            "maxItems": 500,
+            "type": "array"
+          },
+          "idempotencyKey": {
+            "$ref": "#/components/schemas/IdempotencyKey"
+          },
+          "inputSources": {
+            "items": {
+              "$ref": "#/components/schemas/InputSource"
+            },
+            "maxItems": 50,
+            "type": "array"
+          }
+        },
+        "required": [
+          "contractVersion",
+          "idempotencyKey"
+        ],
+        "type": "object"
+      },
+      "AddedEvidenceLink": {
+        "properties": {
+          "gapIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "note": {
+            "type": "string"
+          },
+          "reference": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "reference"
+        ],
+        "type": "object"
+      },
+      "AnalysisList": {
+        "properties": {
+          "analyses": {
+            "description": "Every analysis run of the subject, oldest first.",
+            "items": {
+              "$ref": "#/components/schemas/AnalysisRun"
+            },
+            "type": "array"
+          },
+          "contractVersion": {
+            "$ref": "#/components/schemas/ContractVersion"
+          },
+          "subjectId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "contractVersion",
+          "subjectId",
+          "analyses"
+        ],
+        "type": "object"
+      },
+      "AnalysisProvenance": {
+        "description": "The run's execution and input snapshots, verbatim. A snapshot the run never recorded is omitted, never sent empty.",
+        "properties": {
+          "execution": {
+            "type": "object"
+          },
+          "input": {
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "AnalysisResults": {
+        "properties": {
+          "analysisId": {
+            "type": "string"
+          },
+          "contractVersion": {
+            "$ref": "#/components/schemas/ContractVersion"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/Finding"
+            },
+            "type": "array"
+          },
+          "metrics": {
+            "description": "The run's recorded evaluation metrics, verbatim.",
+            "type": "object"
+          },
+          "observations": {
+            "items": {
+              "$ref": "#/components/schemas/Observation"
+            },
+            "type": "array"
+          },
+          "subjectId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "contractVersion",
+          "subjectId",
+          "analysisId",
+          "observations",
+          "findings"
+        ],
+        "type": "object"
+      },
+      "AnalysisRun": {
+        "properties": {
+          "analysisId": {
+            "type": "string"
+          },
+          "contractVersion": {
+            "$ref": "#/components/schemas/ContractVersion"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "engine": {
+            "$ref": "#/components/schemas/EngineBuild"
+          },
+          "error": {
+            "type": "string"
+          },
+          "executionFingerprint": {
+            "type": "string"
+          },
+          "executionMode": {
+            "enum": [
+              "deterministic",
+              "model_backed"
+            ],
+            "type": "string"
+          },
+          "executionProfile": {
+            "$ref": "#/components/schemas/ExecutionProfileResolution"
+          },
+          "finishedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "inputFingerprint": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          },
+          "outputLocale": {
+            "$ref": "#/components/schemas/OutputLocale",
+            "description": "The output locale this analysis requested. Absent when none was requested (including runs recorded before #125)."
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/AnalysisProvenance"
+          },
+          "reasoningProfile": {
+            "description": "Resolved semantic reasoning profile used by this analysis.",
+            "enum": [
+              "GENERAL_RESEARCH",
+              "CUSTOMER_INSIGHT"
+            ],
+            "type": "string"
+          },
+          "researchQuestion": {
+            "description": "The question that focused this analysis, when one was supplied.",
+            "type": "string"
+          },
+          "semanticAnalysisMode": {
+            "type": "string"
+          },
+          "startedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "queued",
+              "running",
+              "completed",
+              "failed"
+            ],
+            "type": "string"
+          },
+          "subjectId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "contractVersion",
+          "subjectId",
+          "analysisId",
+          "status",
+          "createdAt"
+        ],
+        "type": "object"
+      },
+      "AppendIterationRequest": {
+        "description": "Appends a new iteration evaluated on a completed analysis run. Earlier iterations are never modified.",
+        "properties": {
+          "addedEvidence": {
+            "items": {
+              "$ref": "#/components/schemas/AddedEvidenceLink"
+            },
+            "type": "array"
+          },
+          "analysisId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "claims": {
+            "description": "Replaces the run's claims for this iteration. Omitted keeps the current claims and re-inspects them against the new evidence; each inspection records its previous status.",
+            "items": {
+              "$ref": "#/components/schemas/ResearchClaim"
+            },
+            "maxItems": 50,
+            "type": "array"
+          },
+          "contractVersion": {
+            "$ref": "#/components/schemas/ContractVersion"
+          },
+          "idempotencyKey": {
+            "$ref": "#/components/schemas/IdempotencyKey"
+          },
+          "observationWindow": {
+            "$ref": "#/components/schemas/ObservationWindow"
+          },
+          "question": {
+            "maxLength": 2000,
+            "type": "string"
+          }
+        },
+        "required": [
+          "contractVersion",
+          "idempotencyKey",
+          "analysisId"
+        ],
+        "type": "object"
+      },
+      "Assumption": {
+        "description": "A typed assumption. Only OBSERVED_BASELINE may cite evidenceRefs as observed fact; other kinds cite sourceRefs.",
+        "properties": {
+          "asOf": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "evidenceRefs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "OBSERVED_BASELINE",
+              "EXOGENOUS_ASSUMPTION",
+              "MODEL_ASSUMPTION",
+              "HUMAN_ASSUMPTION",
+              "POLICY_ASSUMPTION"
+            ],
+            "type": "string"
+          },
+          "sourceRefs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "statement": {
+            "type": "string"
+          },
+          "validUntil": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "statement",
+          "kind",
+          "asOf"
+        ],
+        "type": "object"
+      },
+      "AssumptionCheck": {
+        "description": "Whether later evidence kept an assumption. INVALIDATED requires evidenceRef.",
+        "properties": {
+          "assumptionId": {
+            "type": "string"
+          },
+          "evidenceRef": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          },
+          "result": {
+            "enum": [
+              "HOLDS",
+              "INVALIDATED",
+              "UNKNOWN"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "assumptionId",
+          "result"
+        ],
+        "type": "object"
+      },
+      "AxisState": {
+        "enum": [
+          "SAME",
+          "CHANGED",
+          "UNKNOWN"
+        ],
+        "type": "string"
+      },
+      "ChangeAttribution": {
+        "enum": [
+          "EVIDENCE_DELTA",
+          "INSTRUMENT_CHANGE",
+          "EVIDENCE_AND_INSTRUMENT",
+          "UNATTRIBUTED"
+        ],
+        "type": "string"
+      },
+      "ColumnProfile": {
+        "properties": {
+          "distinctCapped": {
+            "type": "boolean"
+          },
+          "distinctCount": {
+            "description": "Stops counting at 10000 (distinctCapped).",
+            "type": "integer"
+          },
+          "max": {
+            "type": "string"
+          },
+          "min": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "nonNullCount": {
+            "type": "integer"
+          },
+          "nullCount": {
+            "type": "integer"
+          },
+          "sampleValues": {
+            "items": {
+              "maxLength": 64,
+              "type": "string"
+            },
+            "maxItems": 5,
+            "type": "array"
+          },
+          "type": {
+            "enum": [
+              "INTEGER",
+              "NUMBER",
+              "BOOLEAN",
+              "DATE",
+              "STRING",
+              "EMPTY"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "type",
+          "nonNullCount",
+          "nullCount",
+          "distinctCount",
+          "distinctCapped",
+          "sampleValues"
+        ],
+        "type": "object"
+      },
+      "ContractVersion": {
+        "const": "1",
+        "type": "string"
+      },
+      "CreateDatasetProfileRequest": {
+        "description": "Exactly one of csv (inline, at most 8 MiB) or documentId (an evidence document of the subject) is required.",
+        "properties": {
+          "contractVersion": {
+            "$ref": "#/components/schemas/ContractVersion"
+          },
+          "csv": {
+            "type": "string"
+          },
+          "dataset": {
+            "$ref": "#/components/schemas/DatasetRef"
+          },
+          "documentId": {
+            "type": "string"
+          },
+          "idempotencyKey": {
+            "$ref": "#/components/schemas/IdempotencyKey"
+          }
+        },
+        "required": [
+          "contractVersion",
+          "idempotencyKey",
+          "dataset"
+        ],
+        "type": "object"
+      },
+      "CreateResearchRunRequest": {
+        "properties": {
+          "analysisId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "claims": {
+            "description": "External statements to inspect against this research state (#119). Inspections appear in artifact.claimInspections. A claim is never evidence and gets no independent truth score.",
+            "items": {
+              "$ref": "#/components/schemas/ResearchClaim"
+            },
+            "maxItems": 50,
+            "type": "array"
+          },
+          "contractVersion": {
+            "$ref": "#/components/schemas/ContractVersion"
+          },
+          "idempotencyKey": {
+            "$ref": "#/components/schemas/IdempotencyKey"
+          },
+          "inputReferences": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "observationWindow": {
+            "$ref": "#/components/schemas/ObservationWindow"
+          },
+          "question": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "semanticAnalysisMode": {
+            "enum": [
+              "DISCOVERY",
+              "DATASET_ANALYSIS",
+              "RESEARCH_REVIEW"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "contractVersion",
+          "idempotencyKey",
+          "question",
+          "analysisId"
+        ],
+        "type": "object"
+      },
+      "CreateScenarioSetRequest": {
+        "description": "Submit a curated scenario set as the next version.",
+        "properties": {
+          "contractVersion": {
+            "$ref": "#/components/schemas/ContractVersion"
+          },
+          "idempotencyKey": {
+            "$ref": "#/components/schemas/IdempotencyKey"
+          },
+          "scenarioSet": {
+            "$ref": "#/components/schemas/ScenarioSetDraft"
+          }
+        },
+        "required": [
+          "contractVersion",
+          "idempotencyKey",
+          "scenarioSet"
+        ],
+        "type": "object"
+      },
+      "CreateSubjectRequest": {
+        "properties": {
+          "contractVersion": {
+            "$ref": "#/components/schemas/ContractVersion"
+          },
+          "idempotencyKey": {
+            "$ref": "#/components/schemas/IdempotencyKey"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/Metadata"
+          },
+          "subject": {
+            "$ref": "#/components/schemas/SubjectRef"
+          },
+          "title": {
+            "maxLength": 256,
+            "type": "string"
+          }
+        },
+        "required": [
+          "contractVersion",
+          "idempotencyKey",
+          "subject"
+        ],
+        "type": "object"
+      },
+      "DatasetProfile": {
+        "description": "Deterministic, bounded metadata. Identical bytes give an identical profileFingerprint. Raw rows are never stored or returned.",
+        "properties": {
+          "columns": {
+            "items": {
+              "$ref": "#/components/schemas/ColumnProfile"
+            },
+            "type": "array"
+          },
+          "contentSha256": {
+            "type": "string"
+          },
+          "contractVersion": {
+            "$ref": "#/components/schemas/ContractVersion"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "dataset": {
+            "$ref": "#/components/schemas/DatasetRef"
+          },
+          "documentId": {
+            "type": "string"
+          },
+          "profileFingerprint": {
+            "type": "string"
+          },
+          "profileId": {
+            "type": "string"
+          },
+          "profilerVersion": {
+            "type": "string"
+          },
+          "rowCount": {
+            "type": "integer"
+          },
+          "subjectId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "contractVersion",
+          "subjectId",
+          "profileId",
+          "dataset",
+          "contentSha256",
+          "rowCount",
+          "columns",
+          "profilerVersion",
+          "profileFingerprint",
+          "createdAt"
+        ],
+        "type": "object"
+      },
+      "DatasetRef": {
+        "properties": {
+          "id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "sha256": {
+            "description": "sha256:\u003chex\u003e of the profiled bytes. When sent it must match; responses always carry the engine-computed value.",
+            "type": "string"
+          },
+          "version": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "version"
+        ],
+        "type": "object"
+      },
+      "EngineBuild": {
+        "properties": {
+          "commit": {
+            "description": "Git commit, or UNKNOWN.",
+            "type": "string"
+          },
+          "dirty": {
+            "enum": [
+              "true",
+              "false",
+              "UNKNOWN"
+            ],
+            "type": "string"
+          },
+          "version": {
+            "description": "Release version, or UNKNOWN.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "commit",
+          "dirty"
+        ],
+        "type": "object"
+      },
+      "EngineInfo": {
+        "properties": {
+          "analyticalArtifact": {
+            "$ref": "#/components/schemas/SchemaRef"
+          },
+          "contractSchema": {
+            "const": "insight-lab.public-engine",
+            "type": "string"
+          },
+          "contractVersion": {
+            "$ref": "#/components/schemas/ContractVersion"
+          },
+          "defaultReasoningProfile": {
+            "description": "Profile used when startAnalysis omits reasoningProfile; currently GENERAL_RESEARCH.",
+            "enum": [
+              "GENERAL_RESEARCH",
+              "CUSTOMER_INSIGHT"
+            ],
+            "type": "string"
+          },
+          "engine": {
+            "$ref": "#/components/schemas/EngineBuild"
+          },
+          "executionProfiles": {
+            "items": {
+              "$ref": "#/components/schemas/ExecutionProfileInfo"
+            },
+            "type": "array"
+          },
+          "inputSourceKinds": {
+            "items": {
+              "enum": [
+                "INLINE_DOCUMENT",
+                "ANALYTICAL_ARTIFACT",
+                "RAW_ARTIFACT"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "modelBacked": {
+            "description": "True when analyses use a configured model and can form hypotheses. False means deterministic only: research runs are refused with ANALYSIS_HAS_NO_HYPOTHESES.",
+            "type": "boolean"
+          },
+          "modelRouting": {
+            "$ref": "#/components/schemas/ModelRouting"
+          },
+          "researchArtifact": {
+            "$ref": "#/components/schemas/SchemaRef"
+          },
+          "state": {
+            "$ref": "#/components/schemas/EngineState"
+          },
+          "supportedContractVersions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "supportedOutputLocales": {
+            "description": "Locales startAnalysis.outputLocale accepts (#125). There is no default: an omitted outputLocale keeps generated text in the language of the source material or research question.",
+            "items": {
+              "$ref": "#/components/schemas/OutputLocale"
+            },
+            "type": "array"
+          },
+          "supportedReasoningProfiles": {
+            "description": "Semantic reasoning specializations supported by the same research core.",
+            "items": {
+              "enum": [
+                "GENERAL_RESEARCH",
+                "CUSTOMER_INSIGHT"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "contractSchema",
+          "contractVersion",
+          "supportedContractVersions",
+          "engine",
+          "researchArtifact",
+          "analyticalArtifact"
+        ],
+        "type": "object"
+      },
+      "EngineState": {
+        "description": "Opaque identity of the persisted engine state (#116). stateId is generated once when the state store is initialized and persisted inside it: it survives restarts, changes for a fresh store and travels with a backup/restore of that store. It never encodes host, path or storage-provider details. Absent means unknown, never the same state.",
+        "properties": {
+          "createdAt": {
+            "description": "When this state was initialized.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "stateId": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "stateId",
+          "createdAt"
+        ],
+        "type": "object"
+      },
+      "ErrorBody": {
+        "properties": {
+          "code": {
+            "enum": [
+              "INVALID_REQUEST",
+              "UNSUPPORTED_CONTRACT_VERSION",
+              "NOT_FOUND",
+              "IDEMPOTENCY_CONFLICT",
+              "IDENTITY_CONFLICT",
+              "ANALYSIS_NOT_COMPLETED",
+              "ANALYSIS_HAS_NO_HYPOTHESES",
+              "MIXED_ANALYSIS_RUNS",
+              "STALE_ITERATION",
+              "EXECUTION_PROFILE_UNAVAILABLE",
+              "MODEL_BINDING_UNAVAILABLE",
+              "INPUT_SOURCE_UNAVAILABLE",
+              "INPUT_VERIFICATION_FAILED",
+              "INTERNAL"
+            ],
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "type": "object"
+      },
+      "ErrorResponse": {
+        "properties": {
+          "contractVersion": {
+            "$ref": "#/components/schemas/ContractVersion"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ErrorBody"
+          }
+        },
+        "required": [
+          "contractVersion",
+          "error"
+        ],
+        "type": "object"
+      },
+      "EvaluateScenariosRequest": {
+        "description": "Evaluate a scenario set version against new observations.",
+        "properties": {
+          "assumptionChecks": {
+            "items": {
+              "$ref": "#/components/schemas/AssumptionCheck"
+            },
+            "type": "array"
+          },
+          "contractVersion": {
+            "$ref": "#/components/schemas/ContractVersion"
+          },
+          "idempotencyKey": {
+            "$ref": "#/components/schemas/IdempotencyKey"
+          },
+          "iterationId": {
+            "type": "string"
+          },
+          "observations": {
+            "items": {
+              "$ref": "#/components/schemas/IndicatorObservation"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "contractVersion",
+          "idempotencyKey"
+        ],
+        "type": "object"
+      },
+      "EvidenceChanges": {
+        "properties": {
+          "added": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 500,
+            "type": "array"
+          },
+          "changed": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 500,
+            "type": "array"
+          },
+          "removed": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 500,
+            "type": "array"
+          }
+        },
+        "required": [
+          "added",
+          "removed",
+          "changed"
+        ],
+        "type": "object"
+      },
+      "EvidenceDocument": {
+        "properties": {
+          "content": {
+            "maxLength": 200000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "externalRef": {
+            "description": "Caller's stable reference, unique within a subject.",
+            "maxLength": 256,
+            "minLength": 1,
+            "type": "string"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/Metadata"
+          },
+          "source": {
+            "description": "Evidence source category. Generic categories are preferred when no legacy domain-specific category applies.",
+            "enum": [
+              "interview",
+              "review",
+              "support",
+              "sales",
+              "survey",
+              "job_posting",
+              "social_post",
+              "dataset",
+              "document",
+              "report",
+              "paper",
+              "web",
+              "record",
+              "other"
+            ],
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 512,
+            "type": "string"
+          }
+        },
+        "required": [
+          "externalRef",
+          "source",
+          "content"
+        ],
+        "type": "object"
+      },
+      "EvidenceEvent": {
+        "properties": {
+          "detail": {
+            "type": "string"
+          },
+          "gapIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "iterationId": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "ADDED",
+              "REMOVED",
+              "CONTENT_CHANGED",
+              "DEFINITION_CHANGED"
+            ],
+            "type": "string"
+          },
+          "reference": {
+            "type": "string"
+          },
+          "sequence": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "iterationId",
+          "sequence",
+          "kind",
+          "reference"
+        ],
+        "type": "object"
+      },
+      "EvidenceItemReceipt": {
+        "properties": {
+          "artifactId": {
+            "type": "string"
+          },
+          "documentId": {
+            "type": "string"
+          },
+          "externalRef": {
+            "type": "string"
+          },
+          "reproducibilityKey": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "CREATED",
+              "UNCHANGED"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "documentId",
+          "status"
+        ],
+        "type": "object"
+      },
+      "EvidenceReceipt": {
+        "properties": {
+          "analyticalArtifacts": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceItemReceipt"
+            },
+            "type": "array"
+          },
+          "contractVersion": {
+            "$ref": "#/components/schemas/ContractVersion"
+          },
+          "documents": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceItemReceipt"
+            },
+            "type": "array"
+          },
+          "inputSources": {
+            "items": {
+              "$ref": "#/components/schemas/InputSourceReceipt"
+            },
+            "type": "array"
+          },
+          "subjectId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "contractVersion",
+          "subjectId",
+          "documents",
+          "analyticalArtifacts"
+        ],
+        "type": "object"
+      },
+      "ExecutionAxisDiff": {
+        "properties": {
+          "changes": {
+            "description": "Field-level diff: engineVersion, gitCommit, gitDirty, executionMode, semanticAnalysisMode, ruleVersions.*, promptVersion, promptFingerprint, provider, models.*, parameters.",
+            "items": {
+              "$ref": "#/components/schemas/FieldChange"
+            },
+            "type": "array"
+          },
+          "informational": {
+            "description": "Recorded settings excluded from the execution fingerprint by design (executionProfile.requested / executionProfile.resolved). Visible, never an instrument change.",
+            "items": {
+              "$ref": "#/components/schemas/FieldChange"
+            },
+            "type": "array"
+          },
+          "state": {
+            "$ref": "#/components/schemas/AxisState"
+          }
+        },
+        "required": [
+          "state",
+          "changes"
+        ],
+        "type": "object"
+      },
+      "ExecutionProfile": {
+        "description": "Resource/runtime strategy (#91). Separate from semanticAnalysisMode, research stage and executionMode; it never changes hypothesis, validation or readiness semantics. Omitted means AUTO.",
+        "enum": [
+          "LIGHT",
+          "STANDARD",
+          "HEAVY",
+          "AUTO"
+        ],
+        "type": "string"
+      },
+      "ExecutionProfileInfo": {
+        "properties": {
+          "available": {
+            "type": "boolean"
+          },
+          "description": {
+            "type": "string"
+          },
+          "profile": {
+            "$ref": "#/components/schemas/ExecutionProfile"
+          }
+        },
+        "required": [
+          "profile",
+          "available",
+          "description"
+        ],
+        "type": "object"
+      },
+      "ExecutionProfileResolution": {
+        "description": "Which profile a run used and why. AUTO resolves deterministically from input shape; an unavailable profile fails with EXECUTION_PROFILE_UNAVAILABLE instead of downgrading. Recorded in provenance.execution, not in the execution fingerprint.",
+        "properties": {
+          "reason": {
+            "type": "string"
+          },
+          "requested": {
+            "$ref": "#/components/schemas/ExecutionProfile"
+          },
+          "resolved": {
+            "enum": [
+              "LIGHT",
+              "STANDARD",
+              "HEAVY"
+            ],
+            "type": "string"
+          },
+          "strategyVersion": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "requested",
+          "resolved",
+          "reason",
+          "strategyVersion"
+        ],
+        "type": "object"
+      },
+      "FieldChange": {
+        "properties": {
+          "field": {
+            "type": "string"
+          },
+          "from": {
+            "description": "Empty when the field was absent.",
+            "type": "string"
+          },
+          "to": {
+            "description": "Empty when the field was absent.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "field",
+          "from",
+          "to"
+        ],
+        "type": "object"
+      },
+      "Finding": {
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "expectation": {
+            "type": "string"
+          },
+          "findingId": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "repetition",
+              "deviation"
+            ],
+            "type": "string"
+          },
+          "observationIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "findingId",
+          "kind",
+          "title",
+          "observationIds"
+        ],
+        "type": "object"
+      },
+      "FiredFalsification": {
+        "description": "A falsification condition that fired on evidence.",
+        "properties": {
+          "condition": {
+            "type": "string"
+          },
+          "evidenceRef": {
+            "type": "string"
+          },
+          "expectationId": {
+            "type": "string"
+          },
+          "scenarioId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "scenarioId",
+          "expectationId",
+          "condition",
+          "evidenceRef"
+        ],
+        "type": "object"
+      },
+      "HypothesisEvent": {
+        "properties": {
+          "attribution": {
+            "$ref": "#/components/schemas/ChangeAttribution"
+          },
+          "evidenceRefs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "evolution": {
+            "enum": [
+              "CREATED",
+              "UNCHANGED",
+              "STRENGTHENED",
+              "WEAKENED",
+              "CONTRADICTED"
+            ],
+            "type": "string"
+          },
+          "hypothesisId": {
+            "type": "string"
+          },
+          "invalidatesPriorInterpretation": {
+            "type": "boolean"
+          },
+          "iterationId": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "sequence": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "iterationId",
+          "sequence",
+          "hypothesisId",
+          "evolution",
+          "reason",
+          "attribution",
+          "invalidatesPriorInterpretation"
+        ],
+        "type": "object"
+      },
+      "IdempotencyKey": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "IndicatorObservation": {
+        "description": "A later observation for one expectation. CONSISTENT/CONTRADICTS require evidenceRef. Observations at or before the set was created cannot test it.",
+        "properties": {
+          "evidenceRef": {
+            "type": "string"
+          },
+          "expectationId": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          },
+          "observedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "CONSISTENT",
+              "CONTRADICTS",
+              "INCONCLUSIVE",
+              "NOT_OBSERVED"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "expectationId",
+          "outcome",
+          "observedAt"
+        ],
+        "type": "object"
+      },
+      "InputAxisDiff": {
+        "properties": {
+          "datasetHashesAdded": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "datasetHashesRemoved": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "datasetsAdded": {
+            "description": "datasetId@schemaVersion:fileHash identities.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "datasetsRemoved": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "documentsAdded": {
+            "description": "source:contentHash:metadataHash identities.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "documentsRemoved": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "researchQuestion": {
+            "$ref": "#/components/schemas/FieldChange",
+            "description": "Present when the semantic research question changed; this is an input change."
+          },
+          "state": {
+            "$ref": "#/components/schemas/AxisState"
+          }
+        },
+        "required": [
+          "state",
+          "documentsAdded",
+          "documentsRemoved",
+          "datasetHashesAdded",
+          "datasetHashesRemoved",
+          "datasetsAdded",
+          "datasetsRemoved"
+        ],
+        "type": "object"
+      },
+      "InputSource": {
+        "description": "Additive input variant (#90). kind RAW_ARTIFACT registers an engine-verified reference. With preparation, the bytes are prepared into an Analytical Artifact when an analysis runs on STANDARD or HEAVY; without it the reference is recorded for provenance only and never analyzed as text.",
+        "properties": {
+          "externalRef": {
+            "maxLength": 256,
+            "minLength": 1,
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "RAW_ARTIFACT"
+            ],
+            "type": "string"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/Metadata"
+          },
+          "preparation": {
+            "$ref": "#/components/schemas/PreparationSpec"
+          },
+          "rawArtifact": {
+            "$ref": "#/components/schemas/RawArtifactRef"
+          },
+          "title": {
+            "maxLength": 512,
+            "type": "string"
+          }
+        },
+        "required": [
+          "externalRef",
+          "kind",
+          "rawArtifact"
+        ],
+        "type": "object"
+      },
+      "InputSourceReceipt": {
+        "properties": {
+          "documentId": {
+            "type": "string"
+          },
+          "externalRef": {
+            "type": "string"
+          },
+          "preparation": {
+            "enum": [
+              "PENDING",
+              "NOT_REQUESTED"
+            ],
+            "type": "string"
+          },
+          "preparedArtifactId": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "sizeBytes": {
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "CREATED",
+              "UNCHANGED"
+            ],
+            "type": "string"
+          },
+          "verifiedBy": {
+            "const": "engine",
+            "type": "string"
+          }
+        },
+        "required": [
+          "externalRef",
+          "documentId",
+          "status",
+          "sha256",
+          "sizeBytes",
+          "verifiedBy",
+          "preparation"
+        ],
+        "type": "object"
+      },
+      "InsightMatch": {
+        "properties": {
+          "changes": {
+            "items": {
+              "$ref": "#/components/schemas/FieldChange"
+            },
+            "type": "array"
+          },
+          "fromInsightId": {
+            "type": "string"
+          },
+          "method": {
+            "enum": [
+              "EXACT_EVIDENCE_SPANS",
+              "EVIDENCE_SPAN_OVERLAP",
+              "HYPOTHESIS_COMPARISON_KEY"
+            ],
+            "type": "string"
+          },
+          "score": {
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          },
+          "toInsightId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "fromInsightId",
+          "toInsightId",
+          "method",
+          "score",
+          "changes"
+        ],
+        "type": "object"
+      },
+      "InsightResultDiff": {
+        "properties": {
+          "added": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "matched": {
+            "items": {
+              "$ref": "#/components/schemas/InsightMatch"
+            },
+            "type": "array"
+          },
+          "removed": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "added",
+          "removed",
+          "matched"
+        ],
+        "type": "object"
+      },
+      "InsightVersion": {
+        "properties": {
+          "attribution": {
+            "$ref": "#/components/schemas/ChangeAttribution"
+          },
+          "explanation": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "insightIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "iterationId": {
+            "type": "string"
+          },
+          "sequence": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "iterationId",
+          "sequence",
+          "attribution"
+        ],
+        "type": "object"
+      },
+      "InstrumentChange": {
+        "description": "Execution fingerprint of consecutive iterations' analyses. UNKNOWN means not recorded, never SAME.",
+        "properties": {
+          "changedFields": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "execution": {
+            "enum": [
+              "CHANGED",
+              "UNKNOWN"
+            ],
+            "type": "string"
+          },
+          "fromIterationId": {
+            "type": "string"
+          },
+          "toIterationId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "fromIterationId",
+          "toIterationId",
+          "execution"
+        ],
+        "type": "object"
+      },
+      "Metadata": {
+        "additionalProperties": {
+          "maxLength": 1024,
+          "type": "string"
+        },
+        "description": "Bounded opaque string metadata. Keys match ^[A-Za-z0-9._:-]{1,64}$. In document metadata, keys starting with public_ or analytical_ and the keys dataset_hash and acquisition_manifest are reserved: the engine records that provenance itself.",
+        "maxProperties": 32,
+        "type": "object"
+      },
+      "MetricDelta": {
+        "properties": {
+          "delta": {
+            "description": "Null unless both runs recorded the metric.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "from": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "metric": {
+            "type": "string"
+          },
+          "to": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "metric",
+          "from",
+          "to",
+          "delta"
+        ],
+        "type": "object"
+      },
+      "MetricRange": {
+        "properties": {
+          "max": {
+            "type": "number"
+          },
+          "metric": {
+            "type": "string"
+          },
+          "min": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "metric",
+          "min",
+          "max"
+        ],
+        "type": "object"
+      },
+      "ModelRouting": {
+        "description": "Per-run model binding extension point (#65): stages a caller may bind and the models the engine operator allowed (the configured model is always allowed). The engine never chooses models itself; bindings are execution config recorded in provenance.execution.llm.models and the execution fingerprint, and never change research semantics.",
+        "properties": {
+          "allowedModels": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "stages": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "stages",
+          "allowedModels"
+        ],
+        "type": "object"
+      },
+      "Observation": {
+        "properties": {
+          "behavior": {
+            "type": "string"
+          },
+          "documentId": {
+            "type": "string"
+          },
+          "endOffset": {
+            "type": "integer"
+          },
+          "externalRef": {
+            "type": "string"
+          },
+          "observationId": {
+            "type": "string"
+          },
+          "quote": {
+            "description": "Exact text of the source document between startOffset and endOffset (rune offsets).",
+            "type": "string"
+          },
+          "startOffset": {
+            "type": "integer"
+          },
+          "topic": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "observationId",
+          "documentId",
+          "quote",
+          "startOffset",
+          "endOffset",
+          "behavior"
+        ],
+        "type": "object"
+      },
+      "ObservationWindow": {
+        "description": "As-of boundary of a longitudinal iteration (#71). A later iteration may not use an earlier asOf than one already recorded.",
+        "properties": {
+          "asOf": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "basis": {
+            "type": "string"
+          },
+          "end": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          },
+          "start": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "asOf"
+        ],
+        "type": "object"
+      },
+      "OutputLocale": {
+        "description": "Explicit language for model-generated text. Exact, case-sensitive tags; other spellings are rejected, not guessed.",
+        "enum": [
+          "ja-JP",
+          "en-US"
+        ],
+        "type": "string"
+      },
+      "PlanMove": {
+        "properties": {
+          "classifications": {
+            "items": {
+              "$ref": "#/components/schemas/TriageClassification"
+            },
+            "type": "array"
+          },
+          "fromBucket": {
+            "$ref": "#/components/schemas/TriageBucket"
+          },
+          "name": {
+            "type": "string"
+          },
+          "rationale": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/TriageRole"
+          },
+          "toBucket": {
+            "$ref": "#/components/schemas/TriageBucket"
+          }
+        },
+        "required": [
+          "name",
+          "toBucket",
+          "rationale"
+        ],
+        "type": "object"
+      },
+      "PlanProposer": {
+        "properties": {
+          "actor": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "DETERMINISTIC",
+              "MODEL",
+              "HUMAN"
+            ],
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "type": "object"
+      },
+      "PreparationSpec": {
+        "description": "Declarative deterministic preparation of a raw CSV into an Analytical Artifact. Unknown fields are rejected. Sums are exact, so partitioned (HEAVY) and single-pass (STANDARD) preparation produce the same artifact.",
+        "properties": {
+          "dimensionColumns": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "kind": {
+            "const": "csv-aggregate/v1",
+            "type": "string"
+          },
+          "metrics": {
+            "items": {
+              "properties": {
+                "aggregation": {
+                  "enum": [
+                    "sum",
+                    "mean",
+                    "count",
+                    "min",
+                    "max"
+                  ],
+                  "type": "string"
+                },
+                "column": {
+                  "type": "string"
+                },
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "unit": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "aggregation",
+                "unit"
+              ],
+              "type": "object"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "period": {
+            "properties": {
+              "basis": {
+                "type": "string"
+              },
+              "end": {
+                "type": "string"
+              },
+              "start": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "start",
+              "end"
+            ],
+            "type": "object"
+          },
+          "periodColumn": {
+            "type": "string"
+          },
+          "population": {
+            "properties": {
+              "description": {
+                "type": "string"
+              },
+              "unit": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "description"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "kind",
+          "metrics",
+          "population"
+        ],
+        "type": "object"
+      },
+      "RawArtifactRef": {
+        "description": "Reference to raw bytes held outside the engine. sha256 and sizeBytes are claims: the engine streams the bytes, measures them itself and rejects a mismatch with INPUT_VERIFICATION_FAILED. Supported URI schemes depend on the resolvers the engine is configured with (Core ships file:\u003crelative path\u003e under a configured root).",
+        "properties": {
+          "mediaType": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "sha256": {
+            "pattern": "^[A-Fa-f0-9]{64}$",
+            "type": "string"
+          },
+          "sizeBytes": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "uri": {
+            "maxLength": 2048,
+            "minLength": 1,
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "uri",
+          "mediaType"
+        ],
+        "type": "object"
+      },
+      "ReEvaluationRecord": {
+        "description": "Audit record attached to the iteration a re-evaluation created. Earlier iterations are never modified.",
+        "properties": {
+          "affectedGapIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "affectedHypothesisIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "affectedScenarioIds": {
+            "description": "Scenarios touched via affected hypotheses, gaps or removed/changed evidence. Refs only; status changes need an explicit scenario evaluation.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "affectedScenarioSetId": {
+            "description": "Latest scenario set whose scenarios the change touches (#66).",
+            "type": "string"
+          },
+          "correlationKey": {
+            "type": "string"
+          },
+          "evidenceChanges": {
+            "$ref": "#/components/schemas/EvidenceChanges"
+          },
+          "executionFingerprintAfter": {
+            "type": "string"
+          },
+          "executionFingerprintBefore": {
+            "type": "string"
+          },
+          "inputFingerprintAfter": {
+            "type": "string"
+          },
+          "inputFingerprintBefore": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          },
+          "previousIterationId": {
+            "type": "string"
+          },
+          "recordedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "scope": {
+            "description": "Partial re-evaluation is not yet proven safe, so the whole iteration is re-evaluated.",
+            "enum": [
+              "FULL"
+            ],
+            "type": "string"
+          },
+          "scopeReason": {
+            "type": "string"
+          },
+          "trigger": {
+            "$ref": "#/components/schemas/ReEvaluationTrigger"
+          }
+        },
+        "required": [
+          "correlationKey",
+          "previousIterationId",
+          "trigger",
+          "evidenceChanges",
+          "affectedGapIds",
+          "affectedHypothesisIds",
+          "scope",
+          "scopeReason",
+          "recordedAt"
+        ],
+        "type": "object"
+      },
+      "ReEvaluationRequest": {
+        "description": "Re-evaluate a research run because new evidence arrived (#74). analysisId names a completed analysis run over the new evidence. The engine schedules nothing itself.",
+        "properties": {
+          "affectedGapIds": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 500,
+            "type": "array"
+          },
+          "analysisId": {
+            "type": "string"
+          },
+          "contractVersion": {
+            "$ref": "#/components/schemas/ContractVersion"
+          },
+          "correlationKey": {
+            "description": "Caller correlation id. Reusing it with the same analysisId returns ALREADY_EVALUATED; with another analysisId it is IDEMPOTENCY_CONFLICT.",
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "evidenceChanges": {
+            "$ref": "#/components/schemas/EvidenceChanges"
+          },
+          "idempotencyKey": {
+            "$ref": "#/components/schemas/IdempotencyKey"
+          },
+          "note": {
+            "maxLength": 2000,
+            "type": "string"
+          },
+          "previousIterationId": {
+            "description": "Must be the latest iteration, otherwise STALE_ITERATION.",
+            "type": "string"
+          },
+          "trigger": {
+            "$ref": "#/components/schemas/ReEvaluationTrigger"
+          }
+        },
+        "required": [
+          "contractVersion",
+          "idempotencyKey",
+          "correlationKey",
+          "previousIterationId",
+          "analysisId",
+          "trigger",
+          "evidenceChanges"
+        ],
+        "type": "object"
+      },
+      "ReEvaluationResult": {
+        "properties": {
+          "contractVersion": {
+            "$ref": "#/components/schemas/ContractVersion"
+          },
+          "reEvaluation": {
+            "$ref": "#/components/schemas/ReEvaluationRecord"
+          },
+          "researchRunId": {
+            "type": "string"
+          },
+          "result": {
+            "$ref": "#/components/schemas/ResearchResult"
+          },
+          "status": {
+            "description": "NEW_ITERATION returns 201; the others return 200 and append nothing.",
+            "enum": [
+              "NEW_ITERATION",
+              "NO_EVIDENCE_CHANGE",
+              "ALREADY_EVALUATED"
+            ],
+            "type": "string"
+          },
+          "subjectId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "contractVersion",
+          "subjectId",
+          "researchRunId",
+          "status",
+          "reEvaluation",
+          "result"
+        ],
+        "type": "object"
+      },
+      "ReEvaluationTrigger": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "MANUAL",
+              "SCHEDULED"
+            ],
+            "type": "string"
+          },
+          "source": {
+            "description": "Opaque name of the scheduler or person; never interpreted.",
+            "maxLength": 128,
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "type": "object"
+      },
+      "RepeatGroup": {
+        "properties": {
+          "analysisIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "key": {
+            "description": "inputFingerprint|executionFingerprint.",
+            "type": "string"
+          },
+          "metrics": {
+            "items": {
+              "$ref": "#/components/schemas/MetricRange"
+            },
+            "type": "array"
+          },
+          "runs": {
+            "type": "integer"
+          },
+          "variationKnown": {
+            "description": "False for a single run: variation is unknown, not zero.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "key",
+          "analysisIds",
+          "runs",
+          "variationKnown",
+          "metrics"
+        ],
+        "type": "object"
+      },
+      "ResearchClaim": {
+        "description": "An external statement submitted for claim inspection (#119). A reused id with different content is INVALID_REQUEST.",
+        "properties": {
+          "assumptions": {
+            "description": "Premises the claim depends on. Reported as unverified; never evaluated.",
+            "items": {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            "maxItems": 20,
+            "type": "array"
+          },
+          "evidenceReferences": {
+            "description": "Documents (externalRef or documentId) or observations the claim cites. A reference not in the subject's evidence is reported NOT_FOUND, never turned into evidence.",
+            "items": {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 50,
+            "type": "array"
+          },
+          "hypothesisReferences": {
+            "description": "Optional insight IDs the claim asserts. Omitted: every hypothesis whose evidence the claim cites is linked.",
+            "items": {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 50,
+            "type": "array"
+          },
+          "id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "sourceReference": {
+            "description": "Where the claim comes from (report, author, URL). Recorded, never fetched.",
+            "maxLength": 512,
+            "type": "string"
+          },
+          "statement": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "statement"
+        ],
+        "type": "object"
+      },
+      "ResearchResult": {
+        "properties": {
+          "analysis": {
+            "$ref": "#/components/schemas/AnalysisRun"
+          },
+          "artifact": {
+            "description": "The insight-lab.research-artifact v1 export of the latest iteration, verbatim. Its legacy analysisMode key means execution mode.",
+            "type": "object"
+          },
+          "contractVersion": {
+            "$ref": "#/components/schemas/ContractVersion"
+          },
+          "iterationId": {
+            "type": "string"
+          },
+          "iterationSequence": {
+            "type": "integer"
+          },
+          "researchRunId": {
+            "type": "string"
+          },
+          "subjectId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "contractVersion",
+          "subjectId",
+          "researchRunId",
+          "iterationId",
+          "iterationSequence",
+          "analysis",
+          "artifact"
+        ],
+        "type": "object"
+      },
+      "ResearchRunList": {
+        "properties": {
+          "contractVersion": {
+            "$ref": "#/components/schemas/ContractVersion"
+          },
+          "researchRuns": {
+            "items": {
+              "$ref": "#/components/schemas/ResearchRunSummary"
+            },
+            "type": "array"
+          },
+          "subjectId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "contractVersion",
+          "subjectId",
+          "researchRuns"
+        ],
+        "type": "object"
+      },
+      "ResearchRunSummary": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "iterationCount": {
+            "type": "integer"
+          },
+          "latestIterationId": {
+            "type": "string"
+          },
+          "latestIterationSequence": {
+            "type": "integer"
+          },
+          "question": {
+            "type": "string"
+          },
+          "researchRunId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "researchRunId",
+          "question",
+          "iterationCount",
+          "latestIterationId",
+          "latestIterationSequence",
+          "createdAt"
+        ],
+        "type": "object"
+      },
+      "ResearchTimeline": {
+        "description": "Longitudinal read model of a research run (#71). Evidence/world changes and instrument (engine/model/prompt/rules) changes are separate arrays and are never merged. Derived from immutable iterations; historical entries never change when iterations are appended.",
+        "properties": {
+          "asOf": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "contractVersion": {
+            "$ref": "#/components/schemas/ContractVersion"
+          },
+          "evidenceEvents": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceEvent"
+            },
+            "type": "array"
+          },
+          "hypothesisEvents": {
+            "items": {
+              "$ref": "#/components/schemas/HypothesisEvent"
+            },
+            "type": "array"
+          },
+          "insightVersions": {
+            "items": {
+              "$ref": "#/components/schemas/InsightVersion"
+            },
+            "type": "array"
+          },
+          "instrumentChanges": {
+            "items": {
+              "$ref": "#/components/schemas/InstrumentChange"
+            },
+            "type": "array"
+          },
+          "iterations": {
+            "items": {
+              "$ref": "#/components/schemas/TimelineIteration"
+            },
+            "type": "array"
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "observationDeltas": {
+            "items": {
+              "$ref": "#/components/schemas/TimelineObservationDelta"
+            },
+            "type": "array"
+          },
+          "question": {
+            "type": "string"
+          },
+          "researchRunId": {
+            "type": "string"
+          },
+          "scenarioEvents": {
+            "description": "Future lane: scenario (#66) evaluations against later observations, in evaluation order. Separate from evidence and instrument lanes.",
+            "items": {
+              "$ref": "#/components/schemas/TimelineScenarioEvent"
+            },
+            "type": "array"
+          },
+          "subjectId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "contractVersion",
+          "subjectId",
+          "researchRunId",
+          "question",
+          "iterations",
+          "evidenceEvents",
+          "observationDeltas",
+          "hypothesisEvents",
+          "insightVersions",
+          "instrumentChanges",
+          "limitations"
+        ],
+        "type": "object"
+      },
+      "ReviseSelectionPlanRequest": {
+        "properties": {
+          "actor": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "contractVersion": {
+            "$ref": "#/components/schemas/ContractVersion"
+          },
+          "idempotencyKey": {
+            "$ref": "#/components/schemas/IdempotencyKey"
+          },
+          "moves": {
+            "items": {
+              "$ref": "#/components/schemas/PlanMove"
+            },
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "contractVersion",
+          "idempotencyKey",
+          "actor",
+          "moves"
+        ],
+        "type": "object"
+      },
+      "RunComparison": {
+        "description": "Non-persistent comparison of two analysis runs of one subject (#83). It attributes a result delta to the input or execution axis. It never judges which run is better and never claims a cause.",
+        "properties": {
+          "attribution": {
+            "enum": [
+              "SAME_CONFIGURATION",
+              "EXECUTION_CHANGE",
+              "INPUT_CHANGE",
+              "CONFOUNDED",
+              "ATTRIBUTION_UNAVAILABLE"
+            ],
+            "type": "string"
+          },
+          "execution": {
+            "$ref": "#/components/schemas/ExecutionAxisDiff"
+          },
+          "explanation": {
+            "description": "The first entry always states that differences are not evidence of cause.",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "from": {
+            "$ref": "#/components/schemas/RunRef"
+          },
+          "input": {
+            "$ref": "#/components/schemas/InputAxisDiff"
+          },
+          "insights": {
+            "$ref": "#/components/schemas/InsightResultDiff"
+          },
+          "metrics": {
+            "items": {
+              "$ref": "#/components/schemas/MetricDelta"
+            },
+            "type": "array"
+          },
+          "repeatGroups": {
+            "items": {
+              "$ref": "#/components/schemas/RepeatGroup"
+            },
+            "type": "array"
+          },
+          "to": {
+            "$ref": "#/components/schemas/RunRef"
+          }
+        },
+        "required": [
+          "from",
+          "to",
+          "input",
+          "execution",
+          "attribution",
+          "repeatGroups",
+          "metrics",
+          "insights",
+          "explanation"
+        ],
+        "type": "object"
+      },
+      "RunComparisonResult": {
+        "properties": {
+          "comparison": {
+            "$ref": "#/components/schemas/RunComparison"
+          },
+          "contractVersion": {
+            "$ref": "#/components/schemas/ContractVersion"
+          },
+          "subjectId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "contractVersion",
+          "subjectId",
+          "comparison"
+        ],
+        "type": "object"
+      },
+      "RunRef": {
+        "properties": {
+          "analysisId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "executionFingerprint": {
+            "description": "Absent when not recorded; never read as the same as another run.",
+            "type": "string"
+          },
+          "inputFingerprint": {
+            "description": "Absent when not recorded; never read as the same as another run.",
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "analysisId",
+          "status",
+          "createdAt"
+        ],
+        "type": "object"
+      },
+      "ScaffoldScenarioSetRequest": {
+        "description": "Draft scenarios deterministically from an iteration's competing hypotheses. Baseline and horizon are required.",
+        "properties": {
+          "baseline": {
+            "$ref": "#/components/schemas/ScenarioBaseline"
+          },
+          "contractVersion": {
+            "$ref": "#/components/schemas/ContractVersion"
+          },
+          "horizon": {
+            "$ref": "#/components/schemas/ScenarioHorizon"
+          },
+          "idempotencyKey": {
+            "$ref": "#/components/schemas/IdempotencyKey"
+          },
+          "iterationId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "contractVersion",
+          "idempotencyKey",
+          "baseline",
+          "horizon"
+        ],
+        "type": "object"
+      },
+      "Scenario": {
+        "description": "One possible future branch. At least one expectation must be testable after the baseline.",
+        "properties": {
+          "affectedDimensions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "assumptions": {
+            "items": {
+              "$ref": "#/components/schemas/Assumption"
+            },
+            "type": "array"
+          },
+          "derivedFromHypothesisId": {
+            "type": "string"
+          },
+          "disconfirmingObservations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "evidenceRefs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "expectations": {
+            "items": {
+              "$ref": "#/components/schemas/ScenarioExpectation"
+            },
+            "type": "array"
+          },
+          "horizon": {
+            "$ref": "#/components/schemas/ScenarioHorizon"
+          },
+          "id": {
+            "type": "string"
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "mechanisms": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "probability": {
+            "$ref": "#/components/schemas/ScenarioProbability"
+          },
+          "title": {
+            "type": "string"
+          },
+          "unresolvedGapIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "horizon",
+          "assumptions",
+          "expectations"
+        ],
+        "type": "object"
+      },
+      "ScenarioAnalysis": {
+        "description": "Scenario history of a research run. Empty lists when none exist; scenarios are never synthesized.",
+        "properties": {
+          "contractVersion": {
+            "$ref": "#/components/schemas/ContractVersion"
+          },
+          "currentEvaluation": {
+            "$ref": "#/components/schemas/ScenarioEvaluation"
+          },
+          "currentSet": {
+            "$ref": "#/components/schemas/ScenarioSet"
+          },
+          "evaluations": {
+            "items": {
+              "$ref": "#/components/schemas/ScenarioEvaluation"
+            },
+            "type": "array"
+          },
+          "researchRunId": {
+            "type": "string"
+          },
+          "sets": {
+            "items": {
+              "$ref": "#/components/schemas/ScenarioSet"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "contractVersion",
+          "researchRunId",
+          "sets",
+          "evaluations"
+        ],
+        "type": "object"
+      },
+      "ScenarioBaseline": {
+        "description": "Observed baseline all scenarios branch from. asOf is required.",
+        "properties": {
+          "asOf": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "evidenceRefs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "asOf",
+          "description"
+        ],
+        "type": "object"
+      },
+      "ScenarioDelta": {
+        "description": "What new evidence changed. It ranks nothing and never names a most likely future.",
+        "properties": {
+          "assumptionsInvalidated": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "contradicted": {
+            "items": {
+              "$ref": "#/components/schemas/ScenarioStatusChange"
+            },
+            "type": "array"
+          },
+          "explanation": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "falsificationsFired": {
+            "items": {
+              "$ref": "#/components/schemas/FiredFalsification"
+            },
+            "type": "array"
+          },
+          "fromEvaluationId": {
+            "type": "string"
+          },
+          "newlyRequiredEvidence": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "strengthened": {
+            "items": {
+              "$ref": "#/components/schemas/ScenarioStatusChange"
+            },
+            "type": "array"
+          },
+          "toEvaluationId": {
+            "type": "string"
+          },
+          "unchanged": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "weakened": {
+            "items": {
+              "$ref": "#/components/schemas/ScenarioStatusChange"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "toEvaluationId"
+        ],
+        "type": "object"
+      },
+      "ScenarioEvaluation": {
+        "description": "Append-only evaluation of one set version; carries forward earlier observations.",
+        "properties": {
+          "assumptionChecks": {
+            "items": {
+              "$ref": "#/components/schemas/AssumptionCheck"
+            },
+            "type": "array"
+          },
+          "dataRequirements": {
+            "items": {
+              "description": "Scenario-specific DataRequirement, same shape as in the Research Artifact.",
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "delta": {
+            "$ref": "#/components/schemas/ScenarioDelta"
+          },
+          "evaluatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "iterationId": {
+            "type": "string"
+          },
+          "observations": {
+            "items": {
+              "$ref": "#/components/schemas/IndicatorObservation"
+            },
+            "type": "array"
+          },
+          "researchRunId": {
+            "type": "string"
+          },
+          "scenarioSetId": {
+            "type": "string"
+          },
+          "setVersion": {
+            "type": "integer"
+          },
+          "states": {
+            "items": {
+              "$ref": "#/components/schemas/ScenarioState"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "scenarioSetId",
+          "setVersion",
+          "researchRunId",
+          "observations",
+          "states",
+          "delta",
+          "evaluatedAt"
+        ],
+        "type": "object"
+      },
+      "ScenarioEvaluationResult": {
+        "description": "A stored scenario evaluation.",
+        "properties": {
+          "contractVersion": {
+            "$ref": "#/components/schemas/ContractVersion"
+          },
+          "evaluation": {
+            "$ref": "#/components/schemas/ScenarioEvaluation"
+          },
+          "researchRunId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "contractVersion",
+          "researchRunId",
+          "evaluation"
+        ],
+        "type": "object"
+      },
+      "ScenarioExpectation": {
+        "description": "Frozen, falsifiable statement about a future observation.",
+        "properties": {
+          "direction": {
+            "enum": [
+              "INCREASE",
+              "DECREASE",
+              "NO_CHANGE",
+              "RANGE"
+            ],
+            "type": "string"
+          },
+          "falsificationCondition": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "indicator": {
+            "type": "string"
+          },
+          "observationWindow": {
+            "$ref": "#/components/schemas/TimeWindow"
+          },
+          "observedDataAvailableAtCreation": {
+            "type": "boolean"
+          },
+          "provenance": {
+            "description": "ExpectationBasis (PRIOR, LITERATURE, DOMAIN_KNOWLEDGE, MODEL_PROPOSED_POST_HOC, HUMAN_POST_HOC, DERIVED_FROM_PRIOR_RUN, OTHER, UNKNOWN). Post-hoc provenance is never treated as prior.",
+            "type": "string"
+          },
+          "range": {
+            "$ref": "#/components/schemas/ValueRange"
+          },
+          "sourceRefs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "statement": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "indicator",
+          "statement",
+          "observationWindow",
+          "falsificationCondition",
+          "provenance",
+          "observedDataAvailableAtCreation"
+        ],
+        "type": "object"
+      },
+      "ScenarioHorizon": {
+        "description": "Forecast horizon of a scenario; end must be after the baseline asOf.",
+        "properties": {
+          "end": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "end"
+        ],
+        "type": "object"
+      },
+      "ScenarioProbability": {
+        "description": "Caller-supplied probability with its basis and sources. The engine never generates one.",
+        "properties": {
+          "basis": {
+            "type": "string"
+          },
+          "sourceRefs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "value": {
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "basis",
+          "sourceRefs"
+        ],
+        "type": "object"
+      },
+      "ScenarioRelation": {
+        "description": "Explicit relation between branches; scenarios need not be mutually exclusive.",
+        "properties": {
+          "kind": {
+            "enum": [
+              "MUTUALLY_EXCLUSIVE",
+              "OVERLAPPING",
+              "NESTED",
+              "CONFLICTING"
+            ],
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          },
+          "scenarioIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "scenarioIds",
+          "kind"
+        ],
+        "type": "object"
+      },
+      "ScenarioSet": {
+        "description": "Append-only scenario set version. Curating creates a new version.",
+        "properties": {
+          "baseline": {
+            "$ref": "#/components/schemas/ScenarioBaseline"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "fromIterationId": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "nonExhaustive": {
+            "type": "boolean"
+          },
+          "origin": {
+            "enum": [
+              "DETERMINISTIC_SCAFFOLD",
+              "HUMAN",
+              "MODEL",
+              "IMPORTED"
+            ],
+            "type": "string"
+          },
+          "question": {
+            "type": "string"
+          },
+          "relations": {
+            "items": {
+              "$ref": "#/components/schemas/ScenarioRelation"
+            },
+            "type": "array"
+          },
+          "researchRunId": {
+            "type": "string"
+          },
+          "scenarios": {
+            "items": {
+              "$ref": "#/components/schemas/Scenario"
+            },
+            "type": "array"
+          },
+          "sharedEvidenceRefs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "version": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "researchRunId",
+          "version",
+          "question",
+          "baseline",
+          "nonExhaustive",
+          "scenarios",
+          "origin",
+          "createdAt"
+        ],
+        "type": "object"
+      },
+      "ScenarioSetDraft": {
+        "description": "Scenario set submitted by a consumer; id, version and createdAt are assigned by the engine.",
+        "properties": {
+          "baseline": {
+            "$ref": "#/components/schemas/ScenarioBaseline"
+          },
+          "fromIterationId": {
+            "type": "string"
+          },
+          "nonExhaustive": {
+            "type": "boolean"
+          },
+          "origin": {
+            "enum": [
+              "DETERMINISTIC_SCAFFOLD",
+              "HUMAN",
+              "MODEL",
+              "IMPORTED"
+            ],
+            "type": "string"
+          },
+          "question": {
+            "type": "string"
+          },
+          "relations": {
+            "items": {
+              "$ref": "#/components/schemas/ScenarioRelation"
+            },
+            "type": "array"
+          },
+          "scenarios": {
+            "items": {
+              "$ref": "#/components/schemas/Scenario"
+            },
+            "type": "array"
+          },
+          "sharedEvidenceRefs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "question",
+          "baseline",
+          "nonExhaustive",
+          "scenarios",
+          "origin"
+        ],
+        "type": "object"
+      },
+      "ScenarioSetResult": {
+        "description": "A stored scenario set version.",
+        "properties": {
+          "contractVersion": {
+            "$ref": "#/components/schemas/ContractVersion"
+          },
+          "researchRunId": {
+            "type": "string"
+          },
+          "scenarioSet": {
+            "$ref": "#/components/schemas/ScenarioSet"
+          },
+          "skipped": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "contractVersion",
+          "researchRunId",
+          "scenarioSet"
+        ],
+        "type": "object"
+      },
+      "ScenarioState": {
+        "description": "Evidence state of one scenario at one evaluation.",
+        "properties": {
+          "lastEvaluatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "scenarioId": {
+            "type": "string"
+          },
+          "status": {
+            "description": "Evidence state of a branch. Never a probability.",
+            "enum": [
+              "UNTESTED",
+              "CONSISTENT_SO_FAR",
+              "WEAKENED",
+              "CONTRADICTED",
+              "INCONCLUSIVE"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "scenarioId",
+          "status",
+          "lastEvaluatedAt"
+        ],
+        "type": "object"
+      },
+      "ScenarioStatusChange": {
+        "description": "Status movement of one scenario.",
+        "properties": {
+          "from": {
+            "description": "Evidence state of a branch. Never a probability.",
+            "enum": [
+              "UNTESTED",
+              "CONSISTENT_SO_FAR",
+              "WEAKENED",
+              "CONTRADICTED",
+              "INCONCLUSIVE"
+            ],
+            "type": "string"
+          },
+          "scenarioId": {
+            "type": "string"
+          },
+          "to": {
+            "description": "Evidence state of a branch. Never a probability.",
+            "enum": [
+              "UNTESTED",
+              "CONSISTENT_SO_FAR",
+              "WEAKENED",
+              "CONTRADICTED",
+              "INCONCLUSIVE"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "scenarioId",
+          "from",
+          "to"
+        ],
+        "type": "object"
+      },
+      "SchemaRef": {
+        "properties": {
+          "schema": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "schema",
+          "version"
+        ],
+        "type": "object"
+      },
+      "SelectionPlan": {
+        "description": "One immutable version. decisions lists every profiled column exactly once, in profile order. moves records how this version differs from its parent.",
+        "properties": {
+          "contractVersion": {
+            "$ref": "#/components/schemas/ContractVersion"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "decisions": {
+            "items": {
+              "$ref": "#/components/schemas/VariableDecision"
+            },
+            "type": "array"
+          },
+          "gaps": {
+            "items": {
+              "$ref": "#/components/schemas/TriageGapRef"
+            },
+            "type": "array"
+          },
+          "hypothesisIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "moves": {
+            "items": {
+              "$ref": "#/components/schemas/PlanMove"
+            },
+            "type": "array"
+          },
+          "parentPlanId": {
+            "type": "string"
+          },
+          "planId": {
+            "type": "string"
+          },
+          "processingBoundary": {
+            "type": "string"
+          },
+          "profileId": {
+            "type": "string"
+          },
+          "proposer": {
+            "$ref": "#/components/schemas/PlanProposer"
+          },
+          "question": {
+            "type": "string"
+          },
+          "subjectId": {
+            "type": "string"
+          },
+          "version": {
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "contractVersion",
+          "subjectId",
+          "planId",
+          "profileId",
+          "version",
+          "question",
+          "proposer",
+          "decisions",
+          "processingBoundary",
+          "createdAt"
+        ],
+        "type": "object"
+      },
+      "SelectionPlanList": {
+        "properties": {
+          "contractVersion": {
+            "$ref": "#/components/schemas/ContractVersion"
+          },
+          "plans": {
+            "items": {
+              "$ref": "#/components/schemas/SelectionPlan"
+            },
+            "type": "array"
+          },
+          "profileId": {
+            "type": "string"
+          },
+          "subjectId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "contractVersion",
+          "subjectId",
+          "profileId",
+          "plans"
+        ],
+        "type": "object"
+      },
+      "StartAnalysisRequest": {
+        "properties": {
+          "contractVersion": {
+            "$ref": "#/components/schemas/ContractVersion"
+          },
+          "executionProfile": {
+            "$ref": "#/components/schemas/ExecutionProfile"
+          },
+          "idempotencyKey": {
+            "$ref": "#/components/schemas/IdempotencyKey"
+          },
+          "label": {
+            "maxLength": 256,
+            "type": "string"
+          },
+          "modelBindings": {
+            "additionalProperties": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "description": "Stage -\u003e model. Unknown stage is INVALID_REQUEST; a model the operator did not allow (or no model endpoint) is MODEL_BINDING_UNAVAILABLE.",
+            "maxProperties": 16,
+            "type": "object"
+          },
+          "note": {
+            "maxLength": 2000,
+            "type": "string"
+          },
+          "outputLocale": {
+            "$ref": "#/components/schemas/OutputLocale",
+            "description": "Optional language for new model-generated explanatory text (#125). Omitted keeps the source-language rule and is never replaced by a UI or browser locale. Execution configuration: it changes the execution fingerprint, never the input fingerprint. Quotes, numbers, units, IDs and enum codes are never translated. Unsupported values are INVALID_REQUEST."
+          },
+          "reasoningProfile": {
+            "description": "Optional semantic specialization of the shared research core. Omitted means GENERAL_RESEARCH. The profile is execution/semantic configuration and does not change evidence identity.",
+            "enum": [
+              "GENERAL_RESEARCH",
+              "CUSTOMER_INSIGHT"
+            ],
+            "type": "string"
+          },
+          "researchQuestion": {
+            "description": "Optional domain-neutral research question that focuses model-backed semantic analysis. It is semantic input, not execution configuration; the input fingerprint changes when the question changes.",
+            "maxLength": 2000,
+            "type": "string"
+          },
+          "semanticAnalysisMode": {
+            "enum": [
+              "DISCOVERY",
+              "DATASET_ANALYSIS",
+              "RESEARCH_REVIEW"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "contractVersion",
+          "idempotencyKey"
+        ],
+        "type": "object"
+      },
+      "Subject": {
+        "properties": {
+          "contractVersion": {
+            "$ref": "#/components/schemas/ContractVersion"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/Metadata"
+          },
+          "subject": {
+            "$ref": "#/components/schemas/SubjectRef"
+          },
+          "subjectId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "contractVersion",
+          "subjectId",
+          "subject",
+          "title",
+          "createdAt"
+        ],
+        "type": "object"
+      },
+      "SubjectRef": {
+        "description": "Opaque external subject. Insight stores and echoes it but never interprets or branches on it.",
+        "properties": {
+          "id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "namespace": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": {
+            "maxLength": 128,
+            "type": "string"
+          }
+        },
+        "required": [
+          "namespace",
+          "id"
+        ],
+        "type": "object"
+      },
+      "TemporalOperationRequest": {
+        "description": "Stateless #73 temporal operation. Nothing is stored; the derived artifact is neutral evidence that may later be submitted with addEvidence.",
+        "properties": {
+          "artifact": {
+            "description": "insight-lab.analytical-artifact v1 with temporal results.",
+            "type": "object"
+          },
+          "contractVersion": {
+            "$ref": "#/components/schemas/ContractVersion"
+          },
+          "operation": {
+            "description": "insight-lab.temporal-operation v1 spec; see contracts/analytical-artifact/v1/temporal-operation.schema.json.",
+            "type": "object"
+          }
+        },
+        "required": [
+          "contractVersion",
+          "artifact",
+          "operation"
+        ],
+        "type": "object"
+      },
+      "TemporalOperationResult": {
+        "properties": {
+          "artifact": {
+            "description": "Derived insight-lab.analytical-artifact v1 (origin=derived, deterministic, provenance references the source artifact).",
+            "type": "object"
+          },
+          "contractVersion": {
+            "$ref": "#/components/schemas/ContractVersion"
+          }
+        },
+        "required": [
+          "contractVersion",
+          "artifact"
+        ],
+        "type": "object"
+      },
+      "TimeWindow": {
+        "description": "Closed time window.",
+        "properties": {
+          "end": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "start": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start",
+          "end"
+        ],
+        "type": "object"
+      },
+      "TimelineIteration": {
+        "properties": {
+          "analysisId": {
+            "type": "string"
+          },
+          "carriedUncertainty": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "iterationId": {
+            "type": "string"
+          },
+          "observationWindow": {
+            "$ref": "#/components/schemas/ObservationWindow"
+          },
+          "previousIterationId": {
+            "type": "string"
+          },
+          "question": {
+            "type": "string"
+          },
+          "readiness": {
+            "type": "string"
+          },
+          "recordedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "resolvedUncertainty": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "sequence": {
+            "type": "integer"
+          },
+          "stopped": {
+            "type": "boolean"
+          },
+          "unresolvedGapIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "whatWeCannotConclude": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "iterationId",
+          "sequence",
+          "question",
+          "readiness",
+          "stopped",
+          "recordedAt"
+        ],
+        "type": "object"
+      },
+      "TimelineObservationDelta": {
+        "properties": {
+          "delta": {
+            "description": "Deterministic #70 Observation Delta, verbatim. Descriptive, never causal.",
+            "type": "object"
+          },
+          "fromIterationId": {
+            "type": "string"
+          },
+          "seriesKey": {
+            "type": "string"
+          },
+          "toIterationId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "fromIterationId",
+          "toIterationId",
+          "seriesKey",
+          "delta"
+        ],
+        "type": "object"
+      },
+      "TimelineScenarioEvent": {
+        "description": "One append-only scenario evaluation summarized for the timeline. Ranks nothing and never names a most likely future.",
+        "properties": {
+          "assumptionsInvalidated": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "contradicted": {
+            "items": {
+              "$ref": "#/components/schemas/ScenarioStatusChange"
+            },
+            "type": "array"
+          },
+          "evaluatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "evaluationId": {
+            "type": "string"
+          },
+          "falsificationsFired": {
+            "items": {
+              "$ref": "#/components/schemas/FiredFalsification"
+            },
+            "type": "array"
+          },
+          "iterationId": {
+            "type": "string"
+          },
+          "scenarioSetId": {
+            "type": "string"
+          },
+          "setVersion": {
+            "type": "integer"
+          },
+          "strengthened": {
+            "items": {
+              "$ref": "#/components/schemas/ScenarioStatusChange"
+            },
+            "type": "array"
+          },
+          "weakened": {
+            "items": {
+              "$ref": "#/components/schemas/ScenarioStatusChange"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "evaluationId",
+          "scenarioSetId",
+          "setVersion",
+          "evaluatedAt"
+        ],
+        "type": "object"
+      },
+      "TriageBucket": {
+        "description": "INCLUDE: deterministic processing should compute with the variable. DEFER: kept for later. NEEDS_REVIEW: definition or relevance unclear (UNKNOWN is preserved). EXCLUDE: a human chose not to process it; only HUMAN revisions may exclude and exclusion never deletes source data.",
+        "enum": [
+          "INCLUDE",
+          "DEFER",
+          "NEEDS_REVIEW",
+          "EXCLUDE"
+        ],
+        "type": "string"
+      },
+      "TriageClassification": {
+        "description": "Candidate research roles. Hypotheses about a variable, never causal findings.",
+        "enum": [
+          "POSSIBLE_OUTCOME",
+          "POSSIBLE_EXPOSURE",
+          "POSSIBLE_CONFOUNDER",
+          "POSSIBLE_MEDIATOR",
+          "POSSIBLE_COLLIDER",
+          "COMPARISON_CANDIDATE",
+          "DEFINITION_UNKNOWN"
+        ],
+        "type": "string"
+      },
+      "TriageGapRef": {
+        "properties": {
+          "gapId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "need": {
+            "maxLength": 2000,
+            "type": "string"
+          },
+          "requiredDimensions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "gapId",
+          "need"
+        ],
+        "type": "object"
+      },
+      "TriageRequest": {
+        "description": "researchRunId adds the unresolved ResearchGaps and DataRequirements of that run's latest iteration to gaps (re-triage).",
+        "properties": {
+          "contractVersion": {
+            "$ref": "#/components/schemas/ContractVersion"
+          },
+          "gaps": {
+            "items": {
+              "$ref": "#/components/schemas/TriageGapRef"
+            },
+            "maxItems": 100,
+            "type": "array"
+          },
+          "hypothesisIds": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 100,
+            "type": "array"
+          },
+          "idempotencyKey": {
+            "$ref": "#/components/schemas/IdempotencyKey"
+          },
+          "question": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "researchRunId": {
+            "type": "string"
+          },
+          "triager": {
+            "description": "Default DETERMINISTIC. MODEL requires a configured model; its output passes the same normalization.",
+            "enum": [
+              "DETERMINISTIC",
+              "MODEL"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "contractVersion",
+          "idempotencyKey",
+          "question"
+        ],
+        "type": "object"
+      },
+      "TriageRole": {
+        "enum": [
+          "METRIC",
+          "DIMENSION",
+          "PERIOD",
+          "IDENTIFIER"
+        ],
+        "type": "string"
+      },
+      "ValueRange": {
+        "description": "Optional numeric range for a RANGE expectation.",
+        "properties": {
+          "max": {
+            "type": "number"
+          },
+          "min": {
+            "type": "number"
+          },
+          "unit": {
+            "type": "string"
+          }
+        },
+        "required": [],
+        "type": "object"
+      },
+      "VariableDecision": {
+        "properties": {
+          "bucket": {
+            "$ref": "#/components/schemas/TriageBucket"
+          },
+          "classifications": {
+            "items": {
+              "$ref": "#/components/schemas/TriageClassification"
+            },
+            "type": "array"
+          },
+          "linkedGapIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "name": {
+            "type": "string"
+          },
+          "rationale": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/TriageRole"
+          }
+        },
+        "required": [
+          "name",
+          "bucket",
+          "rationale"
+        ],
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "GENERATED from contracts/public-engine/v1/schema.json by `make openapi` (cmd/insight-openapi); do not edit by hand. The JSON Schema is authoritative: operations are its x-operations and components.schemas are its $defs with only the $ref prefix rewritten. This is the public, SDK-backed contract; the Reference API (docs/openapi/reference-api.json) is a separate, non-stable surface.\n\nLanguage-neutral, domain-neutral request and result messages exchanged over HTTP/JSON under /api/public/v1. This file is the single source of truth: the server, the Go SDK and the TypeScript SDK are checked against its $defs. A subject namespace or type is opaque metadata and never changes engine behavior.",
+    "license": {
+      "identifier": "Apache-2.0",
+      "name": "Apache-2.0"
+    },
+    "summary": "Public Engine Contract v1 over HTTP/JSON under /api/public/v1.",
+    "title": "Insight Lab Public Engine Contract v1 (OpenAPI view)",
+    "version": "1"
+  },
+  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/public/v1/engine": {
+      "get": {
+        "operationId": "getEngine",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineInfo"
+                }
+              }
+            },
+            "description": "Success (EngineInfo)."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+          }
+        },
+        "summary": "GET /api/public/v1/engine",
+        "tags": [
+          "public-engine-v1"
+        ],
+        "x-contractOperation": {
+          "request": "",
+          "response": "EngineInfo",
+          "status": 200
+        }
+      }
+    },
+    "/api/public/v1/research-runs/{researchRunId}": {
+      "get": {
+        "operationId": "getResearchRun",
+        "parameters": [
+          {
+            "description": "Opaque engine-issued identifier.",
+            "in": "path",
+            "name": "researchRunId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResearchResult"
+                }
+              }
+            },
+            "description": "Success (ResearchResult)."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+          }
+        },
+        "summary": "GET /api/public/v1/research-runs/{researchRunId}",
+        "tags": [
+          "public-engine-v1"
+        ],
+        "x-contractOperation": {
+          "request": "",
+          "response": "ResearchResult",
+          "status": 200
+        }
+      }
+    },
+    "/api/public/v1/research-runs/{researchRunId}/iterations": {
+      "post": {
+        "operationId": "appendIteration",
+        "parameters": [
+          {
+            "description": "Opaque engine-issued identifier.",
+            "in": "path",
+            "name": "researchRunId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AppendIterationRequest"
+              }
+            }
+          },
+          "description": "JSON body, at most x-limits.maxRequestBytes. Unknown fields are tolerated.",
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResearchResult"
+                }
+              }
+            },
+            "description": "Success (ResearchResult)."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "INVALID_REQUEST: the body is not valid JSON, exceeds the contract limit, or fails validation; UNSUPPORTED_CONTRACT_VERSION and INPUT_VERIFICATION_FAILED also map to 400."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+          }
+        },
+        "summary": "POST /api/public/v1/research-runs/{researchRunId}/iterations",
+        "tags": [
+          "public-engine-v1"
+        ],
+        "x-contractOperation": {
+          "request": "AppendIterationRequest",
+          "response": "ResearchResult",
+          "status": 201
+        }
+      }
+    },
+    "/api/public/v1/research-runs/{researchRunId}/re-evaluations": {
+      "post": {
+        "operationId": "reEvaluate",
+        "parameters": [
+          {
+            "description": "Opaque engine-issued identifier.",
+            "in": "path",
+            "name": "researchRunId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReEvaluationRequest"
+              }
+            }
+          },
+          "description": "JSON body, at most x-limits.maxRequestBytes. Unknown fields are tolerated.",
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReEvaluationResult"
+                }
+              }
+            },
+            "description": "Success (ReEvaluationResult)."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "INVALID_REQUEST: the body is not valid JSON, exceeds the contract limit, or fails validation; UNSUPPORTED_CONTRACT_VERSION and INPUT_VERIFICATION_FAILED also map to 400."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+          }
+        },
+        "summary": "POST /api/public/v1/research-runs/{researchRunId}/re-evaluations",
+        "tags": [
+          "public-engine-v1"
+        ],
+        "x-contractOperation": {
+          "request": "ReEvaluationRequest",
+          "response": "ReEvaluationResult",
+          "status": 201
+        }
+      }
+    },
+    "/api/public/v1/research-runs/{researchRunId}/scenario-sets": {
+      "post": {
+        "operationId": "createScenarioSet",
+        "parameters": [
+          {
+            "description": "Opaque engine-issued identifier.",
+            "in": "path",
+            "name": "researchRunId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateScenarioSetRequest"
+              }
+            }
+          },
+          "description": "JSON body, at most x-limits.maxRequestBytes. Unknown fields are tolerated.",
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenarioSetResult"
+                }
+              }
+            },
+            "description": "Success (ScenarioSetResult)."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "INVALID_REQUEST: the body is not valid JSON, exceeds the contract limit, or fails validation; UNSUPPORTED_CONTRACT_VERSION and INPUT_VERIFICATION_FAILED also map to 400."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+          }
+        },
+        "summary": "POST /api/public/v1/research-runs/{researchRunId}/scenario-sets",
+        "tags": [
+          "public-engine-v1"
+        ],
+        "x-contractOperation": {
+          "request": "CreateScenarioSetRequest",
+          "response": "ScenarioSetResult",
+          "status": 201
+        }
+      }
+    },
+    "/api/public/v1/research-runs/{researchRunId}/scenario-sets/scaffold": {
+      "post": {
+        "operationId": "scaffoldScenarioSet",
+        "parameters": [
+          {
+            "description": "Opaque engine-issued identifier.",
+            "in": "path",
+            "name": "researchRunId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScaffoldScenarioSetRequest"
+              }
+            }
+          },
+          "description": "JSON body, at most x-limits.maxRequestBytes. Unknown fields are tolerated.",
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenarioSetResult"
+                }
+              }
+            },
+            "description": "Success (ScenarioSetResult)."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "INVALID_REQUEST: the body is not valid JSON, exceeds the contract limit, or fails validation; UNSUPPORTED_CONTRACT_VERSION and INPUT_VERIFICATION_FAILED also map to 400."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+          }
+        },
+        "summary": "POST /api/public/v1/research-runs/{researchRunId}/scenario-sets/scaffold",
+        "tags": [
+          "public-engine-v1"
+        ],
+        "x-contractOperation": {
+          "request": "ScaffoldScenarioSetRequest",
+          "response": "ScenarioSetResult",
+          "status": 201
+        }
+      }
+    },
+    "/api/public/v1/research-runs/{researchRunId}/scenario-sets/{scenarioSetId}/evaluations": {
+      "post": {
+        "operationId": "evaluateScenarios",
+        "parameters": [
+          {
+            "description": "Opaque engine-issued identifier.",
+            "in": "path",
+            "name": "researchRunId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Opaque engine-issued identifier.",
+            "in": "path",
+            "name": "scenarioSetId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvaluateScenariosRequest"
+              }
+            }
+          },
+          "description": "JSON body, at most x-limits.maxRequestBytes. Unknown fields are tolerated.",
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenarioEvaluationResult"
+                }
+              }
+            },
+            "description": "Success (ScenarioEvaluationResult)."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "INVALID_REQUEST: the body is not valid JSON, exceeds the contract limit, or fails validation; UNSUPPORTED_CONTRACT_VERSION and INPUT_VERIFICATION_FAILED also map to 400."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+          }
+        },
+        "summary": "POST /api/public/v1/research-runs/{researchRunId}/scenario-sets/{scenarioSetId}/evaluations",
+        "tags": [
+          "public-engine-v1"
+        ],
+        "x-contractOperation": {
+          "request": "EvaluateScenariosRequest",
+          "response": "ScenarioEvaluationResult",
+          "status": 201
+        }
+      }
+    },
+    "/api/public/v1/research-runs/{researchRunId}/scenarios": {
+      "get": {
+        "operationId": "getScenarios",
+        "parameters": [
+          {
+            "description": "Opaque engine-issued identifier.",
+            "in": "path",
+            "name": "researchRunId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenarioAnalysis"
+                }
+              }
+            },
+            "description": "Success (ScenarioAnalysis)."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+          }
+        },
+        "summary": "GET /api/public/v1/research-runs/{researchRunId}/scenarios",
+        "tags": [
+          "public-engine-v1"
+        ],
+        "x-contractOperation": {
+          "request": "",
+          "response": "ScenarioAnalysis",
+          "status": 200
+        }
+      }
+    },
+    "/api/public/v1/research-runs/{researchRunId}/timeline": {
+      "get": {
+        "operationId": "getResearchTimeline",
+        "parameters": [
+          {
+            "description": "Opaque engine-issued identifier.",
+            "in": "path",
+            "name": "researchRunId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResearchTimeline"
+                }
+              }
+            },
+            "description": "Success (ResearchTimeline)."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+          }
+        },
+        "summary": "GET /api/public/v1/research-runs/{researchRunId}/timeline",
+        "tags": [
+          "public-engine-v1"
+        ],
+        "x-contractOperation": {
+          "request": "",
+          "response": "ResearchTimeline",
+          "status": 200
+        }
+      }
+    },
+    "/api/public/v1/selection-plans/{planId}": {
+      "get": {
+        "operationId": "getSelectionPlan",
+        "parameters": [
+          {
+            "description": "Opaque engine-issued identifier.",
+            "in": "path",
+            "name": "planId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SelectionPlan"
+                }
+              }
+            },
+            "description": "Success (SelectionPlan)."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+          }
+        },
+        "summary": "GET /api/public/v1/selection-plans/{planId}",
+        "tags": [
+          "public-engine-v1"
+        ],
+        "x-contractOperation": {
+          "request": "",
+          "response": "SelectionPlan",
+          "status": 200
+        }
+      }
+    },
+    "/api/public/v1/selection-plans/{planId}/revisions": {
+      "post": {
+        "operationId": "reviseSelectionPlan",
+        "parameters": [
+          {
+            "description": "Opaque engine-issued identifier.",
+            "in": "path",
+            "name": "planId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviseSelectionPlanRequest"
+              }
+            }
+          },
+          "description": "JSON body, at most x-limits.maxRequestBytes. Unknown fields are tolerated.",
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SelectionPlan"
+                }
+              }
+            },
+            "description": "Success (SelectionPlan)."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "INVALID_REQUEST: the body is not valid JSON, exceeds the contract limit, or fails validation; UNSUPPORTED_CONTRACT_VERSION and INPUT_VERIFICATION_FAILED also map to 400."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+          }
+        },
+        "summary": "POST /api/public/v1/selection-plans/{planId}/revisions",
+        "tags": [
+          "public-engine-v1"
+        ],
+        "x-contractOperation": {
+          "request": "ReviseSelectionPlanRequest",
+          "response": "SelectionPlan",
+          "status": 201
+        }
+      }
+    },
+    "/api/public/v1/subjects": {
+      "post": {
+        "operationId": "createSubject",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSubjectRequest"
+              }
+            }
+          },
+          "description": "JSON body, at most x-limits.maxRequestBytes. Unknown fields are tolerated.",
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Subject"
+                }
+              }
+            },
+            "description": "Success (Subject)."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "INVALID_REQUEST: the body is not valid JSON, exceeds the contract limit, or fails validation; UNSUPPORTED_CONTRACT_VERSION and INPUT_VERIFICATION_FAILED also map to 400."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+          }
+        },
+        "summary": "POST /api/public/v1/subjects",
+        "tags": [
+          "public-engine-v1"
+        ],
+        "x-contractOperation": {
+          "request": "CreateSubjectRequest",
+          "response": "Subject",
+          "status": 201
+        }
+      }
+    },
+    "/api/public/v1/subjects/{subjectId}/analyses": {
+      "get": {
+        "operationId": "listAnalyses",
+        "parameters": [
+          {
+            "description": "Opaque engine-issued identifier.",
+            "in": "path",
+            "name": "subjectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisList"
+                }
+              }
+            },
+            "description": "Success (AnalysisList)."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+          }
+        },
+        "summary": "GET /api/public/v1/subjects/{subjectId}/analyses",
+        "tags": [
+          "public-engine-v1"
+        ],
+        "x-contractOperation": {
+          "request": "",
+          "response": "AnalysisList",
+          "status": 200
+        }
+      },
+      "post": {
+        "operationId": "startAnalysis",
+        "parameters": [
+          {
+            "description": "Opaque engine-issued identifier.",
+            "in": "path",
+            "name": "subjectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartAnalysisRequest"
+              }
+            }
+          },
+          "description": "JSON body, at most x-limits.maxRequestBytes. Unknown fields are tolerated.",
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisRun"
+                }
+              }
+            },
+            "description": "Success (AnalysisRun)."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "INVALID_REQUEST: the body is not valid JSON, exceeds the contract limit, or fails validation; UNSUPPORTED_CONTRACT_VERSION and INPUT_VERIFICATION_FAILED also map to 400."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+          }
+        },
+        "summary": "POST /api/public/v1/subjects/{subjectId}/analyses",
+        "tags": [
+          "public-engine-v1"
+        ],
+        "x-contractOperation": {
+          "request": "StartAnalysisRequest",
+          "response": "AnalysisRun",
+          "status": 202
+        }
+      }
+    },
+    "/api/public/v1/subjects/{subjectId}/analyses/{analysisId}": {
+      "get": {
+        "operationId": "getAnalysis",
+        "parameters": [
+          {
+            "description": "Opaque engine-issued identifier.",
+            "in": "path",
+            "name": "subjectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Opaque engine-issued identifier.",
+            "in": "path",
+            "name": "analysisId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisRun"
+                }
+              }
+            },
+            "description": "Success (AnalysisRun)."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+          }
+        },
+        "summary": "GET /api/public/v1/subjects/{subjectId}/analyses/{analysisId}",
+        "tags": [
+          "public-engine-v1"
+        ],
+        "x-contractOperation": {
+          "request": "",
+          "response": "AnalysisRun",
+          "status": 200
+        }
+      }
+    },
+    "/api/public/v1/subjects/{subjectId}/analyses/{analysisId}/compare/{otherAnalysisId}": {
+      "get": {
+        "operationId": "compareAnalyses",
+        "parameters": [
+          {
+            "description": "Opaque engine-issued identifier.",
+            "in": "path",
+            "name": "subjectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Opaque engine-issued identifier.",
+            "in": "path",
+            "name": "analysisId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Opaque engine-issued identifier.",
+            "in": "path",
+            "name": "otherAnalysisId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunComparisonResult"
+                }
+              }
+            },
+            "description": "Success (RunComparisonResult)."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+          }
+        },
+        "summary": "GET /api/public/v1/subjects/{subjectId}/analyses/{analysisId}/compare/{otherAnalysisId}",
+        "tags": [
+          "public-engine-v1"
+        ],
+        "x-contractOperation": {
+          "request": "",
+          "response": "RunComparisonResult",
+          "status": 200
+        }
+      }
+    },
+    "/api/public/v1/subjects/{subjectId}/analyses/{analysisId}/results": {
+      "get": {
+        "operationId": "getAnalysisResults",
+        "parameters": [
+          {
+            "description": "Opaque engine-issued identifier.",
+            "in": "path",
+            "name": "subjectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Opaque engine-issued identifier.",
+            "in": "path",
+            "name": "analysisId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisResults"
+                }
+              }
+            },
+            "description": "Success (AnalysisResults)."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+          }
+        },
+        "summary": "GET /api/public/v1/subjects/{subjectId}/analyses/{analysisId}/results",
+        "tags": [
+          "public-engine-v1"
+        ],
+        "x-contractOperation": {
+          "request": "",
+          "response": "AnalysisResults",
+          "status": 200
+        }
+      }
+    },
+    "/api/public/v1/subjects/{subjectId}/dataset-profiles": {
+      "post": {
+        "operationId": "createDatasetProfile",
+        "parameters": [
+          {
+            "description": "Opaque engine-issued identifier.",
+            "in": "path",
+            "name": "subjectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDatasetProfileRequest"
+              }
+            }
+          },
+          "description": "JSON body, at most x-limits.maxRequestBytes. Unknown fields are tolerated.",
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetProfile"
+                }
+              }
+            },
+            "description": "Success (DatasetProfile)."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "INVALID_REQUEST: the body is not valid JSON, exceeds the contract limit, or fails validation; UNSUPPORTED_CONTRACT_VERSION and INPUT_VERIFICATION_FAILED also map to 400."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+          }
+        },
+        "summary": "POST /api/public/v1/subjects/{subjectId}/dataset-profiles",
+        "tags": [
+          "public-engine-v1"
+        ],
+        "x-contractOperation": {
+          "request": "CreateDatasetProfileRequest",
+          "response": "DatasetProfile",
+          "status": 201
+        }
+      }
+    },
+    "/api/public/v1/subjects/{subjectId}/dataset-profiles/{profileId}": {
+      "get": {
+        "operationId": "getDatasetProfile",
+        "parameters": [
+          {
+            "description": "Opaque engine-issued identifier.",
+            "in": "path",
+            "name": "subjectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Opaque engine-issued identifier.",
+            "in": "path",
+            "name": "profileId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetProfile"
+                }
+              }
+            },
+            "description": "Success (DatasetProfile)."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+          }
+        },
+        "summary": "GET /api/public/v1/subjects/{subjectId}/dataset-profiles/{profileId}",
+        "tags": [
+          "public-engine-v1"
+        ],
+        "x-contractOperation": {
+          "request": "",
+          "response": "DatasetProfile",
+          "status": 200
+        }
+      }
+    },
+    "/api/public/v1/subjects/{subjectId}/dataset-profiles/{profileId}/selection-plans": {
+      "get": {
+        "operationId": "listSelectionPlans",
+        "parameters": [
+          {
+            "description": "Opaque engine-issued identifier.",
+            "in": "path",
+            "name": "subjectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Opaque engine-issued identifier.",
+            "in": "path",
+            "name": "profileId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SelectionPlanList"
+                }
+              }
+            },
+            "description": "Success (SelectionPlanList)."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+          }
+        },
+        "summary": "GET /api/public/v1/subjects/{subjectId}/dataset-profiles/{profileId}/selection-plans",
+        "tags": [
+          "public-engine-v1"
+        ],
+        "x-contractOperation": {
+          "request": "",
+          "response": "SelectionPlanList",
+          "status": 200
+        }
+      }
+    },
+    "/api/public/v1/subjects/{subjectId}/dataset-profiles/{profileId}/triage": {
+      "post": {
+        "operationId": "triage",
+        "parameters": [
+          {
+            "description": "Opaque engine-issued identifier.",
+            "in": "path",
+            "name": "subjectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Opaque engine-issued identifier.",
+            "in": "path",
+            "name": "profileId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TriageRequest"
+              }
+            }
+          },
+          "description": "JSON body, at most x-limits.maxRequestBytes. Unknown fields are tolerated.",
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SelectionPlan"
+                }
+              }
+            },
+            "description": "Success (SelectionPlan)."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "INVALID_REQUEST: the body is not valid JSON, exceeds the contract limit, or fails validation; UNSUPPORTED_CONTRACT_VERSION and INPUT_VERIFICATION_FAILED also map to 400."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+          }
+        },
+        "summary": "POST /api/public/v1/subjects/{subjectId}/dataset-profiles/{profileId}/triage",
+        "tags": [
+          "public-engine-v1"
+        ],
+        "x-contractOperation": {
+          "request": "TriageRequest",
+          "response": "SelectionPlan",
+          "status": 201
+        }
+      }
+    },
+    "/api/public/v1/subjects/{subjectId}/evidence": {
+      "post": {
+        "operationId": "addEvidence",
+        "parameters": [
+          {
+            "description": "Opaque engine-issued identifier.",
+            "in": "path",
+            "name": "subjectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddEvidenceRequest"
+              }
+            }
+          },
+          "description": "JSON body, at most x-limits.maxRequestBytes. Unknown fields are tolerated.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvidenceReceipt"
+                }
+              }
+            },
+            "description": "Success (EvidenceReceipt)."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "INVALID_REQUEST: the body is not valid JSON, exceeds the contract limit, or fails validation; UNSUPPORTED_CONTRACT_VERSION and INPUT_VERIFICATION_FAILED also map to 400."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+          }
+        },
+        "summary": "POST /api/public/v1/subjects/{subjectId}/evidence",
+        "tags": [
+          "public-engine-v1"
+        ],
+        "x-contractOperation": {
+          "request": "AddEvidenceRequest",
+          "response": "EvidenceReceipt",
+          "status": 200
+        }
+      }
+    },
+    "/api/public/v1/subjects/{subjectId}/research-runs": {
+      "get": {
+        "operationId": "listResearchRuns",
+        "parameters": [
+          {
+            "description": "Opaque engine-issued identifier.",
+            "in": "path",
+            "name": "subjectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResearchRunList"
+                }
+              }
+            },
+            "description": "Success (ResearchRunList)."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+          }
+        },
+        "summary": "GET /api/public/v1/subjects/{subjectId}/research-runs",
+        "tags": [
+          "public-engine-v1"
+        ],
+        "x-contractOperation": {
+          "request": "",
+          "response": "ResearchRunList",
+          "status": 200
+        }
+      },
+      "post": {
+        "operationId": "createResearchRun",
+        "parameters": [
+          {
+            "description": "Opaque engine-issued identifier.",
+            "in": "path",
+            "name": "subjectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateResearchRunRequest"
+              }
+            }
+          },
+          "description": "JSON body, at most x-limits.maxRequestBytes. Unknown fields are tolerated.",
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResearchResult"
+                }
+              }
+            },
+            "description": "Success (ResearchResult)."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "INVALID_REQUEST: the body is not valid JSON, exceeds the contract limit, or fails validation; UNSUPPORTED_CONTRACT_VERSION and INPUT_VERIFICATION_FAILED also map to 400."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+          }
+        },
+        "summary": "POST /api/public/v1/subjects/{subjectId}/research-runs",
+        "tags": [
+          "public-engine-v1"
+        ],
+        "x-contractOperation": {
+          "request": "CreateResearchRunRequest",
+          "response": "ResearchResult",
+          "status": 201
+        }
+      }
+    },
+    "/api/public/v1/temporal-operations": {
+      "post": {
+        "operationId": "applyTemporalOperation",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemporalOperationRequest"
+              }
+            }
+          },
+          "description": "JSON body, at most x-limits.maxRequestBytes. Unknown fields are tolerated.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemporalOperationResult"
+                }
+              }
+            },
+            "description": "Success (TemporalOperationResult)."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "INVALID_REQUEST: the body is not valid JSON, exceeds the contract limit, or fails validation; UNSUPPORTED_CONTRACT_VERSION and INPUT_VERIFICATION_FAILED also map to 400."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+          }
+        },
+        "summary": "POST /api/public/v1/temporal-operations",
+        "tags": [
+          "public-engine-v1"
+        ],
+        "x-contractOperation": {
+          "request": "TemporalOperationRequest",
+          "response": "TemporalOperationResult",
+          "status": 200
+        }
+      }
+    }
+  },
+  "security": [],
+  "servers": [
+    {
+      "description": "Same origin as the page. Paths carry the full /api/public/v1 prefix.",
+      "url": "/"
+    }
+  ],
+  "x-contractSchema": "insight-lab.public-engine",
+  "x-contractVersion": "1",
+  "x-errorCodes": {
+    "ANALYSIS_HAS_NO_HYPOTHESES": 409,
+    "ANALYSIS_NOT_COMPLETED": 409,
+    "EXECUTION_PROFILE_UNAVAILABLE": 422,
+    "IDEMPOTENCY_CONFLICT": 409,
+    "IDENTITY_CONFLICT": 409,
+    "INPUT_SOURCE_UNAVAILABLE": 422,
+    "INPUT_VERIFICATION_FAILED": 400,
+    "INTERNAL": 500,
+    "INVALID_REQUEST": 400,
+    "MIXED_ANALYSIS_RUNS": 409,
+    "MODEL_BINDING_UNAVAILABLE": 422,
+    "NOT_FOUND": 404,
+    "STALE_ITERATION": 409,
+    "UNSUPPORTED_CONTRACT_VERSION": 400
+  },
+  "x-limits": {
+    "maxArtifactsPerRequest": 50,
+    "maxDocumentContentLength": 200000,
+    "maxDocumentsPerRequest": 500,
+    "maxInputSourcesPerRequest": 50,
+    "maxMetadataEntries": 32,
+    "maxMetadataKeyLength": 64,
+    "maxMetadataValueLength": 1024,
+    "maxQuestionLength": 2000,
+    "maxRawArtifactBytesDefault": 17179869184,
+    "maxRequestBytes": 16777216
+  },
+  "x-source": {
+    "schema": "contracts/public-engine/v1/schema.json",
+    "schemaId": "https://github.com/sibukixxx/insight/contracts/public-engine/v1/schema.json"
+  }
+}
