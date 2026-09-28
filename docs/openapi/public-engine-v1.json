@@ -3725,7 +3725,7 @@
                 }
               }
             },
-            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+            "description": "Contract error (ErrorResponse). The HTTP status follows x-errorCodes (400: INPUT_VERIFICATION_FAILED, INVALID_REQUEST, UNSUPPORTED_CONTRACT_VERSION; 404: NOT_FOUND; 409: ANALYSIS_HAS_NO_HYPOTHESES, ANALYSIS_NOT_COMPLETED, IDEMPOTENCY_CONFLICT, IDENTITY_CONFLICT, MIXED_ANALYSIS_RUNS, STALE_ITERATION; 422: EXECUTION_PROFILE_UNAVAILABLE, INPUT_SOURCE_UNAVAILABLE, MODEL_BINDING_UNAVAILABLE; 500: INTERNAL). Which codes a given operation returns is not enumerated per operation. Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
           }
         },
         "summary": "GET /api/public/v1/engine",
@@ -3772,7 +3772,7 @@
                 }
               }
             },
-            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+            "description": "Contract error (ErrorResponse). The HTTP status follows x-errorCodes (400: INPUT_VERIFICATION_FAILED, INVALID_REQUEST, UNSUPPORTED_CONTRACT_VERSION; 404: NOT_FOUND; 409: ANALYSIS_HAS_NO_HYPOTHESES, ANALYSIS_NOT_COMPLETED, IDEMPOTENCY_CONFLICT, IDENTITY_CONFLICT, MIXED_ANALYSIS_RUNS, STALE_ITERATION; 422: EXECUTION_PROFILE_UNAVAILABLE, INPUT_SOURCE_UNAVAILABLE, MODEL_BINDING_UNAVAILABLE; 500: INTERNAL). Which codes a given operation returns is not enumerated per operation. Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
           }
         },
         "summary": "GET /api/public/v1/research-runs/{researchRunId}",
@@ -3830,7 +3830,7 @@
                 }
               }
             },
-            "description": "INVALID_REQUEST: the body is not valid JSON, exceeds the contract limit, or fails validation; UNSUPPORTED_CONTRACT_VERSION and INPUT_VERIFICATION_FAILED also map to 400."
+            "description": "The body is not valid JSON or exceeds x-limits.maxRequestBytes (INVALID_REQUEST), or another 400 code applies (400: INPUT_VERIFICATION_FAILED, INVALID_REQUEST, UNSUPPORTED_CONTRACT_VERSION)."
           },
           "default": {
             "content": {
@@ -3840,7 +3840,7 @@
                 }
               }
             },
-            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+            "description": "Contract error (ErrorResponse). The HTTP status follows x-errorCodes (400: INPUT_VERIFICATION_FAILED, INVALID_REQUEST, UNSUPPORTED_CONTRACT_VERSION; 404: NOT_FOUND; 409: ANALYSIS_HAS_NO_HYPOTHESES, ANALYSIS_NOT_COMPLETED, IDEMPOTENCY_CONFLICT, IDENTITY_CONFLICT, MIXED_ANALYSIS_RUNS, STALE_ITERATION; 422: EXECUTION_PROFILE_UNAVAILABLE, INPUT_SOURCE_UNAVAILABLE, MODEL_BINDING_UNAVAILABLE; 500: INTERNAL). Which codes a given operation returns is not enumerated per operation. Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
           }
         },
         "summary": "POST /api/public/v1/research-runs/{researchRunId}/iterations",
@@ -3898,7 +3898,7 @@
                 }
               }
             },
-            "description": "INVALID_REQUEST: the body is not valid JSON, exceeds the contract limit, or fails validation; UNSUPPORTED_CONTRACT_VERSION and INPUT_VERIFICATION_FAILED also map to 400."
+            "description": "The body is not valid JSON or exceeds x-limits.maxRequestBytes (INVALID_REQUEST), or another 400 code applies (400: INPUT_VERIFICATION_FAILED, INVALID_REQUEST, UNSUPPORTED_CONTRACT_VERSION)."
           },
           "default": {
             "content": {
@@ -3908,7 +3908,7 @@
                 }
               }
             },
-            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+            "description": "Contract error (ErrorResponse). The HTTP status follows x-errorCodes (400: INPUT_VERIFICATION_FAILED, INVALID_REQUEST, UNSUPPORTED_CONTRACT_VERSION; 404: NOT_FOUND; 409: ANALYSIS_HAS_NO_HYPOTHESES, ANALYSIS_NOT_COMPLETED, IDEMPOTENCY_CONFLICT, IDENTITY_CONFLICT, MIXED_ANALYSIS_RUNS, STALE_ITERATION; 422: EXECUTION_PROFILE_UNAVAILABLE, INPUT_SOURCE_UNAVAILABLE, MODEL_BINDING_UNAVAILABLE; 500: INTERNAL). Which codes a given operation returns is not enumerated per operation. Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
           }
         },
         "summary": "POST /api/public/v1/research-runs/{researchRunId}/re-evaluations",
@@ -3966,7 +3966,7 @@
                 }
               }
             },
-            "description": "INVALID_REQUEST: the body is not valid JSON, exceeds the contract limit, or fails validation; UNSUPPORTED_CONTRACT_VERSION and INPUT_VERIFICATION_FAILED also map to 400."
+            "description": "The body is not valid JSON or exceeds x-limits.maxRequestBytes (INVALID_REQUEST), or another 400 code applies (400: INPUT_VERIFICATION_FAILED, INVALID_REQUEST, UNSUPPORTED_CONTRACT_VERSION)."
           },
           "default": {
             "content": {
@@ -3976,7 +3976,7 @@
                 }
               }
             },
-            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+            "description": "Contract error (ErrorResponse). The HTTP status follows x-errorCodes (400: INPUT_VERIFICATION_FAILED, INVALID_REQUEST, UNSUPPORTED_CONTRACT_VERSION; 404: NOT_FOUND; 409: ANALYSIS_HAS_NO_HYPOTHESES, ANALYSIS_NOT_COMPLETED, IDEMPOTENCY_CONFLICT, IDENTITY_CONFLICT, MIXED_ANALYSIS_RUNS, STALE_ITERATION; 422: EXECUTION_PROFILE_UNAVAILABLE, INPUT_SOURCE_UNAVAILABLE, MODEL_BINDING_UNAVAILABLE; 500: INTERNAL). Which codes a given operation returns is not enumerated per operation. Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
           }
         },
         "summary": "POST /api/public/v1/research-runs/{researchRunId}/scenario-sets",
@@ -4034,7 +4034,7 @@
                 }
               }
             },
-            "description": "INVALID_REQUEST: the body is not valid JSON, exceeds the contract limit, or fails validation; UNSUPPORTED_CONTRACT_VERSION and INPUT_VERIFICATION_FAILED also map to 400."
+            "description": "The body is not valid JSON or exceeds x-limits.maxRequestBytes (INVALID_REQUEST), or another 400 code applies (400: INPUT_VERIFICATION_FAILED, INVALID_REQUEST, UNSUPPORTED_CONTRACT_VERSION)."
           },
           "default": {
             "content": {
@@ -4044,7 +4044,7 @@
                 }
               }
             },
-            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+            "description": "Contract error (ErrorResponse). The HTTP status follows x-errorCodes (400: INPUT_VERIFICATION_FAILED, INVALID_REQUEST, UNSUPPORTED_CONTRACT_VERSION; 404: NOT_FOUND; 409: ANALYSIS_HAS_NO_HYPOTHESES, ANALYSIS_NOT_COMPLETED, IDEMPOTENCY_CONFLICT, IDENTITY_CONFLICT, MIXED_ANALYSIS_RUNS, STALE_ITERATION; 422: EXECUTION_PROFILE_UNAVAILABLE, INPUT_SOURCE_UNAVAILABLE, MODEL_BINDING_UNAVAILABLE; 500: INTERNAL). Which codes a given operation returns is not enumerated per operation. Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
           }
         },
         "summary": "POST /api/public/v1/research-runs/{researchRunId}/scenario-sets/scaffold",
@@ -4111,7 +4111,7 @@
                 }
               }
             },
-            "description": "INVALID_REQUEST: the body is not valid JSON, exceeds the contract limit, or fails validation; UNSUPPORTED_CONTRACT_VERSION and INPUT_VERIFICATION_FAILED also map to 400."
+            "description": "The body is not valid JSON or exceeds x-limits.maxRequestBytes (INVALID_REQUEST), or another 400 code applies (400: INPUT_VERIFICATION_FAILED, INVALID_REQUEST, UNSUPPORTED_CONTRACT_VERSION)."
           },
           "default": {
             "content": {
@@ -4121,7 +4121,7 @@
                 }
               }
             },
-            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+            "description": "Contract error (ErrorResponse). The HTTP status follows x-errorCodes (400: INPUT_VERIFICATION_FAILED, INVALID_REQUEST, UNSUPPORTED_CONTRACT_VERSION; 404: NOT_FOUND; 409: ANALYSIS_HAS_NO_HYPOTHESES, ANALYSIS_NOT_COMPLETED, IDEMPOTENCY_CONFLICT, IDENTITY_CONFLICT, MIXED_ANALYSIS_RUNS, STALE_ITERATION; 422: EXECUTION_PROFILE_UNAVAILABLE, INPUT_SOURCE_UNAVAILABLE, MODEL_BINDING_UNAVAILABLE; 500: INTERNAL). Which codes a given operation returns is not enumerated per operation. Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
           }
         },
         "summary": "POST /api/public/v1/research-runs/{researchRunId}/scenario-sets/{scenarioSetId}/evaluations",
@@ -4168,7 +4168,7 @@
                 }
               }
             },
-            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+            "description": "Contract error (ErrorResponse). The HTTP status follows x-errorCodes (400: INPUT_VERIFICATION_FAILED, INVALID_REQUEST, UNSUPPORTED_CONTRACT_VERSION; 404: NOT_FOUND; 409: ANALYSIS_HAS_NO_HYPOTHESES, ANALYSIS_NOT_COMPLETED, IDEMPOTENCY_CONFLICT, IDENTITY_CONFLICT, MIXED_ANALYSIS_RUNS, STALE_ITERATION; 422: EXECUTION_PROFILE_UNAVAILABLE, INPUT_SOURCE_UNAVAILABLE, MODEL_BINDING_UNAVAILABLE; 500: INTERNAL). Which codes a given operation returns is not enumerated per operation. Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
           }
         },
         "summary": "GET /api/public/v1/research-runs/{researchRunId}/scenarios",
@@ -4215,7 +4215,7 @@
                 }
               }
             },
-            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+            "description": "Contract error (ErrorResponse). The HTTP status follows x-errorCodes (400: INPUT_VERIFICATION_FAILED, INVALID_REQUEST, UNSUPPORTED_CONTRACT_VERSION; 404: NOT_FOUND; 409: ANALYSIS_HAS_NO_HYPOTHESES, ANALYSIS_NOT_COMPLETED, IDEMPOTENCY_CONFLICT, IDENTITY_CONFLICT, MIXED_ANALYSIS_RUNS, STALE_ITERATION; 422: EXECUTION_PROFILE_UNAVAILABLE, INPUT_SOURCE_UNAVAILABLE, MODEL_BINDING_UNAVAILABLE; 500: INTERNAL). Which codes a given operation returns is not enumerated per operation. Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
           }
         },
         "summary": "GET /api/public/v1/research-runs/{researchRunId}/timeline",
@@ -4262,7 +4262,7 @@
                 }
               }
             },
-            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+            "description": "Contract error (ErrorResponse). The HTTP status follows x-errorCodes (400: INPUT_VERIFICATION_FAILED, INVALID_REQUEST, UNSUPPORTED_CONTRACT_VERSION; 404: NOT_FOUND; 409: ANALYSIS_HAS_NO_HYPOTHESES, ANALYSIS_NOT_COMPLETED, IDEMPOTENCY_CONFLICT, IDENTITY_CONFLICT, MIXED_ANALYSIS_RUNS, STALE_ITERATION; 422: EXECUTION_PROFILE_UNAVAILABLE, INPUT_SOURCE_UNAVAILABLE, MODEL_BINDING_UNAVAILABLE; 500: INTERNAL). Which codes a given operation returns is not enumerated per operation. Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
           }
         },
         "summary": "GET /api/public/v1/selection-plans/{planId}",
@@ -4320,7 +4320,7 @@
                 }
               }
             },
-            "description": "INVALID_REQUEST: the body is not valid JSON, exceeds the contract limit, or fails validation; UNSUPPORTED_CONTRACT_VERSION and INPUT_VERIFICATION_FAILED also map to 400."
+            "description": "The body is not valid JSON or exceeds x-limits.maxRequestBytes (INVALID_REQUEST), or another 400 code applies (400: INPUT_VERIFICATION_FAILED, INVALID_REQUEST, UNSUPPORTED_CONTRACT_VERSION)."
           },
           "default": {
             "content": {
@@ -4330,7 +4330,7 @@
                 }
               }
             },
-            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+            "description": "Contract error (ErrorResponse). The HTTP status follows x-errorCodes (400: INPUT_VERIFICATION_FAILED, INVALID_REQUEST, UNSUPPORTED_CONTRACT_VERSION; 404: NOT_FOUND; 409: ANALYSIS_HAS_NO_HYPOTHESES, ANALYSIS_NOT_COMPLETED, IDEMPOTENCY_CONFLICT, IDENTITY_CONFLICT, MIXED_ANALYSIS_RUNS, STALE_ITERATION; 422: EXECUTION_PROFILE_UNAVAILABLE, INPUT_SOURCE_UNAVAILABLE, MODEL_BINDING_UNAVAILABLE; 500: INTERNAL). Which codes a given operation returns is not enumerated per operation. Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
           }
         },
         "summary": "POST /api/public/v1/selection-plans/{planId}/revisions",
@@ -4377,7 +4377,7 @@
                 }
               }
             },
-            "description": "INVALID_REQUEST: the body is not valid JSON, exceeds the contract limit, or fails validation; UNSUPPORTED_CONTRACT_VERSION and INPUT_VERIFICATION_FAILED also map to 400."
+            "description": "The body is not valid JSON or exceeds x-limits.maxRequestBytes (INVALID_REQUEST), or another 400 code applies (400: INPUT_VERIFICATION_FAILED, INVALID_REQUEST, UNSUPPORTED_CONTRACT_VERSION)."
           },
           "default": {
             "content": {
@@ -4387,7 +4387,7 @@
                 }
               }
             },
-            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+            "description": "Contract error (ErrorResponse). The HTTP status follows x-errorCodes (400: INPUT_VERIFICATION_FAILED, INVALID_REQUEST, UNSUPPORTED_CONTRACT_VERSION; 404: NOT_FOUND; 409: ANALYSIS_HAS_NO_HYPOTHESES, ANALYSIS_NOT_COMPLETED, IDEMPOTENCY_CONFLICT, IDENTITY_CONFLICT, MIXED_ANALYSIS_RUNS, STALE_ITERATION; 422: EXECUTION_PROFILE_UNAVAILABLE, INPUT_SOURCE_UNAVAILABLE, MODEL_BINDING_UNAVAILABLE; 500: INTERNAL). Which codes a given operation returns is not enumerated per operation. Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
           }
         },
         "summary": "POST /api/public/v1/subjects",
@@ -4434,7 +4434,7 @@
                 }
               }
             },
-            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+            "description": "Contract error (ErrorResponse). The HTTP status follows x-errorCodes (400: INPUT_VERIFICATION_FAILED, INVALID_REQUEST, UNSUPPORTED_CONTRACT_VERSION; 404: NOT_FOUND; 409: ANALYSIS_HAS_NO_HYPOTHESES, ANALYSIS_NOT_COMPLETED, IDEMPOTENCY_CONFLICT, IDENTITY_CONFLICT, MIXED_ANALYSIS_RUNS, STALE_ITERATION; 422: EXECUTION_PROFILE_UNAVAILABLE, INPUT_SOURCE_UNAVAILABLE, MODEL_BINDING_UNAVAILABLE; 500: INTERNAL). Which codes a given operation returns is not enumerated per operation. Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
           }
         },
         "summary": "GET /api/public/v1/subjects/{subjectId}/analyses",
@@ -4490,7 +4490,7 @@
                 }
               }
             },
-            "description": "INVALID_REQUEST: the body is not valid JSON, exceeds the contract limit, or fails validation; UNSUPPORTED_CONTRACT_VERSION and INPUT_VERIFICATION_FAILED also map to 400."
+            "description": "The body is not valid JSON or exceeds x-limits.maxRequestBytes (INVALID_REQUEST), or another 400 code applies (400: INPUT_VERIFICATION_FAILED, INVALID_REQUEST, UNSUPPORTED_CONTRACT_VERSION)."
           },
           "default": {
             "content": {
@@ -4500,7 +4500,7 @@
                 }
               }
             },
-            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+            "description": "Contract error (ErrorResponse). The HTTP status follows x-errorCodes (400: INPUT_VERIFICATION_FAILED, INVALID_REQUEST, UNSUPPORTED_CONTRACT_VERSION; 404: NOT_FOUND; 409: ANALYSIS_HAS_NO_HYPOTHESES, ANALYSIS_NOT_COMPLETED, IDEMPOTENCY_CONFLICT, IDENTITY_CONFLICT, MIXED_ANALYSIS_RUNS, STALE_ITERATION; 422: EXECUTION_PROFILE_UNAVAILABLE, INPUT_SOURCE_UNAVAILABLE, MODEL_BINDING_UNAVAILABLE; 500: INTERNAL). Which codes a given operation returns is not enumerated per operation. Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
           }
         },
         "summary": "POST /api/public/v1/subjects/{subjectId}/analyses",
@@ -4556,7 +4556,7 @@
                 }
               }
             },
-            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+            "description": "Contract error (ErrorResponse). The HTTP status follows x-errorCodes (400: INPUT_VERIFICATION_FAILED, INVALID_REQUEST, UNSUPPORTED_CONTRACT_VERSION; 404: NOT_FOUND; 409: ANALYSIS_HAS_NO_HYPOTHESES, ANALYSIS_NOT_COMPLETED, IDEMPOTENCY_CONFLICT, IDENTITY_CONFLICT, MIXED_ANALYSIS_RUNS, STALE_ITERATION; 422: EXECUTION_PROFILE_UNAVAILABLE, INPUT_SOURCE_UNAVAILABLE, MODEL_BINDING_UNAVAILABLE; 500: INTERNAL). Which codes a given operation returns is not enumerated per operation. Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
           }
         },
         "summary": "GET /api/public/v1/subjects/{subjectId}/analyses/{analysisId}",
@@ -4621,7 +4621,7 @@
                 }
               }
             },
-            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+            "description": "Contract error (ErrorResponse). The HTTP status follows x-errorCodes (400: INPUT_VERIFICATION_FAILED, INVALID_REQUEST, UNSUPPORTED_CONTRACT_VERSION; 404: NOT_FOUND; 409: ANALYSIS_HAS_NO_HYPOTHESES, ANALYSIS_NOT_COMPLETED, IDEMPOTENCY_CONFLICT, IDENTITY_CONFLICT, MIXED_ANALYSIS_RUNS, STALE_ITERATION; 422: EXECUTION_PROFILE_UNAVAILABLE, INPUT_SOURCE_UNAVAILABLE, MODEL_BINDING_UNAVAILABLE; 500: INTERNAL). Which codes a given operation returns is not enumerated per operation. Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
           }
         },
         "summary": "GET /api/public/v1/subjects/{subjectId}/analyses/{analysisId}/compare/{otherAnalysisId}",
@@ -4677,7 +4677,7 @@
                 }
               }
             },
-            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+            "description": "Contract error (ErrorResponse). The HTTP status follows x-errorCodes (400: INPUT_VERIFICATION_FAILED, INVALID_REQUEST, UNSUPPORTED_CONTRACT_VERSION; 404: NOT_FOUND; 409: ANALYSIS_HAS_NO_HYPOTHESES, ANALYSIS_NOT_COMPLETED, IDEMPOTENCY_CONFLICT, IDENTITY_CONFLICT, MIXED_ANALYSIS_RUNS, STALE_ITERATION; 422: EXECUTION_PROFILE_UNAVAILABLE, INPUT_SOURCE_UNAVAILABLE, MODEL_BINDING_UNAVAILABLE; 500: INTERNAL). Which codes a given operation returns is not enumerated per operation. Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
           }
         },
         "summary": "GET /api/public/v1/subjects/{subjectId}/analyses/{analysisId}/results",
@@ -4735,7 +4735,7 @@
                 }
               }
             },
-            "description": "INVALID_REQUEST: the body is not valid JSON, exceeds the contract limit, or fails validation; UNSUPPORTED_CONTRACT_VERSION and INPUT_VERIFICATION_FAILED also map to 400."
+            "description": "The body is not valid JSON or exceeds x-limits.maxRequestBytes (INVALID_REQUEST), or another 400 code applies (400: INPUT_VERIFICATION_FAILED, INVALID_REQUEST, UNSUPPORTED_CONTRACT_VERSION)."
           },
           "default": {
             "content": {
@@ -4745,7 +4745,7 @@
                 }
               }
             },
-            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+            "description": "Contract error (ErrorResponse). The HTTP status follows x-errorCodes (400: INPUT_VERIFICATION_FAILED, INVALID_REQUEST, UNSUPPORTED_CONTRACT_VERSION; 404: NOT_FOUND; 409: ANALYSIS_HAS_NO_HYPOTHESES, ANALYSIS_NOT_COMPLETED, IDEMPOTENCY_CONFLICT, IDENTITY_CONFLICT, MIXED_ANALYSIS_RUNS, STALE_ITERATION; 422: EXECUTION_PROFILE_UNAVAILABLE, INPUT_SOURCE_UNAVAILABLE, MODEL_BINDING_UNAVAILABLE; 500: INTERNAL). Which codes a given operation returns is not enumerated per operation. Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
           }
         },
         "summary": "POST /api/public/v1/subjects/{subjectId}/dataset-profiles",
@@ -4801,7 +4801,7 @@
                 }
               }
             },
-            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+            "description": "Contract error (ErrorResponse). The HTTP status follows x-errorCodes (400: INPUT_VERIFICATION_FAILED, INVALID_REQUEST, UNSUPPORTED_CONTRACT_VERSION; 404: NOT_FOUND; 409: ANALYSIS_HAS_NO_HYPOTHESES, ANALYSIS_NOT_COMPLETED, IDEMPOTENCY_CONFLICT, IDENTITY_CONFLICT, MIXED_ANALYSIS_RUNS, STALE_ITERATION; 422: EXECUTION_PROFILE_UNAVAILABLE, INPUT_SOURCE_UNAVAILABLE, MODEL_BINDING_UNAVAILABLE; 500: INTERNAL). Which codes a given operation returns is not enumerated per operation. Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
           }
         },
         "summary": "GET /api/public/v1/subjects/{subjectId}/dataset-profiles/{profileId}",
@@ -4857,7 +4857,7 @@
                 }
               }
             },
-            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+            "description": "Contract error (ErrorResponse). The HTTP status follows x-errorCodes (400: INPUT_VERIFICATION_FAILED, INVALID_REQUEST, UNSUPPORTED_CONTRACT_VERSION; 404: NOT_FOUND; 409: ANALYSIS_HAS_NO_HYPOTHESES, ANALYSIS_NOT_COMPLETED, IDEMPOTENCY_CONFLICT, IDENTITY_CONFLICT, MIXED_ANALYSIS_RUNS, STALE_ITERATION; 422: EXECUTION_PROFILE_UNAVAILABLE, INPUT_SOURCE_UNAVAILABLE, MODEL_BINDING_UNAVAILABLE; 500: INTERNAL). Which codes a given operation returns is not enumerated per operation. Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
           }
         },
         "summary": "GET /api/public/v1/subjects/{subjectId}/dataset-profiles/{profileId}/selection-plans",
@@ -4924,7 +4924,7 @@
                 }
               }
             },
-            "description": "INVALID_REQUEST: the body is not valid JSON, exceeds the contract limit, or fails validation; UNSUPPORTED_CONTRACT_VERSION and INPUT_VERIFICATION_FAILED also map to 400."
+            "description": "The body is not valid JSON or exceeds x-limits.maxRequestBytes (INVALID_REQUEST), or another 400 code applies (400: INPUT_VERIFICATION_FAILED, INVALID_REQUEST, UNSUPPORTED_CONTRACT_VERSION)."
           },
           "default": {
             "content": {
@@ -4934,7 +4934,7 @@
                 }
               }
             },
-            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+            "description": "Contract error (ErrorResponse). The HTTP status follows x-errorCodes (400: INPUT_VERIFICATION_FAILED, INVALID_REQUEST, UNSUPPORTED_CONTRACT_VERSION; 404: NOT_FOUND; 409: ANALYSIS_HAS_NO_HYPOTHESES, ANALYSIS_NOT_COMPLETED, IDEMPOTENCY_CONFLICT, IDENTITY_CONFLICT, MIXED_ANALYSIS_RUNS, STALE_ITERATION; 422: EXECUTION_PROFILE_UNAVAILABLE, INPUT_SOURCE_UNAVAILABLE, MODEL_BINDING_UNAVAILABLE; 500: INTERNAL). Which codes a given operation returns is not enumerated per operation. Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
           }
         },
         "summary": "POST /api/public/v1/subjects/{subjectId}/dataset-profiles/{profileId}/triage",
@@ -4992,7 +4992,7 @@
                 }
               }
             },
-            "description": "INVALID_REQUEST: the body is not valid JSON, exceeds the contract limit, or fails validation; UNSUPPORTED_CONTRACT_VERSION and INPUT_VERIFICATION_FAILED also map to 400."
+            "description": "The body is not valid JSON or exceeds x-limits.maxRequestBytes (INVALID_REQUEST), or another 400 code applies (400: INPUT_VERIFICATION_FAILED, INVALID_REQUEST, UNSUPPORTED_CONTRACT_VERSION)."
           },
           "default": {
             "content": {
@@ -5002,7 +5002,7 @@
                 }
               }
             },
-            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+            "description": "Contract error (ErrorResponse). The HTTP status follows x-errorCodes (400: INPUT_VERIFICATION_FAILED, INVALID_REQUEST, UNSUPPORTED_CONTRACT_VERSION; 404: NOT_FOUND; 409: ANALYSIS_HAS_NO_HYPOTHESES, ANALYSIS_NOT_COMPLETED, IDEMPOTENCY_CONFLICT, IDENTITY_CONFLICT, MIXED_ANALYSIS_RUNS, STALE_ITERATION; 422: EXECUTION_PROFILE_UNAVAILABLE, INPUT_SOURCE_UNAVAILABLE, MODEL_BINDING_UNAVAILABLE; 500: INTERNAL). Which codes a given operation returns is not enumerated per operation. Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
           }
         },
         "summary": "POST /api/public/v1/subjects/{subjectId}/evidence",
@@ -5049,7 +5049,7 @@
                 }
               }
             },
-            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+            "description": "Contract error (ErrorResponse). The HTTP status follows x-errorCodes (400: INPUT_VERIFICATION_FAILED, INVALID_REQUEST, UNSUPPORTED_CONTRACT_VERSION; 404: NOT_FOUND; 409: ANALYSIS_HAS_NO_HYPOTHESES, ANALYSIS_NOT_COMPLETED, IDEMPOTENCY_CONFLICT, IDENTITY_CONFLICT, MIXED_ANALYSIS_RUNS, STALE_ITERATION; 422: EXECUTION_PROFILE_UNAVAILABLE, INPUT_SOURCE_UNAVAILABLE, MODEL_BINDING_UNAVAILABLE; 500: INTERNAL). Which codes a given operation returns is not enumerated per operation. Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
           }
         },
         "summary": "GET /api/public/v1/subjects/{subjectId}/research-runs",
@@ -5105,7 +5105,7 @@
                 }
               }
             },
-            "description": "INVALID_REQUEST: the body is not valid JSON, exceeds the contract limit, or fails validation; UNSUPPORTED_CONTRACT_VERSION and INPUT_VERIFICATION_FAILED also map to 400."
+            "description": "The body is not valid JSON or exceeds x-limits.maxRequestBytes (INVALID_REQUEST), or another 400 code applies (400: INPUT_VERIFICATION_FAILED, INVALID_REQUEST, UNSUPPORTED_CONTRACT_VERSION)."
           },
           "default": {
             "content": {
@@ -5115,7 +5115,7 @@
                 }
               }
             },
-            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+            "description": "Contract error (ErrorResponse). The HTTP status follows x-errorCodes (400: INPUT_VERIFICATION_FAILED, INVALID_REQUEST, UNSUPPORTED_CONTRACT_VERSION; 404: NOT_FOUND; 409: ANALYSIS_HAS_NO_HYPOTHESES, ANALYSIS_NOT_COMPLETED, IDEMPOTENCY_CONFLICT, IDENTITY_CONFLICT, MIXED_ANALYSIS_RUNS, STALE_ITERATION; 422: EXECUTION_PROFILE_UNAVAILABLE, INPUT_SOURCE_UNAVAILABLE, MODEL_BINDING_UNAVAILABLE; 500: INTERNAL). Which codes a given operation returns is not enumerated per operation. Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
           }
         },
         "summary": "POST /api/public/v1/subjects/{subjectId}/research-runs",
@@ -5162,7 +5162,7 @@
                 }
               }
             },
-            "description": "INVALID_REQUEST: the body is not valid JSON, exceeds the contract limit, or fails validation; UNSUPPORTED_CONTRACT_VERSION and INPUT_VERIFICATION_FAILED also map to 400."
+            "description": "The body is not valid JSON or exceeds x-limits.maxRequestBytes (INVALID_REQUEST), or another 400 code applies (400: INPUT_VERIFICATION_FAILED, INVALID_REQUEST, UNSUPPORTED_CONTRACT_VERSION)."
           },
           "default": {
             "content": {
@@ -5172,7 +5172,7 @@
                 }
               }
             },
-            "description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
+            "description": "Contract error (ErrorResponse). The HTTP status follows x-errorCodes (400: INPUT_VERIFICATION_FAILED, INVALID_REQUEST, UNSUPPORTED_CONTRACT_VERSION; 404: NOT_FOUND; 409: ANALYSIS_HAS_NO_HYPOTHESES, ANALYSIS_NOT_COMPLETED, IDEMPOTENCY_CONFLICT, IDENTITY_CONFLICT, MIXED_ANALYSIS_RUNS, STALE_ITERATION; 422: EXECUTION_PROFILE_UNAVAILABLE, INPUT_SOURCE_UNAVAILABLE, MODEL_BINDING_UNAVAILABLE; 500: INTERNAL). Which codes a given operation returns is not enumerated per operation. Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST."
           }
         },
         "summary": "POST /api/public/v1/temporal-operations",

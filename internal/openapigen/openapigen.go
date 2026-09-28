@@ -96,7 +96,7 @@ func GeneratePublic(schema []byte) ([]byte, error) {
 		if _, dup := paths[op.Path][method]; dup {
 			return nil, fmt.Errorf("x-operations.%s duplicates %s %s", opID, op.Method, op.Path)
 		}
-		paths[op.Path][method] = buildOperation(opID, op)
+		paths[op.Path][method] = buildOperation(opID, op, errorCodes)
 	}
 
 	doc := map[string]any{
@@ -135,7 +135,31 @@ func GeneratePublic(schema []byte) ([]byte, error) {
 	return append(out, '\n'), nil
 }
 
-func buildOperation(opID string, op operation) map[string]any {
+// statusTable renders x-errorCodes as "400: A, B; 404: C; ..." so the error
+// prose is derived from the schema and cannot drift from it.
+func statusTable(errorCodes map[string]int, only func(int) bool) string {
+	byStatus := map[int][]string{}
+	var statuses []int
+	for code, status := range errorCodes {
+		if only != nil && !only(status) {
+			continue
+		}
+		if byStatus[status] == nil {
+			statuses = append(statuses, status)
+		}
+		byStatus[status] = append(byStatus[status], code)
+	}
+	sort.Ints(statuses)
+	parts := make([]string, 0, len(statuses))
+	for _, status := range statuses {
+		codes := byStatus[status]
+		sort.Strings(codes)
+		parts = append(parts, strconv.Itoa(status)+": "+strings.Join(codes, ", "))
+	}
+	return strings.Join(parts, "; ")
+}
+
+func buildOperation(opID string, op operation, errorCodes map[string]int) map[string]any {
 	success := map[string]any{
 		"description": "Success (" + op.Response + ").",
 		"content":     jsonContent(op.Response),
@@ -143,9 +167,9 @@ func buildOperation(opID string, op operation) map[string]any {
 	responses := map[string]any{
 		strconv.Itoa(op.Status): success,
 		"default": map[string]any{
-			"description": "Contract error. The HTTP status follows x-errorCodes (INVALID_REQUEST and " +
-				"UNSUPPORTED_CONTRACT_VERSION 400, NOT_FOUND 404, conflicts 409, unavailable bindings/sources 422, " +
-				"INTERNAL 500). Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST.",
+			"description": "Contract error (ErrorResponse). The HTTP status follows x-errorCodes (" +
+				statusTable(errorCodes, nil) + "). Which codes a given operation returns is not enumerated per operation. " +
+				"Unknown operations answer NOT_FOUND and wrong methods INVALID_REQUEST.",
 			"content": jsonContent("ErrorResponse"),
 		},
 	}
@@ -168,8 +192,8 @@ func buildOperation(opID string, op operation) map[string]any {
 			"content":     jsonContent(op.Request),
 		}
 		responses["400"] = map[string]any{
-			"description": "INVALID_REQUEST: the body is not valid JSON, exceeds the contract limit, or fails " +
-				"validation; UNSUPPORTED_CONTRACT_VERSION and INPUT_VERIFICATION_FAILED also map to 400.",
+			"description": "The body is not valid JSON or exceeds x-limits.maxRequestBytes (INVALID_REQUEST), " +
+				"or another 400 code applies (" + statusTable(errorCodes, func(s int) bool { return s == 400 }) + ").",
 			"content": jsonContent("ErrorResponse"),
 		}
 	}
