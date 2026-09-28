@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { AnalysisRun } from "../../domain/models";
 import type { AnalysisStreamHandlers } from "../ports";
-import { analysisUseCases, retryInput } from "./analysis";
+import { analysisUseCases, outputLocaleNotRecorded, retryInput } from "./analysis";
 
 const run = (status: string, extra: Partial<AnalysisRun> = {}): AnalysisRun => ({ id: "r1", projectId: "p1", status, progress: 0, createdAt: "t", ...extra });
 
@@ -51,5 +51,19 @@ describe("retryInput", () => {
     expect(retryInput(run("failed", { researchQuestion: "why", reasoningProfile: "CUSTOMER_INSIGHT", outputLocale: "ja-JP" })))
       .toEqual({ researchQuestion: "why", reasoningProfile: "CUSTOMER_INSIGHT", outputLocale: "ja-JP" });
     expect(retryInput(run("failed"))).toEqual({ researchQuestion: "", reasoningProfile: "GENERAL_RESEARCH", outputLocale: "" });
+  });
+});
+
+describe("outputLocaleNotRecorded", () => {
+  const input = (outputLocale: string) => ({ researchQuestion: "", reasoningProfile: "GENERAL_RESEARCH", outputLocale });
+
+  it("returns true when the server run lacks an explicitly requested locale", () => {
+    expect(outputLocaleNotRecorded(input("ja-JP"), run("queued"))).toBe(true);
+    expect(outputLocaleNotRecorded(input("ja-JP"), run("queued", { outputLocale: "en-US" }))).toBe(true);
+  });
+
+  it("returns false when the locale was recorded or none was requested", () => {
+    expect(outputLocaleNotRecorded(input("ja-JP"), run("queued", { outputLocale: "ja-JP" }))).toBe(false);
+    expect(outputLocaleNotRecorded(input(""), run("queued"))).toBe(false);
   });
 });
