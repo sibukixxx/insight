@@ -4,11 +4,11 @@ import type {
   AnalysisRun, BuildInfo, ColumnProfile, DatasetProfile, DocumentImportResult, Evidence, EvidenceDocument,
   ExecutionSnapshot, ImportFormat, ImportPreview, ImportRowError, Insight, InsightDetail, LlmSettings, Pattern,
   PatternObservation, Project, QualityFlag, ResearchIteration, ResearchRun, ResearchRunSummary, RunComparison,
-  RunMetrics, RunProvenance, SampleScenario, SampleSource,
+  RunExploration, RunMetrics, RunProvenance, SampleScenario, SampleSource,
 } from "../../domain/models";
 import {
   arr, bool, boolRecord, compact, num, numberRecord, numOrNull, obj, optArr, optNum, optStr, str, stringItem,
-  stringRecord, strOrEmpty,
+  stringRecord, strOrEmpty, type Obj,
 } from "./decode";
 
 export function decodeBuildInfo(v: unknown): BuildInfo {
@@ -18,7 +18,7 @@ export function decodeBuildInfo(v: unknown): BuildInfo {
 
 export function decodeProject(v: unknown, path = "project"): Project {
   const o = obj(v, path);
-  return { id: str(o, "id", path), name: str(o, "name", path), createdAt: strOrEmpty(o, "createdAt", path) };
+  return compact({ id: str(o, "id", path), name: str(o, "name", path), researchQuestion: optStr(o, "researchQuestion", path), createdAt: strOrEmpty(o, "createdAt", path) });
 }
 
 export function decodeDocument(v: unknown, path = "document"): EvidenceDocument {
@@ -39,9 +39,29 @@ function decodeProvenance(v: unknown, path: string): RunProvenance | undefined {
   });
 }
 
+function decodeExploration(v: unknown, path: string): RunExploration | undefined {
+  if (v === undefined || v === null) return undefined;
+  const o = obj(v, path);
+  return {
+    status: str(o, "status", path), verified: bool(o, "verified", path), decisionReady: bool(o, "decisionReady", path),
+    evidenceCount: num(o, "evidenceCount", path), question: strOrEmpty(o, "question", path),
+    candidates: optArr(o, "candidates", path, (c, p) => {
+      const co = obj(c, p);
+      return {
+        title: str(co, "title", p), explanation: str(co, "explanation", p),
+        competingExplanations: optArr(co, "competingExplanations", p, (x, xp) => { const xo = obj(x, xp); return { title: strOrEmpty(xo, "title", xp), explanation: str(xo, "explanation", xp) }; }),
+        falsificationConditions: optArr(co, "falsificationConditions", p, stringItem),
+        requiredData: optArr(co, "requiredData", p, (x, xp) => { const xo = obj(x, xp); return compact({ description: str(xo, "description", xp), why: optStr(xo, "why", xp) }); }),
+      };
+    }),
+    limitations: optArr(o, "limitations", path, stringItem),
+  };
+}
+
 export function decodeMetrics(v: unknown, path = "metrics"): RunMetrics {
   const o = obj(v, path);
   return compact({
+    exploration: decodeExploration(o.exploration, `${path}.exploration`),
     totalObservationCandidates: optNum(o, "totalObservationCandidates", path),
     groundedObservations: optNum(o, "groundedObservations", path),
     unsupportedClaimRate: optNum(o, "unsupportedClaimRate", path),
@@ -66,6 +86,10 @@ function decodeExecutionSnapshot(v: unknown, path: string): ExecutionSnapshot | 
   return compact({ engineVersion: optStr(o, "engineVersion", path), gitCommit: optStr(o, "gitCommit", path), gitDirty: optStr(o, "gitDirty", path) });
 }
 
+function isExploratory(v: unknown): boolean {
+  return typeof v === "object" && v !== null && (v as Obj).exploration != null;
+}
+
 export function decodeRun(v: unknown, path = "analysis"): AnalysisRun {
   const o = obj(v, path);
   return compact({
@@ -76,6 +100,7 @@ export function decodeRun(v: unknown, path = "analysis"): AnalysisRun {
     label: optStr(o, "label", path), researchQuestion: optStr(o, "researchQuestion", path),
     reasoningProfile: optStr(o, "reasoningProfile", path), outputLocale: optStr(o, "outputLocale", path),
     executionSnapshot: decodeExecutionSnapshot(o.executionSnapshot, `${path}.executionSnapshot`),
+    exploratory: isExploratory(o.executionSnapshot) ? true : undefined,
     executionFingerprint: optStr(o, "executionFingerprint", path), inputFingerprint: optStr(o, "inputFingerprint", path),
   });
 }

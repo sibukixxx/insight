@@ -25,6 +25,7 @@ export function HomePage() {
   const [busy, setBusy] = useState(false);
   const validation = useFormValidation();
   const [name, setName] = useState("");
+  const [question, setQuestion] = useState("");
 
   const firstRun = state.status === "ok" && state.data.projects.length === 0;
 
@@ -43,6 +44,17 @@ export function HomePage() {
     setError(undefined);
     dashboard.createProject(name).then(
       (p) => navigate({ name: "input", projectId: p.id }),
+      (err: unknown) => { setError(errorMessage(err, t)); setBusy(false); },
+    );
+  };
+
+  const startQuestion = (e: Event) => {
+    e.preventDefault();
+    if (busy || !validation.validate(question.trim() ? [] : [{ id: "home-question", label: "home.question.label", message: "form.requiredValue" }])) return;
+    setBusy(true);
+    setError(undefined);
+    dashboard.createFromQuestion(question).then(
+      (p) => navigate({ name: "analysis", projectId: p.id }),
       (err: unknown) => { setError(errorMessage(err, t)); setBusy(false); },
     );
   };
@@ -67,6 +79,16 @@ export function HomePage() {
       </section>
 
       {error && <Notice kind="error">{error}</Notice>}
+
+      <Card title={t("home.question.title")}>
+        <form id="question-first" class={onboarding.path} noValidate onSubmit={startQuestion}>
+          <p class={onboarding.hint}>{t("home.question.hint")}</p>
+          <Field label={t("home.question.label")} htmlFor="home-question" hint={t("home.question.fieldHint")} error={validation.error("home-question")} requirement="required" requirementLabel={t("common.required")}>
+            {(control) => (<textarea {...control} class={formStyles.control} rows={3} value={question} placeholder={t("home.question.placeholder")} onInput={(e) => { setQuestion(e.currentTarget.value); validation.clear("home-question"); }} />)}
+          </Field>
+          <div><Button id="start-question" type="submit" variant="primary" disabled={busy}>{t("home.question.start")}</Button></div>
+        </form>
+      </Card>
 
       {build.demoBuild && state.status === "ok" && <SampleGallery projects={state.data.projects} onError={setError} />}
 

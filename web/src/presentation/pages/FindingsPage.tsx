@@ -3,6 +3,7 @@ import { ButtonLink } from "../components/Button";
 import { Card } from "../components/Card";
 import { Notice } from "../components/Notice";
 import { EmptyState, Loading, PageError } from "../components/States";
+import { ExplorationPanel } from "../features/findings/ExplorationPanel";
 import { InsightList } from "../features/findings/InsightCard";
 import { NextActions } from "../features/findings/NextActions";
 import { RunHeader } from "../features/runs/RunHeader";
@@ -30,7 +31,9 @@ export function FindingsPage({ projectId, runId }: { projectId: string; runId?: 
         <RunHeader run={run} />
         <RunSelector runs={runs} selected={run} onSelect={(id) => navigate({ name: "findings", projectId: project.id, runId: id })} />
       </Card>
-      {run ? (
+      {run?.metrics?.exploration ? (
+        <ExplorationPanel projectId={project.id} exploration={run.metrics.exploration} />
+      ) : run ? (
         <>
           <Card title={t("project.insightsForRun", { id: run.id })} description={t("findings.hint")}>
             {insights.length ? <InsightList insights={insights} /> : <EmptyState>{t("project.noInsights")}</EmptyState>}

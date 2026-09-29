@@ -32,6 +32,25 @@ describe("Home", () => {
   });
 });
 
+describe("question-first entry", () => {
+  it("saves a project from a sentence alone and goes to the analysis page, with no file or model", async () => {
+    const ports = fakePorts(fakeState({ projects: [] }));
+    renderApp(ports);
+    fireEvent.input(await screen.findByLabelText("Research question"), { target: { value: "Why do stores open where the population falls?" } });
+    fireEvent.click(screen.getByRole("button", { name: "Start with this question" }));
+    await waitFor(() => expect(window.location.hash).toBe("#/projects/p1/analysis"));
+    expect(ports.projects.createFromQuestion).toHaveBeenCalledWith("Why do stores open where the population falls?");
+    expect(ports.projects.create).not.toHaveBeenCalled();
+  });
+
+  it("does not create a project from an empty question", async () => {
+    const ports = fakePorts(fakeState({ projects: [] }));
+    renderApp(ports);
+    fireEvent.click(await screen.findByRole("button", { name: "Start with this question" }));
+    expect(ports.projects.createFromQuestion).not.toHaveBeenCalled();
+  });
+});
+
 describe("sample gallery", () => {
   const demo = { build: { demoBuild: true, clientName: "" } } as const;
   const official = sampleScenario({
@@ -170,10 +189,69 @@ describe("CSV import", () => {
 describe("analysis", () => {
   const failed = { id: "r1", projectId: "p1", status: "failed", progress: 30, createdAt: "", error: "the LLM is not configured", researchQuestion: "why?", reasoningProfile: "CUSTOMER_INSIGHT" };
 
-  it("blocks a run without evidence and points to the input page", async () => {
-    renderApp(fakePorts(), { hash: "#/projects/p1/analysis" });
-    expect(await screen.findAllByText("No evidence yet. Add text or import a CSV first.")).toBeTruthy();
-    expect((screen.getByRole("button", { name: "Run analysis" }) as HTMLButtonElement).disabled).toBe(true);
+  const configured = { model: "m", baseUrl: "https://x", maskedApiKey: "", hasApiKey: true, configured: true };
+  const noEvidence = /No evidence yet\. You can still explore hypotheses/;
+
+  it("offers a question-only exploration, not a data run, when there is no evidence", async () => {
+    renderApp(fakePorts(fakeState({ settings: configured })), { hash: "#/projects/p1/analysis" });
+    expect((await screen.findAllByText(noEvidence)).length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: "Run analysis" })).toBeNull();
+    const explore = screen.getByRole("button", { name: "Explore hypotheses (no evidence)" }) as HTMLButtonElement;
+    expect(explore.disabled).toBe(true); // an empty question cannot be explored
+    expect(screen.getByText("Enter a research question to explore.")).toBeTruthy();
+    fireEvent.input(screen.getByLabelText(/Research question/), { target: { value: "Why?" } });
+    expect((screen.getByRole("button", { name: "Explore hypotheses (no evidence)" }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("starts an exploratory run with the question and the exploratory flag", async () => {
+    const ports = fakePorts(fakeState({ settings: configured }));
+    renderApp(ports, { hash: "#/projects/p1/analysis" });
+    fireEvent.input(await screen.findByLabelText(/Research question/), { target: { value: "  Why?  " } });
+    fireEvent.click(screen.getByRole("button", { name: "Explore hypotheses (no evidence)" }));
+    await waitFor(() => expect(ports.analysis.start).toHaveBeenCalledWith("p1", { researchQuestion: "Why?", reasoningProfile: "GENERAL_RESEARCH", outputLocale: "", exploratory: true }));
+  });
+
+  it("starts with the saved theme and, without a model, keeps it but explains and links to settings", async () => {
+    const ports = fakePorts(fakeState({ projects: [{ id: "p1", name: "T", researchQuestion: "Saved theme?", createdAt: "" }] }));
+    renderApp(ports, { hash: "#/projects/p1/analysis" });
+    expect(((await screen.findByLabelText(/Research question/)) as HTMLTextAreaElement).value).toBe("Saved theme?");
+    expect(screen.getByText(/Exploring from a question needs a connected model/)).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Open settings" }).getAttribute("href")).toBe("#/settings");
+    expect((screen.getByRole("button", { name: "Explore hypotheses (no evidence)" }) as HTMLButtonElement).disabled).toBe(true);
+    expect(ports.analysis.start).not.toHaveBeenCalled();
+  });
+
+  it("retries a failed exploration as an exploration", async () => {
+    const failedExploration = { id: "r1", projectId: "p1", status: "failed", progress: 20, createdAt: "", error: "boom", researchQuestion: "why?", reasoningProfile: "GENERAL_RESEARCH", exploratory: true };
+    const ports = fakePorts(fakeState({ settings: configured, runs: [failedExploration] }));
+    renderApp(ports, { hash: "#/projects/p1/analysis" });
+    fireEvent.click(await screen.findByRole("button", { name: "Retry with the same settings" }));
+    await waitFor(() => expect(ports.analysis.start).toHaveBeenCalledWith("p1", { researchQuestion: "why?", reasoningProfile: "GENERAL_RESEARCH", outputLocale: "", exploratory: true }));
+  });
+
+  it("shows an exploration result as unverified candidates with falsification, missing data and a way to add evidence", async () => {
+    const exploration = {
+      status: "EXPLORATORY_UNVERIFIED", verified: false, decisionReady: false, evidenceCount: 0, question: "Why?",
+      candidates: [{ title: "Candidate A", explanation: "maybe structural", competingExplanations: [{ title: "Chance", explanation: "noise" }], falsificationConditions: ["unchanged elsewhere"], requiredData: [{ description: "a time series", why: "to compare" }] }],
+      limitations: ["All candidates are unverified."],
+    };
+    const done = { id: "r1", projectId: "p1", status: "completed", progress: 100, createdAt: "", finishedAt: "2026-01-02T00:00:00Z", exploratory: true, metrics: { exploration } };
+    renderApp(fakePorts(fakeState({ runs: [done] })), { hash: "#/projects/p1/findings?run=r1" });
+    const result = await screen.findByRole("region", { name: "Hypothesis candidates" });
+    expect(within(result).getByText("Unverified — no evidence used")).toBeTruthy();
+    expect(within(result).getByText("Candidate A")).toBeTruthy();
+    expect(within(result).getByText("unchanged elsewhere")).toBeTruthy();
+    expect(within(result).getByText(/a time series/)).toBeTruthy();
+    expect(screen.getByText("All candidates are unverified.")).toBeTruthy();
+    expect(screen.getByRole("link", { name: /Add evidence to test these/ }).getAttribute("href")).toBe("#/projects/p1/input");
+    expect(screen.queryByText(/verified$/i)).toBeNull();
+  });
+
+  it("keeps a visible link to an earlier exploration once evidence exists", async () => {
+    const earlier = { id: "r0", projectId: "p1", status: "completed", progress: 100, createdAt: "", exploratory: true, metrics: { exploration: { status: "EXPLORATORY_UNVERIFIED", verified: false, decisionReady: false, evidenceCount: 0, question: "Why?", candidates: [], limitations: [] } } };
+    const state = fakeState({ settings: configured, runs: [earlier], documents: [{ id: "d1", projectId: "p1", source: "dataset", title: "", content: "x", metadata: {}, createdAt: "" }] });
+    renderApp(fakePorts(state), { hash: "#/projects/p1/analysis" });
+    expect(await screen.findByRole("link", { name: "View those candidates" })).toBeTruthy();
   });
 
   it("shows a server failure and retries when its prerequisites are available", async () => {

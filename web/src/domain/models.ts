@@ -11,6 +11,8 @@ export interface BuildInfo {
 export interface Project {
   readonly id: string;
   readonly name: string;
+  /** The free-text theme a question-first project was created from. */
+  readonly researchQuestion?: string;
   readonly createdAt: string;
 }
 
@@ -40,7 +42,30 @@ export interface RunProvenance {
   readonly ruleVersion?: string;
 }
 
+export interface ExplorationCandidate {
+  readonly title: string;
+  readonly explanation: string;
+  readonly competingExplanations: readonly { readonly title: string; readonly explanation: string }[];
+  readonly falsificationConditions: readonly string[];
+  readonly requiredData: readonly { readonly description: string; readonly why?: string }[];
+}
+
+/**
+ * A question-only run's output (#158). Every candidate is a model proposal
+ * made with no evidence: never verified, never decision-ready.
+ */
+export interface RunExploration {
+  readonly status: string;
+  readonly verified: boolean;
+  readonly decisionReady: boolean;
+  readonly evidenceCount: number;
+  readonly question: string;
+  readonly candidates: readonly ExplorationCandidate[];
+  readonly limitations: readonly string[];
+}
+
 export interface RunMetrics {
+  readonly exploration?: RunExploration;
   readonly totalObservationCandidates?: number;
   readonly groundedObservations?: number;
   readonly unsupportedClaimRate?: number;
@@ -69,6 +94,8 @@ export interface AnalysisRun {
   readonly finishedAt?: string;
   readonly createdAt: string;
   readonly metrics?: RunMetrics;
+  /** True for a question-only exploration run; its execution snapshot says so. */
+  readonly exploratory?: boolean;
   readonly label?: string;
   readonly researchQuestion?: string;
   readonly reasoningProfile?: string;

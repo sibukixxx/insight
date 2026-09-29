@@ -322,6 +322,11 @@ POST /api/projects/{projectID}/documents  # paste / CSV / TXT
 GET  /api/projects/{projectID}/documents
 GET  /api/documents/{documentID}          # Evidenceクリック時の原文表示用 [追加]
 POST /api/projects/{projectID}/analysis   # → {"analysisId","status":"queued"}
+                                          # [追加: #158] Reference API のみ。POST /api/projects は name の代わりに researchQuestion だけでも作成でき
+                                          # (projects.research_question, migration 024)、analysis は {"exploratory":true,"researchQuestion":...} で
+                                          # 資料ゼロの問い単独探索を開始する。必須条件: 質問あり・モデル設定済み・資料 0 件（満たさなければ 400/409）。
+                                          # 結果は analyses.metrics.exploration（status=EXPLORATORY_UNVERIFIED, verified/decisionReady は常に false）にのみ保存し、
+                                          # Document/Observation/Pattern/Insight/Evidence は作らない。Public Engine Contract/SDK には追加していない。
 GET  /api/analysis/{analysisID}           # 状態取得（SSE切断時のフォールバック）[追加]
 GET  /api/analysis/{analysisID}/events    # SSE
 GET  /api/projects/{projectID}/insights

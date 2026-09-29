@@ -19,16 +19,28 @@ export interface ReadinessCheck {
 
 export interface Readiness {
   readonly checks: readonly ReadinessCheck[];
+  /** An evidence-backed (or dataset-only deterministic) run can start. */
   readonly canStart: boolean;
-  readonly status: "ready" | "blocked" | "running" | "unknown";
+  /**
+   * A question-only exploration (#158) can start: no evidence yet, no active
+   * run, and the model is configured or unknown (the server has the last word).
+   * Saving the question never depends on this.
+   */
+  readonly canExplore: boolean;
+  /** No evidence at all: only a question-only exploration is possible. */
+  readonly noEvidence: boolean;
+  readonly status: "ready" | "exploratory" | "blocked" | "running" | "unknown";
 }
 
 export function assessReadiness(documents: readonly EvidenceDocument[], runs: readonly AnalysisRun[], settings: LlmSettings | undefined): Readiness {
   const checks: ReadinessCheck[] = [];
   const datasets = documents.filter((d) => d.source === "dataset").length;
 
-  if (documents.length === 0) {
-    checks.push({ id: "evidence", level: "blocked", message: "readiness.noEvidence", fix: "input" });
+  const noEvidence = documents.length === 0;
+  if (noEvidence) {
+    // Not a blocker for a question-only exploration; data-backed analysis
+    // still needs input (canStart below stays false).
+    checks.push({ id: "evidence", level: "info", message: "readiness.noEvidence", fix: "input" });
   } else {
     checks.push({ id: "evidence", level: "ok", message: "readiness.evidence", params: { documents: documents.length, datasets } });
   }
@@ -40,6 +52,8 @@ export function assessReadiness(documents: readonly EvidenceDocument[], runs: re
     checks.push({ id: "model", level: "warning", message: "readiness.settingsUnknown", fix: "settings" });
   } else if (settings.configured) {
     checks.push({ id: "model", level: "ok", message: "readiness.modelConfigured", params: { model: settings.model } });
+  } else if (noEvidence) {
+    checks.push({ id: "model", level: "warning", message: "readiness.explorationNeedsModel", fix: "settings" });
   } else if (datasets > 0) {
     // pipeline.go: without a model only dataset documents are pre-analyzed.
     checks.push({ id: "model", level: "info", message: "readiness.deterministicOnly", fix: "settings" });
@@ -48,5 +62,7 @@ export function assessReadiness(documents: readonly EvidenceDocument[], runs: re
   }
 
   const blocked = checks.some((c) => c.level === "blocked");
-  return { checks, canStart: !blocked, status: active ? "running" : blocked ? "blocked" : settings === undefined ? "unknown" : "ready" };
+  const canExplore = noEvidence && !active && settings?.configured !== false;
+  const status = active ? "running" : blocked ? "blocked" : noEvidence ? (canExplore ? "exploratory" : "blocked") : settings === undefined ? "unknown" : "ready";
+  return { checks, canStart: !blocked && !noEvidence, canExplore, noEvidence, status };
 }

@@ -1,0 +1,20 @@
+/* Question-only exploration result. Candidates use the hypothesis colours
+   (never success/verified colours): they are unverified proposals. */
+.stack { display: grid; gap: var(--space-4); }
+.question { margin: 0 0 var(--space-4); overflow-wrap: anywhere; }
+.label { font-weight: 700; color: var(--color-ink); }
+.candidates { display: grid; gap: var(--space-4); list-style: none; padding: 0; margin: 0; }
+.candidate {
+  display: grid; gap: var(--space-2); padding: var(--space-4); border-radius: var(--radius-md);
+  border: 1px solid var(--color-hypothesis-border); border-left-width: 4px; background: var(--color-hypothesis-weak);
+}
+.head { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.letter {
+  display: inline-grid; place-items: center; width: 1.75rem; height: 1.75rem; border-radius: var(--radius-pill);
+  background: var(--color-hypothesis); color: var(--color-surface); font-weight: 700; font-size: var(--font-size-sm);
+}
+.candidateTitle { margin: 0; font-size: var(--font-size-md); color: var(--color-ink); overflow-wrap: anywhere; }
+.body { margin: 0; overflow-wrap: anywhere; }
+.sub { margin: var(--space-2) 0 var(--space-1); font-size: var(--font-size-sm); color: var(--color-ink); }
+.points { margin: 0; padding-left: 1.25rem; display: grid; gap: var(--space-1); overflow-wrap: anywhere; }
+.why { color: var(--color-text-muted); }
