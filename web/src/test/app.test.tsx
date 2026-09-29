@@ -184,6 +184,35 @@ describe("analysis", () => {
     fireEvent.click(screen.getByRole("button", { name: "Retry with the same settings" }));
     await waitFor(() => expect(ports.analysis.start).toHaveBeenCalledWith("p1", { researchQuestion: "why?", reasoningProfile: "CUSTOMER_INSIGHT", outputLocale: "" }));
   });
+
+  const englishSource = { id: "d1", projectId: "p1", source: "dataset", title: "", content: "Sales fell in March.", metadata: {}, createdAt: "" };
+
+  it("offers the output language in the main start control and sends an explicit Japanese request for English sources", async () => {
+    const ports = fakePorts(fakeState({ documents: [englishSource] }));
+    renderApp(ports, { hash: "#/projects/p1/analysis" });
+    const select = await screen.findByLabelText("Language of model-written text") as HTMLSelectElement;
+    expect(select.closest("details")).toBeNull();
+    expect(select.value).toBe("");
+    fireEvent.change(select, { target: { value: "ja-JP" } });
+    fireEvent.click(screen.getByRole("button", { name: "Run analysis" }));
+    await waitFor(() => expect(ports.analysis.start).toHaveBeenCalledWith("p1", { researchQuestion: "", reasoningProfile: "GENERAL_RESEARCH", outputLocale: "ja-JP" }));
+    expect(screen.queryByText(/did not record the requested output language/)).toBeNull();
+  });
+
+  it("starts with the output language of the project's latest run when the page is reopened", async () => {
+    const earlier = { ...failed, outputLocale: "ja-JP" };
+    renderApp(fakePorts(fakeState({ documents: [englishSource], runs: [earlier] })), { hash: "#/projects/p1/analysis" });
+    expect((await screen.findByLabelText("Language of model-written text") as HTMLSelectElement).value).toBe("ja-JP");
+  });
+
+  it("warns when a legacy server does not record the requested output language", async () => {
+    const ports = fakePorts(fakeState({ documents: [englishSource] }));
+    ports.analysis.start.mockImplementationOnce(async () => ({ id: "r1", projectId: "p1", status: "queued", progress: 0, createdAt: "" }));
+    renderApp(ports, { hash: "#/projects/p1/analysis" });
+    fireEvent.change(await screen.findByLabelText("Language of model-written text"), { target: { value: "ja-JP" } });
+    fireEvent.click(screen.getByRole("button", { name: "Run analysis" }));
+    expect(await screen.findByText(/did not record the requested output language \(Japanese \(ja-JP\)\)/)).toBeTruthy();
+  });
 });
 
 describe("workspace", () => {

@@ -22,6 +22,14 @@ export function retryInput(run: AnalysisRun): StartAnalysisInput {
   };
 }
 
+/**
+ * True when a locale was explicitly requested but the returned run does not
+ * carry it: a server that predates outputLocale ignores the field (#131).
+ */
+export function outputLocaleNotRecorded(input: StartAnalysisInput, run: AnalysisRun): boolean {
+  return input.outputLocale !== "" && run.outputLocale !== input.outputLocale;
+}
+
 export function snapshotEvent(run: AnalysisRun): AnalysisEvent {
   if (run.status === "completed") return { type: "completed" };
   if (run.status === "failed") return run.error === undefined ? { type: "failed" } : { type: "failed", message: run.error };

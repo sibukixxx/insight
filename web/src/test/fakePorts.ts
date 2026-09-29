@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { vi } from "vitest";
-import type { Ports } from "../application/ports";
+import type { Ports, StartAnalysisInput } from "../application/ports";
 import type { Dictionaries } from "../domain/locale";
 import type { AnalysisRun, EvidenceDocument, ImportFormat, Insight, LlmSettings, Project, SampleScenario } from "../domain/models";
 
@@ -66,7 +66,12 @@ export function fakePorts(state: FakeState = fakeState()) {
     analysis: {
       list: vi.fn(async () => state.runs),
       get: vi.fn(async (id: string) => state.runs.find((r) => r.id === id) ?? Promise.reject(new Error("analysis not found"))),
-      start: vi.fn(async () => { const r: AnalysisRun = { id: `r${state.runs.length + 1}`, projectId: "p1", status: "queued", progress: 0, createdAt: "" }; state.runs.unshift(r); return r; }),
+      // Echoes the recorded settings like the server; outputLocale is omitted when unset.
+      start: vi.fn(async (projectId: string, input: StartAnalysisInput) => {
+        const r: AnalysisRun = { id: `r${state.runs.length + 1}`, projectId, status: "queued", progress: 0, createdAt: "", researchQuestion: input.researchQuestion, reasoningProfile: input.reasoningProfile, ...(input.outputLocale ? { outputLocale: input.outputLocale } : {}) };
+        state.runs.unshift(r);
+        return r;
+      }),
       compare: vi.fn(),
     },
     stream: { watch: vi.fn(() => () => undefined) },

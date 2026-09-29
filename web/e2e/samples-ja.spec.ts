@@ -38,8 +38,11 @@ test("サンプル選択 → CSV 取り込み → 分析 → 根拠 → レポ�
   await next.getByRole("link", { name: /分析へ進む/ }).click();
 
   await expect(page.getByText("サンプルプロジェクト：")).toBeVisible();
-  await page.getByText("詳細設定（任意）").click();
-  await page.getByLabel("モデルが書くテキストの言語").selectOption("ja-JP");
+  // The output language is part of the main start control, not the advanced settings.
+  const outputLocale = page.getByLabel("モデルが書くテキストの言語");
+  await expect(outputLocale).toBeVisible();
+  await expect(page.locator("details:has(#output-locale)")).toHaveCount(0);
+  await outputLocale.selectOption("ja-JP");
   await shot(page, "03-analysis");
   await page.getByRole("button", { name: "分析を実行" }).click();
   await expect(page.getByText("最新の実行が完了しました。発見と根拠を確認しましょう。")).toBeVisible({ timeout: 80_000 });
