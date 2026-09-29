@@ -62,17 +62,20 @@ function Trail({ insight }: { insight: InsightDetail }) {
   );
 }
 
+/** Customer-research fields are optional: an empty one is hidden, never shown as a value. */
+const present = (value: string): boolean => value.trim() !== "";
+
 function Fields({ insight }: { insight: InsightDetail }) {
   const { t } = useI18n();
   const rows: readonly (readonly [MessageKey, string, string | undefined, boolean])[] = [
     ["insight.observation", insight.observation, styles.fact, true],
-    ["insight.statedNeed", insight.statedNeed, undefined, true],
+    ["insight.statedNeed", insight.statedNeed, undefined, present(insight.statedNeed)],
     ["insight.hypothesis", insight.latentNeed, styles.latent, true],
-    ["insight.jtbd", insight.jtbd, undefined, true],
+    ["insight.jtbd", insight.jtbd, undefined, present(insight.jtbd)],
     ["insight.interpretation", insight.interpretation, styles.interpretation, true],
     ["insight.alternative", insight.alternativeInterpretation, styles.alternative, true],
-    ["insight.productOpportunity", insight.productOpportunity, undefined, Boolean(insight.productOpportunity)],
-    ["insight.monetizationAngle", insight.monetizationAngle, styles.money, Boolean(insight.monetizationAngle)],
+    ["insight.productOpportunity", insight.productOpportunity, undefined, present(insight.productOpportunity)],
+    ["insight.monetizationAngle", insight.monetizationAngle, styles.money, present(insight.monetizationAngle)],
   ];
   return (
     <Card title={t("insight.details")}>
@@ -80,7 +83,7 @@ function Fields({ insight }: { insight: InsightDetail }) {
         {rows.filter(([, , , show]) => show).map(([key, value, cls]) => (
           <div key={key} class={[styles.field, cls].filter(Boolean).join(" ")}>
             <dt class={evidenceStyles.fieldLabel}>{t(key)}</dt>
-            <dd>{value || "-"}</dd>
+            <dd>{present(value) ? value : t("common.notRecorded")}</dd>
           </div>
         ))}
       </dl>

@@ -23,6 +23,21 @@ export const SOURCE_LABELS: LabelTable = {
   social_post: "source.socialPost",
 };
 
+/**
+ * Domain-specific source codes kept valid since v1 (customer and market
+ * research; see internal/domain/document.go). The UI groups them apart from
+ * the generic sources instead of labelling them with a version.
+ */
+export const CUSTOMER_RESEARCH_SOURCES: readonly string[] = ["interview", "review", "support", "sales", "survey", "job_posting", "social_post"];
+
+/** Splits server source codes into generic and customer-research groups in server order; unknown codes stay generic and verbatim. */
+export function groupSourceTypes(codes: readonly string[]): { readonly general: readonly string[]; readonly customerResearch: readonly string[] } {
+  return {
+    general: codes.filter((c) => !CUSTOMER_RESEARCH_SOURCES.includes(c)),
+    customerResearch: codes.filter((c) => CUSTOMER_RESEARCH_SOURCES.includes(c)),
+  };
+}
+
 export const STEP_LABELS: LabelTable = {
   starting: "step.starting",
   extracting_observations: "step.extractingObservations",

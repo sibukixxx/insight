@@ -42,7 +42,7 @@ function InputView({ data, onChanged }: { data: InputWorkspace; onChanged: () =>
         </div>
       )}
       {scenario && <SampleScenarioPanel scenario={scenario} hasDocuments={documents.length > 0} />}
-      <p class={styles.hint}>{t("input.formats.title")}{": "}{t("input.formats.hint")}</p>
+      <p class={styles.hint}>{t("input.formats.hint")}</p>
       <div class={styles.stack}>
         <Card title={t("project.importCsv")} description={t("input.csv.hint")}>
           <CsvImport projectId={project.id} formats={formats} onImported={onChanged} sample={sample} />

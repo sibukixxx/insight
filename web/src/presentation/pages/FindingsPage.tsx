@@ -32,7 +32,7 @@ export function FindingsPage({ projectId, runId }: { projectId: string; runId?: 
       </Card>
       {run ? (
         <>
-          <Card title={t("project.insightsForRun", { id: run.id })} description={t("findings.hint")}>
+          <Card title={t("project.insightsForRun")} description={t("findings.hint")}>
             {insights.length ? <InsightList insights={insights} /> : <EmptyState>{t("project.noInsights")}</EmptyState>}
           </Card>
           <Card title={t("next.title")}><NextActions projectId={project.id} run={run} next={nextActions(runs, insights)} /></Card>
