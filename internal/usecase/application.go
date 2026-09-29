@@ -57,11 +57,27 @@ func (a *Application) ListProjects(ctx context.Context) ([]*domain.Project, erro
 }
 
 func (a *Application) CreateProject(ctx context.Context, name string) (*domain.Project, error) {
-	name = strings.TrimSpace(name)
+	return a.CreateProjectWithQuestion(ctx, name, "")
+}
+
+// MaxProjectQuestionRunes bounds a saved research question, matching the
+// limit on an analysis's research question.
+const MaxProjectQuestionRunes = 2000
+
+// CreateProjectWithQuestion creates a project from a research question. An
+// empty name takes a provisional title from the question.
+func (a *Application) CreateProjectWithQuestion(ctx context.Context, name, question string) (*domain.Project, error) {
+	name, question = strings.TrimSpace(name), strings.TrimSpace(question)
+	if len([]rune(question)) > MaxProjectQuestionRunes {
+		return nil, fmt.Errorf("research question is limited to %d characters", MaxProjectQuestionRunes)
+	}
+	if name == "" {
+		name = provisionalTitle(question)
+	}
 	if name == "" {
 		return nil, fmt.Errorf("name is required")
 	}
-	p := &domain.Project{ID: newID("proj"), Name: name, CreatedAt: a.now()}
+	p := &domain.Project{ID: newID("proj"), Name: name, ResearchQuestion: question, CreatedAt: a.now()}
 	if err := a.repos.Projects.Create(ctx, p); err != nil {
 		return nil, fmt.Errorf("create project: %w", err)
 	}
@@ -276,4 +292,13 @@ func newID(prefix string) string {
 	b := make([]byte, 8)
 	_, _ = rand.Read(b)
 	return fmt.Sprintf("%s_%s", prefix, hex.EncodeToString(b))
+}
+
+// provisionalTitle shortens a question into a project name.
+func provisionalTitle(question string) string {
+	title := strings.Join(strings.Fields(question), " ")
+	if r := []rune(title); len(r) > 40 {
+		return string(r[:40]) + "…"
+	}
+	return title
 }

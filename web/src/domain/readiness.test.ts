@@ -7,10 +7,28 @@ const settings = (configured: boolean): LlmSettings => ({ model: configured ? "m
 const running: AnalysisRun = { id: "r1", projectId: "p", status: "running", progress: 10, createdAt: "" };
 
 describe("assessReadiness", () => {
-  it("blocks a run when there is no evidence", () => {
+  it("cannot start a data-backed run without evidence, but a question-only exploration can start", () => {
     const r = assessReadiness([], [], settings(true));
     expect(r.canStart).toBe(false);
-    expect(r.checks[0]).toMatchObject({ id: "evidence", level: "blocked", fix: "input" });
+    expect(r.canExplore).toBe(true);
+    expect(r.status).toBe("exploratory");
+    expect(r.checks[0]).toMatchObject({ id: "evidence", level: "info", fix: "input" });
+  });
+
+  it("keeps the theme saveable but cannot explore without a model", () => {
+    const r = assessReadiness([], [], settings(false));
+    expect(r.canExplore).toBe(false);
+    expect(r.checks.find((c) => c.id === "model")).toMatchObject({ level: "warning", message: "readiness.explorationNeedsModel", fix: "settings" });
+    expect(r.checks.some((c) => c.level === "blocked")).toBe(false);
+  });
+
+  it("lets the server decide when settings are unknown and blocks exploration during an active run", () => {
+    expect(assessReadiness([], [], undefined).canExplore).toBe(true);
+    expect(assessReadiness([], [running], settings(true)).canExplore).toBe(false);
+  });
+
+  it("never offers exploration once evidence exists", () => {
+    expect(assessReadiness([doc("web")], [], settings(true)).canExplore).toBe(false);
   });
 
   it("blocks a second run while one is active", () => {

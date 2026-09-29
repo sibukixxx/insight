@@ -5,6 +5,8 @@ export interface StartAnalysisInput {
   readonly reasoningProfile: string;
   /** "" leaves the server default. */
   readonly outputLocale: string;
+  /** Question-only exploration (#158): no evidence, needs a model. */
+  readonly exploratory?: boolean;
 }
 
 export interface AnalysisPort {

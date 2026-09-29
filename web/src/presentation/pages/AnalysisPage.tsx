@@ -110,7 +110,13 @@ function AnalysisView({ data, onChanged }: { data: AnalysisWorkspace; onChanged:
       </Card>
       <Card title={t("analysisPage.newRun")}>
         {error && <Notice kind="error" spaced>{error}</Notice>}
-        <AnalysisForm readiness={readiness} busy={busy} onStart={onStart} emphasized={!(latest?.status === "completed" && !watching)} initialOutputLocale={data.latest?.outputLocale} />
+        {earlierExploration && (
+          <Notice kind="info" spaced>
+            <span id="earlier-exploration">{t("analysisPage.earlierExploration", { count: earlierExploration.metrics?.exploration?.candidates.length ?? 0 })}</span>{" "}
+            <a href={projectHash(project.id, "findings", earlierExploration.id)}>{t("analysisPage.earlierExplorationLink")}</a>
+          </Notice>
+        )}
+        <AnalysisForm readiness={readiness} busy={busy} onStart={onStart} emphasized={!(latest?.status === "completed" && !watching)} initialOutputLocale={data.latest?.outputLocale} initialQuestion={project.researchQuestion ?? ""} />
       </Card>
     </ProjectFrame>
   );

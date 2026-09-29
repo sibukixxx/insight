@@ -47,6 +47,9 @@ type ExecutionConfig struct {
 	// so runs recorded before v2 can still be matched.
 	PromptFingerprintLegacy string        `json:"promptFingerprintLegacy,omitempty"`
 	LLM                     *LLMExecution `json:"llm,omitempty"`
+	// Exploration marks a question-only run (#158). Absent (and so absent
+	// from the fingerprint) for every other run.
+	Exploration *ExplorationConfig `json:"exploration,omitempty"`
 }
 
 // LLMExecution is the model side of a model-backed run.

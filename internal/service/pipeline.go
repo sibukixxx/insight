@@ -124,6 +124,9 @@ type Metrics struct {
 	QualityFlagCounts map[string]int `json:"qualityFlagCounts"`
 	// Provenance records inputs, rules and (if any) model behind this run.
 	Provenance RunProvenance `json:"provenance"`
+	// Exploration is set only for a question-only run (#158): unverified
+	// candidates produced without any evidence. Absent for every other run.
+	Exploration *ExplorationResult `json:"exploration,omitempty"`
 	// Usage totals the tokens the provider reported for this run. It is nil
 	// for a deterministic run, which made no model calls.
 	Usage *LLMUsage `json:"usage,omitempty"`
