@@ -37,7 +37,7 @@ function WorkspaceView({ ws, runId, onChanged }: { ws: Workspace; runId: string 
   const { exports } = useUseCases();
   const { project, documents, runs, selection, insights } = ws;
   const selected = selection.run;
-  const live = useRunWatcher(ws.activeRun?.id, () => {
+  const { live } = useRunWatcher(ws.activeRun?.id, () => {
     // A finished run becomes the shown run: drop ?run= so the latest completed run is picked.
     if (runId) navigate({ name: "workspace", projectId: project.id });
     else onChanged();

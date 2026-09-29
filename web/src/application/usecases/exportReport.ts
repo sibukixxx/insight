@@ -11,5 +11,7 @@ export function exportUseCases({ links }: Pick<Ports, "links">) {
     approvedArtifactLink: (researchRunId: string): string => links.approvedResearchArtifact(researchRunId),
     /** The exact input CSV of a bundled sample scenario (demo builds). */
     sampleInputLink: (scenarioId: string): string => links.sampleInput(scenarioId),
+    /** Every row a large ingest rejected, as CSV. */
+    ingestErrorsLink: (projectId: string, ingestId: string): string => links.ingestErrors(projectId, ingestId),
   };
 }

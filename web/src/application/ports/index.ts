@@ -1,5 +1,6 @@
 import type { AnalysisPort, AnalysisStreamPort } from "./AnalysisPort";
 import type { EvidencePort } from "./EvidencePort";
+import type { IngestPort } from "./IngestPort";
 import type { LinkPort } from "./LinkPort";
 import type { LocalePort } from "./LocalePort";
 import type { ProjectPort } from "./ProjectPort";
@@ -14,6 +15,7 @@ export interface Ports {
   readonly system: SystemPort;
   readonly projects: ProjectPort;
   readonly evidence: EvidencePort;
+  readonly ingest: IngestPort;
   readonly analysis: AnalysisPort;
   readonly stream: AnalysisStreamPort;
   readonly results: ResultsPort;
@@ -26,6 +28,7 @@ export interface Ports {
 
 export type { AnalysisPort, AnalysisStreamHandlers, AnalysisStreamPort, StartAnalysisInput } from "./AnalysisPort";
 export type { EvidencePort, TextEvidenceInput, UploadFile } from "./EvidencePort";
+export type { IngestPort } from "./IngestPort";
 export type { LinkPort } from "./LinkPort";
 export type { LocalePort } from "./LocalePort";
 export type { ProjectPort } from "./ProjectPort";

@@ -3,12 +3,12 @@
 // changes or extends its contract.
 
 import type {
-  AnalysisPort, EvidencePort, LinkPort, ProjectPort, ResearchPort, ResultsPort, SamplePort, SettingsPort, SystemPort, UploadFile,
+  AnalysisPort, EvidencePort, IngestPort, LinkPort, ProjectPort, ResearchPort, ResultsPort, SamplePort, SettingsPort, SystemPort, UploadFile,
 } from "../../application/ports";
 import { enc, ignoreBody, type HttpClient } from "./client";
 import {
   decodeBuildInfo, decodeComparison, decodeDocument, decodeImportFormat, decodeImportPreview, decodeImportResult,
-  decodeInsight, decodeInsightDetail, decodeMetrics, decodePattern, decodeProject, decodeResearchRun,
+  decodeIngest, decodeInsight, decodeInsightDetail, decodeMetrics, decodePattern, decodeProject, decodeResearchRun,
   decodeResearchSummary, decodeRun, decodeSampleScenario, decodeSettings, list,
 } from "./dto";
 import { obj, str } from "./decode";
@@ -57,6 +57,22 @@ export function httpEvidence(http: HttpClient): EvidencePort {
   };
 }
 
+export function httpIngest(http: HttpClient): IngestPort {
+  const ingests = (projectId: string) => `${project(projectId)}/ingests`;
+  return {
+    submit: (projectId, kind, file) => {
+      // "kind" precedes "file": the server reads the parts in order and streams the file.
+      const form = new FormData();
+      form.append("kind", kind);
+      form.append("file", file.blob, file.name);
+      return http.sendForm(ingests(projectId), form, decodeIngest);
+    },
+    list: (projectId) => http.getJson(ingests(projectId), (v) => (v === null ? [] : list(decodeIngest, "ingests")(v))),
+    get: (projectId, ingestId) => http.getJson(`${ingests(projectId)}/${enc(ingestId)}`, decodeIngest),
+    cancel: (projectId, ingestId) => http.sendJson("POST", `${ingests(projectId)}/${enc(ingestId)}/cancel`, undefined, decodeIngest),
+  };
+}
+
 export function httpAnalysis(http: HttpClient): AnalysisPort {
   return {
     list: (projectId) => http.getJson(`${project(projectId)}/analyses`, list(decodeRun, "analyses")),
@@ -67,6 +83,8 @@ export function httpAnalysis(http: HttpClient): AnalysisPort {
       if (input.exploratory) body.exploratory = true;
       return http.sendJson("POST", `${project(projectId)}/analysis`, body, decodeRun);
     },
+    cancel: (runId) => http.sendJson("POST", `/api/analysis/${enc(runId)}/cancel`, undefined, decodeRun),
+    retry: (runId) => http.sendJson("POST", `/api/analysis/${enc(runId)}/retry`, undefined, decodeRun),
     compare: (projectId, fromId, toId) =>
       http.getJson(`${project(projectId)}/analyses/compare?a=${enc(fromId)}&b=${enc(toId)}`, decodeComparison),
   };
@@ -109,6 +127,7 @@ export const httpLinks: LinkPort = {
   researchArtifact: (id) => `/api/research-runs/${enc(id)}/artifact.json`,
   approvedResearchArtifact: (id) => `/api/research-runs/${enc(id)}/approved-artifact.json`,
   sampleInput: (id) => `/api/demo/scenarios/${enc(id)}/input.csv`,
+  ingestErrors: (projectId, ingestId) => `${project(projectId)}/ingests/${enc(ingestId)}/errors.csv`,
 };
 
 export function httpSamples(http: HttpClient): SamplePort {

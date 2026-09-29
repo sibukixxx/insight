@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AnalysisRun } from "./models";
-import { pickRun, provenanceItems, shortFingerprint } from "./runs";
+import { canRetry, pickRun, provenanceItems, runOutcome, shortFingerprint } from "./runs";
 
 const run = (id: string, status: string, finishedAt?: string, extra: Partial<AnalysisRun> = {}): AnalysisRun => ({
   id, projectId: "p1", status, progress: 100, createdAt: "2026-01-01T00:00:00Z", ...(finishedAt ? { finishedAt } : {}), ...extra,
@@ -46,5 +46,23 @@ describe("provenance", () => {
   it("marks a dirty engine build and short commit", () => {
     const items = provenanceItems(run("r1", "completed", undefined, { executionSnapshot: { engineVersion: "v1.2.0", gitCommit: "0123456789", gitDirty: "true" } }));
     expect(items.find((i) => i.field === "engine")?.value).toMatchObject({ kind: "value", value: "v1.2.0@0123456+dirty" });
+  });
+});
+
+describe("runOutcome", () => {
+  const base = { id: "r", projectId: "p", progress: 0, createdAt: "" };
+  it("tells cancelled, interrupted and failed apart, and never assumes an unknown state succeeded", () => {
+    expect(runOutcome({ ...base, status: "failed", lifecycle: "CANCELLED", failureCode: "CANCELLED" })).toBe("cancelled");
+    expect(runOutcome({ ...base, status: "failed", lifecycle: "INTERRUPTED" })).toBe("interrupted");
+    expect(runOutcome({ ...base, status: "failed" })).toBe("failed");
+    expect(runOutcome({ ...base, status: "running", lifecycle: "CANCEL_REQUESTED" })).toBe("cancelRequested");
+    expect(runOutcome({ ...base, status: "queued" })).toBe("active");
+    expect(runOutcome({ ...base, status: "completed" })).toBe("completed");
+    expect(runOutcome({ ...base, status: "weird" })).toBe("unknown");
+  });
+  it("allows retrying only a failed-status run", () => {
+    expect(canRetry({ ...base, status: "failed", lifecycle: "CANCELLED" })).toBe(true);
+    expect(canRetry({ ...base, status: "running" })).toBe(false);
+    expect(canRetry(undefined)).toBe(false);
   });
 });

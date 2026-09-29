@@ -13,7 +13,10 @@ export interface AnalysisWorkspace {
   readonly latest: AnalysisRun | undefined;
 }
 
-/** The run's own settings, to start it again after a failure. */
+/**
+ * The request a failed run recorded. The server re-runs it on retry; the UI
+ * keeps it to check that the retry really carries the same output language.
+ */
 export function retryInput(run: AnalysisRun): StartAnalysisInput {
   return {
     researchQuestion: run.researchQuestion ?? "",
@@ -33,7 +36,7 @@ export function outputLocaleNotRecorded(input: StartAnalysisInput, run: Analysis
 
 export function snapshotEvent(run: AnalysisRun): AnalysisEvent {
   if (run.status === "completed") return { type: "completed" };
-  if (run.status === "failed") return run.error === undefined ? { type: "failed" } : { type: "failed", message: run.error };
+  if (run.status === "failed") return { type: "failed", ...(run.error === undefined ? {} : { message: run.error }), ...(run.failureCode === undefined ? {} : { code: run.failureCode }) };
   return { type: "progress", step: run.currentStep ?? run.status, progress: run.progress };
 }
 
@@ -47,15 +50,18 @@ export function analysisUseCases({ projects, evidence, analysis, stream, setting
     },
     startAnalysis: (projectId: string, input: StartAnalysisInput): Promise<AnalysisRun> =>
       analysis.start(projectId, { ...input, researchQuestion: input.researchQuestion.trim() }),
-    retryAnalysis: (run: AnalysisRun): Promise<AnalysisRun> => analysis.start(run.projectId, retryInput(run)),
+    /** The server re-enqueues the failed run with the request it recorded (question, profile and output language). */
+    retryAnalysis: (run: AnalysisRun): Promise<AnalysisRun> => analysis.retry(run.id),
+    cancelAnalysis: (run: AnalysisRun): Promise<AnalysisRun> => analysis.cancel(run.id),
 
     /**
      * Follows a run until it completes or fails. The server only pushes
      * events that happen after subscribing, so the recorded snapshot is read
      * whenever the stream opens or drops: a run that finished in between is
-     * still reported exactly once.
+     * still reported exactly once. onUnknown(true) says the state could not
+     * be read (server unreachable): the run may have finished either way.
      */
-    watchRun: (runId: string, listener: (event: AnalysisEvent) => void): (() => void) => {
+    watchRun: (runId: string, listener: (event: AnalysisEvent) => void, onUnknown: (unknown: boolean) => void = () => undefined): (() => void) => {
       let done = false;
       let unsubscribe: () => void = () => undefined;
       const emit = (event: AnalysisEvent) => {
@@ -69,8 +75,8 @@ export function analysisUseCases({ projects, evidence, analysis, stream, setting
       const reconcile = () => {
         if (done) return;
         analysis.get(runId).then(
-          (run) => emit(snapshotEvent(run)),
-          () => undefined, // the stream keeps retrying; the next open reconciles again
+          (run) => { onUnknown(false); emit(snapshotEvent(run)); },
+          () => onUnknown(true), // the state cannot be read now; the stream keeps retrying and the next open reconciles again
         );
       };
       unsubscribe = stream.watch(runId, { onEvent: emit, onOpen: reconcile, onDisconnect: reconcile });

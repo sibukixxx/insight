@@ -43,6 +43,14 @@ export const RUN_STATUS_LABELS: LabelTable = {
   failed: "runStatus.failed",
 };
 
+export const INGEST_STATE_LABELS: LabelTable = {
+  QUEUED: "ingest.state.queued",
+  VALIDATING: "ingest.state.validating",
+  READY: "ingest.state.ready",
+  FAILED: "ingest.state.failed",
+  CANCELLED: "ingest.state.cancelled",
+};
+
 export const MODE_LABELS: LabelTable = {
   deterministic: "mode.deterministic",
   model_backed: "mode.modelBacked",

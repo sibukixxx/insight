@@ -58,8 +58,8 @@ export function sseAnalysisStream(factory: EventSourceFactory = (url) => new Eve
           return;
         }
         close();
-        const message = parse(data).message;
-        handlers.onEvent(typeof message === "string" ? { type: "failed", message } : { type: "failed" });
+        const { message, code } = parse(data);
+        handlers.onEvent({ type: "failed", ...(typeof message === "string" ? { message } : {}), ...(typeof code === "string" && code !== "" ? { code } : {}) });
       });
       return close;
     },

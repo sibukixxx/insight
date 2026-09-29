@@ -1,5 +1,6 @@
 import { RUN_STATUS_LABELS, STEP_LABELS, labelKey } from "../../../domain/codes";
 import type { AnalysisEvent, AnalysisRun } from "../../../domain/models";
+import { runOutcome } from "../../../domain/runs";
 import { Meter } from "../../components/Meter";
 import { Notice } from "../../components/Notice";
 import { useI18n } from "../../i18n/I18nProvider";
@@ -15,7 +16,11 @@ export function RunStatus({ run, live }: { run: AnalysisRun | undefined; live?: 
   const { t, label, dateTime } = useI18n();
   if (!run) return <p class={styles.stepLabel}>{t("analysis.none")}</p>;
   if (run.status === "completed" && !live) return <p class={styles.completed} role="status">{t("analysis.completed", { finished: dateTime(run.finishedAt) })}</p>;
+  const outcome = runOutcome(run);
+  if (!live && outcome === "cancelled") return <Notice kind="info">{t("analysis.cancelled")}</Notice>;
+  if (!live && outcome === "interrupted") return <Notice kind="warning">{t("analysis.interrupted")}</Notice>;
   if (run.status === "failed" && !live) return <Notice kind="error">{t("analysis.failed", { message: run.error ?? "" })}</Notice>;
+  if (!live && outcome === "unknown") return <Notice kind="warning">{t("analysis.unknownState", { status: run.status })}</Notice>;
   const step = live?.step ?? run.currentStep;
   const known = labelKey(STEP_LABELS, step);
   // A snapshot of a queued run has no step yet; its status code is labelled too.

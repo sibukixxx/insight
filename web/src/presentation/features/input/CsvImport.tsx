@@ -1,5 +1,6 @@
 import { useEffect, useId, useState } from "preact/hooks";
 import { matchesFormat } from "../../../application/usecases/importEvidence";
+import { LARGE_CSV_BYTES, shouldIngest } from "../../../application/usecases/ingest";
 import type { UploadFile } from "../../../application/ports";
 import { IMPORT_KIND_LABELS, labelKey } from "../../../domain/codes";
 import type { DocumentImportResult, ImportFormat, ImportPreview } from "../../../domain/models";
@@ -11,7 +12,7 @@ import { Disclosure } from "../../components/Disclosure";
 import { Notice } from "../../components/Notice";
 import { useI18n } from "../../i18n/I18nProvider";
 import { errorMessage } from "../../errors";
-import { useUseCases } from "../../services/context";
+import { useBuild, useUseCases } from "../../services/context";
 import { DocumentList } from "./DocumentList";
 import styles from "./Input.module.css";
 
@@ -21,6 +22,9 @@ type Step =
   | { readonly state: "previewing"; readonly file: UploadFile }
   | { readonly state: "preview"; readonly file: UploadFile; readonly preview: ImportPreview }
   | { readonly state: "importing"; readonly file: UploadFile; readonly preview: ImportPreview }
+  | { readonly state: "large"; readonly file: UploadFile }
+  | { readonly state: "uploading"; readonly file: UploadFile }
+  | { readonly state: "submitted"; readonly file: UploadFile }
   | { readonly state: "done"; readonly result: DocumentImportResult }
   | { readonly state: "error"; readonly message: string; readonly file?: UploadFile };
 
@@ -40,10 +44,11 @@ export interface CsvSample {
   readonly load: () => Promise<UploadFile>;
 }
 
-export function CsvImport({ projectId, formats, onImported, sample }: { projectId: string; formats: readonly ImportFormat[]; onImported: () => void; sample?: CsvSample | undefined }) {
+export function CsvImport({ projectId, formats, onImported, onIngestSubmitted, sample }: { projectId: string; formats: readonly ImportFormat[]; onImported: () => void; onIngestSubmitted: () => void; sample?: CsvSample | undefined }) {
   const i18n = useI18n();
-  const { t } = i18n;
+  const { t, number } = i18n;
   const { input } = useUseCases();
+  const build = useBuild();
   const fileInputId = useId();
   const [kind, setKind] = useState(formats.find((f) => f.kind === "documents")?.kind ?? formats[0]?.kind ?? "");
   const [step, setStep] = useState<Step>({ state: "idle" });
@@ -62,6 +67,11 @@ export function CsvImport({ projectId, formats, onImported, sample }: { projectI
       setStep({ state: "error", message: t("input.csv.wrongType", { name: upload.name, extensions: target.extensions.join(", ") }) });
       return;
     }
+    // Too big for a one-request dry run: a large ingest stages it on the server instead.
+    if (shouldIngest(build, upload.blob.size)) {
+      setStep({ state: "large", file: upload });
+      return;
+    }
     setStep({ state: "previewing", file: upload });
     input.previewImport(projectId, kind, upload).then(
       (preview) => setStep({ state: "preview", file: upload, preview }),
@@ -78,6 +88,16 @@ export function CsvImport({ projectId, formats, onImported, sample }: { projectI
     );
   };
 
+  const submitLarge = () => {
+    if (step.state !== "large") return;
+    const file = step.file;
+    setStep({ state: "uploading", file });
+    input.submitIngest(projectId, kind, file).then(
+      () => { setStep({ state: "submitted", file }); onIngestSubmitted(); },
+      (err: unknown) => setStep({ state: "error", message: errorMessage(err, t), file }),
+    );
+  };
+
   const useSample = () => {
     const sampleFormat = sample && formats.find((f) => f.kind === sample.kind);
     if (!sample || !sampleFormat) return;
@@ -90,7 +110,7 @@ export function CsvImport({ projectId, formats, onImported, sample }: { projectI
   };
 
   const kindLabel = (k: string) => (labelKey(IMPORT_KIND_LABELS, k) ? i18n.label(IMPORT_KIND_LABELS, k) : k);
-  const busy = step.state === "previewing" || step.state === "importing" || step.state === "loadingSample";
+  const busy = step.state === "previewing" || step.state === "importing" || step.state === "loadingSample" || step.state === "uploading";
 
   return (
     <div class={styles.chooser}>
@@ -153,6 +173,18 @@ export function CsvImport({ projectId, formats, onImported, sample }: { projectI
       </div>
 
       {(step.state === "previewing" || step.state === "loadingSample") && <Notice>{t("input.csv.previewing")}</Notice>}
+      {step.state === "large" && (
+        <section aria-label={t("input.large.title")}>
+          <h3>{t("input.large.title")}</h3>
+          <Notice kind="info">{t("input.large.explain", { name: step.file.name, size: number(step.file.blob.size / (1024 * 1024), 1), limit: LARGE_CSV_BYTES / (1024 * 1024) })}</Notice>
+          <div class={styles.kinds}>
+            <Button id="start-ingest" variant="primary" onClick={submitLarge}>{t("input.large.start")}</Button>
+            <Button onClick={() => setStep({ state: "idle" })}>{t("common.cancel")}</Button>
+          </div>
+        </section>
+      )}
+      {step.state === "uploading" && <Notice>{t("input.large.uploading", { name: step.file.name })}</Notice>}
+      {step.state === "submitted" && <Notice kind="success">{t("input.large.submitted", { name: step.file.name })}</Notice>}
       {step.state === "done" && (
         <Notice kind="success">
           <p>{t("input.csv.importedNext")}</p>
@@ -180,6 +212,7 @@ function PreviewPanel({ preview, busy, onConfirm, onCancel }: { preview: ImportP
     <section aria-label={t("input.preview.title")}>
       <h3>{t("input.preview.title")}</h3>
       <p class={styles.meta}>{t("input.preview.confirmHint")}</p>
+      {preview.scope === "EXHAUSTIVE" && <p class={styles.meta}>{t("input.preview.exhaustive")}</p>}
       <div class={styles.summary}>
         {stats.map(([value, text]) => (
           <div key={text} class={styles.stat}><div class={styles.statValue}>{number(value)}</div><div class={styles.statLabel}>{text}</div></div>

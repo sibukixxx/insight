@@ -6,6 +6,41 @@
 export interface BuildInfo {
   readonly demoBuild: boolean;
   readonly clientName: string;
+  /** GET /api/health capabilities.largeIngest; absent on an engine without it. */
+  readonly largeIngest?: { readonly enabled: boolean; readonly maxUploadBytes?: number };
+}
+
+/** The server's lifecycle for a run; unknown values are shown as recorded. */
+export type RunLifecycle = "QUEUED" | "RUNNING" | "CANCEL_REQUESTED" | "SUCCEEDED" | "FAILED" | "CANCELLED" | "INTERRUPTED";
+
+export type IngestState = "QUEUED" | "VALIDATING" | "READY" | "FAILED" | "CANCELLED";
+
+export interface IngestRowError {
+  readonly row: number;
+  readonly reason: string;
+}
+
+/** Durable receipt of one large-file ingest (GET /api/projects/{id}/ingests/{id}). */
+export interface IngestReceipt {
+  readonly id: string;
+  readonly projectId: string;
+  readonly kind: string;
+  readonly state: IngestState | string;
+  readonly stage: string;
+  readonly fileName?: string;
+  readonly sizeBytes: number;
+  readonly bytesRead: number;
+  readonly rowsRead: number;
+  readonly rowsSkipped: number;
+  readonly documentsCreated: number;
+  readonly errorCount: number;
+  readonly errorExamples: readonly IngestRowError[];
+  readonly errorsTruncated: boolean;
+  readonly failure?: string;
+  readonly createdAt: string;
+  readonly finishedAt?: string;
+  /** SAMPLE: only the first documents, never the whole file. Present on a single-receipt read. */
+  readonly preview?: { readonly scope: string; readonly documents: readonly EvidenceDocument[] };
 }
 
 export interface Project {
@@ -103,6 +138,10 @@ export interface AnalysisRun {
   readonly executionSnapshot?: ExecutionSnapshot;
   readonly executionFingerprint?: string;
   readonly inputFingerprint?: string;
+  readonly lifecycle?: RunLifecycle | string;
+  readonly failureCode?: string;
+  /** The failed run this one retries. */
+  readonly retryOf?: string;
 }
 
 export interface QualityFlag {
@@ -222,6 +261,8 @@ export interface DatasetProfile {
 /** Dry-run result of an import, computed by the server's own importer. */
 export interface ImportPreview {
   readonly kind: ImportKind;
+  /** EXHAUSTIVE: every row of the file was read; anything else is not a full read. */
+  readonly scope?: string;
   readonly recordsRead: number;
   readonly importable: number;
   readonly skipped: number;
@@ -314,7 +355,7 @@ export interface RunComparison {
 export type AnalysisEvent =
   | { readonly type: "progress"; readonly step: string; readonly progress: number; readonly message?: string }
   | { readonly type: "completed" }
-  | { readonly type: "failed"; readonly message?: string };
+  | { readonly type: "failed"; readonly message?: string; /** Server failure code, e.g. CANCELLED. */ readonly code?: string };
 
 /** Where one part of a sample scenario's data came from (demo builds only). */
 export interface SampleSource {

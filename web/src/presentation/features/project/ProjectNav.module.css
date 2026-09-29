@@ -2,6 +2,13 @@
   margin: calc(-1 * var(--space-2)) 0 var(--space-5); overflow-x: auto;
   background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm);
   padding: 0 var(--space-2);
+  /* Edge shadows appear only on the side that still has hidden tabs (covers scroll along the row, #131). */
+  background:
+    linear-gradient(to right, var(--color-surface) 30%, transparent) 0 0 / 32px 100% no-repeat local,
+    linear-gradient(to left, var(--color-surface) 30%, transparent) 100% 0 / 32px 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, rgb(20 33 61 / 28%), transparent) 0 0 / 14px 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, rgb(20 33 61 / 28%), transparent) 100% 0 / 14px 100% no-repeat scroll,
+    var(--color-surface);
 }
 .list { display: flex; gap: var(--space-1); list-style: none; padding: 0; margin: 0; min-width: max-content; }
 .link {
