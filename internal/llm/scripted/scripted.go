@@ -94,6 +94,26 @@ func (Model) Generate(_ context.Context, req llm.GenerateRequest) (*llm.Generate
 	case "insight_writeup":
 		out = map[string]any{"title": text.insightTitle, "observationSummary": text.observationSummary, "interpretation": text.interpretation,
 			"alternativeInterpretation": text.alternative, "productOpportunity": "", "monetizationAngle": ""}
+	case "question_exploration":
+		// Question-only: no evidence exists, so nothing here is grounded and
+		// nothing states a real-world number, quote or source.
+		out = map[string]any{
+			"candidates": []map[string]any{
+				{
+					"title": text.exploreTitleA, "explanation": text.exploreExplainA,
+					"competingExplanations":   []map[string]string{{"title": text.exploreCompetingTitle, "explanation": text.exploreCompetingExplain}},
+					"falsificationConditions": []string{text.exploreFalsifyA},
+					"requiredData":            []map[string]string{{"description": text.exploreDataA, "why": text.exploreDataWhy}},
+				},
+				{
+					"title": text.exploreTitleB, "explanation": text.exploreExplainB,
+					"competingExplanations":   []map[string]string{{"title": text.exploreCompetingTitle, "explanation": text.exploreCompetingExplain}},
+					"falsificationConditions": []string{text.exploreFalsifyB},
+					"requiredData":            []map[string]string{{"description": text.exploreDataB, "why": text.exploreDataWhy}},
+				},
+			},
+			"limitations": []string{text.exploreLimitation},
+		}
 	case "insight_dedupe":
 		out = map[string]any{"duplicateGroups": []any{}}
 	default:
@@ -121,6 +141,11 @@ type scriptedText struct {
 	altMeasureTitle, altMeasure, altMeasureMissing           string
 	insightTitle, observationSummary, interpretation         string
 	alternative                                              string
+
+	exploreTitleA, exploreExplainA, exploreFalsifyA, exploreDataA  string
+	exploreTitleB, exploreExplainB, exploreFalsifyB, exploreDataB  string
+	exploreCompetingTitle, exploreCompetingExplain, exploreDataWhy string
+	exploreLimitation                                              string
 }
 
 var englishText = scriptedText{
@@ -134,6 +159,14 @@ var englishText = scriptedText{
 	altMeasureTitle: "Measurement change", altMeasure: "the counting method changed", altMeasureMissing: "measurement definition history",
 	insightTitle: "Scripted insight", observationSummary: "grounded observations", interpretation: "a candidate explanation",
 	alternative: "a shared trend",
+
+	exploreTitleA: "Candidate A: a structural change", exploreExplainA: "an underlying structural change may explain the situation described in the question",
+	exploreFalsifyA: "the situation is unchanged in places without that structural change", exploreDataA: "a time series of the measure across comparable places",
+	exploreTitleB: "Candidate B: a change in how it is measured", exploreExplainB: "a change in the counting or definition may explain the apparent pattern",
+	exploreFalsifyB: "the pattern persists under one fixed definition", exploreDataB: "the definition history of the measure",
+	exploreCompetingTitle: "Chance or a shared external trend", exploreCompetingExplain: "an external trend may move every place at once",
+	exploreDataWhy:    "to check the candidate against evidence that has not been supplied yet",
+	exploreLimitation: "No evidence was supplied; every candidate is unverified.",
 }
 
 var japaneseText = scriptedText{
@@ -147,6 +180,14 @@ var japaneseText = scriptedText{
 	altMeasureTitle: "測定方法の変更", altMeasure: "数え方が変わった", altMeasureMissing: "測定定義の変更履歴",
 	insightTitle: "スクリプトによるインサイト", observationSummary: "根拠のある観察", interpretation: "候補となる説明",
 	alternative: "共通のトレンド",
+
+	exploreTitleA: "候補A: 構造的な変化", exploreExplainA: "質問にある状況は、背景にある構造的な変化で説明できるかもしれない",
+	exploreFalsifyA: "その構造的な変化がない地域でも同じ状況が見られる", exploreDataA: "比較できる地域ごとの指標の時系列",
+	exploreTitleB: "候補B: 測り方の変化", exploreExplainB: "数え方や定義の変更が見かけのパターンを生んでいるかもしれない",
+	exploreFalsifyB: "定義を固定してもパターンが残る", exploreDataB: "指標の定義の変更履歴",
+	exploreCompetingTitle: "偶然、または共通の外部トレンド", exploreCompetingExplain: "外部の共通トレンドがすべての地域を同時に動かしているかもしれない",
+	exploreDataWhy:    "まだ用意されていない資料でこの候補を確かめるため",
+	exploreLimitation: "資料が与えられていないため、すべての候補は未検証です。",
 }
 
 func nonNil[T any](v []T) []T {

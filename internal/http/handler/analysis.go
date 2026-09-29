@@ -98,8 +98,11 @@ func writeAnalysisLifecycleError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusServiceUnavailable, err.Error())
 	case errors.Is(err, service.ErrAnalysisFinished), errors.Is(err, service.ErrAnalysisNotRetryable):
 		writeError(w, http.StatusConflict, err.Error())
-	case errors.Is(err, service.ErrModelBindingUnavailable), errors.Is(err, execution.ErrProfileUnavailable):
+	case errors.Is(err, service.ErrModelBindingUnavailable), errors.Is(err, execution.ErrProfileUnavailable),
+		errors.Is(err, service.ErrExplorationNeedsModel), errors.Is(err, service.ErrExplorationHasEvidence):
 		writeError(w, http.StatusConflict, err.Error())
+	case errors.Is(err, service.ErrExplorationNeedsQuestion):
+		writeError(w, http.StatusBadRequest, err.Error())
 	default:
 		writeError(w, http.StatusInternalServerError, err.Error())
 	}
@@ -146,6 +149,10 @@ func (h *Handler) CreateAnalysis(w http.ResponseWriter, r *http.Request) {
 		ResearchQuestion     string                  `json:"researchQuestion"`
 		ReasoningProfile     domain.ReasoningProfile `json:"reasoningProfile"`
 		OutputLocale         domain.OutputLocale     `json:"outputLocale"`
+		// Exploratory asks for a question-only exploration (#158): it needs
+		// a researchQuestion, a configured model and a project with no
+		// documents. Reference API only.
+		Exploratory bool `json:"exploratory"`
 	}
 	if r.ContentLength != 0 {
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil && !errors.Is(err, io.EOF) {
@@ -167,6 +174,7 @@ func (h *Handler) CreateAnalysis(w http.ResponseWriter, r *http.Request) {
 	}
 	a, err := h.JobManager.Enqueue(r.Context(), service.EnqueueRequest{
 		ProjectID: projectID, Label: strings.TrimSpace(req.Label), Note: strings.TrimSpace(req.Note), SemanticAnalysisMode: req.SemanticAnalysisMode, ResearchQuestion: strings.TrimSpace(req.ResearchQuestion), ReasoningProfile: req.ReasoningProfile.Normalize(), OutputLocale: req.OutputLocale,
+		Exploratory: req.Exploratory,
 	})
 	if err != nil {
 		writeAnalysisLifecycleError(w, err)

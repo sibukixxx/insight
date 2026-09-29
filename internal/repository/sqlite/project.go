@@ -17,20 +17,20 @@ func NewProjectRepository(db *DB) *ProjectRepository {
 
 func (r *ProjectRepository) Create(ctx context.Context, p *domain.Project) error {
 	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO projects (id, name, created_at) VALUES (?, ?, ?)`,
-		p.ID, p.Name, formatTime(p.CreatedAt))
+		`INSERT INTO projects (id, name, research_question, created_at) VALUES (?, ?, ?, ?)`,
+		p.ID, p.Name, p.ResearchQuestion, formatTime(p.CreatedAt))
 	return err
 }
 
 func (r *ProjectRepository) Get(ctx context.Context, id string) (*domain.Project, error) {
 	row := r.db.QueryRowContext(ctx,
-		`SELECT id, name, created_at FROM projects WHERE id = ?`, id)
+		`SELECT id, name, research_question, created_at FROM projects WHERE id = ?`, id)
 	return scanProject(row)
 }
 
 func (r *ProjectRepository) List(ctx context.Context) ([]*domain.Project, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, name, created_at FROM projects ORDER BY created_at DESC`)
+		`SELECT id, name, research_question, created_at FROM projects ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +69,7 @@ type scanner interface {
 func scanProject(s scanner) (*domain.Project, error) {
 	var p domain.Project
 	var createdAt string
-	if err := s.Scan(&p.ID, &p.Name, &createdAt); err != nil {
+	if err := s.Scan(&p.ID, &p.Name, &p.ResearchQuestion, &createdAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, repository.ErrNotFound
 		}

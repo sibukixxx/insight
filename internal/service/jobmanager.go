@@ -193,6 +193,10 @@ type EnqueueRequest struct {
 	ModelBindings map[string]string
 	// RetryOf links the run to the failed analysis it retries.
 	RetryOf string
+	// Exploratory asks for a question-only exploration (#158): the project
+	// must have no documents, ResearchQuestion must be set and a model must
+	// be configured. Only the Reference API sets it.
+	Exploratory bool
 }
 
 // Enqueue creates the analysis row (status "queued") with the execution
@@ -213,6 +217,19 @@ func (m *JobManager) Enqueue(ctx context.Context, req EnqueueRequest) (*domain.A
 	}
 	if len(req.ResearchQuestion) > 2000 {
 		return nil, fmt.Errorf("research question is limited to 2000 characters")
+	}
+	if req.Exploratory {
+		if req.ResearchQuestion == "" {
+			return nil, ErrExplorationNeedsQuestion
+		}
+		if !m.settings.Get().Configured() {
+			return nil, ErrExplorationNeedsModel
+		}
+		if docs, err := m.pipeline.Documents.ListByProject(ctx, req.ProjectID); err != nil {
+			return nil, fmt.Errorf("list documents: %w", err)
+		} else if len(docs) > 0 {
+			return nil, ErrExplorationHasEvidence
+		}
 	}
 	maxQueued := m.MaxQueued
 	if maxQueued <= 0 {
@@ -244,6 +261,14 @@ func (m *JobManager) Enqueue(ctx context.Context, req EnqueueRequest) (*domain.A
 	}
 	execution.ExecutionProfile = &resolution
 	execution.RuntimeMode = runtimeMode
+	if req.Exploratory {
+		if execution.Exploration, err = explorationConfig(); err != nil {
+			return nil, fmt.Errorf("capture exploration config: %w", err)
+		}
+		if execution.ExecutionFingerprint, err = Fingerprint(execution.ExecutionConfig); err != nil {
+			return nil, fmt.Errorf("capture execution snapshot: %w", err)
+		}
+	}
 	executionJSON, err := json.Marshal(execution)
 	if err != nil {
 		return nil, fmt.Errorf("encode execution snapshot: %w", err)
@@ -330,6 +355,9 @@ func (m *JobManager) execute(ctx context.Context, a *domain.Analysis, settings S
 	docs, err := m.pipeline.Documents.ListByProject(ctx, a.ProjectID)
 	if err != nil {
 		return nil, fmt.Errorf("list documents: %w", err)
+	}
+	if isExploration(a) {
+		return m.executeExploration(ctx, a, pipeline, docs, now)
 	}
 	analyzed, docs, err := m.prepareInputs(ctx, a, docs)
 	if err != nil {
@@ -495,6 +523,7 @@ func (m *JobManager) Retry(ctx context.Context, analysisID string) (retry *domai
 	}
 	var snap ExecutionSnapshot
 	if json.Unmarshal([]byte(orig.ExecutionSnapshot), &snap) == nil {
+		req.Exploratory = snap.Exploration != nil
 		if snap.ExecutionProfile != nil {
 			req.ExecutionProfile = snap.ExecutionProfile.Requested
 		}
@@ -636,4 +665,35 @@ func (m *JobManager) prepareInputs(ctx context.Context, a *domain.Analysis, docs
 		}
 	}
 	return analyzed, docs, nil
+}
+
+// isExploration reports whether a was enqueued as a question-only run.
+func isExploration(a *domain.Analysis) bool {
+	var snap ExecutionSnapshot
+	return json.Unmarshal([]byte(a.ExecutionSnapshot), &snap) == nil && snap.Exploration != nil
+}
+
+// executeExploration runs a question-only analysis. Documents added after the
+// run was enqueued fail it rather than being silently ignored or analyzed
+// under exploration semantics.
+func (m *JobManager) executeExploration(ctx context.Context, a *domain.Analysis, pipeline *Pipeline, docs []*domain.Document, now time.Time) (*Metrics, error) {
+	if len(docs) > 0 {
+		return nil, ErrExplorationHasEvidence
+	}
+	inputSnap := BuildInputSnapshotForQuestion(nil, pipeline.ResearchQuestion, now)
+	inputJSON, err := json.Marshal(inputSnap)
+	if err != nil {
+		return nil, fmt.Errorf("encode input snapshot: %w", err)
+	}
+	a.InputSnapshot, a.InputFingerprint = string(inputJSON), inputSnap.InputFingerprint
+	a.Status = domain.AnalysisRunning
+	a.StartedAt = &now
+	_ = m.analyses.Update(ctx, a)
+	m.broadcast(a.ID, SSEEvent{Event: "progress", Data: progressJSON("starting", 0, "Starting exploration...")})
+	return pipeline.RunExploration(ctx, func(step string, progress int, message string) {
+		a.CurrentStep = step
+		a.Progress = progress
+		_ = m.analyses.Update(ctx, a)
+		m.broadcast(a.ID, SSEEvent{Event: "progress", Data: progressJSON(step, progress, message)})
+	})
 }

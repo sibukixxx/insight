@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -13,13 +14,15 @@ import (
 )
 
 type projectDTO struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	CreatedAt string `json:"createdAt"`
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	// ResearchQuestion is set for question-first projects (#158).
+	ResearchQuestion string `json:"researchQuestion,omitempty"`
+	CreatedAt        string `json:"createdAt"`
 }
 
 func toProjectDTO(p *domain.Project) projectDTO {
-	return projectDTO{ID: p.ID, Name: p.Name, CreatedAt: p.CreatedAt.UTC().Format(time.RFC3339)}
+	return projectDTO{ID: p.ID, Name: p.Name, ResearchQuestion: p.ResearchQuestion, CreatedAt: p.CreatedAt.UTC().Format(time.RFC3339)}
 }
 
 func (h *Handler) ListProjects(w http.ResponseWriter, r *http.Request) {
@@ -37,6 +40,9 @@ func (h *Handler) ListProjects(w http.ResponseWriter, r *http.Request) {
 
 type createProjectRequest struct {
 	Name string `json:"name"`
+	// ResearchQuestion lets a project start from a question alone; Name is
+	// then optional and defaults to a provisional title.
+	ResearchQuestion string `json:"researchQuestion"`
 }
 
 func (h *Handler) CreateProject(w http.ResponseWriter, r *http.Request) {
@@ -45,12 +51,12 @@ func (h *Handler) CreateProject(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
-	if req.Name == "" {
+	if strings.TrimSpace(req.Name) == "" && strings.TrimSpace(req.ResearchQuestion) == "" {
 		writeError(w, http.StatusBadRequest, "name is required")
 		return
 	}
 
-	p, err := h.App.CreateProject(r.Context(), req.Name)
+	p, err := h.App.CreateProjectWithQuestion(r.Context(), req.Name, req.ResearchQuestion)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
