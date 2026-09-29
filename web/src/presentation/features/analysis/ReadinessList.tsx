@@ -11,7 +11,7 @@ export function ReadinessList({ readiness, projectId }: { readiness: Readiness; 
   const { t } = useI18n();
   return (
     <>
-    <p role="status" class={styles.state} data-readiness={readiness.status}>{t(({ ready: "readiness.ready", blocked: "analysis.notReady", running: "readiness.running", unknown: "readiness.unknown" } as const)[readiness.status])}</p>
+    <p role="status" class={styles.state} data-readiness={readiness.status}>{t(({ ready: "readiness.ready", exploratory: "readiness.exploratory", blocked: "analysis.notReady", running: "readiness.running", unknown: "readiness.unknown" } as const)[readiness.status])}</p>
     <ul class={styles.checks} aria-label={t("readiness.title")}>
       {readiness.checks.map((c) => (
         <li key={c.id} class={`${styles.check} ${styles[c.level]}`} data-check={c.id} data-level={c.level}>

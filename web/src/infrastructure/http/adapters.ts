@@ -41,6 +41,7 @@ export function httpProjects(http: HttpClient): ProjectPort {
     list: () => http.getJson("/api/projects", list(decodeProject, "projects")),
     get: (id) => http.getJson(project(id), decodeProject),
     create: (name) => http.sendJson("POST", "/api/projects", { name }, decodeProject),
+    createFromQuestion: (researchQuestion) => http.sendJson("POST", "/api/projects", { researchQuestion }, decodeProject),
     createSample: () => http.sendJson("POST", "/api/demo", undefined, decodeProject),
   };
 }
@@ -61,8 +62,9 @@ export function httpAnalysis(http: HttpClient): AnalysisPort {
     list: (projectId) => http.getJson(`${project(projectId)}/analyses`, list(decodeRun, "analyses")),
     get: (runId) => http.getJson(`/api/analysis/${enc(runId)}`, decodeRun),
     start: (projectId, input) => {
-      const body: Record<string, string> = { researchQuestion: input.researchQuestion, reasoningProfile: input.reasoningProfile };
+      const body: Record<string, string | boolean> = { researchQuestion: input.researchQuestion, reasoningProfile: input.reasoningProfile };
       if (input.outputLocale) body.outputLocale = input.outputLocale;
+      if (input.exploratory) body.exploratory = true;
       return http.sendJson("POST", `${project(projectId)}/analysis`, body, decodeRun);
     },
     compare: (projectId, fromId, toId) =>

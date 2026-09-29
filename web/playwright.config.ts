@@ -1,15 +1,17 @@
 import { defineConfig, devices } from "@playwright/test";
 
 // Real Go binaries, empty databases, no paid LLM (see e2e/serve.sh).
-const DELIVERY = 8811;
-const DEMO = 8812;
-const SCRIPTED_LLM = 8813;
+// E2E_PORT_BASE moves all seven ports so two checkouts can run at once.
+const BASE = Number(process.env.E2E_PORT_BASE ?? 8811);
+const DELIVERY = BASE;
+const DEMO = BASE + 1;
+const SCRIPTED_LLM = BASE + 2;
 // The phone-viewport run gets its own empty database.
-const DEMO_MOBILE = 8814;
-const SCRIPTED_LLM_MOBILE = 8815;
+const DEMO_MOBILE = BASE + 3;
+const SCRIPTED_LLM_MOBILE = BASE + 4;
 // The Japanese sample-scenario journey gets its own empty database too.
-const DEMO_JA = 8816;
-const SCRIPTED_LLM_JA = 8817;
+const DEMO_JA = BASE + 5;
+const SCRIPTED_LLM_JA = BASE + 6;
 
 export default defineConfig({
   testDir: "e2e",
@@ -29,6 +31,11 @@ export default defineConfig({
     { name: "demo-mobile", testMatch: /demo\.spec\.ts/, grep: /@mobile/, use: { ...devices["Pixel 7"], baseURL: `http://127.0.0.1:${DEMO_MOBILE}` } },
     { name: "demo-ja", testMatch: /samples-ja\.spec\.ts/, grepInvert: /@mobile/, use: { ...devices["Desktop Chrome"], locale: "ja", baseURL: `http://127.0.0.1:${DEMO_JA}` } },
     { name: "demo-ja-mobile", testMatch: /samples-ja\.spec\.ts/, grep: /@mobile/, dependencies: ["demo-ja"], use: { ...devices["Pixel 7"], locale: "ja", baseURL: `http://127.0.0.1:${DEMO_JA}` } },
+    // Question-first exploration (#158): model-backed on the demo/scripted server, model-less on delivery.
+    // They run after the suites above so the shared databases still start empty for those.
+    { name: "question-first", testMatch: /question-first\.spec\.ts/, grep: /@model/, dependencies: ["demo-ja-mobile"], use: { ...devices["Desktop Chrome"], locale: "ja", baseURL: `http://127.0.0.1:${DEMO_JA}` } },
+    { name: "question-first-mobile", testMatch: /question-first\.spec\.ts/, grep: /@model/, dependencies: ["question-first"], use: { ...devices["Pixel 7"], locale: "ja", baseURL: `http://127.0.0.1:${DEMO_JA}` } },
+    { name: "question-first-delivery", testMatch: /question-first\.spec\.ts/, grep: /@nomodel/, dependencies: ["delivery"], use: { ...devices["Desktop Chrome"], locale: "ja", baseURL: `http://127.0.0.1:${DELIVERY}` } },
   ],
   webServer: [
     { command: `sh e2e/serve.sh delivery ${DELIVERY}`, url: `http://127.0.0.1:${DELIVERY}/api/health`, timeout: 180_000, reuseExistingServer: false },

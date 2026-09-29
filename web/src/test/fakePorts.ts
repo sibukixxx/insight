@@ -50,6 +50,7 @@ export function fakePorts(state: FakeState = fakeState()) {
       list: vi.fn(async () => state.projects),
       get: vi.fn(project),
       create: vi.fn(async (name: string) => { const p = { id: `p${state.projects.length + 1}`, name, createdAt: "" }; state.projects.push(p); return p; }),
+      createFromQuestion: vi.fn(async (question: string) => { const p = { id: `p${state.projects.length + 1}`, name: question.slice(0, 40), researchQuestion: question, createdAt: "" }; state.projects.push(p); return p; }),
       createSample: vi.fn(async () => state.projects[0] as Project),
     },
     evidence: {

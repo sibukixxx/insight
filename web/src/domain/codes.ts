@@ -28,6 +28,7 @@ export const STEP_LABELS: LabelTable = {
   extracting_observations: "step.extractingObservations",
   detecting_traces: "step.detectingTraces",
   detecting_patterns: "step.detectingPatterns",
+  exploring_question: "step.exploringQuestion",
   generating_hypotheses: "step.generatingHypotheses",
   searching_evidence: "step.searchingEvidence",
   deduplicating_insights: "step.deduplicatingInsights",

@@ -60,8 +60,14 @@ function AnalysisView({ data, onChanged }: { data: AnalysisWorkspace; onChanged:
       if (outputLocaleNotRecorded(input, run)) setLocaleNotRecorded(input.outputLocale);
     }, (e: unknown) => setError(errorMessage(e, t))).finally(() => setBusy(false));
   };
-  const onStart = (input: StartAnalysisInput) => { if (readiness.canStart && !busy && !watching) start(input, analysis.startAnalysis(project.id, input)); };
+  const onStart = (input: StartAnalysisInput) => {
+    if (busy || watching || !(input.exploratory ? readiness.canExplore : readiness.canStart)) return;
+    start(input, analysis.startAnalysis(project.id, input));
+  };
   const failed = latest?.status === "failed" && !watching;
+  const canRetry = latest?.exploratory ? readiness.canExplore : readiness.canStart;
+  // Candidates from an earlier question-only run stay reachable once evidence exists.
+  const earlierExploration = data.documents.length > 0 ? data.runs.find((r) => r.metrics?.exploration !== undefined) : undefined;
 
   return (
     <ProjectFrame project={project} current="analysis" title={t("analysisPage.title")} subtitle={t("analysisPage.lead")}>
@@ -76,7 +82,7 @@ function AnalysisView({ data, onChanged }: { data: AnalysisWorkspace; onChanged:
           {failed && latest && (
             <div class={styles.actions}>
               <span class={styles.hint}>{t("analysisPage.retryHint")}</span>
-              <Button id="retry-analysis" onClick={() => { if (readiness.canStart && !busy && !watching) start(retryInput(latest), analysis.retryAnalysis(latest)); }} disabled={busy || !readiness.canStart}>{t("analysisPage.retry")}</Button>
+              <Button id="retry-analysis" onClick={() => { if (canRetry && !busy && !watching) start(retryInput(latest), analysis.retryAnalysis(latest)); }} disabled={busy || !canRetry}>{t("analysisPage.retry")}</Button>
             </div>
           )}
           {latest?.status === "completed" && !watching && (
@@ -89,7 +95,13 @@ function AnalysisView({ data, onChanged }: { data: AnalysisWorkspace; onChanged:
       </Card>
       <Card title={t("analysisPage.newRun")}>
         {error && <Notice kind="error" spaced>{error}</Notice>}
-        <AnalysisForm readiness={readiness} busy={busy} onStart={onStart} emphasized={!(latest?.status === "completed" && !watching)} initialOutputLocale={data.latest?.outputLocale} />
+        {earlierExploration && (
+          <Notice kind="info" spaced>
+            <span id="earlier-exploration">{t("analysisPage.earlierExploration", { count: earlierExploration.metrics?.exploration?.candidates.length ?? 0 })}</span>{" "}
+            <a href={projectHash(project.id, "findings", earlierExploration.id)}>{t("analysisPage.earlierExplorationLink")}</a>
+          </Notice>
+        )}
+        <AnalysisForm readiness={readiness} busy={busy} onStart={onStart} emphasized={!(latest?.status === "completed" && !watching)} initialOutputLocale={data.latest?.outputLocale} initialQuestion={project.researchQuestion ?? ""} />
       </Card>
     </ProjectFrame>
   );

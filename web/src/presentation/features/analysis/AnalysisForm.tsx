@@ -24,7 +24,7 @@ export function AnalysisForm({ readiness, busy, onStart, emphasized = true, init
   const [question, setQuestion] = useState(initialQuestion);
   const [profile, setProfile] = useState("GENERAL_RESEARCH");
   const [outputLocale, setOutputLocale] = useState(initialOutputLocale in OUTPUT_LOCALE_LABELS ? initialOutputLocale : "");
-    const explore = readiness.noEvidence;
+  const explore = readiness.noEvidence;
   const trimmed = question.trim();
   const canRun = explore ? readiness.canExplore && trimmed !== "" : readiness.canStart;
   const submit = (e: Event) => {

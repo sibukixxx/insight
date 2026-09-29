@@ -19,6 +19,7 @@ export function retryInput(run: AnalysisRun): StartAnalysisInput {
     researchQuestion: run.researchQuestion ?? "",
     reasoningProfile: run.reasoningProfile ?? "GENERAL_RESEARCH",
     outputLocale: run.outputLocale ?? "",
+    ...(run.exploratory ? { exploratory: true } : {}),
   };
 }
 
