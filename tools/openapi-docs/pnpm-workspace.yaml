@@ -1,0 +1,5 @@
+# Standalone dev-only package (Swagger UI for docs/openapi); not part of web/.
+# swagger-ui-dist depends on @scarf/scarf, whose install script only sends
+# install telemetry; never run it.
+allowBuilds:
+  '@scarf/scarf': false
