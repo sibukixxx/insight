@@ -2,7 +2,7 @@
 
 import type {
   AnalysisRun, BuildInfo, ColumnProfile, DatasetProfile, DocumentImportResult, Evidence, EvidenceDocument,
-  ExecutionSnapshot, ImportFormat, ImportPreview, ImportRowError, Insight, InsightDetail, LlmSettings, Pattern,
+  ExecutionSnapshot, ImportFormat, ImportPreview, ImportRowError, IngestReceipt, IngestRowError, Insight, InsightDetail, LlmSettings, Pattern,
   PatternObservation, Project, QualityFlag, ResearchIteration, ResearchRun, ResearchRunSummary, RunComparison,
   RunMetrics, RunProvenance, SampleScenario, SampleSource,
 } from "../../domain/models";
@@ -13,7 +13,12 @@ import {
 
 export function decodeBuildInfo(v: unknown): BuildInfo {
   const o = obj(v, "health");
-  return { demoBuild: o.demoBuild === true, clientName: typeof o.clientName === "string" ? o.clientName : "" };
+  const build: BuildInfo = { demoBuild: o.demoBuild === true, clientName: typeof o.clientName === "string" ? o.clientName : "" };
+  const caps = typeof o.capabilities === "object" && o.capabilities !== null ? (o.capabilities as Record<string, unknown>) : {};
+  const ingest = typeof caps.largeIngest === "object" && caps.largeIngest !== null ? (caps.largeIngest as Record<string, unknown>) : undefined;
+  if (!ingest) return build;
+  const max = typeof ingest.maxUploadBytes === "number" ? ingest.maxUploadBytes : undefined;
+  return { ...build, largeIngest: max === undefined ? { enabled: ingest.enabled === true } : { enabled: ingest.enabled === true, maxUploadBytes: max } };
 }
 
 export function decodeProject(v: unknown, path = "project"): Project {
@@ -77,6 +82,27 @@ export function decodeRun(v: unknown, path = "analysis"): AnalysisRun {
     reasoningProfile: optStr(o, "reasoningProfile", path), outputLocale: optStr(o, "outputLocale", path),
     executionSnapshot: decodeExecutionSnapshot(o.executionSnapshot, `${path}.executionSnapshot`),
     executionFingerprint: optStr(o, "executionFingerprint", path), inputFingerprint: optStr(o, "inputFingerprint", path),
+    lifecycle: optStr(o, "lifecycle", path), failureCode: optStr(o, "failureCode", path), retryOf: optStr(o, "retryOf", path),
+  });
+}
+
+function decodeIngestRowError(v: unknown, path: string): IngestRowError {
+  const o = obj(v, path);
+  return { row: num(o, "row", path), reason: strOrEmpty(o, "reason", path) };
+}
+
+export function decodeIngest(v: unknown, path = "ingest"): IngestReceipt {
+  const o = obj(v, path);
+  const preview = o.preview === undefined || o.preview === null ? undefined : obj(o.preview, `${path}.preview`);
+  return compact({
+    id: str(o, "id", path), projectId: strOrEmpty(o, "projectId", path), kind: strOrEmpty(o, "kind", path),
+    state: str(o, "state", path), stage: strOrEmpty(o, "stage", path), fileName: optStr(o, "fileName", path),
+    sizeBytes: optNum(o, "sizeBytes", path) ?? 0, bytesRead: optNum(o, "bytesRead", path) ?? 0, rowsRead: optNum(o, "rowsRead", path) ?? 0,
+    rowsSkipped: optNum(o, "rowsSkipped", path) ?? 0, documentsCreated: optNum(o, "documentsCreated", path) ?? 0,
+    errorCount: optNum(o, "errorCount", path) ?? 0, errorExamples: optArr(o, "errorExamples", path, decodeIngestRowError),
+    errorsTruncated: o.errorsTruncated === true, failure: optStr(o, "failure", path),
+    createdAt: strOrEmpty(o, "createdAt", path), finishedAt: optStr(o, "finishedAt", path),
+    preview: preview && { scope: strOrEmpty(preview, "scope", `${path}.preview`), documents: optArr(preview, "documents", `${path}.preview`, decodeDocument) },
   });
 }
 
@@ -187,7 +213,7 @@ export function decodeImportPreview(v: unknown): ImportPreview {
   const path = "preview";
   const o = obj(v, path);
   return compact({
-    kind: str(o, "kind", path), recordsRead: num(o, "recordsRead", path), importable: num(o, "importable", path),
+    kind: str(o, "kind", path), scope: optStr(o, "scope", path), recordsRead: num(o, "recordsRead", path), importable: num(o, "importable", path),
     skipped: num(o, "skipped", path), errors: optArr(o, "errors", path, decodeRowError), fileHash: strOrEmpty(o, "fileHash", path),
     documents: optArr(o, "documents", path, decodeDocument), totalDocuments: num(o, "totalDocuments", path),
     profile: decodeProfile(o.profile, `${path}.profile`), profileError: optStr(o, "profileError", path),

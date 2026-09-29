@@ -8,4 +8,6 @@ export interface LinkPort {
   researchArtifact(researchRunId: string): string;
   approvedResearchArtifact(researchRunId: string): string;
   sampleInput(scenarioId: string): string;
+  /** Every rejected row of an ingest as CSV. */
+  ingestErrors(projectId: string, ingestId: string): string;
 }

@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { vi } from "vitest";
 import type { Ports, StartAnalysisInput } from "../application/ports";
 import type { Dictionaries } from "../domain/locale";
-import type { AnalysisRun, EvidenceDocument, ImportFormat, Insight, LlmSettings, Project, SampleScenario } from "../domain/models";
+import type { AnalysisRun, BuildInfo, EvidenceDocument, ImportFormat, IngestReceipt, Insight, LlmSettings, Project, SampleScenario } from "../domain/models";
 
 const localesDir = resolve(dirname(fileURLToPath(import.meta.url)), "../../public/locales");
 export const dictionaries: Dictionaries = {
@@ -25,6 +25,7 @@ export interface FakeState {
   insights: Insight[];
   settings: LlmSettings;
   samples: SampleScenario[];
+  ingests: IngestReceipt[];
 }
 
 export function fakeState(overrides: Partial<FakeState> = {}): FakeState {
@@ -35,6 +36,7 @@ export function fakeState(overrides: Partial<FakeState> = {}): FakeState {
     insights: [],
     settings: { model: "", baseUrl: "", maskedApiKey: "", hasApiKey: false, configured: false },
     samples: [],
+    ingests: [],
     ...overrides,
   };
 }
@@ -45,7 +47,7 @@ export function fakePorts(state: FakeState = fakeState()) {
     return p ? Promise.resolve(p) : Promise.reject(new Error("project not found"));
   };
   const ports = {
-    system: { health: vi.fn(async () => ({ demoBuild: false, clientName: "" })), importFormats: vi.fn(async () => formats) },
+    system: { health: vi.fn(async (): Promise<BuildInfo> => ({ demoBuild: false, clientName: "", largeIngest: { enabled: true, maxUploadBytes: 2 * 1024 ** 3 } })), importFormats: vi.fn(async () => formats) },
     projects: {
       list: vi.fn(async () => state.projects),
       get: vi.fn(project),
@@ -72,7 +74,38 @@ export function fakePorts(state: FakeState = fakeState()) {
         state.runs.unshift(r);
         return r;
       }),
+      cancel: vi.fn(async (id: string) => {
+        const r = state.runs.find((x) => x.id === id);
+        if (!r) throw new Error("analysis not found");
+        const cancelled: AnalysisRun = { ...r, status: "running", lifecycle: "CANCEL_REQUESTED" };
+        state.runs = state.runs.map((x) => (x.id === id ? cancelled : x));
+        return cancelled;
+      }),
+      // Echoes the failed run's own request like the server, as a new queued run.
+      retry: vi.fn(async (id: string) => {
+        const r = state.runs.find((x) => x.id === id);
+        if (!r) throw new Error("analysis not found");
+        const again: AnalysisRun = { id: `r${state.runs.length + 1}`, projectId: r.projectId, status: "queued", progress: 0, createdAt: "", retryOf: id, ...(r.researchQuestion ? { researchQuestion: r.researchQuestion } : {}), ...(r.reasoningProfile ? { reasoningProfile: r.reasoningProfile } : {}), ...(r.outputLocale ? { outputLocale: r.outputLocale } : {}) };
+        state.runs.unshift(again);
+        return again;
+      }),
       compare: vi.fn(),
+    },
+    ingest: {
+      submit: vi.fn(async (projectId: string, kind: string, file: { name: string; blob: Blob }) => {
+        const r: IngestReceipt = { id: `i${state.ingests.length + 1}`, projectId, kind, state: "VALIDATING", stage: "PARSING", fileName: file.name, sizeBytes: file.blob.size, bytesRead: 0, rowsRead: 0, rowsSkipped: 0, documentsCreated: 0, errorCount: 0, errorExamples: [], errorsTruncated: false, createdAt: "" };
+        state.ingests.unshift(r);
+        return r;
+      }),
+      list: vi.fn(async () => state.ingests),
+      get: vi.fn(async (_: string, id: string) => state.ingests.find((i) => i.id === id) ?? Promise.reject(new Error("ingest not found"))),
+      cancel: vi.fn(async (_: string, id: string) => {
+        const i = state.ingests.find((x) => x.id === id);
+        if (!i) throw new Error("ingest not found");
+        const cancelled: IngestReceipt = { ...i, state: "CANCELLED", stage: "DONE" };
+        state.ingests = state.ingests.map((x) => (x.id === id ? cancelled : x));
+        return cancelled;
+      }),
     },
     stream: { watch: vi.fn(() => () => undefined) },
     results: {
@@ -86,7 +119,7 @@ export function fakePorts(state: FakeState = fakeState()) {
     links: {
       projectReport: (p: string, r: string) => `/report/${p}/${r}`, importTemplate: (k: string) => `/template/${k}`,
       researchReport: () => "", researchArtifact: () => "", approvedResearchArtifact: () => "",
-      sampleInput: (id: string) => `/sample/${id}.csv`,
+      sampleInput: (id: string) => `/sample/${id}.csv`, ingestErrors: (p: string, i: string) => `/ingest-errors/${p}/${i}.csv`,
     },
     samples: {
       list: vi.fn(async () => state.samples),

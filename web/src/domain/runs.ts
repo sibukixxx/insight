@@ -99,3 +99,24 @@ export function provenanceItems(run: AnalysisRun): readonly ProvenanceItem[] {
 export function completedRuns(runs: readonly AnalysisRun[]): readonly AnalysisRun[] {
   return runs.filter((r) => r.status === "completed");
 }
+
+/**
+ * What a run's recorded state means to the user. A run whose state is not
+ * one of the known ones is "unknown", never assumed to have succeeded.
+ */
+export type RunOutcome = "active" | "cancelRequested" | "completed" | "cancelled" | "interrupted" | "failed" | "unknown";
+
+export function runOutcome(run: AnalysisRun): RunOutcome {
+  if (run.lifecycle === "CANCEL_REQUESTED") return "cancelRequested";
+  if (run.status === "queued" || run.status === "running") return "active";
+  if (run.status === "completed") return "completed";
+  if (run.status !== "failed") return "unknown";
+  if (run.lifecycle === "CANCELLED" || run.failureCode === "CANCELLED") return "cancelled";
+  if (run.lifecycle === "INTERRUPTED") return "interrupted";
+  return "failed";
+}
+
+/** Only a failed-status run (including cancelled and interrupted) can be retried on the server. */
+export function canRetry(run: AnalysisRun | undefined): boolean {
+  return run !== undefined && run.status === "failed";
+}

@@ -182,7 +182,8 @@ describe("analysis", () => {
     expect(await screen.findByText(/No model is configured: the run is deterministic/)).toBeTruthy();
     expect(screen.getByText("Failed: the LLM is not configured")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Retry with the same settings" }));
-    await waitFor(() => expect(ports.analysis.start).toHaveBeenCalledWith("p1", { researchQuestion: "why?", reasoningProfile: "CUSTOMER_INSIGHT", outputLocale: "" }));
+    await waitFor(() => expect(ports.analysis.retry).toHaveBeenCalledWith("r1"));
+    expect(ports.analysis.start).not.toHaveBeenCalled();
   });
 
   const englishSource = { id: "d1", projectId: "p1", source: "dataset", title: "", content: "Sales fell in March.", metadata: {}, createdAt: "" };

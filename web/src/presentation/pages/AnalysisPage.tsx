@@ -17,7 +17,7 @@ import { errorMessage } from "../errors";
 import { projectHash } from "../router/routes";
 import { useUseCases } from "../services/context";
 import { assessReadiness } from "../../domain/readiness";
-import { isActive } from "../../domain/runs";
+import { canRetry, isActive, runOutcome } from "../../domain/runs";
 import { ProjectFrame } from "./ProjectFrame";
 import styles from "./Page.module.css";
 
@@ -37,6 +37,7 @@ function AnalysisView({ data, onChanged }: { data: AnalysisWorkspace; onChanged:
   const [started, setStarted] = useState<AnalysisRun | undefined>(undefined);
   const [error, setError] = useState<string | undefined>(undefined);
   const [busy, setBusy] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const [outcome, setOutcome] = useState<Outcome>(undefined);
   const [localeNotRecorded, setLocaleNotRecorded] = useState<string | undefined>(undefined);
   const { project } = data;
@@ -44,8 +45,10 @@ function AnalysisView({ data, onChanged }: { data: AnalysisWorkspace; onChanged:
   const latest = started ?? data.latest;
   const watching = isActive(latest) ? latest?.id : undefined;
 
-  const live = useRunWatcher(watching, (event) => {
-    setOutcome(event.type === "completed" ? { type: "completed" } : event.message === undefined ? { type: "failed" } : { type: "failed", message: event.message });
+  const { live, unknown } = useRunWatcher(watching, (event) => {
+    // A cancelled run is not an error: RunStatus states it once the list is reloaded.
+    if (event.type === "failed" && event.code === "CANCELLED") setOutcome(undefined);
+    else setOutcome(event.type === "completed" ? { type: "completed" } : event.message === undefined ? { type: "failed" } : { type: "failed", message: event.message });
     setStarted(undefined);
     onChanged();
   });
@@ -60,8 +63,18 @@ function AnalysisView({ data, onChanged }: { data: AnalysisWorkspace; onChanged:
       if (outputLocaleNotRecorded(input, run)) setLocaleNotRecorded(input.outputLocale);
     }, (e: unknown) => setError(errorMessage(e, t))).finally(() => setBusy(false));
   };
+  const cancel = () => {
+    if (!latest || !watching || cancelling) return;
+    setCancelling(true);
+    setError(undefined);
+    analysis.cancelAnalysis(latest).then((run) => {
+      setStarted(run);
+      if (!isActive(run)) onChanged(); // a queued run is cancelled at once
+    }, (e: unknown) => { setError(errorMessage(e, t)); onChanged(); }).finally(() => setCancelling(false));
+  };
   const onStart = (input: StartAnalysisInput) => { if (readiness.canStart && !busy && !watching) start(input, analysis.startAnalysis(project.id, input)); };
-  const failed = latest?.status === "failed" && !watching;
+  const failed = canRetry(latest) && !watching;
+  const stopping = latest !== undefined && runOutcome(latest) === "cancelRequested";
 
   return (
     <ProjectFrame project={project} current="analysis" title={t("analysisPage.title")} subtitle={t("analysisPage.lead")}>
@@ -71,11 +84,19 @@ function AnalysisView({ data, onChanged }: { data: AnalysisWorkspace; onChanged:
       <Card title={t("analysisPage.status")}>
         <div id="analysis-panel" class={styles.stack}>
           <RunStatus run={latest} live={live} />
+          {watching && unknown && <Notice kind="warning">{t("analysis.stateUnknown")}</Notice>}
+          {stopping && <Notice kind="info">{t("analysis.cancelRequested")}</Notice>}
+          {watching && (
+            <div class={styles.actions}>
+              <Button id="cancel-analysis" onClick={cancel} disabled={cancelling || stopping}>{t("analysisPage.cancel")}</Button>
+              <span class={styles.hint}>{t("analysisPage.cancelHint")}</span>
+            </div>
+          )}
           {localeNotRecorded && <Notice kind="warning">{t("analysis.outputLocaleNotRecorded", { locale: label(OUTPUT_LOCALE_LABELS, localeNotRecorded) })}</Notice>}
           {outcome?.type === "failed" && <Notice kind="error">{t("analysis.streamFailed", { message: outcome.message ?? t("analysis.unknownError") })}</Notice>}
           {failed && latest && (
             <div class={styles.actions}>
-              <span class={styles.hint}>{t("analysisPage.retryHint")}</span>
+              <span class={styles.hint}>{t(runOutcome(latest) === "failed" ? "analysisPage.retryHint" : "analysisPage.retryStoppedHint")}</span>
               <Button id="retry-analysis" onClick={() => { if (readiness.canStart && !busy && !watching) start(retryInput(latest), analysis.retryAnalysis(latest)); }} disabled={busy || !readiness.canStart}>{t("analysisPage.retry")}</Button>
             </div>
           )}

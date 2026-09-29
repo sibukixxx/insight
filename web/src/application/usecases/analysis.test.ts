@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { AnalysisRun } from "../../domain/models";
 import type { AnalysisStreamHandlers } from "../ports";
-import { analysisUseCases, outputLocaleNotRecorded, retryInput } from "./analysis";
+import { analysisUseCases, outputLocaleNotRecorded, retryInput, snapshotEvent } from "./analysis";
 
 const run = (status: string, extra: Partial<AnalysisRun> = {}): AnalysisRun => ({ id: "r1", projectId: "p1", status, progress: 0, createdAt: "t", ...extra });
 
@@ -10,7 +10,7 @@ function setup(snapshot: AnalysisRun) {
   const unsubscribe = vi.fn();
   const ports = {
     projects: {} as never, evidence: {} as never, settings: {} as never,
-    analysis: { get: vi.fn(async () => snapshot), list: vi.fn(), start: vi.fn(), compare: vi.fn() },
+    analysis: { get: vi.fn(async () => snapshot), list: vi.fn(), start: vi.fn(), compare: vi.fn(), cancel: vi.fn(async () => snapshot), retry: vi.fn(async () => snapshot) },
     stream: { watch: (_: string, h: AnalysisStreamHandlers) => { handlers = h; return unsubscribe; } },
   };
   return { uc: analysisUseCases(ports), handlers: () => handlers as AnalysisStreamHandlers, unsubscribe, ports };
@@ -46,11 +46,47 @@ describe("watchRun", () => {
   });
 });
 
+describe("retryAnalysis and cancelAnalysis", () => {
+  it("retries through the server so the recorded output language is kept, without re-sending the request", async () => {
+    const failed = run("failed", { outputLocale: "ja-JP", researchQuestion: "why" });
+    const { uc, ports } = setup(failed);
+    await uc.retryAnalysis(failed);
+    expect(ports.analysis.retry).toHaveBeenCalledWith("r1");
+    expect(ports.analysis.start).not.toHaveBeenCalled();
+  });
+
+  it("cancels by run id", async () => {
+    const { uc, ports } = setup(run("running"));
+    await uc.cancelAnalysis(run("running"));
+    expect(ports.analysis.cancel).toHaveBeenCalledWith("r1");
+  });
+});
+
+describe("watchRun when the state cannot be read", () => {
+  it("reports unknown, then clears it once the run can be read again", async () => {
+    const { uc, handlers, ports } = setup(run("running"));
+    const states: boolean[] = [];
+    ports.analysis.get.mockRejectedValueOnce(new Error("network"));
+    uc.watchRun("r1", () => undefined, (unknown) => states.push(unknown));
+    handlers().onDisconnect();
+    await vi.waitFor(() => expect(states).toEqual([true]));
+    handlers().onDisconnect();
+    await vi.waitFor(() => expect(states).toEqual([true, false]));
+  });
+});
+
 describe("retryInput", () => {
   it("reuses the failed run's question, profile and output locale", () => {
     expect(retryInput(run("failed", { researchQuestion: "why", reasoningProfile: "CUSTOMER_INSIGHT", outputLocale: "ja-JP" })))
       .toEqual({ researchQuestion: "why", reasoningProfile: "CUSTOMER_INSIGHT", outputLocale: "ja-JP" });
     expect(retryInput(run("failed"))).toEqual({ researchQuestion: "", reasoningProfile: "GENERAL_RESEARCH", outputLocale: "" });
+  });
+});
+
+describe("snapshotEvent", () => {
+  it("carries the failure code so a cancelled run is not reported as an error", () => {
+    expect(snapshotEvent(run("failed", { error: "cancelled by request", failureCode: "CANCELLED" })))
+      .toEqual({ type: "failed", message: "cancelled by request", code: "CANCELLED" });
   });
 });
 

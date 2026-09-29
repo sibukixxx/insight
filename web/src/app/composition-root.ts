@@ -4,7 +4,7 @@
 import { createUseCases, type UseCases } from "../application";
 import type { Ports } from "../application/ports";
 import {
-  httpAnalysis, httpEvidence, httpLinks, httpProjects, httpResearch, httpResults, httpSamples, httpSettings, httpSystem,
+  httpAnalysis, httpEvidence, httpIngest, httpLinks, httpProjects, httpResearch, httpResults, httpSamples, httpSettings, httpSystem,
 } from "../infrastructure/http/adapters";
 import { createHttpClient } from "../infrastructure/http/client";
 import { browserLocaleStore } from "../infrastructure/i18n/localeStore";
@@ -16,6 +16,7 @@ export function createPorts(): Ports {
     system: httpSystem(http),
     projects: httpProjects(http),
     evidence: httpEvidence(http),
+    ingest: httpIngest(http),
     analysis: httpAnalysis(http),
     stream: sseAnalysisStream(),
     results: httpResults(http),

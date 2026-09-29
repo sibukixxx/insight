@@ -1,4 +1,5 @@
 import type { InputWorkspace } from "../../application/usecases/importEvidence";
+import { useState } from "preact/hooks";
 import { ButtonLink } from "../components/Button";
 import { Card } from "../components/Card";
 import { Loading, PageError } from "../components/States";
@@ -6,6 +7,7 @@ import { CsvImport, type CsvSample } from "../features/input/CsvImport";
 import { SampleScenarioPanel } from "../features/samples/Samples";
 import { DocumentList } from "../features/input/DocumentList";
 import { TextEvidenceForm } from "../features/input/TextEvidenceForm";
+import { IngestSection } from "../features/input/IngestSection";
 import { useAsync } from "../hooks/useAsync";
 import { useI18n } from "../i18n/I18nProvider";
 import { projectHash } from "../router/routes";
@@ -26,6 +28,7 @@ function InputView({ data, onChanged }: { data: InputWorkspace; onChanged: () =>
   const build = useBuild();
   const { samples, exports } = useUseCases();
   const { project, documents, formats } = data;
+  const [ingestKey, setIngestKey] = useState(0);
   const scenarioState = useAsync(() => samples.forProject(build, project.id), [samples, build, project.id]);
   const scenario = scenarioState.status === "ok" ? scenarioState.data : undefined;
   const sample: CsvSample | undefined = scenario && {
@@ -45,8 +48,9 @@ function InputView({ data, onChanged }: { data: InputWorkspace; onChanged: () =>
       <p class={styles.hint}>{t("input.formats.title")}{": "}{t("input.formats.hint")}</p>
       <div class={styles.stack}>
         <Card title={t("project.importCsv")} description={t("input.csv.hint")}>
-          <CsvImport projectId={project.id} formats={formats} onImported={onChanged} sample={sample} />
+          <CsvImport projectId={project.id} formats={formats} onImported={onChanged} onIngestSubmitted={() => setIngestKey((k) => k + 1)} sample={sample} />
         </Card>
+        <IngestSection projectId={project.id} refreshKey={ingestKey} onReady={onChanged} />
         <Card title={t("project.pasteText")} description={t("input.text.hint")}>
           <TextEvidenceForm projectId={project.id} sourceTypes={documentsFormat?.sourceTypes ?? []} onAdded={onChanged} />
         </Card>

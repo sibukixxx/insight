@@ -3,6 +3,7 @@ import { analysisUseCases } from "./usecases/analysis";
 import { dashboardUseCases } from "./usecases/dashboard";
 import { exportUseCases } from "./usecases/exportReport";
 import { historyUseCases } from "./usecases/history";
+import { ingestUseCases } from "./usecases/ingest";
 import { importEvidenceUseCases } from "./usecases/importEvidence";
 import { localeUseCases } from "./usecases/locale";
 import { researchUseCases } from "./usecases/research";
@@ -18,7 +19,7 @@ export function createUseCases(ports: Ports) {
     system: systemUseCases(ports),
     dashboard: dashboardUseCases(ports),
     workspace: workspaceUseCases(ports),
-    input: importEvidenceUseCases(ports),
+    input: { ...importEvidenceUseCases(ports), ...ingestUseCases(ports) },
     analysis: analysisUseCases(ports),
     results: resultsUseCases(ports),
     history: historyUseCases(ports),
