@@ -149,7 +149,12 @@ export function CsvImport({ projectId, formats, onImported, onIngestSubmitted, s
         </Disclosure>}
       </fieldset>
       <p id={`${fileInputId}-selected`} class={styles.meta}>{t("input.csv.selectedFormat", { format: kindLabel(kind) })}</p>
-      {format ? <FormatGuide formats={[format]} /> : <Notice kind="warning">{t("input.csv.noFormats")}</Notice>}
+      {format ? (
+        // Once a file is being reviewed the column list and template are no longer the task.
+        <Disclosure summary={t("input.format.details")} open={step.state !== "preview" && step.state !== "importing"}>
+          <FormatGuide formats={[format]} />
+        </Disclosure>
+      ) : <Notice kind="warning">{t("input.csv.noFormats")}</Notice>}
       <div
         class={[styles.drop, dragging && styles.dragging].filter(Boolean).join(" ")}
         onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
@@ -260,7 +265,7 @@ function PreviewPanel({ preview, busy, onConfirm, onCancel }: { preview: ImportP
           </>
         ) : <p class={styles.meta}>{t("input.preview.noProfile", { reason: preview.profileError ?? "" })}</p>}
       </Disclosure>
-      <div class={styles.kinds}>
+      <div class={`${styles.kinds} ${styles.actions}`}>
         <Button variant="primary" onClick={onConfirm} disabled={busy || preview.totalDocuments === 0}>
           {preview.kind === "analysis" ? t("project.importAnalysisData") : t("project.import")}
         </Button>

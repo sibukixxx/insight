@@ -72,9 +72,16 @@ function AnalysisView({ data, onChanged }: { data: AnalysisWorkspace; onChanged:
       if (!isActive(run)) onChanged(); // a queued run is cancelled at once
     }, (e: unknown) => { setError(errorMessage(e, t)); onChanged(); }).finally(() => setCancelling(false));
   };
-  const onStart = (input: StartAnalysisInput) => { if (readiness.canStart && !busy && !watching) start(input, analysis.startAnalysis(project.id, input)); };
+  // A question-only exploration needs a model but no evidence (#158); a data run needs both.
+  const onStart = (input: StartAnalysisInput) => {
+    if (busy || watching || !(input.exploratory ? readiness.canExplore : readiness.canStart)) return;
+    start(input, analysis.startAnalysis(project.id, input));
+  };
+  const retryReady = latest?.exploratory ? readiness.canExplore : readiness.canStart;
   const failed = canRetry(latest) && !watching;
   const stopping = latest !== undefined && runOutcome(latest) === "cancelRequested";
+  // A question-only exploration stays reachable once evidence has been added (#158).
+  const earlierExploration = data.documents.length > 0 ? data.runs.find((r) => r.metrics?.exploration !== undefined) : undefined;
 
   return (
     <ProjectFrame project={project} current="analysis" title={t("analysisPage.title")} subtitle={t("analysisPage.lead")}>
@@ -97,7 +104,7 @@ function AnalysisView({ data, onChanged }: { data: AnalysisWorkspace; onChanged:
           {failed && latest && (
             <div class={styles.actions}>
               <span class={styles.hint}>{t(runOutcome(latest) === "failed" ? "analysisPage.retryHint" : "analysisPage.retryStoppedHint")}</span>
-              <Button id="retry-analysis" onClick={() => { if (readiness.canStart && !busy && !watching) start(retryInput(latest), analysis.retryAnalysis(latest)); }} disabled={busy || !readiness.canStart}>{t("analysisPage.retry")}</Button>
+              <Button id="retry-analysis" onClick={() => { if (retryReady && !busy && !watching) start(retryInput(latest), analysis.retryAnalysis(latest)); }} disabled={busy || !retryReady}>{t("analysisPage.retry")}</Button>
             </div>
           )}
           {latest?.status === "completed" && !watching && (
