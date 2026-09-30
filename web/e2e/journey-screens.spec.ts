@@ -29,6 +29,10 @@ test("import → analysis → findings → evidence → report share the Home sh
 
   await page.goto("/");
   const card = page.locator(`[data-scenario=${scenario}]`);
+  // A shared database may already hold projects: then samples are shown on request.
+  const reveal = page.getByRole("button", { name: t("home.samples.show") });
+  await expect(card.or(reveal)).toBeVisible();
+  if (await reveal.isVisible()) await reveal.click();
   await expect(card).toBeVisible();
   await assertShell(page);
   await shot(page, "01-home");

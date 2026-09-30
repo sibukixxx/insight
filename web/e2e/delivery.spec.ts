@@ -106,10 +106,10 @@ test("deep links, back/forward and the locale switch keep the route", async ({ p
   await page.locator("#locale-select-header").selectOption("ja");
   await expect(page).toHaveURL(patternsUrl);
   const jaSections = page.getByRole("navigation", { name: "プロジェクトのセクション" });
-  await expect(jaSections.getByRole("link", { name: "痕跡とパターン" })).toBeVisible();
+  await expect(jaSections.getByRole("link", { name: "ズレとパターン" })).toBeVisible();
   await expect(page.locator("html")).toHaveAttribute("lang", "ja");
   await page.reload();
-  await expect(jaSections.getByRole("link", { name: "痕跡とパターン" })).toBeVisible();
+  await expect(jaSections.getByRole("link", { name: "ズレとパターン" })).toBeVisible();
   await page.locator("#locale-select-header").selectOption("en");
 
   await page.goto(`/${projectHash}?run=does-not-exist`);

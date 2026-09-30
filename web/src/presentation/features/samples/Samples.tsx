@@ -53,7 +53,8 @@ function sourceSummary(t: ReturnType<typeof useI18n>["t"], sources: readonly Sam
 }
 
 /** Home: 「何を調べてみますか？」 — one card per bundled scenario. */
-export function SampleGallery({ projects, onError }: { projects: readonly Project[]; onError: (message: string) => void }) {
+/** `compact`: a returning user has seen the introduction, so only the cards are shown. */
+export function SampleGallery({ projects, onError, compact = false }: { projects: readonly Project[]; onError: (message: string) => void; compact?: boolean }) {
   const i18n = useI18n();
   const { t, label, number } = i18n;
   const build = useBuild();
@@ -75,7 +76,7 @@ export function SampleGallery({ projects, onError }: { projects: readonly Projec
     <section id="samples" class={styles.gallery} aria-labelledby="samples-title" tabIndex={-1}>
       <div class={styles.galleryHead}>
         <h2 id="samples-title" class={styles.galleryTitle}>{t("samples.title")}</h2>
-        <p class={styles.lead}>{t("samples.lead")}</p>
+        {!compact && <p class={styles.lead}>{t("samples.lead")}</p>}
       </div>
       <ModelNotice settings={model} />
       <ol class={styles.cards}>
@@ -90,12 +91,15 @@ export function SampleGallery({ projects, onError }: { projects: readonly Projec
               </div>
               <h3 id={`sample-${s.id}-title`} class={styles.cardTitle}>{text.title}</h3>
               {text.question && <p class={styles.question}><span class={styles.questionLabel}>{t("samples.questionLabel")}</span>{text.question}</p>}
-              <dl class={styles.facts}>
-                <div><dt>{t("samples.inputLabel")}</dt><dd>{t("samples.inputValue", { format: label(IMPORT_KIND_LABELS, s.importKind), rows: number(s.rows) })}</dd></div>
-                {text.learn && <div><dt>{t("samples.learnLabel")}</dt><dd>{text.learn}</dd></div>}
-                <div><dt>{t("samples.sourceLabel")}</dt><dd>{sourceSummary(t, s.sources)}</dd></div>
-                {text.caution && <div><dt>{t("samples.cautionLabel")}</dt><dd>{text.caution}</dd></div>}
-              </dl>
+              {/* The data kind and the caution stay visible; the rest is one deliberate step away. */}
+              {text.caution && <dl class={styles.facts}><div><dt>{t("samples.cautionLabel")}</dt><dd>{text.caution}</dd></div></dl>}
+              <Disclosure summary={t("samples.details")}>
+                <dl class={styles.facts}>
+                  <div><dt>{t("samples.inputLabel")}</dt><dd>{t("samples.inputValue", { format: label(IMPORT_KIND_LABELS, s.importKind), rows: number(s.rows) })}</dd></div>
+                  {text.learn && <div><dt>{t("samples.learnLabel")}</dt><dd>{text.learn}</dd></div>}
+                  <div><dt>{t("samples.sourceLabel")}</dt><dd>{sourceSummary(t, s.sources)}</dd></div>
+                </dl>
+              </Disclosure>
               <div class={styles.actions}>
                 <Button variant="primary" onClick={() => open(card)} aria-describedby={`sample-${s.id}-title`}>{t("samples.try")}</Button>
                 <ButtonLink size="small" variant="ghost" href={exports.sampleInputLink(s.id)} download>{t("samples.download")}</ButtonLink>

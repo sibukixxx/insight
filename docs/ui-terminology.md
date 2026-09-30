@@ -67,7 +67,7 @@ Status of the candidates proposed in the issue: **adopted**, **adjusted**
 | Insight | `Insight` | インサイト | insight | 各発見は根拠の状態を伴う仮説 | Never a validated conclusion without its evidence state and limitations | Explain |
 | Finding | findings page | 発見 | finding | — | A hypothesis with its evidence state | Explain |
 | Observation / hypothesis / counter-evidence / confidence | — | 観察 / 仮説・説明仮説 / 反証 / 確信度 | observation / hypothesis / counter-evidence / confidence | — | Confidence is the run's score, not a probability of truth | Explain |
-| Trace / pattern | `deviation`, `repetition` | 痕跡（期待・基準とのズレ） / 繰り返しのパターン | trace (expectation mismatch) / recurring pattern | — | Explanations of a mismatch remain hypotheses | Explain (nav label pending) |
+| Trace / pattern | `deviation`, `repetition` | ズレ（期待・基準との食い違い） / 繰り返しのパターン | trace (expectation mismatch) / recurring pattern | — | Explanations of a mismatch remain hypotheses. 「ズレ」 matches the insight page wording (「ズレ・意外な事実」) | Replace (ja; en keeps "trace") |
 | Output locale | `outputLocale`: `""` `ja-JP` `en-US` | モデルが書くテキストの言語 / 自動（資料・質問の言語） | Language of model-written text / Automatic | — | Never translates evidence or quotes; separate from the UI language | Keep (#131) |
 | Model connection | settings | AI モデルの接続設定 / 接続先 URL（OpenAI 互換 API のベース URL） / モデル / API キー | AI model connection / Base URL (OpenAI-compatible endpoint) / Model / API key | — | Was 「LLM 設定」 / "LLM settings" | Replace |
 | Brand, formats, identifiers | — | Insight Lab, CSV, PDF, Excel, Markdown, JSON, URL, API, AI, SNS, Web, `en-US`, `ja-JP`, model names, filenames, CSV column names and source values | same | — | Kept verbatim | Keep |
@@ -103,15 +103,28 @@ Four defects observed after #153 were fixed:
 3. 「表明されたニーズ（旧形式）」「JTBD（旧形式）」 rendered with "-".
 4. 「対応している入力: このサーバーが受け付ける形式です」.
 
+## Settled in the second slice (#141, with #165)
+
+- Navigation and page titles: 「痕跡とパターン」 → 「ズレとパターン」 (ja only;
+  the badge 「痕跡」 → 「ズレ」). English keeps "Traces and patterns".
+- ja uses 「取り込む／取り込み」 for every import action; 「インポート」 is gone
+  (buttons 「取り込む」, 「CSV を取り込む」, 「分析データを取り込む」). The API, CSV and
+  route names keep `import`.
+- The publication state heading shows only the label. The raw code is in the
+  heading's `data-state` attribute and `title`.
+- Home follows the real project state (no stored first-visit flag): with no
+  project it shows the introduction and the sample gallery; with projects it
+  shows the project list first, drops the lead sentences and keeps samples
+  behind an opt-in 「サンプルを見る」 / "Show samples" button
+  (`aria-expanded`, `aria-controls`). Sample cards show title, data kind,
+  question, caution and the actions; input, what it teaches and sources are in
+  a 「詳細・出典」 / "Details and sources" disclosure (native `<details>`, keyboard
+  reachable). Duplicated introductions removed on a returning Home: the hero
+  lead, the gallery lead and, per card, three of four fact rows.
+
 ## Pending (later slices)
 
-- Navigation label 「痕跡とパターン」 / "Traces and patterns": candidate
-  「ズレと繰り返し」. E2E specs assert the current label.
-- The publication state heading shows the raw state code in `<code>` next to
-  the label; decide whether it moves to a secondary position.
-- Mixed 「インポート」 / 「取り込み」 in ja; pick one verb per action.
 - Evaluation metric names (「カバー率」, "Trace-backed Insights").
-- Home progressive disclosure and returning-user brevity (separate slice).
 - README.ja.md and the user guide: use the display terms above with the
   original term on first mention.
 - Cross-check generic concepts with TechVit (techvit-insight #70); private

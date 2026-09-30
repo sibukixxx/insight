@@ -96,6 +96,7 @@ describe("sample gallery", () => {
       settings: { model: "m", baseUrl: "http://x", maskedApiKey: "", hasApiKey: false, configured: true },
     });
     renderApp(fakePorts(state), demo);
+    fireEvent.click(await screen.findByRole("button", { name: "Show samples" }));
     const link = await screen.findByRole("link", { name: /View the results of the last completed run/ });
     expect(link.getAttribute("href")).toBe("#/projects/demo-scenario-ja-shop-records/findings?run=r9");
     expect(screen.getByText(/AI model connected \(m\)/)).toBeTruthy();
@@ -106,6 +107,34 @@ describe("sample gallery", () => {
     renderApp(fakePorts(fakeState({ projects: [{ id: scenario.projectId, name: "Sample 02", createdAt: "" }], samples: [scenario] })), { ...demo, hash: `#/projects/${scenario.projectId}/analysis` });
     expect(await screen.findByText("Sample project:")).toBeTruthy();
     expect(screen.getByText("Real data (official statistics)")).toBeTruthy();
+  });
+
+  it("for a returning user lists projects first, hides the introduction and reveals samples on request", async () => {
+    const ports = fakePorts(fakeState({ samples: [sampleScenario()] }));
+    renderApp(ports, demo);
+    await screen.findByText("Project One");
+    expect(screen.queryByText(/Turn supplied evidence/)).toBeNull();
+    expect(screen.queryByRole("region", { name: "What would you like to investigate?" })).toBeNull();
+    const toggle = screen.getByRole("button", { name: "Show samples" });
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(toggle);
+    const gallery = await screen.findByRole("region", { name: "What would you like to investigate?" });
+    expect(screen.getByRole("button", { name: "Hide samples" }).getAttribute("aria-expanded")).toBe("true");
+    // The returning view drops the gallery's own introduction too.
+    expect(within(gallery).queryByText(/Choosing a sample opens/)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Hide samples" }));
+    expect(screen.queryByRole("region", { name: "What would you like to investigate?" })).toBeNull();
+  });
+
+  it("keeps the data kind and caution visible on a collapsed card and the rest one step away", async () => {
+    renderApp(fakePorts(fakeState({ projects: [], samples: [sampleScenario()] })), demo);
+    const gallery = await screen.findByRole("region", { name: "What would you like to investigate?" });
+    const card = within(gallery).getByRole("listitem");
+    expect(within(card).getByText("Synthetic data")).toBeTruthy();
+    const details = within(card).getByText("Details and sources").closest("details") as HTMLElement;
+    expect(details.hasAttribute("open")).toBe(false);
+    expect(within(details).getByText("Documents CSV, 9 rows (accepted as is)")).toBeTruthy();
+    expect(within(card).getByRole("button", { name: "Try this example" })).toBeTruthy();
   });
 
   it("never asks a delivery build for samples", async () => {

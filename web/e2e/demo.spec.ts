@@ -77,11 +77,13 @@ test("evaluation, patterns and the research publication review work on a complet
   await page.getByRole("button", { name: "Create from latest completed analysis" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Did the program change the outcome?" })).toBeVisible();
   const state = page.getByRole("region", { name: "Publication state" });
-  await expect(state.locator("h2 code")).toHaveText(/^[A-Z_]+$/);
+  await expect(state.locator("h2[data-state]")).toHaveAttribute("data-state", /^[A-Z_]+$/);
+  await expect(state.locator("h2[data-state]")).not.toHaveText(/^[A-Z_]+$/); // the heading shows the label, the raw code is data
   await page.getByLabel("Contribution").selectOption("REPLICATION");
   await page.getByLabel("I completed the human review of this output").check();
   await page.getByRole("button", { name: "Save review and assess readiness" }).click();
-  await expect(state.locator("h2 code")).toHaveText(/^[A-Z_]+$/);
+  await expect(state.locator("h2[data-state]")).toHaveAttribute("data-state", /^[A-Z_]+$/);
+  await expect(state.locator("h2[data-state]")).not.toHaveText(/^[A-Z_]+$/); // the heading shows the label, the raw code is data
   await expect(page.getByRole("alert")).toHaveCount(0);
   await page.getByRole("link", { name: /Back to research publications/ }).click();
   await expect(page.getByRole("link", { name: "Did the program change the outcome?" })).toBeVisible();

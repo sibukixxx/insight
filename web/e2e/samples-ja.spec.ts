@@ -36,7 +36,7 @@ test("サンプル選択 → CSV 取り込み → 分析 → 根拠 → レポ�
   await expect(page.locator("main")).toContainText("取り込めるのは、下に示す CSV 形式");
   await expect(page.locator("main")).not.toContainText(/旧形式|対応している入力:/);
   await shot(page, "02-input-preview");
-  await preview.getByRole("button", { name: "インポート" }).click();
+  await preview.getByRole("button", { name: "取り込む" }).click();
   const next = page.getByRole("region", { name: "次のステップ", exact: true });
   await next.getByRole("link", { name: /分析へ進む/ }).click();
 
@@ -77,8 +77,18 @@ test("サンプル選択 → CSV 取り込み → 分析 → 根拠 → レポ�
 
 test("分析済みのサンプルへ戻り、スマートフォン幅でも横スクロールしない @mobile", async ({ page }) => {
   await page.goto("/");
+  // With projects Home is for resuming: no introduction, samples only on request (#141).
+  await expect(page.getByRole("heading", { name: "プロジェクト" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "何を調べてみますか？" })).toHaveCount(0);
+  await page.getByRole("button", { name: "サンプルを見る" }).click();
   const card = page.locator("[data-scenario=ja-shop-records]");
   await expect(card.getByRole("button", { name: "この例で試す" })).toBeVisible();
+  // Details stay reachable from the keyboard: the summary takes focus and Enter opens it.
+  const summary = card.getByText("詳細・出典");
+  await expect(card.getByText(/・9行/)).toBeHidden();
+  await summary.focus();
+  await page.keyboard.press("Enter");
+  await expect(card.getByText(/・9行/)).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await shot(page, "01-home");
   await card.getByRole("link", { name: /前回実行した分析結果を見る/ }).click();
