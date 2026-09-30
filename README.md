@@ -41,11 +41,20 @@ domain-owned decision
 ```
 
 Consumers should integrate through the versioned Public Engine Contract or the thin standalone SDKs. Insight Core must remain usable without any specific private application or vertical.
+## Current implementation snapshot — 2026-09-30
+
+- The canonical runtime is a single Go 1.26+ binary with SQLite; the browser UI is embedded from the committed `internal/web/dist` bundle.
+- Public Engine Contract v1, standalone Go/JS SDK compatibility, Analytical Artifact v1, temporal/longitudinal research, scenario analysis, output locale, OpenAPI views, persistence ownership, and the optional remote-runtime PoC are documented and implemented to the extent described in `docs/`.
+- The current P0 validation focus is the standalone browser journey (#131/#165) and playable Japanese demos (#151), not another engine rewrite.
+- Generic XLSX/PDF ingestion, autonomous web acquisition, causal-effect estimation, and managed multi-tenant control-plane behavior are still non-goals or external concerns.
+
+Use `docs/project-status.md` for the conservative current-state view; older design/implementation-plan documents are historical when they disagree with code/tests.
+
 ## Quick start
 
 Requirements:
 
-- Go 1.25+
+- Go 1.26+
 - SQLite is embedded; no external database is required
 
 Build and start the reference server:
