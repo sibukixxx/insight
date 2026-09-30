@@ -13,7 +13,7 @@
 
 必要環境:
 
-- Go 1.25+
+- Go 1.26+
 - SQLiteは組み込み。外部DBは不要
 
 BuildしてReference Serverを起動します。
