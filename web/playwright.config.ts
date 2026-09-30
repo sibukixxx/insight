@@ -36,6 +36,12 @@ export default defineConfig({
     { name: "question-first", testMatch: /question-first\.spec\.ts/, grep: /@model/, dependencies: ["demo-ja-mobile"], use: { ...devices["Desktop Chrome"], locale: "ja", baseURL: `http://127.0.0.1:${DEMO_JA}` } },
     { name: "question-first-mobile", testMatch: /question-first\.spec\.ts/, grep: /@model/, dependencies: ["question-first"], use: { ...devices["Pixel 7"], locale: "ja", baseURL: `http://127.0.0.1:${DEMO_JA}` } },
     { name: "question-first-delivery", testMatch: /question-first\.spec\.ts/, grep: /@nomodel/, dependencies: ["delivery"], use: { ...devices["Desktop Chrome"], locale: "ja", baseURL: `http://127.0.0.1:${DELIVERY}` } },
+    // The journey screens (#165): each project gets its own scenario so the shared databases stay independent.
+    // They run after the suites above that use the same server.
+    { name: "journey-en-desktop", testMatch: /journey-screens\.spec\.ts/, dependencies: ["demo"], metadata: { scenario: "ja-shop-records", locale: "en", mobile: false }, use: { ...devices["Desktop Chrome"], locale: "en", baseURL: `http://127.0.0.1:${DEMO}` } },
+    { name: "journey-en-mobile", testMatch: /journey-screens\.spec\.ts/, dependencies: ["demo-mobile"], metadata: { scenario: "ja-shop-records", locale: "en", mobile: true }, use: { ...devices["Pixel 7"], locale: "en", baseURL: `http://127.0.0.1:${DEMO_MOBILE}` } },
+    { name: "journey-ja-desktop", testMatch: /journey-screens\.spec\.ts/, dependencies: ["question-first-mobile"], metadata: { scenario: "ja-official-population", locale: "ja", mobile: false }, use: { ...devices["Desktop Chrome"], locale: "ja", baseURL: `http://127.0.0.1:${DEMO_JA}` } },
+    { name: "journey-ja-mobile", testMatch: /journey-screens\.spec\.ts/, dependencies: ["journey-ja-desktop"], metadata: { scenario: "ja-population-establishments", locale: "ja", mobile: true }, use: { ...devices["Pixel 7"], locale: "ja", baseURL: `http://127.0.0.1:${DEMO_JA}` } },
   ],
   webServer: [
     { command: `sh e2e/serve.sh delivery ${DELIVERY}`, url: `http://127.0.0.1:${DELIVERY}/api/health`, timeout: 180_000, reuseExistingServer: false },

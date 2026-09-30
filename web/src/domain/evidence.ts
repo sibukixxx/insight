@@ -1,6 +1,6 @@
 // Pure helpers for showing a quote inside its source document.
 
-import type { Evidence, Pattern } from "./models";
+import type { Evidence, Pattern, QuoteSpan } from "./models";
 
 export interface QuoteContext {
   readonly before: string;
@@ -13,6 +13,11 @@ export function quoteContext(content: string, start: number, end: number): Quote
   const s = Math.max(0, Math.min(content.length, Number.isFinite(start) ? start : 0));
   const e = Math.max(s, Math.min(content.length, Number.isFinite(end) ? end : s));
   return { before: content.slice(0, s), quote: content.slice(s, e), after: content.slice(e) };
+}
+
+/** Identity of a quote in its source: the same span is the same evidence wherever it is listed. */
+export function spanKey(span: QuoteSpan): string {
+  return `${span.documentId}:${span.startOffset}-${span.endOffset}`;
 }
 
 export function splitEvidence(evidence: readonly Evidence[]): { support: readonly Evidence[]; counter: readonly Evidence[]; other: readonly Evidence[] } {

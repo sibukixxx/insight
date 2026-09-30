@@ -53,6 +53,9 @@
   padding: var(--space-3) var(--space-4); border: 1px solid var(--color-accent-border); border-left: 4px solid var(--color-data);
   border-radius: var(--radius-md); background: var(--color-surface);
 }
+/* On a phone the preview is long: keep Import and Cancel reachable while reviewing it. */
+.actions { position: sticky; bottom: 0; z-index: 2; padding-block: var(--space-3); background: var(--color-surface); border-top: 1px solid var(--color-border); }
+@media (min-width: 601px) { .actions { position: static; padding-block: 0; border-top: none; background: none; } }
 .sampleTitle { font-weight: 700; color: var(--color-ink); }
 
 .receipt { display: grid; gap: var(--space-2); padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-muted); }

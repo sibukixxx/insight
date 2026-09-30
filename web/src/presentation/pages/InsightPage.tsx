@@ -1,4 +1,4 @@
-import { splitEvidence, splitPatterns } from "../../domain/evidence";
+import { spanKey, splitEvidence, splitPatterns } from "../../domain/evidence";
 import type { MessageKey } from "../../domain/messages";
 import type { InsightDetail } from "../../domain/models";
 import { Card } from "../components/Card";
@@ -46,6 +46,9 @@ export function InsightPage({ insightId }: { insightId: string }) {
 function Trail({ insight }: { insight: InsightDetail }) {
   const { t } = useI18n();
   const { traces, repetitions } = splitPatterns(insight.patterns);
+  // Only what the Evidence cards below actually list counts as already shown.
+  const listed = splitEvidence(insight.evidence);
+  const shared = new Set([...listed.support, ...listed.counter].map(spanKey));
   return (
     <section id="trail" tabIndex={-1} class={styles.trail} aria-labelledby="trail-title">
       <h2 id="trail-title" class={styles.sectionTitle}>{t("insight.trailTitle")}</h2>
@@ -54,8 +57,8 @@ function Trail({ insight }: { insight: InsightDetail }) {
       <h3 class={styles.subtitle}>{t("insight.sourceObservations")}</h3>
       {insight.patterns.length === 0 ? <EmptyState>{t("pattern.noneForInsight")}</EmptyState> : (
         <>
-          {traces.length ? traces.map((p) => <PatternBlock key={p.id} pattern={p} />) : <Notice kind="warning" spaced>{t("pattern.repetitionOnly")}</Notice>}
-          {repetitions.map((p) => <PatternBlock key={p.id} pattern={p} />)}
+          {traces.length ? traces.map((p) => <PatternBlock key={p.id} pattern={p} shared={shared} />) : <Notice kind="warning" spaced>{t("pattern.repetitionOnly")}</Notice>}
+          {repetitions.map((p) => <PatternBlock key={p.id} pattern={p} shared={shared} />)}
         </>
       )}
     </section>
@@ -64,11 +67,12 @@ function Trail({ insight }: { insight: InsightDetail }) {
 
 function Fields({ insight }: { insight: InsightDetail }) {
   const { t } = useI18n();
+  // Legacy fields that the run never recorded are left out; the rest say so.
   const rows: readonly (readonly [MessageKey, string, string | undefined, boolean])[] = [
     ["insight.observation", insight.observation, styles.fact, true],
-    ["insight.statedNeed", insight.statedNeed, undefined, true],
+    ["insight.statedNeed", insight.statedNeed, undefined, Boolean(insight.statedNeed)],
     ["insight.hypothesis", insight.latentNeed, styles.latent, true],
-    ["insight.jtbd", insight.jtbd, undefined, true],
+    ["insight.jtbd", insight.jtbd, undefined, Boolean(insight.jtbd)],
     ["insight.interpretation", insight.interpretation, styles.interpretation, true],
     ["insight.alternative", insight.alternativeInterpretation, styles.alternative, true],
     ["insight.productOpportunity", insight.productOpportunity, undefined, Boolean(insight.productOpportunity)],
@@ -80,7 +84,7 @@ function Fields({ insight }: { insight: InsightDetail }) {
         {rows.filter(([, , , show]) => show).map(([key, value, cls]) => (
           <div key={key} class={[styles.field, cls].filter(Boolean).join(" ")}>
             <dt class={evidenceStyles.fieldLabel}>{t(key)}</dt>
-            <dd>{value || "-"}</dd>
+            <dd>{value || t("common.notRecorded")}</dd>
           </div>
         ))}
       </dl>
