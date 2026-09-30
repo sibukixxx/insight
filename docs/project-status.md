@@ -1,6 +1,6 @@
 # Project Status
 
-_Last reviewed: 2026-09-25_
+_Last reviewed: 2026-09-30_
 
 This document describes the current `main` branch. It is intentionally more conservative than planning or design documents.
 
@@ -158,52 +158,33 @@ The public boundary is Public Engine Contract v1 (`contracts/public-engine/v1`, 
 
 ## Current development priorities
 
-### 1. Real-data dogfooding / Public Evidence Report
+### 1. Close the standalone browser acceptance path
 
-Issue #60 runs a real public-data case through the full loop:
+Issues #131 and #165 are the current P0 acceptance focus: prove one CSV upload → validation/triage → analysis → evidence/result review journey in the actual embedded browser UI, record E2E evidence, and close remaining UX defects such as mobile input length and duplicate citation rendering. This is a delivery/acceptance task, not a new Research Core design.
 
-```text
-Open Data
-→ deterministic pre-analysis
-→ ResearchIteration
-→ ResearchGap
-→ external acquisition
-→ AddedEvidenceLink
-→ new iteration
-→ ValidationEvidence
-→ Insight Delta
-→ Promotion review
-→ approved artifact or valid rejection
-→ Public Evidence Report
-```
+### 2. Playable Japanese demonstrations
 
-The purpose is to find actual semantic/contract failures before expanding the engine.
+Issue #151 packages representative Japanese scenarios that can be exercised without implying unsupported ingestion or research capabilities. Demo content must use the same public/runtime contracts as the product; examples must not bypass validation or fabricate model-backed conclusions.
 
-### 2. Stable Public Engine contract
+### 3. Failure-driven P1 expansion
 
-Issue #59 defines the narrow boundary the standalone Go and TypeScript SDK repositories depend on (now Public Engine Contract v1):
+Open P1 work is intentionally narrower than the historical roadmap:
 
-- language-neutral input contracts;
-- stable Research Artifact output;
-- public vs internal fields;
-- HTTP / CLI / embedded boundaries;
-- error and versioning contracts.
+- #141: make ja/en terminology understandable without changing stored enums or evidence semantics;
+- #118: cross-dataset discovery only with explicit comparability/provenance guardrails;
+- #117: statistical-analysis semantics as a design contract before estimator proliferation.
 
-`internal/*` remains implementation detail unless a deliberately reviewed public façade says otherwise.
-
-### 3. Failure-driven expansion
-
-New core features should be justified by dogfooding or a real consumer. Provider-specific acceleration, giant ingestion UI, and media-specific narrative handoffs are not active core priorities.
+P2 #121 may expose the existing Public Contract through a thin MCP adapter. It must not create a second Research semantics implementation.
 
 ## Success criteria for the next phase
 
 A useful next phase means:
 
-- at least one real public-data Research Loop is completed end-to-end;
-- the engine exposes missing evidence and identification limits honestly;
-- the approved/rejected publication decision is auditable;
-- the public contract keeps being driven by actual consumer operations rather than speculative SDK abstractions;
-- new implementation work targets observed failures.
+- the actual embedded standalone UI completes and records the #131 browser journey;
+- Japanese demo scenarios exercise only supported input and Research semantics;
+- missing evidence, UNKNOWN and identification limits remain explicit in both UI and artifacts;
+- Public Engine/OpenAPI/SDK documentation stays synchronized with route/schema tests;
+- new Core work is justified by observed consumer or dogfood failures rather than speculative breadth.
 
 ## Not a promise of future features
 
