@@ -138,6 +138,42 @@ describe("rendering untrusted text", () => {
   });
 });
 
+describe("insight page", () => {
+  const span = (id: string, quote: string, start: number) => ({ id, documentId: "d1", quote, startOffset: start, endOffset: start + quote.length });
+  const insight = (over: Record<string, unknown> = {}) => ({
+    id: "i1", projectId: "p1", analysisId: "r1", title: "Insight T", observation: "obs", statedNeed: "", latentNeed: "hyp", hypothesis: "hyp", jtbd: "",
+    expectation: "", surprisingFact: "", rationale: "", interpretation: "interp", alternativeInterpretation: "alt", productOpportunity: "", monetizationAngle: "",
+    confidence: 0.5, qualityFlags: [], createdAt: "",
+    patterns: [{ id: "pt1", kind: "deviation", title: "Pattern", observations: [{ ...span("o1", "shared quote", 0), behavior: "b" }, { ...span("o2", "only in the trail", 20), behavior: "b" }] }],
+    evidence: [{ ...span("e1", "shared quote", 0), type: "support", relevanceScore: 1 }],
+    ...over,
+  });
+
+  it("lists a quote once: observations that are also evidence are folded, the rest stay open", async () => {
+    const ports = fakePorts();
+    ports.results.insight.mockResolvedValue(insight());
+    renderApp(ports, { hash: "#/insights/i1" });
+    await screen.findByText("Insight T");
+    // The evidence card keeps its quote; the trail keeps only what evidence does not list.
+    expect(screen.getAllByText(/"shared quote"/)).toHaveLength(2);
+    expect(screen.getByText(/"only in the trail"/)).toBeTruthy();
+    const folded = screen.getByText("1 quotes are also listed under Evidence and Counter-evidence below");
+    expect(folded.closest("details")?.hasAttribute("open")).toBe(false);
+    expect(within(folded.closest("details") as HTMLElement).getByText(/"shared quote"/)).toBeTruthy();
+  });
+
+  it("leaves out legacy fields the run never recorded and says so for the others", async () => {
+    const ports = fakePorts();
+    ports.results.insight.mockResolvedValue(insight({ interpretation: "" }));
+    renderApp(ports, { hash: "#/insights/i1" });
+    await screen.findByText("Insight T");
+    expect(screen.queryByText(/Stated need/)).toBeNull();
+    expect(screen.queryByText(/JTBD/)).toBeNull();
+    expect(screen.queryByText("-")).toBeNull();
+    expect(screen.getAllByText("not recorded").length).toBeGreaterThan(0);
+  });
+});
+
 describe("locale switch", () => {
   it("changes the language in place and keeps the route and typed values", async () => {
     const ports = fakePorts(fakeState({ documents: [] }));
@@ -226,7 +262,9 @@ describe("analysis", () => {
     const ports = fakePorts(fakeState({ settings: configured, runs: [failedExploration] }));
     renderApp(ports, { hash: "#/projects/p1/analysis" });
     fireEvent.click(await screen.findByRole("button", { name: "Retry with the same settings" }));
-    await waitFor(() => expect(ports.analysis.start).toHaveBeenCalledWith("p1", { researchQuestion: "why?", reasoningProfile: "GENERAL_RESEARCH", outputLocale: "", exploratory: true }));
+    // The server retry restores the exploration from the run snapshot (jobmanager.go); the UI sends only the run id.
+    await waitFor(() => expect(ports.analysis.retry).toHaveBeenCalledWith("r1"));
+    expect(ports.analysis.start).not.toHaveBeenCalled();
   });
 
   it("shows an exploration result as unverified candidates with falsification, missing data and a way to add evidence", async () => {
