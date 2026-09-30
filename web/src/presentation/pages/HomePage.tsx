@@ -28,6 +28,14 @@ export function HomePage() {
   const [question, setQuestion] = useState("");
 
   const firstRun = state.status === "ok" && state.data.projects.length === 0;
+  // With projects, Home is a place to resume: no introduction, samples on request (#141).
+  const returning = state.status === "ok" && !firstRun;
+  const [showSamples, setShowSamples] = useState(false);
+  const galleryOpen = firstRun || showSamples;
+  const revealSamples = () => {
+    setShowSamples(true);
+    setTimeout(() => jumpTo("samples"), 0);
+  };
 
   const openSample = () => {
     setBusy(true);
@@ -65,20 +73,46 @@ export function HomePage() {
     target?.focus({ preventScroll: true });
   };
 
+  const projectsCard = (
+    <Card title={t("home.projects")}>
+      {state.status === "loading" && <Loading />}
+      {state.status === "error" && <ErrorState error={state.error} onRetry={state.reload} />}
+      {state.status === "ok" && (state.data.projects.length === 0
+        ? <EmptyState>{t("home.noProjects")}</EmptyState>
+        : (
+          <ul class={styles.list}>
+            {state.data.projects.map((p) => (
+              <li key={p.id}>
+                <a class={styles.projectItem} href={`#/projects/${encodeURIComponent(p.id)}`}>
+                  <span>
+                    <span class={styles.projectName}>{p.name}</span>
+                    <span class={styles.meta}> {"·"} {dateTime(p.createdAt)}</span>
+                  </span>
+                  <span>{t("home.open")} {"→"}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        ))}
+    </Card>
+  );
+
   return (
     <div class={styles.stack}>
       <section class={onboarding.hero} aria-labelledby="home-title">
         <p class={onboarding.eyebrow}>{t("app.tagline")}</p>
         <h1 id="home-title">Insight Lab</h1>
-        <p class={onboarding.lead}>{t("home.lead")}</p>
+        {!returning && <p class={onboarding.lead}>{t("home.lead")}</p>}
         <div class={onboarding.heroActions}>
-          {build.demoBuild && <Button variant="primary" onClick={() => jumpTo("samples")}>{t("home.hero.trySample")}</Button>}
+          {build.demoBuild && <Button variant="primary" onClick={revealSamples}>{t("home.hero.trySample")}</Button>}
           <button type="button" class={onboarding.onInk} onClick={() => jumpTo("new-project-name")}>{t("home.hero.ownCsv")}</button>
         </div>
         {firstRun && <GettingStarted />}
       </section>
 
       {error && <Notice kind="error">{error}</Notice>}
+
+      {returning && projectsCard}
 
       <Card title={t("home.question.title")}>
         <form id="question-first" class={onboarding.path} noValidate onSubmit={startQuestion}>
@@ -90,7 +124,14 @@ export function HomePage() {
         </form>
       </Card>
 
-      {build.demoBuild && state.status === "ok" && <SampleGallery projects={state.data.projects} onError={setError} />}
+      {build.demoBuild && returning && (
+        <div>
+          <Button id="toggle-samples" aria-expanded={showSamples} aria-controls="samples" onClick={() => setShowSamples(!showSamples)}>
+            {showSamples ? t("home.samples.hide") : t("home.samples.show")}
+          </Button>
+        </div>
+      )}
+      {build.demoBuild && state.status === "ok" && galleryOpen && <SampleGallery projects={state.data.projects} onError={setError} compact={returning} />}
 
       <div class={onboarding.paths}>
         <Card title={t("home.sample.title")}>
@@ -122,27 +163,7 @@ export function HomePage() {
         </Card>
       </div>
 
-      <Card title={t("home.projects")}>
-        {state.status === "loading" && <Loading />}
-        {state.status === "error" && <ErrorState error={state.error} onRetry={state.reload} />}
-        {state.status === "ok" && (state.data.projects.length === 0
-          ? <EmptyState>{t("home.noProjects")}</EmptyState>
-          : (
-            <ul class={styles.list}>
-              {state.data.projects.map((p) => (
-                <li key={p.id}>
-                  <a class={styles.projectItem} href={`#/projects/${encodeURIComponent(p.id)}`}>
-                    <span>
-                      <span class={styles.projectName}>{p.name}</span>
-                      <span class={styles.meta}> {"·"} {dateTime(p.createdAt)}</span>
-                    </span>
-                    <span>{t("home.open")} {"→"}</span>
-                  </a>
-                </li>
-              ))}
-            </ul>
-          ))}
-      </Card>
+      {!returning && projectsCard}
     </div>
   );
 }

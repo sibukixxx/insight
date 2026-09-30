@@ -47,7 +47,7 @@ test("create a project, download a template, preview and import an analysis CSV"
   const preview = page.getByRole("region", { name: "Preview" });
   await expect(preview).toBeVisible();
   await expect(preview.getByText("Row 6: corporate_number is empty")).toBeVisible();
-  await preview.getByText("Advanced: dataset profile").click();
+  await preview.getByText("Advanced: column summary (dataset profile)").click();
   await expect(preview.getByRole("cell", { name: "corporate_number" })).toBeVisible();
   await expect(page.getByText("0 documents in this project")).toBeVisible();
 
@@ -106,10 +106,10 @@ test("deep links, back/forward and the locale switch keep the route", async ({ p
   await page.locator("#locale-select-header").selectOption("ja");
   await expect(page).toHaveURL(patternsUrl);
   const jaSections = page.getByRole("navigation", { name: "プロジェクトのセクション" });
-  await expect(jaSections.getByRole("link", { name: "痕跡とパターン" })).toBeVisible();
+  await expect(jaSections.getByRole("link", { name: "ズレとパターン" })).toBeVisible();
   await expect(page.locator("html")).toHaveAttribute("lang", "ja");
   await page.reload();
-  await expect(jaSections.getByRole("link", { name: "痕跡とパターン" })).toBeVisible();
+  await expect(jaSections.getByRole("link", { name: "ズレとパターン" })).toBeVisible();
   await page.locator("#locale-select-header").selectOption("en");
 
   await page.goto(`/${projectHash}?run=does-not-exist`);

@@ -184,6 +184,8 @@ formatters. Switching the language re-renders in place: the route and typed
 form values stay. The choice is stored under the pre-existing
 `localStorage` key `insight-lab.locale`. Model output language is the run's
 `outputLocale` (#125), chosen on the Analysis screen.
+Display terms for internal concepts (ja/en, raw code, helper copy and
+semantic cautions) are kept in [ui-terminology.md](ui-terminology.md).
 
 Guards: `MessageKey` is typed from `en.json`; `internal/web/i18n_test.go`
 checks en/ja key and placeholder parity, that `web/src` uses only defined keys

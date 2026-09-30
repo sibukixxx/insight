@@ -77,7 +77,7 @@ function WorkspaceView({ ws, runId, onChanged }: { ws: Workspace; runId: string 
         </Card>
       )}
 
-      <Card title={selected ? t("project.insightsForRun", { id: selected.id }) : t("project.insights")}
+      <Card title={selected ? t("project.insightsForRun") : t("project.insights")}
         actions={insights.length > PREVIEW_INSIGHTS && selected && <ButtonLink size="small" href={projectHash(project.id, "findings", selected.id)}>{t("workspace.allFindings", { count: insights.length })}</ButtonLink>}>
         {insights.length ? <InsightList insights={insights.slice(0, PREVIEW_INSIGHTS)} /> : <EmptyState>{t("project.noInsights")}</EmptyState>}
       </Card>

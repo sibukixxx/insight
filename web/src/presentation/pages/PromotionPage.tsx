@@ -58,7 +58,7 @@ function Promotion({ view, iteration, onChanged }: { view: PromotionView; iterat
   return (
     <div class={styles.stack}>
       <Card title={t("promotion.state")}>
-        <h2>{label(PROMOTION_STATE_LABELS, state)} <code>{state}</code></h2>
+        <h2 data-state={state} title={state}>{label(PROMOTION_STATE_LABELS, state)}</h2>
         <p class={styles.hint}>{t("promotion.iteration", { sequence: iteration.sequence })}</p>
         {(iteration.promotion?.reasons.length ?? 0) > 0 && <ul>{iteration.promotion?.reasons.map((r) => <li key={r}>{r}</li>)}</ul>}
         <div class={styles.actions}>
